@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24"
+    android:tint="#000000">
+
+    <!-- Thân chuông -->
+    <path
+        android:fillColor="#000000"
+        android:pathData="M12,2C10.34,2 9,3.34 9,5V6.29C6.75,7.14 5.14,9.36 5,12V17L3,19V20H21V19L19,17V12C18.86,9.36 17.25,7.14 15,6.29V5C15,3.34 13.66,2 12,2Z" />
+
+    <!-- Nút nhỏ dưới chuông -->
+    <path
+        android:fillColor="#000000"
+        android:pathData="M10,21C10,22.1 10.9,23 12,23C13.1,23 14,22.1 14,21H10Z"/>
+</vector>

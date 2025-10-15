@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android">
+    <item
+        android:id="@+id/nav_home"
+        android:icon="@drawable/ic_home"
+        android:title="@string/home" />
+
+    <item
+        android:id="@+id/nav_notifications"
+        android:icon="@drawable/ic_notification_light"
+        android:title="@string/notifications" />
+
+    <item
+        android:id="@+id/nav_finance"
+        android:icon="@drawable/ic_bill"
+        android:title="@string/finance" />
+
+    <item
+        android:id="@+id/nav_feedback"
+        android:icon="@drawable/ic_feedback_light"
+        android:title="@string/feedback" />
+
+    <item
+        android:id="@+id/nav_account"
+        android:icon="@drawable/ic_account"
+        android:title="@string/user_account" />
+</menu>
