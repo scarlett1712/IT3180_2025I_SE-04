@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "1063103788641",
+    "project_id": "se-04-enoti",
+    "storage_bucket": "se-04-enoti.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1063103788641:android:0f9b4de919428cfb291c20",
+        "android_client_info": {
+          "package_name": "com.se_04.enoti"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDcenMfY7YKfC7eE5zmXuRU-uXu_WZDyFc"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
