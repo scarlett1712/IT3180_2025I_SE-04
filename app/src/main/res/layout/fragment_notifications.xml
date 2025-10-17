@@ -1,80 +1,59 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:app="http://schemas.android.com/apk/res-auto"
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@android:color/white"
-    android:orientation="vertical"
-    android:padding="16dp">
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:background="@android:color/white">
 
-    <!-- Phần chào -->
-    <TextView
-        android:id="@+id/txtWelcome"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="@string/welcome"
-        android:textSize="24sp"
-        android:textColor="@android:color/black"
-        android:layout_marginTop="60dp"
-        android:layout_marginBottom="4dp" />
-
-    <TextView
-        android:id="@+id/txtGreeting"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="@string/greeting"
-        android:textSize="20sp"
-        android:textColor="@android:color/darker_gray"
-        android:layout_marginBottom="20dp" />
-
-    <!-- Tiêu đề -->
-    <TextView
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="@string/notifications"
-        android:textStyle="bold"
-        android:textSize="24sp"
-        android:textColor="@android:color/black"
-        android:layout_marginBottom="8dp" />
-
-    <!-- Hàng ngang chứa thanh tìm kiếm và sắp xếp -->
     <LinearLayout
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:gravity="center_vertical"
-        android:layout_marginBottom="12dp">
+        android:layout_height="match_parent"
+        android:orientation="vertical"
+        android:padding="16dp">
 
-        <!-- SearchView bên trái -->
+        <!-- Phần chào -->
+        <TextView
+            android:id="@+id/txtWelcome"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/welcome"
+            android:textSize="24sp"
+            android:textColor="@android:color/black"
+            android:layout_marginTop="60dp"
+            android:layout_marginBottom="4dp"/>
+
+        <TextView
+            android:id="@+id/txtGreeting"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/greeting"
+            android:textSize="20sp"
+            android:textColor="@android:color/darker_gray"
+            android:layout_marginBottom="20dp"/>
+
+        <!-- Tiêu đề Thông tin chung -->
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/notifications"
+            android:textStyle="bold"
+            android:textSize="24sp"
+            android:layout_marginBottom="8dp"
+            android:textColor="@android:color/black"/>
+
         <androidx.appcompat.widget.SearchView
             android:id="@+id/search_view"
-            android:layout_width="0dp"
-            android:layout_weight="0.6"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
+            android:layout_marginBottom="8dp"
             app:queryHint="@string/search_title"
             app:iconifiedByDefault="false"
-            android:background="@drawable/search_view_background"
-            android:layout_marginEnd="8dp" />
+            android:background="@drawable/search_view_background" />
 
-        <!-- Spinner bên phải -->
-        <Spinner
-            android:id="@+id/spinner_sort"
-            android:layout_width="125dp"
-            android:layout_height="48dp"
-            android:minHeight="48dp"
-            android:paddingHorizontal="8dp"
-            android:paddingVertical="4dp"
-            android:spinnerMode="dropdown"
-            android:background="@drawable/spinner_background" />
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/recyclerViewNotifications"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"/>
+
     </LinearLayout>
-
-    <!-- Danh sách thông báo -->
-    <androidx.recyclerview.widget.RecyclerView
-        android:id="@+id/recyclerViewNotifications"
-        android:layout_width="match_parent"
-        android:layout_height="0dp"
-        android:layout_weight="1"
-        android:clipToPadding="false"
-        android:paddingBottom="16dp" />
-
-</LinearLayout>
+</ScrollView>
