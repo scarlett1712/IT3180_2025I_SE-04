@@ -28,3 +28,9 @@ Yêu cầu: Tài khoản Aiven có sẵn trong project.
 - B1: Truy cập Aiven console, vào Projects -> se04-enoti -> services -> se-04-enoti
 - B2: Truy cập pgAdmin 4, chọn Register -> Server
 - B3: Điền đầy đủ thông tin như hình
+
+![](img/Img1.png)
+![](img/Img2.png)
+![](img/Img3.png)
+
+- B4: Bấm save, nếu làm đúng sẽ kết nối được với CSDL.
