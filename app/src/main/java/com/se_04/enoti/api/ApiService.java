@@ -1,6 +1,6 @@
 package com.se_04.enoti.api;
 
-import com.se_04.enoti.models.Notification;
+import com.se_04.enoti.notification.NotificationItem;
 import java.util.List;
 import retrofit2.Call;
 import retrofit2.http.Body;
@@ -12,30 +12,30 @@ import retrofit2.http.Path;
 
 public interface ApiService {
 
-    // ✅ Lấy tất cả thông báo của người dùng (kèm isRead)
+    // ✅ Lấy tất cả thông báo của người dùng
     @GET("notifications/{userId}")
-    Call<List<Notification>> getNotificationsByUser(@Path("userId") int userId);
+    Call<List<NotificationItem>> getNotificationsByUser(@Path("userId") String userId);
 
     // ✅ Đánh dấu 1 thông báo là đã đọc
     @PUT("notifications/{userId}/{notificationId}/read")
     Call<Void> markNotificationAsRead(
-            @Path("userId") int userId,
-            @Path("notificationId") int notificationId
+            @Path("userId") String userId,
+            @Path("notificationId") String notificationId
     );
 
     // ✅ Tạo thông báo mới
     @POST("notifications")
-    Call<Notification> createNotification(@Body Notification notification);
+    Call<NotificationItem> createNotification(@Body NotificationItem notification);
 
     // ✅ Lấy chi tiết 1 thông báo
     @GET("notifications/detail/{id}")
-    Call<Notification> getNotificationById(@Path("id") int id);
+    Call<NotificationItem> getNotificationById(@Path("id") String id);
 
     // ✅ Cập nhật thông báo
     @PUT("notifications/{id}")
-    Call<Notification> updateNotification(@Path("id") int id, @Body Notification notification);
+    Call<NotificationItem> updateNotification(@Path("id") String id, @Body NotificationItem notification);
 
     // ✅ Xoá thông báo
     @DELETE("notifications/{id}")
-    Call<Void> deleteNotification(@Path("id") int id);
+    Call<Void> deleteNotification(@Path("id") String id);
 }

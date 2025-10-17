@@ -41,6 +41,16 @@ public class NotificationAdapter extends RecyclerView.Adapter<NotificationAdapte
         this.viewType = viewType;
     }
 
+    public void updateData(List<NotificationItem> newItems) {
+        notificationList.clear();
+        notificationListFull.clear();
+        if (newItems != null) {
+            notificationList.addAll(newItems);
+            notificationListFull.addAll(newItems);
+        }
+        notifyDataSetChanged();
+    }
+
     @Override
     public int getItemViewType(int position) {
         return this.viewType;
