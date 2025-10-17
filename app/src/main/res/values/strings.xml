@@ -43,4 +43,13 @@
     <string name="Contact"><![CDATA[Hỗ trợ & Liên hệ]]></string>
     <string name="user_name">Tên người dùng</string>
     <string name="search_title">Tìm kiếm theo tiêu đề</string>
+
+    <string-array name="notification_sort_options">
+        <item>Tất cả</item>
+        <item>Cũ nhất trước</item>
+        <item>Quan trọng trước</item>
+        <item>Theo người gửi (A-Z)</item>
+        <item>Theo người gửi (Z-A)</item>
+    </string-array>
+
 </resources>

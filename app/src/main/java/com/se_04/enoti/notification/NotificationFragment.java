@@ -3,10 +3,15 @@ package com.se_04.enoti.notification;
 import android.content.Context;
 import android.content.SharedPreferences;
 import android.os.Bundle;
+import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import androidx.appcompat.widget.SearchView;
+
+import android.widget.AdapterView;
+import android.widget.ArrayAdapter;
+import android.widget.Spinner;
 import android.widget.TextView;
 
 import androidx.annotation.NonNull;
@@ -24,6 +29,7 @@ import java.util.List;
 public class NotificationFragment extends Fragment {
 
     private NotificationAdapter adapter;
+    private Spinner spinnerSort;
 
     @Nullable
     @Override
@@ -65,6 +71,7 @@ public class NotificationFragment extends Fragment {
         adapter = new NotificationAdapter(list);
         recyclerView.setAdapter(adapter);
 
+        // --- SEARCH ---
         searchView.setOnQueryTextListener(new SearchView.OnQueryTextListener() {
             @Override
             public boolean onQueryTextSubmit(String query) {
@@ -79,14 +86,72 @@ public class NotificationFragment extends Fragment {
             }
         });
 
+        // --- SPINNER ---
+        spinnerSort = view.findViewById(R.id.spinner_sort);
+        ArrayAdapter<CharSequence> spinnerAdapter = ArrayAdapter.createFromResource(
+                requireContext(),
+                R.array.notification_sort_options,
+                android.R.layout.simple_spinner_item
+        );
+        spinnerAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+        spinnerSort.setAdapter(spinnerAdapter);
+
+        SharedPreferences prefs = requireContext().getSharedPreferences("notification_prefs", Context.MODE_PRIVATE);
+        String savedOption = prefs.getString("selected_sort_option", "Tất cả");
+
+        // Đặt đúng vị trí spinner
+        int spinnerPosition = spinnerAdapter.getPosition(savedOption);
+        if (spinnerPosition >= 0) spinnerSort.setSelection(spinnerPosition);
+
+        // Gắn listener
+        spinnerSort.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
+            @Override
+            public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
+                String option = parent.getItemAtPosition(position).toString();
+
+                SharedPreferences.Editor editor = prefs.edit();
+                editor.putString("selected_sort_option", option);
+                editor.apply();
+
+                adapter.sortNotifications(option);
+            }
+
+            @Override
+            public void onNothingSelected(AdapterView<?> parent) { }
+        });
+
         return view;
     }
 
     @Override
     public void onResume() {
         super.onResume();
-        if (adapter != null) {
-            adapter.notifyDataSetChanged();
+
+        SharedPreferences prefs = requireContext().getSharedPreferences("notification_prefs", Context.MODE_PRIVATE);
+        String selectedSortOption = prefs.getString("selected_sort_option", null);
+
+        if (selectedSortOption == null) {
+            selectedSortOption = "Tất cả";
+            adapter.sortNotifications(selectedSortOption);
+            Log.d("NotificationFragment", "Filter reset to default (Tất cả, mới nhất trước)");
+        } else {
+            Log.d("NotificationFragment", "Restored filter: " + selectedSortOption);
+            adapter.sortNotifications(selectedSortOption);
+        }
+
+        Spinner spinnerSort = requireView().findViewById(R.id.spinner_sort);
+        ArrayAdapter<CharSequence> spinnerAdapter = ArrayAdapter.createFromResource(
+                requireContext(),
+                R.array.notification_sort_options,
+                android.R.layout.simple_spinner_item
+        );
+        spinnerAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+        spinnerSort.setAdapter(spinnerAdapter);
+
+        int spinnerPosition = spinnerAdapter.getPosition(selectedSortOption);
+        if (spinnerPosition >= 0) {
+            spinnerSort.setSelection(spinnerPosition);
         }
     }
+
 }

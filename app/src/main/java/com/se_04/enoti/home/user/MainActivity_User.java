@@ -1,5 +1,7 @@
 package com.se_04.enoti.home.user; // Your package name
 
+import android.content.Context;
+import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.util.Log; // For debugging
 
@@ -112,6 +114,10 @@ public class MainActivity_User extends AppCompatActivity {
             } else if (itemId == R.id.nav_notifications) {
                 targetFragment = notificationFragment;
                 targetTag = "notifications";
+
+                SharedPreferences prefs = getSharedPreferences("notification_prefs", Context.MODE_PRIVATE);
+                prefs.edit().putString("selected_sort_option", "Tất cả").apply();
+                Log.d(TAG, "Filter reset to default (Tất cả) when entering Notifications tab");
             } else if (itemId == R.id.nav_finance) {
                 targetFragment = financeFragment;
                 targetTag = "finance";
@@ -121,6 +127,12 @@ public class MainActivity_User extends AppCompatActivity {
             } else if (itemId == R.id.nav_account) {
                 targetFragment = accountFragment;
                 targetTag = "account";
+            }
+
+            if (activeFragment == notificationFragment && itemId != R.id.nav_notifications) {
+                SharedPreferences prefs = getSharedPreferences("notification_prefs", Context.MODE_PRIVATE);
+                prefs.edit().remove("selected_sort_option").apply();
+                Log.d(TAG, "Filter cleared when leaving Notifications tab");
             }
 
             if (targetFragment != null) {

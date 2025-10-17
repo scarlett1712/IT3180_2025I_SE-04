@@ -161,6 +161,52 @@ public class NotificationAdapter extends RecyclerView.Adapter<NotificationAdapte
         return normalized.replaceAll("đ", "d").replaceAll("Đ", "D");
     }
 
+    public void sortNotifications(String option) {
+        switch (option) {
+            case "Tất cả":
+                notificationList.sort((a, b) -> compareDates(b.getDate(), a.getDate()));
+                break;
+
+            case "Cũ nhất trước":
+                notificationList.sort((a, b) -> compareDates(a.getDate(), b.getDate()));
+                break;
+
+            case "Quan trọng trước":
+                notificationList.sort((a, b) -> Boolean.compare(!a.isImportant(), !b.isImportant()));
+                break;
+
+            case "Theo người gửi (A-Z)":
+                notificationList.sort((a, b) -> a.getSender().compareToIgnoreCase(b.getSender()));
+                break;
+
+            case "Theo người gửi (Z-A)":
+                notificationList.sort((a, b) -> b.getSender().compareToIgnoreCase(a.getSender()));
+                break;
+        }
+
+        notifyDataSetChanged();
+    }
+
+    private int compareDates(String d1, String d2) {
+        java.text.SimpleDateFormat sdf = new java.text.SimpleDateFormat("dd/MM/yyyy", Locale.getDefault());
+
+        try {
+            // Nếu có khoảng ngày, chỉ lấy ngày đầu tiên
+            if (d1.contains("-")) d1 = d1.split("-")[0].trim();
+            if (d2.contains("-")) d2 = d2.split("-")[0].trim();
+
+            java.util.Date date1 = sdf.parse(d1);
+            java.util.Date date2 = sdf.parse(d2);
+
+            if (date1 == null || date2 == null) return 0;
+            return date1.compareTo(date2);
+
+        } catch (Exception e) {
+            e.printStackTrace();
+            return 0;
+        }
+    }
+
     static class ViewHolder extends RecyclerView.ViewHolder {
         TextView txtTitle, txtDate, txtContent;
 
