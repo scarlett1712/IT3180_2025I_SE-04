@@ -51,7 +51,32 @@
             android:useDefaultMargins="true"
             android:layout_marginTop="12dp">
 
-            <!-- Nút 1: Thông báo -->
+            <LinearLayout
+                android:id="@+id/layoutManageResident"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:gravity="center"
+                android:layout_columnWeight="1"
+                android:layout_marginBottom="24dp">
+
+                <ImageView
+                    android:layout_width="90dp"
+                    android:layout_height="90dp"
+                    android:background="@drawable/bg_circle_blue"
+                    android:src="@drawable/ic_notification_light"
+                    android:padding="16dp"
+                    android:contentDescription="@string/manage_residents"/>
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/manage_residents"
+                    android:textSize="16sp"
+                    android:gravity="center"/>
+
+            </LinearLayout>
+
             <LinearLayout
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
@@ -76,7 +101,6 @@
                     android:gravity="center"/>
             </LinearLayout>
 
-            <!-- Nút 2: Hóa đơn -->
             <LinearLayout
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
@@ -101,8 +125,6 @@
                     android:gravity="center"/>
             </LinearLayout>
 
-            <!-- Các nút khác giống vậy -->
-            <!-- Feedback -->
             <LinearLayout
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
@@ -127,7 +149,6 @@
                     android:gravity="center"/>
             </LinearLayout>
 
-            <!-- Cài đặt -->
             <LinearLayout
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
@@ -152,7 +173,6 @@
                     android:gravity="center"/>
             </LinearLayout>
 
-            <!-- Hỗ trợ -->
             <LinearLayout
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"

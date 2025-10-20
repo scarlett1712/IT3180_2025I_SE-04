@@ -5,6 +5,9 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import androidx.appcompat.widget.SearchView;
+
+import android.widget.AdapterView;
+import android.widget.Spinner;
 import android.widget.TextView;
 
 import androidx.annotation.NonNull;
@@ -33,6 +36,7 @@ public class FinanceFragment extends Fragment {
         TextView txtWelcome = view.findViewById(R.id.txtWelcome);
         TextView txtGreeting = view.findViewById(R.id.txtGreeting);
         SearchView searchView = view.findViewById(R.id.search_view);
+        Spinner spinnerFilter = view.findViewById(R.id.spinner_filter);
 
         String username = UserManager.getInstance(requireContext()).getUsername();
         txtWelcome.setText(getString(R.string.welcome, username));
@@ -66,6 +70,29 @@ public class FinanceFragment extends Fragment {
                 return false;
             }
         });
+
+        spinnerFilter.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
+            @Override
+            public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
+                String selected = parent.getItemAtPosition(position).toString();
+
+                switch (selected) {
+                    case "Tất cả":
+                        adapter.getFilter().filter(""); // không lọc
+                        break;
+                    case "Khoản thu bắt buộc":
+                        adapter.getFilter().filter("bắt buộc");
+                        break;
+                    case "Đóng góp":
+                        adapter.getFilter().filter("đóng góp");
+                        break;
+                }
+            }
+
+            @Override
+            public void onNothingSelected(AdapterView<?> parent) {}
+        });
+
 
         return view;
     }

@@ -18,6 +18,7 @@ import com.se_04.enoti.notification.admin.CreateNotificationActivity;
 import com.se_04.enoti.feedback.FeedbackFragment;
 import com.se_04.enoti.R;
 import com.se_04.enoti.notification.admin.ManageNotificationFragment;
+import com.se_04.enoti.residents.ManageResidentFragment;
 
 public class MainActivity_Admin extends AppCompatActivity {
 
@@ -27,6 +28,7 @@ public class MainActivity_Admin extends AppCompatActivity {
 
     // Declare your fragments. Make them class members.
     private HomeFragment_Admin homeFragmentAdmin;
+    private ManageResidentFragment manageResidentFragment;
     private ManageNotificationFragment manageNotificationFragment;
     private FeedbackFragment feedbackFragment;
     private AccountFragment accountFragment;
@@ -48,6 +50,7 @@ public class MainActivity_Admin extends AppCompatActivity {
         if (savedInstanceState == null) {
             // First time creation: initialize fragments and add them
             homeFragmentAdmin = new HomeFragment_Admin();
+            manageResidentFragment = new ManageResidentFragment();
             manageNotificationFragment = new ManageNotificationFragment();
             feedbackFragment = new FeedbackFragment();
             accountFragment = new AccountFragment();
@@ -60,6 +63,7 @@ public class MainActivity_Admin extends AppCompatActivity {
             transaction.add(R.id.fragment_container, accountFragment, "account").hide(accountFragment);
             transaction.add(R.id.fragment_container, feedbackFragment, "feedback").hide(feedbackFragment);
             transaction.add(R.id.fragment_container, manageNotificationFragment, "managenotifications").hide(manageNotificationFragment);
+            transaction.add(R.id.fragment_container, manageResidentFragment, "manageresidents").hide(manageResidentFragment);
             transaction.add(R.id.fragment_container, homeFragmentAdmin, "home"); // Default, so show it
 
             transaction.commitNow(); // Use commitNow if you immediately need to reference these fragments
@@ -74,18 +78,21 @@ public class MainActivity_Admin extends AppCompatActivity {
             String activeTag = savedInstanceState.getString(ACTIVE_FRAGMENT_TAG_KEY, "home");
 
             homeFragmentAdmin = (HomeFragment_Admin) fragmentManager.findFragmentByTag("home");
-            manageNotificationFragment = (ManageNotificationFragment) fragmentManager.findFragmentByTag("mangagenotifications");
+            manageResidentFragment = (ManageResidentFragment) fragmentManager.findFragmentByTag("manageresidents");
+            manageNotificationFragment = (ManageNotificationFragment) fragmentManager.findFragmentByTag("managenotifications");
             feedbackFragment = (FeedbackFragment) fragmentManager.findFragmentByTag("feedback");
             accountFragment = (AccountFragment) fragmentManager.findFragmentByTag("account");
 
             // Fallback if fragments are somehow null (shouldn't happen if added correctly)
             if (homeFragmentAdmin == null) homeFragmentAdmin = new HomeFragment_Admin();
+            if (manageResidentFragment == null) manageResidentFragment = new ManageResidentFragment();
             if (manageNotificationFragment == null) manageNotificationFragment = new ManageNotificationFragment();
             if (feedbackFragment == null) feedbackFragment = new FeedbackFragment();
             if (accountFragment == null) accountFragment = new AccountFragment();
 
 
             switch (activeTag) {
+                case "manageresidents": activeFragment = manageResidentFragment; break;
                 case "managenotifications": activeFragment = manageNotificationFragment; break;
                 case "feedback": activeFragment = feedbackFragment; break;
                 case "account": activeFragment = accountFragment; break;
@@ -105,6 +112,9 @@ public class MainActivity_Admin extends AppCompatActivity {
             if (itemId == R.id.nav_home) {
                 targetFragment = homeFragmentAdmin;
                 targetTag = "home";
+            } else if (itemId == R.id.nav_manage_residents){
+                targetFragment = manageResidentFragment;
+                targetTag = "manageresidents";
             } else if (itemId == R.id.nav_manage_noti) {
                 targetFragment = manageNotificationFragment;
                 targetTag = "managenotifications";
@@ -158,6 +168,11 @@ public class MainActivity_Admin extends AppCompatActivity {
             Log.w(TAG, "Saving instance state: Active fragment or its tag is null. Saving default home tag.");
             outState.putString(ACTIVE_FRAGMENT_TAG_KEY, "home"); // Fallback
         }
+    }
+
+    public void switchToManageResidentsTab(){
+        BottomNavigationView bottomNav = findViewById(R.id.bottom_navigation);
+        bottomNav.setSelectedItemId(R.id.nav_manage_residents);
     }
 
     public void switchToManageNotificationsTab(){

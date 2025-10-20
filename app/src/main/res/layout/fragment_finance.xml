@@ -41,14 +41,32 @@
             android:layout_marginBottom="8dp"
             android:textColor="@android:color/black"/>
 
-        <androidx.appcompat.widget.SearchView
-            android:id="@+id/search_view"
+        <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
+            android:orientation="horizontal"
             android:layout_marginBottom="8dp"
-            app:queryHint="@string/search_title"
-            app:iconifiedByDefault="false"
-            android:background="@drawable/search_view_background" />
+            android:gravity="center_vertical">
+
+            <androidx.appcompat.widget.SearchView
+                android:id="@+id/search_view"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="0.7"
+                app:queryHint="@string/search_title"
+                app:iconifiedByDefault="false"
+                android:background="@drawable/search_view_background" />
+
+            <Spinner
+                android:id="@+id/spinner_filter"
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:layout_weight="0.3"
+                android:layout_marginStart="8dp"
+                android:background="@drawable/spinner_background"
+                android:textColor="@color/black"
+                android:entries="@array/finance_filter_options" />
+        </LinearLayout>
 
         <androidx.recyclerview.widget.RecyclerView
             android:id="@+id/recyclerViewReceipts"

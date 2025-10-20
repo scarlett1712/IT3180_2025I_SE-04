@@ -46,5 +46,15 @@
     <string name="inputNotificationTitle">Nhập tiêu đề thông báo</string>
     <string name="inputNotificationDetails">Nhập nội dung thông báo</string>
     <string name="search_info">Tra cứu thông tin</string>
+    <string name="feedback_reply">Trả lời phản hồi</string>
+    <string name="manage_residents">Quản lý cư dân</string>
+    <string name="search_resident">Tìm theo tên cư dân</string>
+    <string name="export_excel">Xuất file Excel</string>
+
+    <string-array name="finance_filter_options">
+        <item>Tất cả</item>
+        <item>Khoản thu bắt buộc</item>
+        <item>Đóng góp</item>
+    </string-array>
 
 </resources>
