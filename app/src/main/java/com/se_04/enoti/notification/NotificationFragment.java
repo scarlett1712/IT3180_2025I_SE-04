@@ -1,12 +1,13 @@
 package com.se_04.enoti.notification;
 
-import android.content.Context;
-import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import androidx.appcompat.widget.SearchView;
+import android.widget.AdapterView;
+import android.widget.ArrayAdapter;
+import android.widget.Spinner;
 import android.widget.TextView;
 
 import androidx.annotation.NonNull;
@@ -18,12 +19,20 @@ import androidx.recyclerview.widget.RecyclerView;
 import com.se_04.enoti.R;
 import com.se_04.enoti.utils.UserManager;
 
+import java.util.ArrayList;
 import java.util.Calendar;
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.List;
 
 public class NotificationFragment extends Fragment {
 
     private NotificationAdapter adapter;
+    private List<NotificationItem> originalList;
+    private List<NotificationItem> filteredList;
+
+    private Spinner spinnerFilterType, spinnerFilterTime;
+    private SearchView searchView;
 
     @Nullable
     @Override
@@ -32,54 +41,109 @@ public class NotificationFragment extends Fragment {
                              @Nullable Bundle savedInstanceState) {
         View view = inflater.inflate(R.layout.fragment_notifications, container, false);
 
+        // Ánh xạ view
         TextView txtWelcome = view.findViewById(R.id.txtWelcome);
         TextView txtGreeting = view.findViewById(R.id.txtGreeting);
-        SearchView searchView = view.findViewById(R.id.search_view);
+        searchView = view.findViewById(R.id.search_view);
+        spinnerFilterType = view.findViewById(R.id.spinnerFilterType);
+        spinnerFilterTime = view.findViewById(R.id.spinnerFilterTime);
 
+        // Chào người dùng
         String username = UserManager.getInstance(requireContext()).getUsername();
-        String message = getString(R.string.welcome, username);
-        txtWelcome.setText(message);
+        txtWelcome.setText(getString(R.string.welcome, username));
 
         Calendar calendar = Calendar.getInstance();
         int hour = calendar.get(Calendar.HOUR_OF_DAY);
-
         String timeOfDay;
-        if (hour >= 5 && hour < 11) {
-            timeOfDay = "sáng";
-        } else if (hour >= 11 && hour < 14) {
-            timeOfDay = "trưa";
-        } else if (hour >= 14 && hour < 18) {
-            timeOfDay = "chiều";
-        } else {
-            timeOfDay = "tối";
-        }
+        if (hour >= 5 && hour < 11) timeOfDay = "sáng";
+        else if (hour >= 11 && hour < 14) timeOfDay = "trưa";
+        else if (hour >= 14 && hour < 18) timeOfDay = "chiều";
+        else timeOfDay = "tối";
+        txtGreeting.setText(getString(R.string.greeting, timeOfDay));
 
-        String greeting = getString(R.string.greeting, timeOfDay);
-        txtGreeting.setText(greeting);
-
+        // RecyclerView
         RecyclerView recyclerView = view.findViewById(R.id.recyclerViewNotifications);
         recyclerView.setLayoutManager(new LinearLayoutManager(requireContext()));
 
-        // Dùng chung dữ liệu từ NotificationRepository
-        List<NotificationItem> list = NotificationRepository.getInstance().getNotifications();
-        adapter = new NotificationAdapter(list);
+        // Lấy danh sách thông báo
+        originalList = NotificationRepository.getInstance().getNotifications();
+        filteredList = new ArrayList<>(originalList);
+        adapter = new NotificationAdapter(filteredList);
         recyclerView.setAdapter(adapter);
 
+        // Thiết lập Spinner loại thông báo
+        String[] typeOptions = {"Tất cả", "Thông báo", "Tin khẩn", "Sự kiện", "Bảo trì"};
+        ArrayAdapter<String> typeAdapter = new ArrayAdapter<>(requireContext(),
+                android.R.layout.simple_spinner_item, typeOptions);
+        typeAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+        spinnerFilterType.setAdapter(typeAdapter);
+
+        // Thiết lập Spinner thời gian
+        String[] timeOptions = {"Mới nhất", "Cũ nhất"};
+        ArrayAdapter<String> timeAdapter = new ArrayAdapter<>(requireContext(),
+                android.R.layout.simple_spinner_item, timeOptions);
+        timeAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+        spinnerFilterTime.setAdapter(timeAdapter);
+
+        // Áp dụng tìm kiếm
         searchView.setOnQueryTextListener(new SearchView.OnQueryTextListener() {
             @Override
             public boolean onQueryTextSubmit(String query) {
-                adapter.getFilter().filter(query);
+                applyFiltersAndSearch();
                 return true;
             }
 
             @Override
             public boolean onQueryTextChange(String newText) {
-                adapter.getFilter().filter(newText);
+                applyFiltersAndSearch();
                 return true;
             }
         });
 
+        // Áp dụng lọc
+        AdapterView.OnItemSelectedListener filterListener = new AdapterView.OnItemSelectedListener() {
+            @Override
+            public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
+                applyFiltersAndSearch();
+            }
+
+            @Override
+            public void onNothingSelected(AdapterView<?> parent) { }
+        };
+
+        spinnerFilterType.setOnItemSelectedListener(filterListener);
+        spinnerFilterTime.setOnItemSelectedListener(filterListener);
+
         return view;
+    }
+
+    private void applyFiltersAndSearch() {
+        String searchQuery = searchView.getQuery().toString().toLowerCase().trim();
+        String selectedType = spinnerFilterType.getSelectedItem().toString();
+        String selectedTime = spinnerFilterTime.getSelectedItem().toString();
+
+        // Lọc danh sách
+        filteredList.clear();
+        for (NotificationItem item : originalList) {
+            boolean matchesSearch = item.getTitle().toLowerCase().contains(searchQuery)
+                    || item.getContent().toLowerCase().contains(searchQuery);
+
+            boolean matchesType = selectedType.equals("Tất cả")
+                    || item.getType().equalsIgnoreCase(selectedType);
+
+            if (matchesSearch && matchesType) {
+                filteredList.add(item);
+            }
+        }
+
+        // Sắp xếp theo thời gian
+        if (selectedTime.equals("Mới nhất")) {
+            Collections.sort(filteredList, (a, b) -> Long.compare(b.getTimestamp(), a.getTimestamp()));
+        } else {
+            Collections.sort(filteredList, Comparator.comparingLong(NotificationItem::getTimestamp));
+        }
+
+        adapter.updateList(filteredList);
     }
 
     @Override

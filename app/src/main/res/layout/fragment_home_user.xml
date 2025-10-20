@@ -86,10 +86,10 @@
                     android:layout_width="90dp"
                     android:layout_height="90dp"
                     android:background="@drawable/bg_circle_blue"
-                    android:src="@drawable/ic_notification_light"
                     android:contentDescription="@string/notifications"
+                    android:padding="16dp"
                     android:scaleType="fitXY"
-                    android:padding="16dp"/>
+                    android:src="@drawable/ic_notification_light" />
 
                 <TextView
                     android:layout_width="wrap_content"

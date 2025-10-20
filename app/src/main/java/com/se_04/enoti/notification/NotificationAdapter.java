@@ -25,7 +25,7 @@ public class NotificationAdapter extends RecyclerView.Adapter<NotificationAdapte
     public static final int VIEW_TYPE_NORMAL = 1;
     public static final int VIEW_TYPE_HIGHLIGHTED = 2;
 
-    private final List<NotificationItem> notificationList;
+    private List<NotificationItem> notificationList;
     private final List<NotificationItem> notificationListFull;
     private final int viewType;
 
@@ -39,6 +39,16 @@ public class NotificationAdapter extends RecyclerView.Adapter<NotificationAdapte
         this.notificationList = new ArrayList<>(notificationList);
         this.notificationListFull = new ArrayList<>(notificationList);
         this.viewType = viewType;
+    }
+
+    public void updateData(List<NotificationItem> newItems) {
+        notificationList.clear();
+        notificationListFull.clear();
+        if (newItems != null) {
+            notificationList.addAll(newItems);
+            notificationListFull.addAll(newItems);
+        }
+        notifyDataSetChanged();
     }
 
     @Override
@@ -170,5 +180,10 @@ public class NotificationAdapter extends RecyclerView.Adapter<NotificationAdapte
             txtDate = itemView.findViewById(R.id.txtDate);
             txtContent = itemView.findViewById(R.id.txtContent);
         }
+    }
+
+    public void updateList(List<NotificationItem> newList) {
+        this.notificationList = newList;
+        notifyDataSetChanged();
     }
 }

@@ -1,0 +1,115 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.coordinatorlayout.widget.CoordinatorLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@android:color/white">
+
+    <!-- ScrollView giữ nguyên -->
+    <ScrollView
+        android:id="@+id/scrollView_manage_notification"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:fillViewport="true">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:padding="16dp">
+
+            <!-- Phần chào -->
+            <TextView
+                android:id="@+id/txtWelcome"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/welcome"
+                android:textSize="24sp"
+                android:textColor="@android:color/black"
+                android:layout_marginTop="60dp"
+                android:layout_marginBottom="4dp" />
+
+            <TextView
+                android:id="@+id/txtGreeting"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/greeting"
+                android:textSize="20sp"
+                android:textColor="@android:color/darker_gray"
+                android:layout_marginBottom="20dp" />
+
+            <!-- Tiêu đề Thông tin chung -->
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/manage_notification"
+                android:textStyle="bold"
+                android:textSize="24sp"
+                android:layout_marginBottom="8dp"
+                android:textColor="@android:color/black" />
+
+            <!-- Thanh tìm kiếm -->
+            <androidx.appcompat.widget.SearchView
+                android:id="@+id/search_view"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="8dp"
+                app:queryHint="@string/search_title"
+                app:iconifiedByDefault="false"
+                android:background="@drawable/search_view_background" />
+
+            <!-- Bộ lọc -->
+            <LinearLayout
+                android:id="@+id/layout_filters"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center"
+                android:layout_marginBottom="12dp">
+
+                <!-- Lọc theo loại thông báo -->
+                <Spinner
+                    android:id="@+id/spinnerFilterType"
+                    android:layout_width="0dp"
+                    android:layout_height="30dp"
+                    android:layout_weight="1"
+                    android:spinnerMode="dropdown"
+                    android:background="@drawable/spinner_background"
+                    android:layout_marginEnd="8dp" />
+
+                <!-- Lọc theo thời gian -->
+                <Spinner
+                    android:id="@+id/spinnerFilterTime"
+                    android:layout_width="0dp"
+                    android:layout_height="30dp"
+                    android:layout_weight="1"
+                    android:spinnerMode="dropdown"
+                    android:background="@drawable/spinner_background" />
+            </LinearLayout>
+
+            <!-- Danh sách thông báo -->
+            <androidx.recyclerview.widget.RecyclerView
+                android:id="@+id/recyclerViewNotifications"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:clipToPadding="false"
+                android:paddingBottom="100dp" />
+
+        </LinearLayout>
+    </ScrollView>
+
+    <!-- Nút nổi thêm thông báo -->
+    <com.google.android.material.floatingactionbutton.FloatingActionButton
+        android:id="@+id/btnAddNotification"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:contentDescription="@string/create_notification"
+        android:src="@drawable/ic_add"
+        app:tint="@android:color/white"
+        app:backgroundTint="?attr/colorPrimary"
+        android:layout_margin="24dp"
+        app:layout_anchorGravity="bottom|end"
+        android:layout_gravity="bottom|end" />
+
+</androidx.coordinatorlayout.widget.CoordinatorLayout>

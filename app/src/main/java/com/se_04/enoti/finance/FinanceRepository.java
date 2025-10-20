@@ -22,9 +22,9 @@ public class FinanceRepository {
     public List<FinanceItem> getReceipts(){ return receipts; }
 
     private void seedData(){
-        receipts.add(new FinanceItem("Hóa đơn điện", "31/10/2025", "Hóa đơn hàng tháng", "Công ty nước sạch Hà Nội", 1800000L));
-        receipts.add(new FinanceItem("Hóa đơn nước", "31/10/2025", "Hóa đơn hàng tháng", "Công ty nước sạch Hà Nội", 150000L));
-        receipts.add(new FinanceItem("Quỹ vì người giàu", "5/11/2025", "Quỹ", "admin"));
+        receipts.add(new FinanceItem("Hóa đơn điện", "31/10/2025", "Khoản thu bắt buộc", "Công ty nước sạch Hà Nội", 1800000L));
+        receipts.add(new FinanceItem("Hóa đơn nước", "31/10/2025", "Khoản thu bắt buộc", "Công ty nước sạch Hà Nội", 150000L));
+        receipts.add(new FinanceItem("Quỹ vì người giàu", "5/11/2025", "Quỹ", "Đóng góp"));
     }
 }
 

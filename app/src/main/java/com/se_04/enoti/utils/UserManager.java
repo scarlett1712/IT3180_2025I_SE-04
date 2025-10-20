@@ -4,6 +4,7 @@ import android.content.Context;
 import android.content.SharedPreferences;
 
 import com.se_04.enoti.account.Gender;
+import com.se_04.enoti.account.Role;
 import com.se_04.enoti.account.UserItem;
 
 public class UserManager {
@@ -34,7 +35,10 @@ public class UserManager {
         editor.putString("gender", user.getGender().name());
         editor.putString("relationship", user.getRelationship());
         editor.putString("phone", user.getPhone());
+        editor.putString("role", user.getRole().name());
         editor.apply();
+
+        android.util.Log.d("USER_MANAGER", "✅ Saved user role: " + user.getRole().name());
     }
 
     // 🔹 Lấy thông tin user
@@ -48,6 +52,7 @@ public class UserManager {
                 sharedPreferences.getString("dob", ""),
                 Gender.valueOf(sharedPreferences.getString("gender", Gender.MALE.name())),
                 sharedPreferences.getString("relationship", ""),
+                Role.valueOf(sharedPreferences.getString("role", Role.User.name())),
                 sharedPreferences.getString("phone", "")
         );
     }
