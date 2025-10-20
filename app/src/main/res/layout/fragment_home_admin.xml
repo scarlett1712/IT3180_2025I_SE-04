@@ -40,164 +40,144 @@
             android:layout_marginBottom="8dp"
             android:textColor="@android:color/black"/>
 
-        <!-- Scroll ngang -->
-        <HorizontalScrollView
+        <GridLayout
+            android:id="@+id/gridUtilities"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:scrollbars="none">
+            android:columnCount="2"
+            android:alignmentMode="alignMargins"
+            android:columnOrderPreserved="false"
+            android:rowOrderPreserved="false"
+            android:useDefaultMargins="true"
+            android:layout_marginTop="12dp">
 
+            <!-- Nút 1: Thông báo -->
             <LinearLayout
-                android:layout_width="wrap_content"
+                android:layout_width="0dp"
                 android:layout_height="wrap_content"
-                android:orientation="horizontal"
-                android:padding="0dp">
+                android:orientation="vertical"
+                android:gravity="center"
+                android:layout_columnWeight="1"
+                android:layout_marginBottom="24dp">
 
-                <!-- Nút 1: Thông báo -->
-                <LinearLayout
+                <ImageView
+                    android:layout_width="90dp"
+                    android:layout_height="90dp"
+                    android:background="@drawable/bg_circle_blue"
+                    android:src="@drawable/ic_notification_light"
+                    android:padding="16dp"
+                    android:contentDescription="@string/manage_notification"/>
+
+                <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:orientation="vertical"
-                    android:gravity="center"
-                    android:layout_marginEnd="36dp">
-
-                    <ImageView
-                        android:layout_width="90dp"
-                        android:layout_height="90dp"
-                        android:background="@drawable/bg_circle_blue"
-                        android:src="@drawable/ic_notification_light"
-                        android:contentDescription="@string/notifications"
-                        android:scaleType="fitXY"
-                        android:padding="16dp"/>
-
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="@string/notifications"
-                        android:textSize="16sp"
-                        android:gravity="center"/>
-                </LinearLayout>
-
-                <!-- Nút 2: Hóa đơn -->
-                <LinearLayout
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:orientation="vertical"
-                    android:gravity="center"
-                    android:layout_marginEnd="36dp">
-
-                    <ImageView
-                        android:layout_width="90dp"
-                        android:layout_height="90dp"
-                        android:background="@drawable/bg_circle_blue"
-                        android:src="@drawable/ic_home"
-                        android:contentDescription="@string/bill"
-                        android:scaleType="fitXY"
-                        android:padding="16dp"/>
-
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="@string/bill"
-                        android:textSize="16sp"
-                        android:gravity="center"/>
-                </LinearLayout>
-
-                <!-- Nút 4: Phản hồi -->
-                <LinearLayout
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:orientation="vertical"
-                    android:gravity="center"
-                    android:layout_marginEnd="36dp">
-
-                    <ImageView
-                        android:layout_width="90dp"
-                        android:layout_height="90dp"
-                        android:background="@drawable/bg_circle_blue"
-                        android:src="@drawable/ic_feedback_light"
-                        android:contentDescription="@string/feedback"
-                        android:scaleType="fitXY"
-                        android:padding="16dp"/>
-
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="@string/feedback"
-                        android:textSize="16sp"
-                        android:gravity="center"/>
-                </LinearLayout>
-
-                <!-- Nút 5: Cài đặt -->
-                <LinearLayout
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:orientation="vertical"
-                    android:gravity="center"
-                    android:layout_marginEnd="36dp">
-
-                    <ImageView
-                        android:layout_width="90dp"
-                        android:layout_height="90dp"
-                        android:background="@drawable/bg_circle_blue"
-                        android:src="@drawable/ic_feedback_light"
-                        android:contentDescription="@string/settings"
-                        android:scaleType="fitXY"
-                        android:padding="16dp"/>
-
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="@string/settings"
-                        android:textSize="16sp"
-                        android:gravity="center"/>
-                </LinearLayout>
-
-                <!-- Nút 6: Hỗ trợ -->
-                <LinearLayout
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:orientation="vertical"
-                    android:gravity="center"
-                    android:layout_marginEnd="36dp">
-
-                    <ImageView
-                        android:layout_width="90dp"
-                        android:layout_height="90dp"
-                        android:background="@drawable/bg_circle_blue"
-                        android:src="@drawable/ic_account"
-                        android:contentDescription="@string/support"
-                        android:scaleType="fitXY"
-                        android:adjustViewBounds="true"
-                        android:padding="16dp"/>
-
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="@string/support"
-                        android:textSize="16sp"
-                        android:gravity="center"/>
-                </LinearLayout>
-
-                <!-- Thêm các nút khác ở đây -->
+                    android:text="@string/manage_notification"
+                    android:textSize="16sp"
+                    android:gravity="center"/>
             </LinearLayout>
-        </HorizontalScrollView>
 
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="@string/notification_manager"
-            android:textStyle="bold"
-            android:textSize="24sp"
-            android:layout_marginTop="16dp"
-            android:layout_marginBottom="8dp"
-            android:textColor="@android:color/black"/>
+            <!-- Nút 2: Hóa đơn -->
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:gravity="center"
+                android:layout_columnWeight="1"
+                android:layout_marginBottom="24dp">
 
-        <androidx.recyclerview.widget.RecyclerView
-            android:layout_width="match_parent"
-            android:layout_height="0dp"
-            android:id="@+id/recyclerNotifications"
-            android:background="@android:color/white"
-            android:layout_weight="1"
-            android:scrollbars="vertical" />
+                <ImageView
+                    android:layout_width="90dp"
+                    android:layout_height="90dp"
+                    android:background="@drawable/bg_circle_blue"
+                    android:src="@drawable/ic_home"
+                    android:padding="16dp"
+                    android:contentDescription="@string/bill"/>
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/bill"
+                    android:textSize="16sp"
+                    android:gravity="center"/>
+            </LinearLayout>
+
+            <!-- Các nút khác giống vậy -->
+            <!-- Feedback -->
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:gravity="center"
+                android:layout_columnWeight="1"
+                android:layout_marginBottom="24dp">
+
+                <ImageView
+                    android:layout_width="90dp"
+                    android:layout_height="90dp"
+                    android:background="@drawable/bg_circle_blue"
+                    android:src="@drawable/ic_feedback_light"
+                    android:padding="16dp"
+                    android:contentDescription="@string/feedback"/>
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/feedback"
+                    android:textSize="16sp"
+                    android:gravity="center"/>
+            </LinearLayout>
+
+            <!-- Cài đặt -->
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:gravity="center"
+                android:layout_columnWeight="1"
+                android:layout_marginBottom="24dp">
+
+                <ImageView
+                    android:layout_width="90dp"
+                    android:layout_height="90dp"
+                    android:background="@drawable/bg_circle_blue"
+                    android:src="@drawable/ic_feedback_light"
+                    android:padding="16dp"
+                    android:contentDescription="@string/settings"/>
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/settings"
+                    android:textSize="16sp"
+                    android:gravity="center"/>
+            </LinearLayout>
+
+            <!-- Hỗ trợ -->
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:gravity="center"
+                android:layout_columnWeight="1"
+                android:layout_marginBottom="24dp">
+
+                <ImageView
+                    android:layout_width="90dp"
+                    android:layout_height="90dp"
+                    android:background="@drawable/bg_circle_blue"
+                    android:src="@drawable/ic_account"
+                    android:padding="16dp"
+                    android:contentDescription="@string/support"/>
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/support"
+                    android:textSize="16sp"
+                    android:gravity="center"/>
+            </LinearLayout>
+
+        </GridLayout>
+
     </LinearLayout>
 </LinearLayout>

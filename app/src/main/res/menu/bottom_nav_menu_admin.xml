@@ -6,9 +6,14 @@
         android:title="@string/home" />
 
     <item
-        android:id="@+id/nav_create_noti"
+        android:id="@+id/nav_search_info"
+        android:icon="@drawable/ic_search"
+        android:title="@string/search_info" />
+
+    <item
+        android:id="@+id/nav_manage_noti"
         android:icon="@drawable/ic_create_notification"
-        android:title="@string/create_notification" />
+        android:title="@string/manage_notification" />
 
     <item
         android:id="@+id/nav_feedback"

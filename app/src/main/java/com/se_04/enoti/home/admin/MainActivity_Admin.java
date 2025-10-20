@@ -5,6 +5,7 @@ import android.util.Log; // For debugging
 
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.appcompat.app.AppCompatDelegate;
 import androidx.fragment.app.Fragment;
 import androidx.fragment.app.FragmentManager;
 import androidx.fragment.app.FragmentTransaction;
@@ -13,9 +14,10 @@ import androidx.fragment.app.FragmentTransaction;
 
 import com.google.android.material.bottomnavigation.BottomNavigationView;
 import com.se_04.enoti.account.AccountFragment;
-import com.se_04.enoti.notification.admin.CreateNotificationFragment;
+import com.se_04.enoti.notification.admin.CreateNotificationActivity;
 import com.se_04.enoti.feedback.FeedbackFragment;
 import com.se_04.enoti.R;
+import com.se_04.enoti.notification.admin.ManageNotificationFragment;
 
 public class MainActivity_Admin extends AppCompatActivity {
 
@@ -25,7 +27,7 @@ public class MainActivity_Admin extends AppCompatActivity {
 
     // Declare your fragments. Make them class members.
     private HomeFragment_Admin homeFragmentAdmin;
-    private CreateNotificationFragment createNotificationFragment;
+    private ManageNotificationFragment manageNotificationFragment;
     private FeedbackFragment feedbackFragment;
     private AccountFragment accountFragment;
 
@@ -36,6 +38,7 @@ public class MainActivity_Admin extends AppCompatActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_NO);
         // EdgeToEdge.enable(this); // You can re-enable this if needed
         setContentView(R.layout.activity_main_menu_admin);
 
@@ -45,7 +48,7 @@ public class MainActivity_Admin extends AppCompatActivity {
         if (savedInstanceState == null) {
             // First time creation: initialize fragments and add them
             homeFragmentAdmin = new HomeFragment_Admin();
-            createNotificationFragment = new CreateNotificationFragment();
+            manageNotificationFragment = new ManageNotificationFragment();
             feedbackFragment = new FeedbackFragment();
             accountFragment = new AccountFragment();
 
@@ -56,7 +59,7 @@ public class MainActivity_Admin extends AppCompatActivity {
             // Add the default fragment last so it's "on top" if others are mistakenly shown.
             transaction.add(R.id.fragment_container, accountFragment, "account").hide(accountFragment);
             transaction.add(R.id.fragment_container, feedbackFragment, "feedback").hide(feedbackFragment);
-            transaction.add(R.id.fragment_container, createNotificationFragment, "createnotifications").hide(createNotificationFragment);
+            transaction.add(R.id.fragment_container, manageNotificationFragment, "managenotifications").hide(manageNotificationFragment);
             transaction.add(R.id.fragment_container, homeFragmentAdmin, "home"); // Default, so show it
 
             transaction.commitNow(); // Use commitNow if you immediately need to reference these fragments
@@ -71,19 +74,19 @@ public class MainActivity_Admin extends AppCompatActivity {
             String activeTag = savedInstanceState.getString(ACTIVE_FRAGMENT_TAG_KEY, "home");
 
             homeFragmentAdmin = (HomeFragment_Admin) fragmentManager.findFragmentByTag("home");
-            createNotificationFragment = (CreateNotificationFragment) fragmentManager.findFragmentByTag("createnotifications");
+            manageNotificationFragment = (ManageNotificationFragment) fragmentManager.findFragmentByTag("mangagenotifications");
             feedbackFragment = (FeedbackFragment) fragmentManager.findFragmentByTag("feedback");
             accountFragment = (AccountFragment) fragmentManager.findFragmentByTag("account");
 
             // Fallback if fragments are somehow null (shouldn't happen if added correctly)
             if (homeFragmentAdmin == null) homeFragmentAdmin = new HomeFragment_Admin();
-            if (createNotificationFragment == null) createNotificationFragment = new CreateNotificationFragment();
+            if (manageNotificationFragment == null) manageNotificationFragment = new ManageNotificationFragment();
             if (feedbackFragment == null) feedbackFragment = new FeedbackFragment();
             if (accountFragment == null) accountFragment = new AccountFragment();
 
 
             switch (activeTag) {
-                case "createnotifications": activeFragment = createNotificationFragment; break;
+                case "managenotifications": activeFragment = manageNotificationFragment; break;
                 case "feedback": activeFragment = feedbackFragment; break;
                 case "account": activeFragment = accountFragment; break;
                 case "home": // Fallthrough to default
@@ -102,9 +105,9 @@ public class MainActivity_Admin extends AppCompatActivity {
             if (itemId == R.id.nav_home) {
                 targetFragment = homeFragmentAdmin;
                 targetTag = "home";
-            } else if (itemId == R.id.nav_create_noti) {
-                targetFragment = createNotificationFragment;
-                targetTag = "notifications";
+            } else if (itemId == R.id.nav_manage_noti) {
+                targetFragment = manageNotificationFragment;
+                targetTag = "managenotifications";
             } else if (itemId == R.id.nav_feedback) {
                 targetFragment = feedbackFragment;
                 targetTag = "feedback";
@@ -155,5 +158,10 @@ public class MainActivity_Admin extends AppCompatActivity {
             Log.w(TAG, "Saving instance state: Active fragment or its tag is null. Saving default home tag.");
             outState.putString(ACTIVE_FRAGMENT_TAG_KEY, "home"); // Fallback
         }
+    }
+
+    public void switchToManageNotificationsTab(){
+        BottomNavigationView bottomNav = findViewById(R.id.bottom_navigation);
+        bottomNav.setSelectedItemId(R.id.nav_manage_noti);
     }
 }

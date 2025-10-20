@@ -17,7 +17,9 @@
         android:label="@string/app_name"
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
-        android:theme="@style/Theme.ENoti">
+        android:theme="@style/Theme.ENoti"
+        android:forceDarkAllowed="false"
+        tools:targetApi="29">
 
         <activity
             android:name=".account_related.SplashActivity"
@@ -40,7 +42,7 @@
         <activity android:name=".finance.FinanceDetailActivity"> </activity>
         <activity android:name=".feedback.FeedbackDetailActivity"> </activity>
         <activity android:name=".feedback.FeedbackActivity"> </activity>
-        <activity android:name=".account.EditProfileActivity"></activity>
+        <activity android:name=".notification.admin.CreateNotificationActivity"> </activity>
     </application>
 
 </manifest>

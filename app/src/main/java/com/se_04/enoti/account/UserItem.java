@@ -10,9 +10,10 @@ public class UserItem {
     private final Gender gender;
     private final String relationship;
     private final boolean isLiving;
+    private final Role role;
     private final String phone;
 
-    public UserItem(String id, String familyID, String email, String name, String dob, Gender gender, String relationship, String phone) {
+    public UserItem(String id, String familyID, String email, String name, String dob, Gender gender, String relationship, Role role, String phone) {
         this.id = id;
         this.familyID = familyID;
         this.email = email;
@@ -20,6 +21,7 @@ public class UserItem {
         this.dob = dob;
         this.gender = gender;
         this.relationship = relationship;
+        this.role = role;
         this.isLiving = true;
         this.phone = phone;
     }
@@ -31,9 +33,9 @@ public class UserItem {
     public String getDob() { return dob; }
     public Gender getGender() { return gender; }
     public String getRelationship() { return relationship; }
+    public Role getRole() { return role; }
     public boolean getIsLiving() { return isLiving; }
     public String getPhone() { return phone; }
-
     public String getFamilyId() { return familyID; }
 }
 

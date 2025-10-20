@@ -17,8 +17,11 @@ import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.content.ContextCompat;
 
+import com.se_04.enoti.account.Role;
+import com.se_04.enoti.account.UserItem;
 import com.se_04.enoti.home.admin.MainActivity_Admin;
 import com.se_04.enoti.home.user.MainActivity_User;
+import com.se_04.enoti.utils.UserManager;
 
 @SuppressLint("CustomSplashScreen")
 public class SplashActivity extends AppCompatActivity {
@@ -115,22 +118,21 @@ public class SplashActivity extends AppCompatActivity {
     }
 
     private void navigateNext() {
-        SharedPreferences sharedPref = getSharedPreferences("UserPrefs", MODE_PRIVATE);
-        boolean isLoggedIn = sharedPref.getBoolean("isLoggedIn", false);
-        String role = sharedPref.getString("role", "none");
+        UserManager userManager = UserManager.getInstance(this);
+        UserItem user = userManager.getCurrentUser();
 
-        Intent intent;
-        if (isLoggedIn) {
-            if (role.equals("admin")) {
-                intent = new Intent(this, MainActivity_Admin.class);
+        if (userManager.isLoggedIn() && user != null) {
+            android.util.Log.d("SPLASH", "🧠 Current user role: " + user.getRole());
+
+            if (user.getRole() == Role.Admin) {
+                startActivity(new Intent(this, MainActivity_Admin.class));
             } else {
-                intent = new Intent(this, MainActivity_User.class);
+                startActivity(new Intent(this, MainActivity_User.class));
             }
         } else {
-            intent = new Intent(this, LogInActivity.class);
+            startActivity(new Intent(this, LogInActivity.class));
         }
 
-        startActivity(intent);
         finish();
     }
 }

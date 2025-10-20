@@ -35,7 +35,7 @@
     <string name="utilities">Tiện ích</string>
     <string name="settings">Cài đặt</string>
     <string name="support">Hỗ trợ</string>
-    <string name="notification_manager">Quản lý thông báo</string>
+    <string name="manage_notification">Quản lý thông báo</string>
     <string name="send_feedback">Gửi phản hồi</string>
     <string name="replied_notification">Trả lời cho: %1$s</string>
     <string name="changeInformation">Chỉnh sửa thông tin</string>
@@ -43,4 +43,8 @@
     <string name="Contact"><![CDATA[Hỗ trợ & Liên hệ]]></string>
     <string name="user_name">Tên người dùng</string>
     <string name="search_title">Tìm kiếm theo tiêu đề</string>
+    <string name="inputNotificationTitle">Nhập tiêu đề thông báo</string>
+    <string name="inputNotificationDetails">Nhập nội dung thông báo</string>
+    <string name="search_info">Tra cứu thông tin</string>
+
 </resources>

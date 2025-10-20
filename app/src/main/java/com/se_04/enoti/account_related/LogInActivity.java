@@ -14,6 +14,7 @@ import static com.se_04.enoti.utils.ValidatePhoneNumberUtil.normalizePhoneNumber
 
 import com.se_04.enoti.R;
 import com.se_04.enoti.account.Gender;
+import com.se_04.enoti.account.Role;
 import com.se_04.enoti.account.UserItem;
 import com.se_04.enoti.home.admin.MainActivity_Admin;
 import com.se_04.enoti.home.user.MainActivity_User;
@@ -84,7 +85,7 @@ public class LogInActivity extends AppCompatActivity {
 
         // 🔹 Xác định role và username
         boolean admin = isAdmin(phone);
-        String role = admin ? "admin" : "user";
+        Role roleType = admin ? Role.Admin : Role.User;
         String username = admin ? "Quản trị viên" : phone.substring(phone.length() - 3);
 
         UserItem user = new UserItem(
@@ -95,6 +96,7 @@ public class LogInActivity extends AppCompatActivity {
                 "01-01-2000",       // ngày sinh (tạm)
                 Gender.MALE,        // hoặc FEMALE nếu có thông tin
                 admin ? "Quản trị viên" : "Thành viên", // mối quan hệ
+                roleType,
                 phone               // số điện thoại
         );
 

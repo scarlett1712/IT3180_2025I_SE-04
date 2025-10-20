@@ -1,0 +1,186 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.coordinatorlayout.widget.CoordinatorLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@android:color/white">
+
+    <!-- Thanh AppBar -->
+    <com.google.android.material.appbar.AppBarLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="?attr/colorPrimary"
+        android:fitsSystemWindows="true">
+
+        <com.google.android.material.appbar.MaterialToolbar
+            android:id="@+id/toolbar_feedback"
+            android:layout_width="match_parent"
+            android:layout_height="?attr/actionBarSize"
+            android:title="Tạo thông báo"
+            android:titleTextColor="@android:color/white" />
+    </com.google.android.material.appbar.AppBarLayout>
+
+    <!-- Nội dung chính có thể cuộn -->
+    <ScrollView
+        android:id="@+id/scrollView_feedback"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:padding="16dp"
+        android:layout_marginBottom="72dp"
+        app:layout_behavior="@string/appbar_scrolling_view_behavior">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical">
+
+            <!-- Tiêu đề thông báo -->
+            <com.google.android.material.textfield.TextInputLayout
+                android:id="@+id/inputLayoutNotificationTitle"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:hint="@string/inputNotificationTitle">
+
+                <com.google.android.material.textfield.TextInputEditText
+                    android:id="@+id/edtNotificationTitle"
+                    android:layout_width="match_parent"
+                    android:layout_height="40dp"
+                    android:gravity="top|start"
+                    android:textSize="20sp"
+                    android:textStyle="bold"
+                    android:inputType="textMultiLine"
+                    android:padding="8dp" />
+            </com.google.android.material.textfield.TextInputLayout>
+
+            <!-- Ô chọn ngày hết hạn -->
+            <com.google.android.material.textfield.TextInputLayout
+                android:id="@+id/inputLayoutExpirationDate"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:hint="Ngày hết hạn">
+
+                <com.google.android.material.textfield.TextInputEditText
+                    android:id="@+id/edtExpirationDate"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:focusable="false"
+                    android:clickable="true"
+                    android:inputType="none"
+                    android:drawableEnd="@drawable/ic_calendar"
+                    android:padding="8dp" />
+            </com.google.android.material.textfield.TextInputLayout>
+
+            <!-- Loại thông báo & Người nhận -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:layout_marginTop="8dp"
+                android:layout_marginBottom="4dp">
+
+                <!-- Cột 1: Loại thông báo -->
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:orientation="vertical"
+                    android:layout_marginEnd="8dp">
+
+                    <TextView
+                        android:id="@+id/tvNotificationTypeLabel"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Loại thông báo"
+                        android:textStyle="bold"
+                        android:layout_marginBottom="4dp" />
+
+                    <Spinner
+                        android:id="@+id/spinnerNotificationType"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:spinnerMode="dropdown"
+                        android:background="@drawable/spinner_background"
+                        android:padding="8dp" />
+                </LinearLayout>
+
+                <!-- Cột 2: Người nhận -->
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:orientation="vertical"
+                    android:layout_marginStart="8dp">
+
+                    <TextView
+                        android:id="@+id/tvTargetLabel"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Người nhận"
+                        android:textStyle="bold"
+                        android:layout_marginBottom="4dp" />
+
+                    <Spinner
+                        android:id="@+id/spinnerNotificationTarget"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:spinnerMode="dropdown"
+                        android:background="@drawable/spinner_background"
+                        android:padding="8dp" />
+                </LinearLayout>
+            </LinearLayout>
+
+            <!-- Ô nhập nội dung -->
+            <com.google.android.material.textfield.TextInputLayout
+                android:id="@+id/inputLayoutNotification"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:hint="@string/inputNotificationDetails"
+                android:layout_marginTop="12dp">
+
+                <com.google.android.material.textfield.TextInputEditText
+                    android:id="@+id/edtNotificationContent"
+                    android:layout_width="match_parent"
+                    android:layout_height="300dp"
+                    android:gravity="top|start"
+                    android:inputType="textMultiLine"
+                    android:padding="8dp" />
+            </com.google.android.material.textfield.TextInputLayout>
+
+            <!-- Đính kèm -->
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnAttach"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Đính kèm"
+                android:icon="@drawable/ic_attach_file"
+                app:iconGravity="textStart"
+                android:layout_marginTop="12dp"
+                android:layout_marginBottom="12dp"
+                app:backgroundTint="@color/teal_700"
+                android:textColor="@android:color/white" />
+
+            <ImageView
+                android:id="@+id/imgPreview"
+                android:layout_width="200dp"
+                android:layout_height="200dp"
+                android:layout_marginTop="16dp"
+                android:scaleType="centerCrop"
+                android:visibility="gone" />
+        </LinearLayout>
+    </ScrollView>
+
+    <!-- Nút gửi -->
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/btnSendNotification"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Gửi thông báo"
+        android:textSize="18sp"
+        android:textColor="@android:color/white"
+        android:backgroundTint="?attr/colorPrimary"
+        android:layout_margin="16dp"
+        android:layout_gravity="bottom" />
+
+</androidx.coordinatorlayout.widget.CoordinatorLayout>
