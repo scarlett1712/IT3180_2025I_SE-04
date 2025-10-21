@@ -15,6 +15,9 @@
 Lưu ý:
 1. Khi chạy sẽ cần mất một khoảng thời gian để khởi động máy ảo. Nếu máy ảo đang hoạt động nhưng app chưa chạy có thể bấm lại thêm 1 lần nữa.
 2. Đôi lúc phần mềm hiển thị thông báo Gradle JDK configuration has changed thì chọn Sync Now. Nếu hiển thị lỗi thì chọn Use Embedded JDK.
+EDIT 1: Đôi khi sau khi pull về sẽ gặp tình trạng các function không nhận diện được package và file gốc
+-> Trên thanh menu của Android Studio, chọn File -> Sync Project with Gradle Files
+![](img/Edit1.png)
 
 ## Cách để chạy và cài đặt ứng dụng qua điện thoại (Khuyến khích dành cho người máy yếu & sử dụng điện thoại Android):
 - B1: Trên điện thoại: Truy cập vào Tùy chọn nhà phát triển (Developer options)
