@@ -9,5 +9,6 @@
     <color name="status_read">#FF9800</color>      <!-- Đã đọc -->
     <color name="status_replied">#4CAF50</color>   <!-- Đã trả lời -->
     <color name="teal_700">#018786</color>
+    <color name="purple_primary">#6750a4</color>
 
 </resources>

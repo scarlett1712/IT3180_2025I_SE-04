@@ -52,7 +52,7 @@ public class UserManager {
                 sharedPreferences.getString("dob", ""),
                 Gender.valueOf(sharedPreferences.getString("gender", Gender.MALE.name())),
                 sharedPreferences.getString("relationship", ""),
-                Role.valueOf(sharedPreferences.getString("role", Role.User.name())),
+                Role.valueOf(sharedPreferences.getString("role", Role.USER.name()).toUpperCase()),
                 sharedPreferences.getString("phone", "")
         );
     }

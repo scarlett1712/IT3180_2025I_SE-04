@@ -57,7 +57,7 @@ public class AccountFragment extends Fragment {
                     "12/03/1950",
                     Gender.MALE,
                     "Chủ hộ",
-                    Role.User,
+                    Role.USER,
                     "0987654321"
             );
             userManager.saveCurrentUser(currentUser);

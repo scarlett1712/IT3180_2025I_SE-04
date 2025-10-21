@@ -16,6 +16,7 @@ import androidx.recyclerview.widget.RecyclerView;
 
 import com.se_04.enoti.notification.NotificationAdapter;
 import com.se_04.enoti.notification.NotificationItem;
+import com.se_04.enoti.utils.UserManager;
 import com.se_04.enoti.R;
 
 import java.util.ArrayList;
@@ -31,8 +32,9 @@ public class HomeFragment_Admin extends Fragment {
         View view = inflater.inflate(R.layout.fragment_home_admin, container, false); // Make sure fragment_home.xml exists
 
         TextView txtWelcome = view.findViewById(R.id.txtWelcome);
-        String admin = "admin"; // ví dụ
-        String message = getString(R.string.welcome, admin);
+
+        String username = UserManager.getInstance(requireContext()).getUsername();
+        String message = getString(R.string.welcome, username);
         txtWelcome.setText(message);
 
         TextView txtGreeting = view.findViewById(R.id.txtGreeting);

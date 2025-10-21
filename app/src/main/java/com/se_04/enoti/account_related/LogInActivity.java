@@ -85,7 +85,7 @@ public class LogInActivity extends AppCompatActivity {
 
         // 🔹 Xác định role và username
         boolean admin = isAdmin(phone);
-        Role roleType = admin ? Role.Admin : Role.User;
+        Role roleType = admin ? Role.ADMIN : Role.USER;
         String username = admin ? "Quản trị viên" : phone.substring(phone.length() - 3);
 
         UserItem user = new UserItem(

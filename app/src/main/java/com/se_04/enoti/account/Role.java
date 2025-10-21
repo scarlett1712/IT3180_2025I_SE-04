@@ -1,8 +1,8 @@
 package com.se_04.enoti.account;
 
 public enum Role {
-    Admin("Quản trị viên"),
-    User("Người dùng");
+    ADMIN("Quản trị viên"),
+    USER("Người dùng");
 
     private final String displayName;
 

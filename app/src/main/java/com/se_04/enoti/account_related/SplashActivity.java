@@ -122,9 +122,9 @@ public class SplashActivity extends AppCompatActivity {
         UserItem user = userManager.getCurrentUser();
 
         if (userManager.isLoggedIn() && user != null) {
-            android.util.Log.d("SPLASH", "🧠 Current user role: " + user.getRole());
+            android.util.Log.d("SPLASH", "Current user role: " + user.getRole());
 
-            if (user.getRole() == Role.Admin) {
+            if (user.getRole() == Role.ADMIN) {
                 startActivity(new Intent(this, MainActivity_Admin.class));
             } else {
                 startActivity(new Intent(this, MainActivity_User.class));
