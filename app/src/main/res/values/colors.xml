@@ -10,5 +10,5 @@
     <color name="status_replied">#4CAF50</color>   <!-- Đã trả lời -->
     <color name="teal_700">#018786</color>
     <color name="purple_primary">#6750a4</color>
-
+    <color name="dark_gray">#A9A9A9</color>
 </resources>

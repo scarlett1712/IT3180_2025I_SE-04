@@ -1,0 +1,130 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.coordinatorlayout.widget.CoordinatorLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/white">
+
+    <!-- Thanh AppBar -->
+    <com.google.android.material.appbar.AppBarLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="?attr/colorPrimary"
+        android:fitsSystemWindows="true">
+
+        <com.google.android.material.appbar.MaterialToolbar
+            android:id="@+id/toolbar_resident_detail"
+            android:layout_width="match_parent"
+            android:layout_height="?attr/actionBarSize"
+            android:title="Chi tiết cư dân"
+            android:titleTextColor="@android:color/white" />
+    </com.google.android.material.appbar.AppBarLayout>
+
+    <!-- Nội dung -->
+    <ScrollView
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:padding="16dp"
+        app:layout_behavior="@string/appbar_scrolling_view_behavior">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:gravity="center_horizontal">
+
+            <!-- Ảnh cư dân -->
+            <ImageView
+                android:id="@+id/imgResident"
+                android:layout_width="120dp"
+                android:layout_height="120dp"
+                android:layout_marginTop="16dp"
+                android:src="@drawable/ic_resident"
+                android:contentDescription="@string/resident_image" />
+
+            <!-- Họ và tên -->
+            <TextView
+                android:id="@+id/txtResidentName"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Nguyễn Văn A"
+                android:textStyle="bold"
+                android:textSize="22sp"
+                android:gravity="center"
+                android:layout_marginTop="12dp"
+                android:textColor="@color/black" />
+
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="1dp"
+                android:background="@color/dark_gray"
+                android:layout_marginTop="12dp"
+                android:layout_marginBottom="12dp" />
+
+            <!-- Thông tin chi tiết -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical">
+
+                <TextView
+                    android:text="Giới tính:"
+                    style="@style/ResidentLabel" />
+                <TextView
+                    android:id="@+id/txtResidentGender"
+                    style="@style/ResidentValue" />
+
+                <TextView
+                    android:text="Ngày sinh:"
+                    style="@style/ResidentLabel" />
+                <TextView
+                    android:id="@+id/txtResidentDob"
+                    style="@style/ResidentValue" />
+
+                <TextView
+                    android:text="Email:"
+                    style="@style/ResidentLabel" />
+                <TextView
+                    android:id="@+id/txtResidentEmail"
+                    style="@style/ResidentValue" />
+
+                <TextView
+                    android:text="Số điện thoại:"
+                    style="@style/ResidentLabel" />
+                <TextView
+                    android:id="@+id/txtResidentPhone"
+                    style="@style/ResidentValue" />
+
+                <TextView
+                    android:text="Quan hệ với chủ hộ:"
+                    style="@style/ResidentLabel" />
+                <TextView
+                    android:id="@+id/txtResidentRelationship"
+                    style="@style/ResidentValue" />
+
+                <TextView
+                    android:text="Vai trò:"
+                    style="@style/ResidentLabel" />
+                <TextView
+                    android:id="@+id/txtResidentRole"
+                    style="@style/ResidentValue" />
+
+                <TextView
+                    android:text="Tình trạng cư trú:"
+                    style="@style/ResidentLabel" />
+                <TextView
+                    android:id="@+id/txtResidentLiving"
+                    style="@style/ResidentValue" />
+
+                <TextView
+                    android:text="Mã hộ gia đình:"
+                    style="@style/ResidentLabel" />
+                <TextView
+                    android:id="@+id/txtResidentFamilyID"
+                    style="@style/ResidentValue" />
+
+            </LinearLayout>
+        </LinearLayout>
+    </ScrollView>
+</androidx.coordinatorlayout.widget.CoordinatorLayout>

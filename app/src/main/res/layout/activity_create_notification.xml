@@ -17,7 +17,6 @@
             android:id="@+id/toolbar_feedback"
             android:layout_width="match_parent"
             android:layout_height="?attr/actionBarSize"
-            android:title="Tạo thông báo"
             android:titleTextColor="@android:color/white" />
     </com.google.android.material.appbar.AppBarLayout>
 
@@ -213,6 +212,23 @@
                     android:contentDescription="Danh sách người nhận" />
 
             </LinearLayout>
+
+            <androidx.recyclerview.widget.RecyclerView
+                android:id="@+id/recyclerResidents"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:visibility="gone"/>
+
+            <TextView
+                android:id="@+id/txtSelectedResidents"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Chưa chọn cư dân nào"
+                android:textColor="@android:color/darker_gray"
+                android:textStyle="italic"
+                android:padding="8dp"
+                android:layout_marginTop="8dp" />
 
             <!-- Ô nhập nội dung -->
 

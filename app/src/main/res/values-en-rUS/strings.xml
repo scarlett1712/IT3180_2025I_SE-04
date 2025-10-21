@@ -52,4 +52,5 @@
     <string name="search_resident">Search resident by name</string>
     <string name="export_excel">Export Excel file</string>
     <string name="receivers">Receivers</string>
+    <string name="resident_image">Ảnh cá nhân</string>
 </resources>

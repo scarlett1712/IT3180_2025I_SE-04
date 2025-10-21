@@ -53,5 +53,9 @@ dependencies {
     implementation("com.google.firebase:firebase-auth")
 
     implementation("io.github.chaosleung:pinview:1.4.4")
-}
 
+    // Apache POI cho Android – hỗ trợ đầy đủ org.apache.poi.ss.usermodel.*
+    implementation("com.github.SUPERCILEX.poi-android:poi:3.17")
+
+    implementation("androidx.core:core-ktx:1.13.1")
+}

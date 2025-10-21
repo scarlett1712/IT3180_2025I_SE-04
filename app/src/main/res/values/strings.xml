@@ -51,6 +51,7 @@
     <string name="search_resident">Tìm theo tên cư dân</string>
     <string name="export_excel">Xuất file Excel</string>
     <string name="receivers">Người nhận</string>
+    <string name="resident_image">Ảnh cá nhân</string>
 
     <string-array name="finance_filter_options">
         <item>Tất cả</item>
