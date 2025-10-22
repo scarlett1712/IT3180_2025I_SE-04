@@ -2,6 +2,7 @@ package com.se_04.enoti.feedback;
 
 public class FeedbackItem{
 
+    private final String id;
     private final String title;
     private final String type;
     private final String date;
@@ -12,7 +13,8 @@ public class FeedbackItem{
     private boolean isReplied;
 
 
-    public FeedbackItem(String title, String type, String date, String content, String repliedNotification) {
+    public FeedbackItem(String id, String title, String type, String date, String content, String repliedNotification) {
+        this.id = id;
         this.title = title;
         this.type = type;
         this.date = date;
@@ -34,7 +36,5 @@ public class FeedbackItem{
     public void setSent(boolean sent) { isSent = sent; }
     public void setRead(boolean read) { isRead = read; }
     public void setReplied(boolean replied) { isReplied = replied; }
-
-
-
+    public String getId() { return id; }
 }

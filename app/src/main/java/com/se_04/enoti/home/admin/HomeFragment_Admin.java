@@ -14,6 +14,7 @@ import androidx.fragment.app.Fragment;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
+import com.se_04.enoti.account.UserItem;
 import com.se_04.enoti.notification.NotificationAdapter;
 import com.se_04.enoti.notification.NotificationItem;
 import com.se_04.enoti.utils.UserManager;
@@ -33,8 +34,9 @@ public class HomeFragment_Admin extends Fragment {
 
         TextView txtWelcome = view.findViewById(R.id.txtWelcome);
 
-        String username = UserManager.getInstance(requireContext()).getUsername();
-        String message = getString(R.string.welcome, username);
+        UserItem currentUser = UserManager.getInstance(requireContext()).getCurrentUser();
+        String username = (currentUser != null) ? currentUser.getName() : "Người dùng";
+        String message = "Xin chào " + username + "!";
         txtWelcome.setText(message);
 
         TextView txtGreeting = view.findViewById(R.id.txtGreeting);

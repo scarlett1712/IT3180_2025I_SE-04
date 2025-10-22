@@ -24,8 +24,11 @@ public class UserManager {
         return instance;
     }
 
-    // 🔹 Lưu thông tin user đầy đủ
     public void saveCurrentUser(UserItem user) {
+        if (user == null) {
+            android.util.Log.e("USER_MANAGER", "⚠️ User is null, cannot save!");
+            return;
+        }
         SharedPreferences.Editor editor = sharedPreferences.edit();
         editor.putString("id", user.getId());
         editor.putString("familyId", user.getFamilyId());
@@ -38,12 +41,15 @@ public class UserManager {
         editor.putString("role", user.getRole().name());
         editor.apply();
 
-        android.util.Log.d("USER_MANAGER", "✅ Saved user role: " + user.getRole().name());
+        android.util.Log.d("USER_MANAGER", "✅ Saved user: " + user.getName() + " | Role: " + user.getRole());
     }
 
-    // 🔹 Lấy thông tin user
     public UserItem getCurrentUser() {
-        if (!sharedPreferences.contains("id")) return null;
+        if (!sharedPreferences.contains("id")) {
+            android.util.Log.w("USER_MANAGER", "⚠️ No user found in SharedPreferences");
+            return null;
+        }
+
         return new UserItem(
                 sharedPreferences.getString("id", ""),
                 sharedPreferences.getString("familyId", ""),
@@ -52,19 +58,13 @@ public class UserManager {
                 sharedPreferences.getString("dob", ""),
                 Gender.valueOf(sharedPreferences.getString("gender", Gender.MALE.name())),
                 sharedPreferences.getString("relationship", ""),
-                Role.valueOf(sharedPreferences.getString("role", Role.USER.name()).toUpperCase()),
+                Role.valueOf(sharedPreferences.getString("role", Role.USER.name())),
                 sharedPreferences.getString("phone", "")
         );
     }
 
-    // 🔹 Xóa user (khi đăng xuất)
     public void clearUser() {
         sharedPreferences.edit().clear().apply();
-    }
-
-    public String getUsername() {
-        UserItem user = getCurrentUser();
-        return user != null ? user.getName() : null;
     }
 
     public void setLoggedIn(boolean loggedIn) {
@@ -74,5 +74,4 @@ public class UserManager {
     public boolean isLoggedIn() {
         return sharedPreferences.getBoolean("isLoggedIn", false);
     }
-
 }

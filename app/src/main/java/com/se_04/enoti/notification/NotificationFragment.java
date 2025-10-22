@@ -17,6 +17,7 @@ import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.se_04.enoti.R;
+import com.se_04.enoti.account.UserItem;
 import com.se_04.enoti.utils.UserManager;
 
 import java.util.ArrayList;
@@ -48,9 +49,10 @@ public class NotificationFragment extends Fragment {
         spinnerFilterType = view.findViewById(R.id.spinnerFilterType);
         spinnerFilterTime = view.findViewById(R.id.spinnerFilterTime);
 
-        // Chào người dùng
-        String username = UserManager.getInstance(requireContext()).getUsername();
-        txtWelcome.setText(getString(R.string.welcome, username));
+        UserItem currentUser = UserManager.getInstance(requireContext()).getCurrentUser();
+        String username = (currentUser != null) ? currentUser.getName() : "Người dùng";
+        String message = "Xin chào " + username + "!";
+        txtWelcome.setText(message);
 
         Calendar calendar = Calendar.getInstance();
         int hour = calendar.get(Calendar.HOUR_OF_DAY);

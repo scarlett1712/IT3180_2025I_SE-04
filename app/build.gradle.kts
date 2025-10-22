@@ -58,4 +58,6 @@ dependencies {
     implementation("com.github.SUPERCILEX.poi-android:poi:3.17")
 
     implementation("androidx.core:core-ktx:1.13.1")
+
+    implementation("com.android.volley:volley:1.2.1")
 }

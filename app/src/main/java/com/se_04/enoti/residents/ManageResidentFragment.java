@@ -24,6 +24,7 @@ import androidx.recyclerview.widget.RecyclerView;
 
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
 import com.se_04.enoti.R;
+import com.se_04.enoti.account.UserItem;
 import com.se_04.enoti.utils.UserManager;
 
 import org.apache.poi.ss.usermodel.Cell;
@@ -75,8 +76,10 @@ public class ManageResidentFragment extends Fragment {
         recyclerViewResidents = view.findViewById(R.id.recyclerViewResidents);
         btnExportExcel = view.findViewById(R.id.btnExportExcel);
 
-        String username = UserManager.getInstance(requireContext()).getUsername();
-        txtWelcome.setText(getString(R.string.welcome, username));
+        UserItem currentUser = UserManager.getInstance(requireContext()).getCurrentUser();
+        String username = (currentUser != null) ? currentUser.getName() : "Người dùng";
+        String message = "Xin chào " + username + "!";
+        txtWelcome.setText(message);
 
         Calendar calendar = Calendar.getInstance();
         int hour = calendar.get(Calendar.HOUR_OF_DAY);

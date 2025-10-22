@@ -13,6 +13,7 @@ import androidx.fragment.app.Fragment;
 
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
 import com.se_04.enoti.R;
+import com.se_04.enoti.account.UserItem;
 import com.se_04.enoti.notification.admin.CreateNotificationActivity;
 import com.se_04.enoti.utils.UserManager;
 
@@ -29,8 +30,9 @@ public class ManageNotificationFragment extends Fragment {
         TextView txtWelcome = view.findViewById(R.id.txtWelcome);
         TextView txtGreeting = view.findViewById(R.id.txtGreeting);
 
-        String username = UserManager.getInstance(requireContext()).getUsername();
-        String message = getString(R.string.welcome, username);
+        UserItem currentUser = UserManager.getInstance(requireContext()).getCurrentUser();
+        String username = (currentUser != null) ? currentUser.getName() : "Người dùng";
+        String message = "Xin chào " + username + "!";
         txtWelcome.setText(message);
 
         Calendar calendar = Calendar.getInstance();

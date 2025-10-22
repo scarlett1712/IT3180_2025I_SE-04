@@ -22,6 +22,6 @@ public class FeedbackRepository {
     public List<FeedbackItem> getFeedbacks() { return feedbacks; }
 
     private void seedData() {
-        feedbacks.add(new FeedbackItem("Cúp điện toàn khu", "phản hồi thông báo", "10/10/2025", "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Aliquam at dolor vitae lorem tristique tincidunt. Vestibulum congue congue sapien, in scelerisque libero porta in. Aliquam et tortor sed ipsum lacinia mollis convallis quis nulla.", "Cúp điện toàn khu"));
+        feedbacks.add(new FeedbackItem("1", "Cúp điện toàn khu", "phản hồi thông báo", "10/10/2025", "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Aliquam at dolor vitae lorem tristique tincidunt. Vestibulum congue congue sapien, in scelerisque libero porta in. Aliquam et tortor sed ipsum lacinia mollis convallis quis nulla.", "Cúp điện toàn khu"));
     }
 }

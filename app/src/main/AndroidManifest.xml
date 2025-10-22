@@ -19,7 +19,8 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.ENoti"
         android:forceDarkAllowed="false"
-        tools:targetApi="29">
+        tools:targetApi="29"
+        android:usesCleartextTraffic="true">
 
         <activity
             android:name=".account_related.SplashActivity"

@@ -18,9 +18,23 @@ import java.util.List;
 public class FeedbackAdapter extends RecyclerView.Adapter<FeedbackAdapter.ViewHolder> {
 
     private final List<FeedbackItem> feedbackList;
+    private OnItemClickListener listener;
 
+    // Interface for click events
+    public interface OnItemClickListener {
+        void onItemClick(FeedbackItem item);
+    }
+
+    // Constructor for User
     public FeedbackAdapter(List<FeedbackItem> feedbackList) {
         this.feedbackList = feedbackList;
+        this.listener = null;
+    }
+
+    // Constructor for Admin
+    public FeedbackAdapter(List<FeedbackItem> feedbackList, OnItemClickListener listener) {
+        this.feedbackList = feedbackList;
+        this.listener = listener;
     }
 
     @NonNull
@@ -38,15 +52,13 @@ public class FeedbackAdapter extends RecyclerView.Adapter<FeedbackAdapter.ViewHo
         holder.txtDate.setText(item.getDate());
         holder.txtRepliedNotification.setText(item.getRepliedNotification());
 
-        // Đổi màu chấm trạng thái
         int colorResId = R.color.status_default;
-        
         if (item.isReplied()) {
-            colorResId = R.color.status_replied; // xanh lá
+            colorResId = R.color.status_replied;
         } else if (item.isRead()) {
-            colorResId = R.color.status_read;    // cam
+            colorResId = R.color.status_read;
         } else if (item.isSent()) {
-            colorResId = R.color.status_sent;    // xanh dương
+            colorResId = R.color.status_sent;
         }
 
         holder.statusIndicator.getBackground().setTint(
@@ -55,23 +67,24 @@ public class FeedbackAdapter extends RecyclerView.Adapter<FeedbackAdapter.ViewHo
 
         holder.itemView.setOnClickListener(v -> {
             int pos = holder.getBindingAdapterPosition();
+            if (pos == RecyclerView.NO_POSITION) return;
 
-            if (pos == RecyclerView.NO_POSITION) {
-                Log.e("AdapterClick", "Clicked an item with no position, aborting.");
-                return;
-            }
             FeedbackItem clicked = feedbackList.get(pos);
 
-            Intent intent = new Intent(v.getContext(), FeedbackDetailActivity.class);
-
-            intent.putExtra("position", pos);
-            intent.putExtra("title", clicked.getTitle());
-            intent.putExtra("type", clicked.getType());
-            intent.putExtra("date", clicked.getDate());
-            intent.putExtra("content", clicked.getContent());
-            intent.putExtra("repliedNotification", clicked.getRepliedNotification());
-            v.getContext().startActivity(intent);
-
+            if (listener != null) {
+                // Admin flow: Use the callback
+                listener.onItemClick(clicked);
+            } else {
+                // User flow: Open detail activity
+                Intent intent = new Intent(v.getContext(), FeedbackDetailActivity.class);
+                intent.putExtra("position", pos);
+                intent.putExtra("title", clicked.getTitle());
+                intent.putExtra("type", clicked.getType());
+                intent.putExtra("date", clicked.getDate());
+                intent.putExtra("content", clicked.getContent());
+                intent.putExtra("repliedNotification", clicked.getRepliedNotification());
+                v.getContext().startActivity(intent);
+            }
         });
     }
 
@@ -80,9 +93,8 @@ public class FeedbackAdapter extends RecyclerView.Adapter<FeedbackAdapter.ViewHo
         return feedbackList.size();
     }
 
-    // ViewHolder
     static class ViewHolder extends RecyclerView.ViewHolder {
-        TextView txtTitle, txyType, txtDate, txtContent, txtRepliedNotification;
+        TextView txtTitle, txtDate, txtRepliedNotification;
         View statusIndicator;
 
         ViewHolder(View itemView) {
