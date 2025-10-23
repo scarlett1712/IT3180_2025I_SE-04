@@ -22,6 +22,20 @@
 
 <div style="text-align:center"><img src="img/Edit1.png" /></div>
 
+### EDIT 2: Trước khi chạy ứng dụng cần chạy server:
+
+- B1: Cài đặt Nodejs phiên bản mới nhất về máy tính <a href="https://nodejs.org/en/download" target="_blank">tại đây</a>
+
+- B2: Trong Terminal, chuyển đường dẫn sang folder backend. VD:
+
+ <div style="text-align:center"><img width="538" height="46" alt="image" src="https://github.com/user-attachments/assets/24d143e3-3a72-4f3e-9718-c61d196e2a0c" /></div>
+
+- B3: Chạy câu lệnh: node index.js
+
+<img width="420" height="80" alt="image" src="https://github.com/user-attachments/assets/3e58332a-602f-4dd7-9092-2a205b1580a9" />
+
+Kết quả cuối cùng sau khi chạy câu lệnh như thế này là thành công.
+
 ## Cách để chạy và cài đặt ứng dụng qua điện thoại (Khuyến khích dành cho người máy yếu & sử dụng điện thoại Android):
 - B1: Trên điện thoại: Truy cập vào Tùy chọn nhà phát triển (Developer options)
 Mỗi máy 1 khác, có thể tra cứu cách bật Tùy chọn nhà phát triển qua mạng.
