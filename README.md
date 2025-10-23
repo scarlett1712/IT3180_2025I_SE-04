@@ -36,6 +36,20 @@
 
 Kết quả cuối cùng sau khi chạy câu lệnh như thế này là thành công.
 
+### EDIT 3 (12:49 AM, 24/10/25): Hiện tại chưa có phần Đăng ký tài khoản. Nếu muốn thêm tài khoản cần thêm thẳng vào CSDL. 
+
+Trước khi thêm cần encrypt mật khẩu:
+
+- B1: Trong Terminal, chuyển đường dẫn sang folder backend. VD:
+
+ <div style="text-align:center"><img width="538" height="46" alt="image" src="https://github.com/user-attachments/assets/24d143e3-3a72-4f3e-9718-c61d196e2a0c" /></div>
+
+- B2: Chạy câu lệnh: node createHash.js [Mật khẩu cần mã hóa]. VD:
+
+<img width="1587" height="129" alt="image" src="https://github.com/user-attachments/assets/c3617870-d548-4f92-94a8-abf3e1ca82de" />
+
+Dòng cuối chính là mật khẩu sau khi mã hóa và có thể thêm vào CSDL.
+
 ## Cách để chạy và cài đặt ứng dụng qua điện thoại (Khuyến khích dành cho người máy yếu & sử dụng điện thoại Android):
 - B1: Trên điện thoại: Truy cập vào Tùy chọn nhà phát triển (Developer options)
 Mỗi máy 1 khác, có thể tra cứu cách bật Tùy chọn nhà phát triển qua mạng.
