@@ -25,12 +25,19 @@ import androidx.appcompat.widget.SearchView;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
+import com.android.volley.Request;
+import com.android.volley.RequestQueue;
+import com.android.volley.toolbox.JsonArrayRequest;
+import com.android.volley.toolbox.Volley;
 import com.google.android.material.appbar.MaterialToolbar;
 import com.google.android.material.bottomsheet.BottomSheetDialog;
 import com.google.android.material.textfield.TextInputEditText;
 import com.se_04.enoti.R;
 import com.se_04.enoti.residents.ResidentAdapter;
 import com.se_04.enoti.residents.ResidentItem;
+
+import org.json.JSONArray;
+import org.json.JSONObject;
 
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
@@ -49,13 +56,15 @@ public class CreateNotificationActivity extends AppCompatActivity {
     private ImageButton btnReceiverList;
     private TextInputEditText edtNotificationTitle, edtExpirationDate, edtNotificationContent;
     private Button btnSendLater;
-    private TextView txtSelectedResidents; // Hiển thị danh sách cư dân đã chọn
+    private TextView txtSelectedResidents;
 
     private final List<ResidentItem> allResidents = new ArrayList<>();
     private final List<ResidentItem> filteredResidents = new ArrayList<>();
     private Set<ResidentItem> selectedResidents = new HashSet<>();
 
     private boolean isResidentListVisible = false;
+
+    private static final String API_URL = "http://10.0.2.2:5000/api/residents"; // ⚙️ Thay IP của backend bạn
 
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
@@ -86,18 +95,14 @@ public class CreateNotificationActivity extends AppCompatActivity {
         btnSendLater = findViewById(R.id.btnSendLater);
         txtSelectedResidents = findViewById(R.id.txtSelectedResidents);
 
-        // Dữ liệu mẫu cư dân
-        initResidentData();
-
-        // Thiết lập RecyclerView với adapter có chọn cư dân
+        // Thiết lập RecyclerView
         adapter = new ResidentAdapter(filteredResidents, ResidentAdapter.MODE_SELECT_FOR_NOTIFICATION, selected -> {
             selectedResidents = selected;
             updateSelectedResidentsDisplay();
         });
-
         recyclerResidents.setLayoutManager(new LinearLayoutManager(this));
         recyclerResidents.setAdapter(adapter);
-        recyclerResidents.setVisibility(View.GONE); // Ẩn mặc định
+        recyclerResidents.setVisibility(View.GONE);
 
         setupNotificationType();
         setupFloorAndRoom();
@@ -106,15 +111,63 @@ public class CreateNotificationActivity extends AppCompatActivity {
         setupExpirationDatePicker();
 
         btnSendLater.setOnClickListener(v -> showSendOptionsBottomSheet());
+
+        // 🧠 Gọi API lấy danh sách cư dân thật
+        fetchResidentsFromAPI();
     }
 
-    private void initResidentData() {
-        allResidents.add(new ResidentItem("Nguyễn Văn A", "Tầng 1", "Phòng 101"));
-        allResidents.add(new ResidentItem("Trần Thị B", "Tầng 1", "Phòng 102"));
-        allResidents.add(new ResidentItem("Lê Văn C", "Tầng 2", "Phòng 201"));
-        allResidents.add(new ResidentItem("Phạm Thị D", "Tầng 3", "Phòng 301"));
-        allResidents.add(new ResidentItem("Hoàng Văn E", "Tầng 2", "Phòng 202"));
-        filteredResidents.addAll(allResidents);
+    /** 🧠 Lấy danh sách cư dân từ API */
+    private void fetchResidentsFromAPI() {
+        RequestQueue queue = Volley.newRequestQueue(this);
+
+        JsonArrayRequest request = new JsonArrayRequest(
+                Request.Method.GET,
+                API_URL,
+                null,
+                this::parseResidentsFromResponse,
+                error -> {
+                    error.printStackTrace();
+                    Toast.makeText(this, "Không thể tải danh sách cư dân!", Toast.LENGTH_SHORT).show();
+                }
+        );
+
+        queue.add(request);
+    }
+
+    /** 🧠 Xử lý dữ liệu JSON trả về từ server */
+    private void parseResidentsFromResponse(JSONArray response) {
+        try {
+            allResidents.clear();
+            for (int i = 0; i < response.length(); i++) {
+                JSONObject obj = response.getJSONObject(i);
+
+                // Lọc chỉ lấy role_id = 1 (user)
+                int roleId = obj.optInt("role_id", 0);
+                if (roleId != 1) continue;
+
+                allResidents.add(new ResidentItem(
+                        obj.optInt("user_item_id"),
+                        obj.optInt("user_id"),
+                        obj.optString("full_name"),
+                        obj.optString("gender"),
+                        obj.optString("dob"),
+                        obj.optString("email"),
+                        obj.optString("phone"),
+                        obj.optString("relationship_with_the_head_of_household"),
+                        obj.optString("family_id"),
+                        obj.optBoolean("is_living"),
+                        obj.optString("apartment_number")
+                ));
+            }
+
+            filteredResidents.clear();
+            filteredResidents.addAll(allResidents);
+            adapter.updateList(filteredResidents);
+
+            setupFloorAndRoom(); // cập nhật spinner tầng/phòng
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
     }
 
     private void setupNotificationType() {
@@ -125,8 +178,17 @@ public class CreateNotificationActivity extends AppCompatActivity {
     }
 
     private void setupFloorAndRoom() {
-        String[] floors = {"Tất cả tầng", "Tầng 1", "Tầng 2", "Tầng 3"};
-        String[] rooms = {"Tất cả phòng", "Phòng 101", "Phòng 102", "Phòng 201", "Phòng 202", "Phòng 301"};
+        List<String> floors = new ArrayList<>();
+        floors.add("Tất cả tầng");
+        for (ResidentItem r : allResidents) {
+            if (!floors.contains(r.getFloor())) floors.add(r.getFloor());
+        }
+
+        List<String> rooms = new ArrayList<>();
+        rooms.add("Tất cả phòng");
+        for (ResidentItem r : allResidents) {
+            if (!rooms.contains(r.getRoom())) rooms.add(r.getRoom());
+        }
 
         ArrayAdapter<String> floorAdapter = new ArrayAdapter<>(this, android.R.layout.simple_spinner_item, floors);
         floorAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
@@ -137,13 +199,10 @@ public class CreateNotificationActivity extends AppCompatActivity {
         spinnerReceiverRoom.setAdapter(roomAdapter);
 
         AdapterView.OnItemSelectedListener filterListener = new AdapterView.OnItemSelectedListener() {
-            @Override
-            public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
+            @Override public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
                 filterResidents(searchView.getQuery().toString());
             }
-
-            @Override
-            public void onNothingSelected(AdapterView<?> parent) { }
+            @Override public void onNothingSelected(AdapterView<?> parent) {}
         };
 
         spinnerReceiverFloor.setOnItemSelectedListener(filterListener);
@@ -153,14 +212,12 @@ public class CreateNotificationActivity extends AppCompatActivity {
     private void setupSearch() {
         searchView.clearFocus();
         searchView.setOnQueryTextListener(new SearchView.OnQueryTextListener() {
-            @Override
-            public boolean onQueryTextSubmit(String query) {
+            @Override public boolean onQueryTextSubmit(String query) {
                 filterResidents(query);
                 return true;
             }
 
-            @Override
-            public boolean onQueryTextChange(String newText) {
+            @Override public boolean onQueryTextChange(String newText) {
                 filterResidents(newText);
                 return true;
             }
@@ -177,12 +234,16 @@ public class CreateNotificationActivity extends AppCompatActivity {
     private void filterResidents(String query) {
         filteredResidents.clear();
 
-        String selectedFloor = spinnerReceiverFloor.getSelectedItem().toString();
-        String selectedRoom = spinnerReceiverRoom.getSelectedItem().toString();
+        String selectedFloor = spinnerReceiverFloor.getSelectedItem() != null
+                ? spinnerReceiverFloor.getSelectedItem().toString()
+                : "Tất cả tầng";
+        String selectedRoom = spinnerReceiverRoom.getSelectedItem() != null
+                ? spinnerReceiverRoom.getSelectedItem().toString()
+                : "Tất cả phòng";
 
         for (ResidentItem r : allResidents) {
-            boolean matchesName = TextUtils.isEmpty(query) ||
-                    r.getName().toLowerCase(Locale.ROOT).contains(query.toLowerCase(Locale.ROOT));
+            boolean matchesName = TextUtils.isEmpty(query)
+                    || r.getName().toLowerCase(Locale.ROOT).contains(query.toLowerCase(Locale.ROOT));
             boolean matchesFloor = selectedFloor.equals("Tất cả tầng") || r.getFloor().equals(selectedFloor);
             boolean matchesRoom = selectedRoom.equals("Tất cả phòng") || r.getRoom().equals(selectedRoom);
 
@@ -192,10 +253,6 @@ public class CreateNotificationActivity extends AppCompatActivity {
         }
 
         adapter.updateList(filteredResidents);
-
-        if (filteredResidents.isEmpty()) {
-            Toast.makeText(this, "Không tìm thấy cư dân phù hợp", Toast.LENGTH_SHORT).show();
-        }
     }
 
     private void setupExpirationDatePicker() {
@@ -243,9 +300,9 @@ public class CreateNotificationActivity extends AppCompatActivity {
 
         txtSendTime.setOnClickListener(v -> pickDateTime(txtSendTime));
 
-        chkRemind.setOnCheckedChangeListener((buttonView, isChecked) -> {
-            layoutRemindTime.setVisibility(isChecked ? View.VISIBLE : View.GONE);
-        });
+        chkRemind.setOnCheckedChangeListener((buttonView, isChecked) ->
+                layoutRemindTime.setVisibility(isChecked ? View.VISIBLE : View.GONE)
+        );
 
         txtRemindTime.setOnClickListener(v -> pickTime(txtRemindTime));
 
@@ -293,7 +350,6 @@ public class CreateNotificationActivity extends AppCompatActivity {
     protected void onResume() {
         super.onResume();
 
-        // Đặt lại màu nền cho toolbar khi quay lại
         MaterialToolbar toolbar = findViewById(R.id.toolbar_feedback);
         if (toolbar != null) {
             TypedValue typedValue = new TypedValue();

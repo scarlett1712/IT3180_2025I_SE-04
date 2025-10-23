@@ -57,6 +57,7 @@ public class AccountFragment extends Fragment {
                     "12/03/1950",
                     Gender.MALE,
                     "Chủ hộ",
+                    0,
                     Role.USER,
                     "0987654321"
             );
@@ -80,7 +81,7 @@ public class AccountFragment extends Fragment {
 
     private void bindUserData(UserItem user) {
         txtFullName.setText(user.getName());
-        txtApartment.setText("Căn hộ: " + user.getId());
+        txtApartment.setText("Căn hộ: " + user.getRoom());
         email.setText("Email: " + user.getEmail());
         phoneNumber.setText("Số điện thoại: " + user.getPhone());
         relationship.setText("Quan hệ trong hộ: " + user.getRelationship());
@@ -91,6 +92,15 @@ public class AccountFragment extends Fragment {
                         ? R.drawable.ic_person
                         : R.drawable.ic_person_female
         );
+
+        // 🔹 Nếu là Admin → ẩn các trường không cần thiết
+        if (user.getRole() == Role.ADMIN) {
+            txtApartment.setText("Quản trị viên");
+            relationship.setVisibility(View.GONE);
+        } else {
+            txtApartment.setVisibility(View.VISIBLE);
+            relationship.setVisibility(View.VISIBLE);
+        }
     }
 
     private void showLogoutConfirmation() {

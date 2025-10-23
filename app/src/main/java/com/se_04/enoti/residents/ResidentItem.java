@@ -1,48 +1,70 @@
 package com.se_04.enoti.residents;
 
 public class ResidentItem {
+    private int userItemId;
+    private int userId;
     private String name;
-    private String floor;
-    private String room;
     private String gender;
     private String dob;
     private String email;
     private String phone;
     private String relationship;
-    private String role;
     private String familyId;
     private boolean isLiving;
+    private String apartmentId;
 
-    public ResidentItem(String name, String floor, String room) {
-        this(name, floor, room, "Nam", "01/01/1990", "example@gmail.com",
-                "0123456789", "Chủ hộ", "Cư dân", "HGD01", true);
-    }
-
-    public ResidentItem(String name, String floor, String room, String gender, String dob, String email,
-                        String phone, String relationship, String role, String familyId, boolean isLiving) {
+    public ResidentItem(int userItemId, int userId, String name, String gender, String dob,
+                        String email, String phone, String relationship,
+                        String familyId, boolean isLiving, String apartmentId) {
+        this.userItemId = userItemId;
+        this.userId = userId;
         this.name = name;
-        this.floor = floor;
-        this.room = room;
         this.gender = gender;
         this.dob = dob;
         this.email = email;
         this.phone = phone;
         this.relationship = relationship;
-        this.role = role;
         this.familyId = familyId;
         this.isLiving = isLiving;
+        this.apartmentId = apartmentId;
     }
 
-    // Getter
+    public int getUserItemId() { return userItemId; }
+    public int getUserId() { return userId; }
     public String getName() { return name; }
-    public String getFloor() { return floor; }
-    public String getRoom() { return room; }
     public String getGender() { return gender; }
     public String getDob() { return dob; }
     public String getEmail() { return email; }
     public String getPhone() { return phone; }
     public String getRelationship() { return relationship; }
-    public String getRole() { return role; }
     public String getFamilyId() { return familyId; }
     public boolean isLiving() { return isLiving; }
+    public String getApartmentId() { return apartmentId; }
+
+    public String getFloor() {
+        if (apartmentId == null || apartmentId.isEmpty()) {
+            return "Không rõ";
+        }
+
+        try {
+            // Loại bỏ ký tự không phải số
+            String digitsOnly = apartmentId.replaceAll("\\D+", "");
+            if (digitsOnly.length() >= 3) {
+                // Lấy tất cả trừ 2 số cuối (VD: 101 -> 1, 1005 -> 10)
+                String floorNumber = digitsOnly.substring(0, digitsOnly.length() - 2);
+                return "Tầng " + Integer.parseInt(floorNumber);
+            } else if (digitsOnly.length() == 2) {
+                // Nếu chỉ có 2 số (VD: 05 -> tầng 0)
+                return "Tầng " + digitsOnly.charAt(0);
+            } else {
+                return "Không rõ";
+            }
+        } catch (Exception e) {
+            return "Không rõ";
+        }
+    }
+
+    public String getRoom() {
+        return (apartmentId != null) ? "Phòng " + apartmentId : "Không rõ";
+    }
 }

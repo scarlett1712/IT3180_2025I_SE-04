@@ -22,6 +22,10 @@ import androidx.fragment.app.Fragment;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
+import com.android.volley.Request;
+import com.android.volley.RequestQueue;
+import com.android.volley.toolbox.JsonArrayRequest;
+import com.android.volley.toolbox.Volley;
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
 import com.se_04.enoti.R;
 import com.se_04.enoti.account.UserItem;
@@ -32,6 +36,8 @@ import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.usermodel.Workbook;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
+import org.json.JSONArray;
+import org.json.JSONObject;
 
 import java.io.File;
 import java.io.FileOutputStream;
@@ -59,6 +65,9 @@ public class ManageResidentFragment extends Fragment {
     private final List<String> allRooms = new ArrayList<>();
 
     private static final int REQUEST_WRITE_PERMISSION = 1001;
+
+    // ⚙️ API endpoint — thay bằng IP máy chạy Node.js
+    private static final String API_URL = "http://10.0.2.2:5000/api/residents";
 
     @Nullable
     @Override
@@ -88,47 +97,38 @@ public class ManageResidentFragment extends Fragment {
                 : (hour < 18) ? "chiều" : "tối";
         txtGreeting.setText(getString(R.string.greeting, timeOfDay));
 
-        setupSampleData();
-
         recyclerViewResidents.setLayoutManager(new LinearLayoutManager(requireContext()));
+        fullList = new ArrayList<>();
+        filteredList = new ArrayList<>();
         adapter = new ResidentAdapter(filteredList, ResidentAdapter.MODE_VIEW_DETAIL, selected -> {});
         recyclerViewResidents.setAdapter(adapter);
 
         setupFloorSpinner();
+        setupListeners();
+        fetchResidentsFromAPI();
 
+        return view;
+    }
+
+    private void setupListeners() {
         spinnerFilterFloor.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
-            @Override
-            public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
+            @Override public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
                 updateRoomSpinner();
                 applyFilters();
             }
-
-            @Override
-            public void onNothingSelected(AdapterView<?> parent) { }
+            @Override public void onNothingSelected(AdapterView<?> parent) {}
         });
 
         spinnerFilterRoom.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
-            @Override
-            public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
+            @Override public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
                 applyFilters();
             }
-
-            @Override
-            public void onNothingSelected(AdapterView<?> parent) { }
+            @Override public void onNothingSelected(AdapterView<?> parent) {}
         });
 
         searchView.setOnQueryTextListener(new SearchView.OnQueryTextListener() {
-            @Override
-            public boolean onQueryTextSubmit(String query) {
-                applyFilters();
-                return true;
-            }
-
-            @Override
-            public boolean onQueryTextChange(String newText) {
-                applyFilters();
-                return true;
-            }
+            @Override public boolean onQueryTextSubmit(String query) { applyFilters(); return true; }
+            @Override public boolean onQueryTextChange(String newText) { applyFilters(); return true; }
         });
 
         btnExportExcel.setOnClickListener(v -> {
@@ -141,31 +141,70 @@ public class ManageResidentFragment extends Fragment {
                 exportResidentsToExcel(filteredList);
             }
         });
-
-        return view;
     }
 
-    private void setupSampleData() {
-        fullList = new ArrayList<>();
-        fullList.add(new ResidentItem("Nguyễn Văn A", "Tầng 1", "Phòng 101"));
-        fullList.add(new ResidentItem("Trần Thị B", "Tầng 1", "Phòng 102"));
-        fullList.add(new ResidentItem("Lê Văn C", "Tầng 2", "Phòng 201"));
-        fullList.add(new ResidentItem("Phạm Minh D", "Tầng 3", "Phòng 301"));
-        fullList.add(new ResidentItem("Ngô Thị E", "Tầng 3", "Phòng 302"));
+    private void fetchResidentsFromAPI() {
+        if (!isAdded()) return;
 
-        filteredList = new ArrayList<>(fullList);
+        RequestQueue queue = Volley.newRequestQueue(requireContext());
+
+        JsonArrayRequest request = new JsonArrayRequest(
+                Request.Method.GET,
+                API_URL,
+                null,
+                response -> {
+                    if (!isAdded()) return;
+                    parseResidents(response);
+                },
+                error -> {
+                    error.printStackTrace();
+                    if (isAdded() && getContext() != null) {
+                        Toast.makeText(getContext(), "Lỗi kết nối", Toast.LENGTH_SHORT).show();
+                    }
+                }
+        );
+
+        queue.add(request);
+    }
+
+    private void parseResidents(JSONArray response) {
+        try {
+            fullList.clear();
+            for (int i = 0; i < response.length(); i++) {
+                JSONObject obj = response.getJSONObject(i);
+                fullList.add(new ResidentItem(
+                        obj.optInt("user_item_id"),
+                        obj.optInt("user_id"),
+                        obj.optString("full_name"),
+                        obj.optString("gender"),
+                        obj.optString("dob"),
+                        obj.optString("email"),
+                        obj.optString("phone"),
+                        obj.optString("relationship_with_the_head_of_household"),
+                        obj.optString("family_id"),
+                        obj.optBoolean("is_living"),
+                        obj.optString("apartment_number")
+                ));
+            }
+            filteredList.clear();
+            filteredList.addAll(fullList);
+            adapter.updateList(filteredList);
+            setupFloorSpinner();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
     }
 
     private void setupFloorSpinner() {
         allFloors.clear();
         allFloors.add("Tất cả tầng");
-        allFloors.add("Tầng 1");
-        allFloors.add("Tầng 2");
-        allFloors.add("Tầng 3");
+        for (ResidentItem item : fullList) {
+            String floor = item.getFloor();
+            if (!allFloors.contains(floor)) allFloors.add(floor);
+        }
 
-        ArrayAdapter<String> floorAdapter = new ArrayAdapter<>(
-                requireContext(), android.R.layout.simple_spinner_item, allFloors
-        );
+        ArrayAdapter<String> floorAdapter = new ArrayAdapter<>(requireContext(),
+                android.R.layout.simple_spinner_item, allFloors);
         floorAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
         spinnerFilterFloor.setAdapter(floorAdapter);
 
@@ -189,9 +228,8 @@ public class ManageResidentFragment extends Fragment {
             }
         }
 
-        ArrayAdapter<String> roomAdapter = new ArrayAdapter<>(
-                requireContext(), android.R.layout.simple_spinner_item, allRooms
-        );
+        ArrayAdapter<String> roomAdapter = new ArrayAdapter<>(requireContext(),
+                android.R.layout.simple_spinner_item, allRooms);
         roomAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
         spinnerFilterRoom.setAdapter(roomAdapter);
     }
@@ -205,9 +243,14 @@ public class ManageResidentFragment extends Fragment {
         filteredList.clear();
 
         for (ResidentItem item : fullList) {
+            // 🔍 Cho phép tìm theo tên
             boolean matchesSearch = item.getName().toLowerCase(Locale.ROOT).contains(searchQuery);
-            boolean matchesFloor = selectedFloor.equals("Tất cả tầng") || item.getFloor().equals(selectedFloor);
-            boolean matchesRoom = selectedRoom.equals("Tất cả phòng") || item.getRoom().equals(selectedRoom);
+
+            boolean matchesFloor =
+                    selectedFloor.equals("Tất cả tầng") || item.getFloor().equals(selectedFloor);
+
+            boolean matchesRoom =
+                    selectedRoom.equals("Tất cả phòng") || item.getRoom().equals(selectedRoom);
 
             if (matchesSearch && matchesFloor && matchesRoom) {
                 filteredList.add(item);
@@ -223,7 +266,7 @@ public class ManageResidentFragment extends Fragment {
             Sheet sheet = workbook.createSheet("Cư dân");
 
             Row header = sheet.createRow(0);
-            String[] headers = {"Họ tên", "Tầng", "Phòng"};
+            String[] headers = {"Họ tên", "Giới tính", "Ngày sinh", "Điện thoại", "Email", "Phòng", "Quan hệ"};
             for (int i = 0; i < headers.length; i++) {
                 Cell cell = header.createCell(i);
                 cell.setCellValue(headers[i]);
@@ -233,8 +276,12 @@ public class ManageResidentFragment extends Fragment {
             for (ResidentItem r : residents) {
                 Row row = sheet.createRow(rowIndex++);
                 row.createCell(0).setCellValue(r.getName());
-                row.createCell(1).setCellValue(r.getFloor());
-                row.createCell(2).setCellValue(r.getRoom());
+                row.createCell(1).setCellValue(r.getGender());
+                row.createCell(2).setCellValue(r.getDob());
+                row.createCell(3).setCellValue(r.getPhone());
+                row.createCell(4).setCellValue(r.getEmail());
+                row.createCell(5).setCellValue(r.getRoom());
+                row.createCell(6).setCellValue(r.getRelationship());
             }
 
             File dir = new File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS), "Enoti");

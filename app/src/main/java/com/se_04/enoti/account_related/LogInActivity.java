@@ -151,7 +151,19 @@ public class LogInActivity extends AppCompatActivity {
 
                             String dob = userJson.optString("dob", "");
                             String genderStr = userJson.optString("gender", "MALE").toUpperCase();
-                            String relationship = userJson.optString("relationship", "");
+                            String relationship = userJson.optString("relationship_with_the_head_of_household", "");
+                            if ("0".equals(relationship) || "Quản trị viên".equalsIgnoreCase(relationship)) {
+                                relationship = "Không thuộc hộ gia đình nào";
+                            }
+                            String aptStr = userJson.optString("apartment_number", "0");
+                            int room = 0;
+                            try {
+                                if (aptStr != null && !aptStr.isEmpty() && !"null".equalsIgnoreCase(aptStr)) {
+                                    room = Integer.parseInt(aptStr);
+                                }
+                            } catch (NumberFormatException e) {
+                                room = 0;
+                            }
                             String phoneResp = userJson.optString("phone", "");
                             String roleStr = userJson.optString("role", "USER").toUpperCase();
 
@@ -162,7 +174,7 @@ public class LogInActivity extends AppCompatActivity {
                             Role role = Role.valueOf(roleStr);
 
                             UserItem user = new UserItem(
-                                    id, familyId, email, name, dob, gender, relationship, role, phoneResp
+                                    id, familyId, email, name, dob, gender, relationship, room, role, phoneResp
                             );
 
                             UserManager manager = UserManager.getInstance(getApplicationContext());

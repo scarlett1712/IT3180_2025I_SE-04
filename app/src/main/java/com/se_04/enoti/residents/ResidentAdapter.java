@@ -53,9 +53,7 @@ public class ResidentAdapter extends RecyclerView.Adapter<ResidentAdapter.ViewHo
         boolean isSelected = selectedResidents.contains(resident);
         holder.itemView.setBackgroundColor(isSelected ? Color.parseColor("#D6EAF8") : Color.WHITE);
 
-        // 🔹 Tùy hành vi theo mode
         if (mode == MODE_VIEW_DETAIL) {
-            // 👉 1 chạm để mở chi tiết
             holder.itemView.setOnClickListener(v -> {
                 Intent intent = new Intent(v.getContext(), ResidentDetailActivity.class);
                 intent.putExtra("name", resident.getName());
@@ -64,13 +62,11 @@ public class ResidentAdapter extends RecyclerView.Adapter<ResidentAdapter.ViewHo
                 intent.putExtra("email", resident.getEmail());
                 intent.putExtra("phone", resident.getPhone());
                 intent.putExtra("relationship", resident.getRelationship());
-                intent.putExtra("role", resident.getRole());
                 intent.putExtra("familyID", resident.getFamilyId());
                 intent.putExtra("isLiving", resident.isLiving());
                 v.getContext().startActivity(intent);
             });
         } else if (mode == MODE_SELECT_FOR_NOTIFICATION) {
-            // 👉 1 chạm để chọn / bỏ chọn
             holder.itemView.setOnClickListener(v -> {
                 if (isSelected) selectedResidents.remove(resident);
                 else selectedResidents.add(resident);
@@ -89,10 +85,6 @@ public class ResidentAdapter extends RecyclerView.Adapter<ResidentAdapter.ViewHo
     public void updateList(List<ResidentItem> newList) {
         this.residentList = newList;
         notifyDataSetChanged();
-    }
-
-    public Set<ResidentItem> getSelectedResidents() {
-        return selectedResidents;
     }
 
     public static class ViewHolder extends RecyclerView.ViewHolder {

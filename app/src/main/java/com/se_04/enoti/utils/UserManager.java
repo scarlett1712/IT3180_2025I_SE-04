@@ -36,7 +36,8 @@ public class UserManager {
         editor.putString("name", user.getName());
         editor.putString("dob", user.getDob());
         editor.putString("gender", user.getGender().name());
-        editor.putString("relationship", user.getRelationship());
+        editor.putString("relationship_with_the_head_of_household", user.getRelationship());
+        editor.putInt("apartment_number", user.getRoom());
         editor.putString("phone", user.getPhone());
         editor.putString("role", user.getRole().name());
         editor.apply();
@@ -57,7 +58,8 @@ public class UserManager {
                 sharedPreferences.getString("name", ""),
                 sharedPreferences.getString("dob", ""),
                 Gender.valueOf(sharedPreferences.getString("gender", Gender.MALE.name())),
-                sharedPreferences.getString("relationship", ""),
+                sharedPreferences.getString("relationship_with_the_head_of_household", ""),
+                sharedPreferences.getInt("apartment_number", 0),
                 Role.valueOf(sharedPreferences.getString("role", Role.USER.name())),
                 sharedPreferences.getString("phone", "")
         );

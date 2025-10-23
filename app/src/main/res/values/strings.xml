@@ -58,5 +58,6 @@
         <item>Khoản thu bắt buộc</item>
         <item>Đóng góp</item>
     </string-array>
+    <string name="admin">Quản trị viên</string>
 
 </resources>
