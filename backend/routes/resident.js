@@ -11,7 +11,7 @@ router.get("/", async (req, res) => {
         ui.full_name,
         ui.email,
         u.phone,
-        TO_CHAR(ui.dob, 'YYYY-MM-DD') AS dob,
+        TO_CHAR(ui.dob, 'DD-MM-YYYY') AS dob,
         ui.gender,
         ur.role_id,
         r.relationship_id,
@@ -19,7 +19,9 @@ router.get("/", async (req, res) => {
         a.apartment_number,
         a.floor,
         a.area,
-        r.relationship_with_the_head_of_household
+        r.relationship_with_the_head_of_household,
+        ui.is_living,
+        ui.avatar_path
       FROM user_item ui
       LEFT JOIN users u ON ui.user_id = u.user_id
       LEFT JOIN userrole ur ON ui.user_id = ur.user_id

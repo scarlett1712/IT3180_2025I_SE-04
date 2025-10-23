@@ -6,6 +6,8 @@ dotenv.config();
 
 const app = express();
 
+app.use(express.static('public'));
+
 // ✅ CORS đơn giản
 app.use(cors());
 
@@ -73,6 +75,7 @@ import userItemRoutes from "./routes/user_item.js";
 import feedbackRoutes from "./routes/feedback.js";
 import replyRoutes from "./routes/reply.js";
 import residentRoutes from "./routes/resident.js";
+import avatarRoutes from "./routes/avatar.js";
 
 // Routes
 app.use("/api/users", userRoutes);
@@ -80,6 +83,7 @@ app.use("/api/user_item", userItemRoutes);
 app.use("/api/feedback", feedbackRoutes);
 app.use("/api/replies", replyRoutes);
 app.use("/api/residents", residentRoutes);
+app.use("/api/avatar", avatarRoutes);
 
 // Health check
 app.get("/", (req, res) => {

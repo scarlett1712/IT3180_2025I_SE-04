@@ -6,11 +6,14 @@ import android.widget.TextView;
 import androidx.appcompat.app.AppCompatActivity;
 import com.google.android.material.appbar.MaterialToolbar;
 import com.se_04.enoti.R;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
+import java.io.File;
 
 public class ResidentDetailActivity extends AppCompatActivity {
 
     private TextView txtName, txtGender, txtDob, txtEmail, txtPhone,
-            txtRelationship, txtLiving, txtFamilyID;
+            txtRelationship, txtLiving, txtRoom;
     private ImageView imgResident;
 
     @Override
@@ -36,7 +39,7 @@ public class ResidentDetailActivity extends AppCompatActivity {
         txtPhone = findViewById(R.id.txtResidentPhone);
         txtRelationship = findViewById(R.id.txtResidentRelationship);
         txtLiving = findViewById(R.id.txtResidentLiving);
-        txtFamilyID = findViewById(R.id.txtResidentFamilyID);
+        txtRoom = findViewById(R.id.txtRoom);
         imgResident = findViewById(R.id.imgResident);
 
         Bundle bundle = getIntent().getExtras();
@@ -47,8 +50,43 @@ public class ResidentDetailActivity extends AppCompatActivity {
             txtEmail.setText(bundle.getString("email"));
             txtPhone.setText(bundle.getString("phone"));
             txtRelationship.setText(bundle.getString("relationship"));
-            txtFamilyID.setText(bundle.getString("familyID"));
-            txtLiving.setText(bundle.getBoolean("isLiving") ? "Đang sinh sống" : "Không sinh sống");
+            txtRoom.setText(bundle.getString("room"));
+            txtLiving.setText(bundle.getBoolean("is_living") ? "Đang sinh sống" : "Không sinh sống");
+
+            // 🔥 LOAD ẢNH TỪ LOCAL STORAGE
+            String userId = String.valueOf(bundle.getInt("user_id", 0));
+            loadResidentAvatar(userId);
         }
+    }
+
+    private void loadResidentAvatar(String userId) {
+        try {
+            File avatarFile = getAvatarFile(userId);
+            if (avatarFile.exists()) {
+                Bitmap bitmap = BitmapFactory.decodeFile(avatarFile.getAbsolutePath());
+                imgResident.setImageBitmap(bitmap);
+            } else {
+                // Set ảnh mặc định theo giới tính
+                String gender = getIntent().getExtras().getString("gender", "");
+                setDefaultAvatar(gender);
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+            String gender = getIntent().getExtras().getString("gender", "");
+            setDefaultAvatar(gender);
+        }
+    }
+
+    private void setDefaultAvatar(String gender) {
+        if (gender != null && gender.toLowerCase().contains("nữ")) {
+            imgResident.setImageResource(R.drawable.ic_person_female);
+        } else {
+            imgResident.setImageResource(R.drawable.ic_person);
+        }
+    }
+
+    private File getAvatarFile(String userId) {
+        File avatarDir = new File(getFilesDir(), "avatars");
+        return new File(avatarDir, userId + ".jpg");
     }
 }

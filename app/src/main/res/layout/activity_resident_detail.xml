@@ -39,9 +39,9 @@
                 android:id="@+id/imgResident"
                 android:layout_width="120dp"
                 android:layout_height="120dp"
-                android:layout_marginTop="16dp"
-                android:src="@drawable/ic_resident"
-                android:contentDescription="@string/resident_image" />
+                android:src="@drawable/ic_person"
+                android:scaleType="centerCrop"
+                android:layout_marginBottom="4dp" />
 
             <!-- Họ và tên -->
             <TextView
@@ -118,10 +118,10 @@
                     style="@style/ResidentValue" />
 
                 <TextView
-                    android:text="Mã hộ gia đình:"
+                    android:text="Căn hộ sinh sống:"
                     style="@style/ResidentLabel" />
                 <TextView
-                    android:id="@+id/txtResidentFamilyID"
+                    android:id="@+id/txtRoom"
                     style="@style/ResidentValue" />
 
             </LinearLayout>

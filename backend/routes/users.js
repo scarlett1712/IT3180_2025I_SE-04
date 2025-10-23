@@ -35,11 +35,12 @@ router.post("/login", async (req, res) => {
           ur.role_id,
           ui.full_name,
           ui.gender,
-          TO_CHAR(ui.dob, 'YYYY-MM-DD') AS dob,
+          TO_CHAR(ui.dob, 'DD-MM-YYYY') AS dob,
           a.apartment_number,
           r.relationship_with_the_head_of_household,
           ui.email,
-          ui.is_living
+          ui.is_living,
+          ui.avatar_path
        FROM users u
        LEFT JOIN userrole ur ON u.user_id = ur.user_id
        LEFT JOIN user_item ui ON u.user_id = ui.user_id
@@ -75,7 +76,7 @@ router.post("/login", async (req, res) => {
           info.relationship_with_the_head_of_household || "Thành viên",
         email: info.email || "",
         apartment_number: info.apartment_number || null,
-        is_living: info.is_living ?? true
+        is_living: info.is_living ?? true,
       }
     });
 

@@ -60,4 +60,8 @@ dependencies {
     implementation("androidx.core:core-ktx:1.13.1")
 
     implementation("com.android.volley:volley:1.2.1")
+
+    implementation("com.android.volley:volley:1.2.1")
+
+    implementation("com.github.bumptech.glide:glide:4.15.1")
 }
