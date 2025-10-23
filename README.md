@@ -17,12 +17,12 @@
 1. Khi chạy sẽ cần mất một khoảng thời gian để khởi động máy ảo. Nếu máy ảo đang hoạt động nhưng app chưa chạy có thể bấm lại thêm 1 lần nữa.
 2. Đôi lúc phần mềm hiển thị thông báo Gradle JDK configuration has changed thì chọn Sync Now. Nếu hiển thị lỗi thì chọn Use Embedded JDK.
 
-#### EDIT 1: Đôi khi sau khi pull về sẽ gặp tình trạng các function không nhận diện được package và file gốc
+### EDIT 1 (08:07 AM, 21/10/25): Đôi khi sau khi pull về sẽ gặp tình trạng các function không nhận diện được package và file gốc
 -> Trên thanh menu của Android Studio, chọn File -> Sync Project with Gradle Files
 
 <div style="text-align:center"><img src="img/Edit1.png" /></div>
 
-### EDIT 2: Trước khi chạy ứng dụng cần chạy server:
+### EDIT 2 (08:32 AM, 23/10/25): Trước khi chạy ứng dụng cần chạy server:
 
 - B1: Cài đặt Nodejs phiên bản mới nhất về máy tính <a href="https://nodejs.org/en/download" target="_blank">tại đây</a>
 
