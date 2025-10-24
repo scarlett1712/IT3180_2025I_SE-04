@@ -33,7 +33,7 @@
             android:id="@+id/txtDate"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="[DD/MM/YYYY - DD/MM/YYYY]"
+            android:text="[DD/MM/YYYY]"
             android:textSize="14sp"
             android:textColor="@android:color/darker_gray"
             android:layout_marginBottom="6sp"/>

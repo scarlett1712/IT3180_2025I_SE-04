@@ -34,12 +34,13 @@ public class NotificationDetailActivity extends AppCompatActivity {
         long notificationId = getIntent().getLongExtra("notification_id", -1);
         String title = getIntent().getStringExtra("title");
         String date = getIntent().getStringExtra("date");
+        String expired_date = getIntent().getStringExtra("expired_date");
         String content = getIntent().getStringExtra("content");
         String sender = getIntent().getStringExtra("sender");
         boolean isRead = getIntent().getBooleanExtra("is_read", false);
 
         if (title != null) txtTitle.setText(title);
-        if (date != null) txtDate.setText(date);
+        if (date != null) txtDate.setText(expired_date);
         if (content != null) txtContent.setText(content);
         if (sender != null) txtSender.setText(getString(R.string.notification_sender, sender));
 

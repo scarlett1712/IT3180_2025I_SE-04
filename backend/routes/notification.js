@@ -11,14 +11,16 @@ router.get("/:userId", async (req, res) => {
     const result = await pool.query(
       `
       SELECT n.notification_id,
+             n.title,
              n.content,
              n.type,
              n.created_at,
-             ui.full_name AS sender,
+             COALESCE(ui.full_name, 'Hệ thống') AS sender,
+             n.expired_date,
              un.is_read
       FROM notification n
-      JOIN user_notification un ON n.notification_id = un.notification_id
-      JOIN user_item ui ON n.created_by = ui.user_id
+      JOIN user_notifications un ON n.notification_id = un.notification_id
+      LEFT JOIN user_item ui ON n.created_by = ui.user_id
       WHERE un.user_id = $1
       ORDER BY n.created_at DESC
       `,
@@ -39,7 +41,7 @@ router.put("/:notificationId/read", async (req, res) => {
 
     await pool.query(
       `
-      UPDATE user_notification
+      UPDATE user_notifications
       SET is_read = TRUE
       WHERE notification_id = $1
       `,

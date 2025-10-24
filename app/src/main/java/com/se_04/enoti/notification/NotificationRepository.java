@@ -26,7 +26,7 @@ public class NotificationRepository {
     private final Handler mainHandler;
 
     // Base URL của backend — sửa nếu cần (10.0.2.2 cho emulator)
-    private static final String BASE_URL = "http://10.0.2.2:5000/routes/notification";
+    private static final String BASE_URL = "http://10.0.2.2:5000";
 
     private NotificationRepository() {
         executor = Executors.newSingleThreadExecutor();
@@ -57,7 +57,7 @@ public class NotificationRepository {
         executor.execute(() -> {
             HttpURLConnection conn = null;
             try {
-                String urlStr = BASE_URL + "/api/notifications/" + userId;
+                String urlStr = BASE_URL + "/api/notification/" + userId;
                 URL url = new URL(urlStr);
                 conn = (HttpURLConnection) url.openConnection();
                 conn.setRequestMethod("GET");
@@ -97,7 +97,7 @@ public class NotificationRepository {
         executor.execute(() -> {
             HttpURLConnection conn = null;
             try {
-                String urlStr = BASE_URL + "/api/notifications/" + notificationId + "/read";
+                String urlStr = BASE_URL + "/api/notification/" + notificationId + "/read";
                 URL url = new URL(urlStr);
                 conn = (HttpURLConnection) url.openConnection();
                 conn.setRequestMethod("PUT");
@@ -179,11 +179,12 @@ public class NotificationRepository {
 
             // title fallback
             String title = o.optString("title", null);
-            if (title == null || title.isEmpty()) title = o.optString("heading", o.optString("subject", ""));
+            if (title == null || title.isEmpty()) title = o.optString("heading", o.optString("title", ""));
 
             String content = o.optString("content", o.optString("body", ""));
             String type = o.optString("type", o.optString("category", "Thông báo"));
             String createdAt = o.optString("created_at", o.optString("createdAt", o.optString("date", "")));
+            String expired_date = o.optString("expired_date", o.optString("expiredDate", ""));
             String sender = o.optString("sender", o.optString("created_by", "admin"));
 
             boolean isRead = false;
@@ -197,7 +198,7 @@ public class NotificationRepository {
                 isRead = st.equalsIgnoreCase("read") || st.equalsIgnoreCase("1") || st.equalsIgnoreCase("true");
             }
 
-            return new NotificationItem(id, title, createdAt, type, sender, content, isRead);
+            return new NotificationItem(id, title, createdAt, expired_date, type, sender, content, isRead);
         } catch (Exception e) {
             Log.e(TAG, "parseNotificationFromJson error", e);
             return null;

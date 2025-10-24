@@ -77,6 +77,8 @@ import replyRoutes from "./routes/reply.js";
 import residentRoutes from "./routes/resident.js";
 import avatarRoutes from "./routes/avatar.js";
 import notificationRoutes from "./routes/notification.js";
+import createNotificationRoutes from "./routes/create_notification.js";
+
 
 // Routes
 app.use("/api/users", userRoutes);
@@ -86,6 +88,7 @@ app.use("/api/replies", replyRoutes);
 app.use("/api/residents", residentRoutes);
 app.use("/api/avatar", avatarRoutes);
 app.use("/api/notification", notificationRoutes);
+app.use("/api/create_notification", createNotificationRoutes);
 
 // Health check
 app.get("/", (req, res) => {

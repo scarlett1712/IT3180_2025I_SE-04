@@ -57,7 +57,7 @@ public class NotificationAdapter extends RecyclerView.Adapter<NotificationAdapte
     public void onBindViewHolder(@NonNull NotificationAdapter.ViewHolder holder, int position) {
         NotificationItem item = notificationList.get(position);
         holder.txtTitle.setText(item.getTitle());
-        holder.txtDate.setText(item.getDate());
+        holder.txtDate.setText(item.getExpired_date());
         holder.txtContent.setText(item.getContent());
 
         // Visual: unread bold + full alpha, read normal + dim
@@ -74,7 +74,7 @@ public class NotificationAdapter extends RecyclerView.Adapter<NotificationAdapte
             Intent intent = new Intent(v.getContext(), NotificationDetailActivity.class);
             intent.putExtra("notification_id", clicked.getId());
             intent.putExtra("title", clicked.getTitle());
-            intent.putExtra("date", clicked.getDate());
+            intent.putExtra("expired_date", clicked.getExpired_date());
             intent.putExtra("content", clicked.getContent());
             intent.putExtra("sender", clicked.getSender());
             intent.putExtra("is_read", clicked.isRead());

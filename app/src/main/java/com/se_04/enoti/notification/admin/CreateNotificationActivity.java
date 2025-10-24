@@ -4,6 +4,7 @@ import android.app.DatePickerDialog;
 import android.app.TimePickerDialog;
 import android.os.Bundle;
 import android.text.TextUtils;
+import android.util.Log;
 import android.util.TypedValue;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -28,13 +29,16 @@ import androidx.recyclerview.widget.RecyclerView;
 import com.android.volley.Request;
 import com.android.volley.RequestQueue;
 import com.android.volley.toolbox.JsonArrayRequest;
+import com.android.volley.toolbox.JsonObjectRequest;
 import com.android.volley.toolbox.Volley;
 import com.google.android.material.appbar.MaterialToolbar;
 import com.google.android.material.bottomsheet.BottomSheetDialog;
 import com.google.android.material.textfield.TextInputEditText;
 import com.se_04.enoti.R;
+import com.se_04.enoti.account.UserItem;
 import com.se_04.enoti.residents.ResidentAdapter;
 import com.se_04.enoti.residents.ResidentItem;
+import com.se_04.enoti.utils.UserManager;
 
 import org.json.JSONArray;
 import org.json.JSONObject;
@@ -55,7 +59,7 @@ public class CreateNotificationActivity extends AppCompatActivity {
     private ResidentAdapter adapter;
     private ImageButton btnReceiverList;
     private TextInputEditText edtNotificationTitle, edtExpirationDate, edtNotificationContent;
-    private Button btnSendLater;
+    private Button btnSendNow, btnSendLater;
     private TextView txtSelectedResidents;
 
     private final List<ResidentItem> allResidents = new ArrayList<>();
@@ -64,14 +68,15 @@ public class CreateNotificationActivity extends AppCompatActivity {
 
     private boolean isResidentListVisible = false;
 
-    private static final String API_URL = "http://10.0.2.2:5000/api/residents"; // ⚙️ Thay IP của backend bạn
+    // ⚙️ Cập nhật đường dẫn cho đúng backend mới
+    private static final String API_URL = "http://10.0.2.2:5000/api/residents";
+    private static final String NOTIFICATION_API_URL = "http://10.0.2.2:5000/api/create_notification";
 
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_create_notification);
 
-        // Ánh xạ view
         MaterialToolbar toolbar = findViewById(R.id.toolbar_feedback);
         setSupportActionBar(toolbar);
 
@@ -92,10 +97,10 @@ public class CreateNotificationActivity extends AppCompatActivity {
         edtNotificationTitle = findViewById(R.id.edtNotificationTitle);
         edtExpirationDate = findViewById(R.id.edtExpirationDate);
         edtNotificationContent = findViewById(R.id.edtNotificationContent);
+        btnSendNow = findViewById(R.id.btnSendNow);
         btnSendLater = findViewById(R.id.btnSendLater);
         txtSelectedResidents = findViewById(R.id.txtSelectedResidents);
 
-        // Thiết lập RecyclerView
         adapter = new ResidentAdapter(filteredResidents, ResidentAdapter.MODE_SELECT_FOR_NOTIFICATION, selected -> {
             selectedResidents = selected;
             updateSelectedResidentsDisplay();
@@ -110,9 +115,40 @@ public class CreateNotificationActivity extends AppCompatActivity {
         setupReceiverListToggle();
         setupExpirationDatePicker();
 
+        btnSendNow.setOnClickListener(v -> {
+            if (selectedResidents.isEmpty()) {
+                Toast.makeText(this, "Vui lòng chọn ít nhất một cư dân!", Toast.LENGTH_SHORT).show();
+                return;
+            }
+
+            String title = edtNotificationTitle.getText().toString().trim();
+            String content = edtNotificationContent.getText().toString().trim();
+            String expiredDateRaw = edtExpirationDate.getText().toString().trim();
+            String type = spinnerNotificationType.getSelectedItem().toString();
+
+            if (title.isEmpty() || content.isEmpty()) {
+                Toast.makeText(this, "Vui lòng nhập tiêu đề và nội dung!", Toast.LENGTH_SHORT).show();
+                return;
+            }
+
+            // ✅ Chuyển định dạng ngày
+            String expiredDate = null;
+            try {
+                SimpleDateFormat inputFormat = new SimpleDateFormat("dd/MM/yyyy", Locale.getDefault());
+                SimpleDateFormat outputFormat = new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault());
+                expiredDate = outputFormat.format(inputFormat.parse(expiredDateRaw));
+            } catch (Exception e) {
+                e.printStackTrace();
+                Toast.makeText(this, "Định dạng ngày không hợp lệ!", Toast.LENGTH_SHORT).show();
+                return;
+            }
+
+            Log.d("SEND_NOTIFICATION", "Sending with date: " + expiredDate);
+            sendNotificationToServer(title, content, type, expiredDate);
+        });
+
         btnSendLater.setOnClickListener(v -> showSendOptionsBottomSheet());
 
-        // 🧠 Gọi API lấy danh sách cư dân thật
         fetchResidentsFromAPI();
     }
 
@@ -134,14 +170,11 @@ public class CreateNotificationActivity extends AppCompatActivity {
         queue.add(request);
     }
 
-    /** 🧠 Xử lý dữ liệu JSON trả về từ server */
     private void parseResidentsFromResponse(JSONArray response) {
         try {
             allResidents.clear();
             for (int i = 0; i < response.length(); i++) {
                 JSONObject obj = response.getJSONObject(i);
-
-                // Lọc chỉ lấy role_id = 1 (user)
                 int roleId = obj.optInt("role_id", 0);
                 if (roleId != 1) continue;
 
@@ -164,14 +197,14 @@ public class CreateNotificationActivity extends AppCompatActivity {
             filteredResidents.addAll(allResidents);
             adapter.updateList(filteredResidents);
 
-            setupFloorAndRoom(); // cập nhật spinner tầng/phòng
+            setupFloorAndRoom();
         } catch (Exception e) {
             e.printStackTrace();
         }
     }
 
     private void setupNotificationType() {
-        String[] types = {"Thông báo chung", "Khẩn cấp", "Bảo trì"};
+            String[] types = {"Thông báo", "Phí", "Bảo trì"};
         ArrayAdapter<String> adapter = new ArrayAdapter<>(this, android.R.layout.simple_spinner_item, types);
         adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
         spinnerNotificationType.setAdapter(adapter);
@@ -270,7 +303,6 @@ public class CreateNotificationActivity extends AppCompatActivity {
         });
     }
 
-    /** ---------------------- CẬP NHẬT DANH SÁCH CƯ DÂN ĐÃ CHỌN ---------------------- */
     private void updateSelectedResidentsDisplay() {
         if (selectedResidents.isEmpty()) {
             txtSelectedResidents.setText("Chưa chọn cư dân nào");
@@ -283,44 +315,86 @@ public class CreateNotificationActivity extends AppCompatActivity {
         }
     }
 
-    /** ---------------------- BOTTOM SHEET GỬI THÔNG BÁO ---------------------- */
+    /** ---------------------- Gửi thông báo ---------------------- */
+    private void sendNotificationToServer(String title, String content, String type, String expiredDate) {
+        try {
+            JSONArray userIds = new JSONArray();
+            for (ResidentItem r : selectedResidents) {
+                userIds.put(r.getUserId());
+            }
+
+            UserItem currentUser = UserManager.getInstance(this).getCurrentUser();
+            int senderId;
+            if (currentUser != null) {
+                try {
+                    senderId = Integer.parseInt(currentUser.getId());
+                } catch (NumberFormatException e) {
+                    senderId = 1; // fallback ID cho admin
+                }
+            } else {
+                senderId = 1;
+            }
+            JSONObject body = new JSONObject();
+            body.put("title", title);
+            body.put("content", content);
+            body.put("type", type);
+            body.put("sender_id", senderId);
+            body.put("expired_date", expiredDate.isEmpty() ? JSONObject.NULL : expiredDate);
+            body.put("target_user_ids", userIds);
+
+            RequestQueue queue = Volley.newRequestQueue(this);
+
+            JsonObjectRequest request = new JsonObjectRequest(
+                    Request.Method.POST,
+                    NOTIFICATION_API_URL,
+                    body,
+                    response -> {
+                        Toast.makeText(this, "✅ Gửi thông báo thành công!", Toast.LENGTH_LONG).show();
+                        finish();
+                    },
+                    error -> {
+                        error.printStackTrace();
+                        Toast.makeText(this, "❌ Lỗi khi gửi thông báo!", Toast.LENGTH_SHORT).show();
+                    }
+            );
+
+            request.setShouldCache(false);
+            queue.add(request);
+
+        } catch (Exception e) {
+            e.printStackTrace();
+            Toast.makeText(this, "Lỗi khi tạo dữ liệu gửi!", Toast.LENGTH_SHORT).show();
+        }
+    }
+
     private void showSendOptionsBottomSheet() {
         BottomSheetDialog bottomSheet = new BottomSheetDialog(this, R.style.BottomSheetDialogTheme);
         View sheetView = LayoutInflater.from(this).inflate(R.layout.bottomsheet_schedule_send, null);
 
         TextView txtSendTime = sheetView.findViewById(R.id.txtSendTime);
-        CheckBox chkRemind = sheetView.findViewById(R.id.checkRemind);
-        LinearLayout layoutRemindTime = sheetView.findViewById(R.id.layoutRemindBefore);
-        TextView txtRemindTime = sheetView.findViewById(R.id.txtRemindTime);
         Button btnConfirmSend = sheetView.findViewById(R.id.btnConfirmSend);
 
         Calendar calendar = Calendar.getInstance();
         SimpleDateFormat sdf = new SimpleDateFormat("dd/MM/yyyy HH:mm:ss", Locale.getDefault());
         txtSendTime.setText(sdf.format(calendar.getTime()));
 
-        txtSendTime.setOnClickListener(v -> pickDateTime(txtSendTime));
-
-        chkRemind.setOnCheckedChangeListener((buttonView, isChecked) ->
-                layoutRemindTime.setVisibility(isChecked ? View.VISIBLE : View.GONE)
-        );
-
-        txtRemindTime.setOnClickListener(v -> pickTime(txtRemindTime));
-
         btnConfirmSend.setOnClickListener(v -> {
             if (selectedResidents.isEmpty()) {
-                Toast.makeText(this, "Vui lòng chọn ít nhất một cư dân để gửi!", Toast.LENGTH_SHORT).show();
+                Toast.makeText(this, "Vui lòng chọn ít nhất một cư dân!", Toast.LENGTH_SHORT).show();
                 return;
             }
 
-            String sendTime = txtSendTime.getText().toString();
-            boolean remind = chkRemind.isChecked();
-            String remindTime = remind ? txtRemindTime.getText().toString() : "Không";
+            String title = edtNotificationTitle.getText().toString().trim();
+            String content = edtNotificationContent.getText().toString().trim();
+            String expiredDate = edtExpirationDate.getText().toString().trim();
+            String type = spinnerNotificationType.getSelectedItem().toString();
 
-            Toast.makeText(this,
-                    "Đã gửi thông báo cho " + selectedResidents.size() + " cư dân!\nThời gian gửi: " + sendTime +
-                            "\nNhắc nhở: " + (remind ? "Có (" + remindTime + ")" : "Không"),
-                    Toast.LENGTH_LONG).show();
+            if (title.isEmpty() || content.isEmpty()) {
+                Toast.makeText(this, "Vui lòng nhập tiêu đề và nội dung!", Toast.LENGTH_SHORT).show();
+                return;
+            }
 
+            sendNotificationToServer(title, content, type, expiredDate);
             bottomSheet.dismiss();
         });
 
@@ -328,28 +402,9 @@ public class CreateNotificationActivity extends AppCompatActivity {
         bottomSheet.show();
     }
 
-    private void pickDateTime(TextView textView) {
-        Calendar calendar = Calendar.getInstance();
-        new DatePickerDialog(this, (view, year, month, dayOfMonth) -> {
-            new TimePickerDialog(this, (TimePicker tp, int hour, int minute) -> {
-                calendar.set(year, month, dayOfMonth, hour, minute);
-                SimpleDateFormat sdf = new SimpleDateFormat("dd/MM/yyyy HH:mm:ss", Locale.getDefault());
-                textView.setText(sdf.format(calendar.getTime()));
-            }, calendar.get(Calendar.HOUR_OF_DAY), calendar.get(Calendar.MINUTE), true).show();
-        }, calendar.get(Calendar.YEAR), calendar.get(Calendar.MONTH), calendar.get(Calendar.DAY_OF_MONTH)).show();
-    }
-
-    private void pickTime(TextView textView) {
-        Calendar calendar = Calendar.getInstance();
-        new TimePickerDialog(this, (TimePicker tp, int hour, int minute) -> {
-            textView.setText(String.format(Locale.getDefault(), "%02d:%02d:00", hour, minute));
-        }, calendar.get(Calendar.HOUR_OF_DAY), calendar.get(Calendar.MINUTE), true).show();
-    }
-
     @Override
     protected void onResume() {
         super.onResume();
-
         MaterialToolbar toolbar = findViewById(R.id.toolbar_feedback);
         if (toolbar != null) {
             TypedValue typedValue = new TypedValue();
