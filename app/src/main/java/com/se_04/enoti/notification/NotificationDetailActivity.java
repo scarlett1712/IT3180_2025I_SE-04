@@ -1,20 +1,17 @@
 package com.se_04.enoti.notification;
 
-import android.content.Intent;
 import android.os.Bundle;
 import android.util.TypedValue;
 import android.view.MenuItem;
 import android.widget.TextView;
-
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
-
 import com.google.android.material.appbar.MaterialToolbar;
-import com.google.android.material.button.MaterialButton;
 import com.se_04.enoti.R;
-import com.se_04.enoti.feedback.FeedbackActivity;
 
 public class NotificationDetailActivity extends AppCompatActivity {
+
+    private final NotificationRepository repository = NotificationRepository.getInstance();
 
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
@@ -28,36 +25,38 @@ public class NotificationDetailActivity extends AppCompatActivity {
 
         MaterialToolbar toolbar = findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
-
         if (getSupportActionBar() != null) {
             getSupportActionBar().setDisplayHomeAsUpEnabled(true);
             toolbar.setTitleTextColor(getResources().getColor(android.R.color.white, getTheme()));
             getSupportActionBar().setTitle("Chi tiết thông báo");
         }
 
-        // Nhận vị trí thông báo
-        int position = getIntent().getIntExtra("position", -1);
+        long notificationId = getIntent().getLongExtra("notification_id", -1);
+        String title = getIntent().getStringExtra("title");
+        String date = getIntent().getStringExtra("date");
+        String content = getIntent().getStringExtra("content");
+        String sender = getIntent().getStringExtra("sender");
+        boolean isRead = getIntent().getBooleanExtra("is_read", false);
 
-        if (position >= 0) {
-            NotificationItem item = NotificationRepository.getInstance().getNotifications().get(position);
+        if (title != null) txtTitle.setText(title);
+        if (date != null) txtDate.setText(date);
+        if (content != null) txtContent.setText(content);
+        if (sender != null) txtSender.setText(getString(R.string.notification_sender, sender));
 
-            txtTitle.setText(item.getTitle());
-            txtDate.setText(item.getDate());
-            txtContent.setText(item.getContent());
-            txtSender.setText(getString(R.string.notification_sender, item.getSender()));
+        // If not read, mark read (both local UI and backend)
+        if (!isRead && notificationId > 0) {
+            repository.markAsRead(notificationId, new NotificationRepository.SimpleCallback() {
+                @Override
+                public void onSuccess() {
+                    // no-op UI update required here (we already marked read in adapter)
+                }
 
-            // Đánh dấu là đã đọc
-            item.setRead(true);
+                @Override
+                public void onError(String message) {
+                    // optionally show toast
+                }
+            });
         }
-
-        MaterialButton btnReply = findViewById(R.id.btnReply);
-        //Mở trang phản hồi khi nhấn nút
-        btnReply.setOnClickListener(v -> {
-            Intent intent = new Intent(v.getContext(), FeedbackActivity.class);
-            intent.putExtra("title", txtTitle.getText().toString());
-            intent.putExtra("position", position);
-            startActivity(intent);
-        });
     }
 
     @Override
@@ -72,8 +71,6 @@ public class NotificationDetailActivity extends AppCompatActivity {
     @Override
     protected void onResume() {
         super.onResume();
-
-        // Đặt lại màu nền cho toolbar khi quay lại
         MaterialToolbar toolbar = findViewById(R.id.toolbar);
         if (toolbar != null) {
             TypedValue typedValue = new TypedValue();

@@ -76,6 +76,7 @@ import feedbackRoutes from "./routes/feedback.js";
 import replyRoutes from "./routes/reply.js";
 import residentRoutes from "./routes/resident.js";
 import avatarRoutes from "./routes/avatar.js";
+import notificationRoutes from "./routes/notification.js";
 
 // Routes
 app.use("/api/users", userRoutes);
@@ -84,6 +85,7 @@ app.use("/api/feedback", feedbackRoutes);
 app.use("/api/replies", replyRoutes);
 app.use("/api/residents", residentRoutes);
 app.use("/api/avatar", avatarRoutes);
+app.use("/api/notification", notificationRoutes);
 
 // Health check
 app.get("/", (req, res) => {

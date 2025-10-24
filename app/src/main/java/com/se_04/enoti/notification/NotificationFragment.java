@@ -4,14 +4,13 @@ import android.os.Bundle;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 import androidx.appcompat.widget.SearchView;
 import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
 import android.widget.Spinner;
 import android.widget.TextView;
-
-import androidx.annotation.NonNull;
-import androidx.annotation.Nullable;
 import androidx.fragment.app.Fragment;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
@@ -29,11 +28,13 @@ import java.util.List;
 public class NotificationFragment extends Fragment {
 
     private NotificationAdapter adapter;
-    private List<NotificationItem> originalList;
-    private List<NotificationItem> filteredList;
+    private List<NotificationItem> originalList = new ArrayList<>();
+    private List<NotificationItem> filteredList = new ArrayList<>();
 
     private Spinner spinnerFilterType, spinnerFilterTime;
     private SearchView searchView;
+
+    private final NotificationRepository repository = NotificationRepository.getInstance();
 
     @Nullable
     @Override
@@ -42,7 +43,6 @@ public class NotificationFragment extends Fragment {
                              @Nullable Bundle savedInstanceState) {
         View view = inflater.inflate(R.layout.fragment_notifications, container, false);
 
-        // Ánh xạ view
         TextView txtWelcome = view.findViewById(R.id.txtWelcome);
         TextView txtGreeting = view.findViewById(R.id.txtGreeting);
         searchView = view.findViewById(R.id.search_view);
@@ -51,8 +51,7 @@ public class NotificationFragment extends Fragment {
 
         UserItem currentUser = UserManager.getInstance(requireContext()).getCurrentUser();
         String username = (currentUser != null) ? currentUser.getName() : "Người dùng";
-        String message = "Xin chào " + username + "!";
-        txtWelcome.setText(message);
+        txtWelcome.setText("Xin chào " + username + "!");
 
         Calendar calendar = Calendar.getInstance();
         int hour = calendar.get(Calendar.HOUR_OF_DAY);
@@ -63,96 +62,97 @@ public class NotificationFragment extends Fragment {
         else timeOfDay = "tối";
         txtGreeting.setText(getString(R.string.greeting, timeOfDay));
 
-        // RecyclerView
         RecyclerView recyclerView = view.findViewById(R.id.recyclerViewNotifications);
         recyclerView.setLayoutManager(new LinearLayoutManager(requireContext()));
-
-        // Lấy danh sách thông báo
-        originalList = NotificationRepository.getInstance().getNotifications();
-        filteredList = new ArrayList<>(originalList);
-        adapter = new NotificationAdapter(filteredList);
+        adapter = new NotificationAdapter(filteredList, NotificationAdapter.VIEW_TYPE_HIGHLIGHTED);
         recyclerView.setAdapter(adapter);
 
-        // Thiết lập Spinner loại thông báo
+        // Spinners
         String[] typeOptions = {"Tất cả", "Thông báo", "Tin khẩn", "Sự kiện", "Bảo trì"};
         ArrayAdapter<String> typeAdapter = new ArrayAdapter<>(requireContext(),
                 android.R.layout.simple_spinner_item, typeOptions);
         typeAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
         spinnerFilterType.setAdapter(typeAdapter);
 
-        // Thiết lập Spinner thời gian
         String[] timeOptions = {"Mới nhất", "Cũ nhất"};
         ArrayAdapter<String> timeAdapter = new ArrayAdapter<>(requireContext(),
                 android.R.layout.simple_spinner_item, timeOptions);
         timeAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
         spinnerFilterTime.setAdapter(timeAdapter);
 
-        // Áp dụng tìm kiếm
-        searchView.setOnQueryTextListener(new SearchView.OnQueryTextListener() {
-            @Override
-            public boolean onQueryTextSubmit(String query) {
-                applyFiltersAndSearch();
-                return true;
-            }
-
-            @Override
-            public boolean onQueryTextChange(String newText) {
-                applyFiltersAndSearch();
-                return true;
-            }
-        });
-
-        // Áp dụng lọc
         AdapterView.OnItemSelectedListener filterListener = new AdapterView.OnItemSelectedListener() {
-            @Override
-            public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
-                applyFiltersAndSearch();
-            }
-
-            @Override
-            public void onNothingSelected(AdapterView<?> parent) { }
+            @Override public void onItemSelected(AdapterView<?> parent, View v, int pos, long id) { applyFiltersAndSearch(); }
+            @Override public void onNothingSelected(AdapterView<?> parent) {}
         };
-
         spinnerFilterType.setOnItemSelectedListener(filterListener);
         spinnerFilterTime.setOnItemSelectedListener(filterListener);
+
+        searchView.setOnQueryTextListener(new SearchView.OnQueryTextListener() {
+            @Override public boolean onQueryTextSubmit(String q) { applyFiltersAndSearch(); return true; }
+            @Override public boolean onQueryTextChange(String newText) { applyFiltersAndSearch(); return true; }
+        });
+
+        // Fetch from backend
+        long userIdForApi = 0;
+        if (currentUser != null) {
+            String idStr = currentUser.getId();
+            try {
+                userIdForApi = Long.parseLong(idStr);
+            } catch (Exception ignored) {
+                // if id is not numeric (e.g., phone), you should adapt your backend route to accept phone string
+                // For now use 0 -> backend should handle or change code to pass phone.
+                userIdForApi = 0;
+            }
+        }
+
+        loadNotifications(userIdForApi);
 
         return view;
     }
 
-    private void applyFiltersAndSearch() {
-        String searchQuery = searchView.getQuery().toString().toLowerCase().trim();
-        String selectedType = spinnerFilterType.getSelectedItem().toString();
-        String selectedTime = spinnerFilterTime.getSelectedItem().toString();
+    private void loadNotifications(long userId) {
+        repository.fetchNotifications(userId, new NotificationRepository.NotificationsCallback() {
+            @Override
+            public void onSuccess(List<NotificationItem> items) {
+                originalList.clear();
+                originalList.addAll(items);
+                applyFiltersAndSearch();
+            }
 
-        // Lọc danh sách
+            @Override
+            public void onError(String message) {
+                // fallback: keep empty list or show snackbar/toast
+                originalList.clear();
+                applyFiltersAndSearch();
+            }
+        });
+    }
+
+    private void applyFiltersAndSearch() {
+        String searchQuery = searchView.getQuery() == null ? "" : searchView.getQuery().toString().toLowerCase().trim();
+        String selectedType = spinnerFilterType.getSelectedItem() == null ? "Tất cả" : spinnerFilterType.getSelectedItem().toString();
+        String selectedTime = spinnerFilterTime.getSelectedItem() == null ? "Mới nhất" : spinnerFilterTime.getSelectedItem().toString();
+
         filteredList.clear();
         for (NotificationItem item : originalList) {
-            boolean matchesSearch = item.getTitle().toLowerCase().contains(searchQuery)
-                    || item.getContent().toLowerCase().contains(searchQuery);
+            boolean matchesSearch = item.getTitle().toLowerCase().contains(searchQuery) ||
+                    item.getContent().toLowerCase().contains(searchQuery) ||
+                    item.getSender().toLowerCase().contains(searchQuery);
 
-            boolean matchesType = selectedType.equals("Tất cả")
-                    || item.getType().equalsIgnoreCase(selectedType);
+            boolean matchesType = selectedType.equals("Tất cả") || item.getType().equalsIgnoreCase(selectedType);
 
-            if (matchesSearch && matchesType) {
-                filteredList.add(item);
-            }
+            if (matchesSearch && matchesType) filteredList.add(item);
         }
 
-        // Sắp xếp theo thời gian
         if (selectedTime.equals("Mới nhất")) {
-            Collections.sort(filteredList, (a, b) -> Long.compare(b.getTimestamp(), a.getTimestamp()));
+            Collections.sort(filteredList, (a, b) -> {
+                // fallback: compare strings if timestamps not parsed
+                return b.getDate().compareTo(a.getDate());
+            });
         } else {
-            Collections.sort(filteredList, Comparator.comparingLong(NotificationItem::getTimestamp));
+            Collections.sort(filteredList, Comparator.comparing(NotificationItem::getDate));
         }
 
         adapter.updateList(filteredList);
-    }
-
-    @Override
-    public void onResume() {
-        super.onResume();
-        if (adapter != null) {
-            adapter.notifyDataSetChanged();
-        }
     }
 }
