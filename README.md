@@ -17,24 +17,42 @@
 1. Khi chạy sẽ cần mất một khoảng thời gian để khởi động máy ảo. Nếu máy ảo đang hoạt động nhưng app chưa chạy có thể bấm lại thêm 1 lần nữa.
 2. Đôi lúc phần mềm hiển thị thông báo Gradle JDK configuration has changed thì chọn Sync Now. Nếu hiển thị lỗi thì chọn Use Embedded JDK.
 
-#### EDIT 1: Đôi khi sau khi pull về sẽ gặp tình trạng các function không nhận diện được package và file gốc
+### EDIT 1 (08:07 AM, 21/10/25): Đôi khi sau khi pull về sẽ gặp tình trạng các function không nhận diện được package và file gốc
 -> Trên thanh menu của Android Studio, chọn File -> Sync Project with Gradle Files
 
 <div style="text-align:center"><img src="img/Edit1.png" /></div>
 
-### EDIT 2: Trước khi chạy ứng dụng cần chạy server:
+### EDIT 2 (UPDATE 09:16 AM, 24/10/25): Trước khi chạy ứng dụng cần chạy server:
 
 - B1: Cài đặt Nodejs phiên bản mới nhất về máy tính <a href="https://nodejs.org/en/download" target="_blank">tại đây</a>
 
-- B2: Trong Terminal, chuyển đường dẫn sang folder backend. VD:
+- B2: Tìm System Properties -> Advance -> Environment Variables... -> Path -> Edit -> New -> (Đường dẫn folder nodejs, VD: C:\Program FIles\nodejs) -> OK -> OK -> OK
+
+- B3: Khởi động lại Terminal
+
+- B4: Trong Terminal, chuyển đường dẫn sang folder backend. VD:
 
  <div style="text-align:center"><img width="538" height="46" alt="image" src="https://github.com/user-attachments/assets/24d143e3-3a72-4f3e-9718-c61d196e2a0c" /></div>
 
-- B3: Chạy câu lệnh: node index.js
+- B5: Chạy câu lệnh: node index.js. Khi chạy lần đầu tiên NodeJs sẽ yêu cầu truy cập vào mạng Public và Private.
 
 <img width="420" height="80" alt="image" src="https://github.com/user-attachments/assets/3e58332a-602f-4dd7-9092-2a205b1580a9" />
 
 Kết quả cuối cùng sau khi chạy câu lệnh như thế này là thành công.
+
+### EDIT 3 (12:49 AM, 24/10/25): Hiện tại chưa có phần Đăng ký tài khoản. Nếu muốn thêm tài khoản cần thêm thẳng vào CSDL. 
+
+Trước khi thêm cần encrypt mật khẩu:
+
+- B1: Trong Terminal, chuyển đường dẫn sang folder backend. VD:
+
+ <div style="text-align:center"><img width="538" height="46" alt="image" src="https://github.com/user-attachments/assets/24d143e3-3a72-4f3e-9718-c61d196e2a0c" /></div>
+
+- B2: Chạy câu lệnh: node createHash.js [Mật khẩu cần mã hóa]. VD:
+
+<img width="1587" height="129" alt="image" src="https://github.com/user-attachments/assets/c3617870-d548-4f92-94a8-abf3e1ca82de" />
+
+Dòng cuối chính là mật khẩu sau khi mã hóa và có thể thêm vào CSDL.
 
 ## Cách để chạy và cài đặt ứng dụng qua điện thoại (Khuyến khích dành cho người máy yếu & sử dụng điện thoại Android):
 - B1: Trên điện thoại: Truy cập vào Tùy chọn nhà phát triển (Developer options)
