@@ -22,15 +22,19 @@
 
 <div style="text-align:center"><img src="img/Edit1.png" /></div>
 
-### EDIT 2 (08:32 AM, 23/10/25): Trước khi chạy ứng dụng cần chạy server:
+### EDIT 2 (UPDATE 09:16 AM, 24/10/25): Trước khi chạy ứng dụng cần chạy server:
 
 - B1: Cài đặt Nodejs phiên bản mới nhất về máy tính <a href="https://nodejs.org/en/download" target="_blank">tại đây</a>
 
-- B2: Trong Terminal, chuyển đường dẫn sang folder backend. VD:
+- B2: Tìm System Properties -> Advance -> Environment Variables... -> Path -> Edit -> New -> (Đường dẫn folder nodejs, VD: C:\Program FIles\nodejs) -> OK -> OK -> OK
+
+- B3: Khởi động lại Terminal
+
+- B4: Trong Terminal, chuyển đường dẫn sang folder backend. VD:
 
  <div style="text-align:center"><img width="538" height="46" alt="image" src="https://github.com/user-attachments/assets/24d143e3-3a72-4f3e-9718-c61d196e2a0c" /></div>
 
-- B3: Chạy câu lệnh: node index.js
+- B5: Chạy câu lệnh: node index.js. Khi chạy lần đầu tiên NodeJs sẽ yêu cầu truy cập vào mạng Public và Private.
 
 <img width="420" height="80" alt="image" src="https://github.com/user-attachments/assets/3e58332a-602f-4dd7-9092-2a205b1580a9" />
 
