@@ -33,7 +33,7 @@
         </activity>
         <activity android:name=".account_related.LogInActivity"> </activity>
         <activity android:name=".account_related.ForgetPasswordEnterPhoneActivity"> </activity>
-        <activity android:name=".account_related.ChangePasswordActivity"> </activity>
+        <activity android:name=".account.ChangePasswordActivity"> </activity>
         <activity android:name=".account_related.RegisterActivity"> </activity>
         <activity android:name=".account_related.EnterOTPActivity"> </activity>
         <activity android:name=".account_related.CreateNewPasswordActivity"> </activity>

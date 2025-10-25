@@ -106,10 +106,10 @@
 
     <!-- Nút chỉnh sửa -->
     <Button
-        android:id="@+id/btnEditProfile"
+        android:id="@+id/btnChangePassword"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:text="@string/changeInformation"
+        android:text="@string/change_password_text"
         android:textSize="18sp"
         android:backgroundTint="?attr/colorPrimary"
         android:textColor="@android:color/white"

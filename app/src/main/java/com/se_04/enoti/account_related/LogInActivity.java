@@ -11,6 +11,7 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import com.se_04.enoti.R;
+import com.se_04.enoti.account.ChangePasswordActivity;
 import com.se_04.enoti.account.Gender;
 import com.se_04.enoti.account.Role;
 import com.se_04.enoti.account.UserItem;
@@ -18,7 +19,6 @@ import com.se_04.enoti.home.admin.MainActivity_Admin;
 import com.se_04.enoti.home.user.MainActivity_User;
 import com.se_04.enoti.utils.UserManager;
 
-import org.json.JSONException;
 import org.json.JSONObject;
 
 import java.io.BufferedReader;
