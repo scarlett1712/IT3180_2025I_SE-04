@@ -68,7 +68,7 @@ public class NotificationFragment extends Fragment {
         recyclerView.setAdapter(adapter);
 
         // Spinners
-        String[] typeOptions = {"Tất cả", "Thông báo", "Tin khẩn", "Sự kiện", "Bảo trì"};
+        String[] typeOptions = {"Tất cả", "Hành chính", "Kỹ thuật & bảo trì", "Tài chính", "Sự kiện & cộng đồng", "Khẩn cấp"};
         ArrayAdapter<String> typeAdapter = new ArrayAdapter<>(requireContext(),
                 android.R.layout.simple_spinner_item, typeOptions);
         typeAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
@@ -130,19 +130,26 @@ public class NotificationFragment extends Fragment {
 
     private void applyFiltersAndSearch() {
         String searchQuery = searchView.getQuery() == null ? "" : searchView.getQuery().toString().toLowerCase().trim();
-        String selectedType = spinnerFilterType.getSelectedItem() == null ? "Tất cả" : spinnerFilterType.getSelectedItem().toString();
-        String selectedTime = spinnerFilterTime.getSelectedItem() == null ? "Mới nhất" : spinnerFilterTime.getSelectedItem().toString();
+        String selectedTypeVi = spinnerFilterType.getSelectedItem() == null
+                ? "Tất cả"
+                : spinnerFilterType.getSelectedItem().toString();
+        String selectedType = convertTypeToEnglish(selectedTypeVi);
+        String selectedTime = spinnerFilterTime.getSelectedItem() == null
+                ? "Mới nhất"
+                : spinnerFilterTime.getSelectedItem().toString();
 
         filteredList.clear();
         for (NotificationItem item : originalList) {
-            boolean matchesSearch = item.getTitle().toLowerCase().contains(searchQuery) ||
-                    item.getContent().toLowerCase().contains(searchQuery) ||
-                    item.getSender().toLowerCase().contains(searchQuery);
+            boolean matchesSearch = item.getTitle().toLowerCase().contains(searchQuery)
+                    || item.getContent().toLowerCase().contains(searchQuery)
+                    || item.getSender().toLowerCase().contains(searchQuery);
 
-            boolean matchesType = selectedType.equals("Tất cả") || item.getType().equalsIgnoreCase(selectedType);
+            boolean matchesType = selectedType.equals("Tất cả")
+                    || item.getType().equalsIgnoreCase(selectedType);
 
             if (matchesSearch && matchesType) filteredList.add(item);
         }
+
 
         if (selectedTime.equals("Mới nhất")) {
             Collections.sort(filteredList, (a, b) -> {
@@ -155,4 +162,23 @@ public class NotificationFragment extends Fragment {
 
         adapter.updateList(filteredList);
     }
+
+    /** 🔄 Chuyển loại thông báo từ tiếng Việt sang tiếng Anh để so sánh/lọc dữ liệu */
+    private String convertTypeToEnglish(String typeVi) {
+        switch (typeVi) {
+            case "Hành chính":
+                return "Administrative";
+            case "Kỹ thuật & bảo trì":
+                return "Maintenance";
+            case "Tài chính":
+                return "Finance";
+            case "Sự kiện & cộng đồng":
+                return "Event";
+            case "Khẩn cấp":
+                return "Emergency";
+            default:
+                return "Tất cả"; // hoặc "All" nếu có tùy chọn hiển thị tất cả
+        }
+    }
+
 }

@@ -124,7 +124,8 @@ public class CreateNotificationActivity extends AppCompatActivity {
             String title = edtNotificationTitle.getText().toString().trim();
             String content = edtNotificationContent.getText().toString().trim();
             String expiredDateRaw = edtExpirationDate.getText().toString().trim();
-            String type = spinnerNotificationType.getSelectedItem().toString();
+            String typeVi = spinnerNotificationType.getSelectedItem().toString();
+            String type = convertTypeToEnglish(typeVi);
 
             if (title.isEmpty() || content.isEmpty()) {
                 Toast.makeText(this, "Vui lòng nhập tiêu đề và nội dung!", Toast.LENGTH_SHORT).show();
@@ -151,6 +152,24 @@ public class CreateNotificationActivity extends AppCompatActivity {
 
         fetchResidentsFromAPI();
     }
+
+    private String convertTypeToEnglish(String typeVi) {
+        switch (typeVi) {
+            case "Hành chính":
+                return "Administrative";
+            case "Kỹ thuật & bảo trì":
+                return "Maintenance";
+            case "Tài chính":
+                return "Finance";
+            case "Sự kiện & cộng đồng":
+                return "Event";
+            case "Khẩn cấp":
+                return "Emergency";
+            default:
+                return "Administrative"; // fallback
+        }
+    }
+
 
     /** 🧠 Lấy danh sách cư dân từ API */
     private void fetchResidentsFromAPI() {
@@ -204,7 +223,7 @@ public class CreateNotificationActivity extends AppCompatActivity {
     }
 
     private void setupNotificationType() {
-            String[] types = {"Thông báo", "Phí", "Bảo trì"};
+            String[] types = {"Hành chính", "Kỹ thuật & bảo trì", "Tài chính", "Sự kiện & cộng đồng", "Khẩn cấp"};
         ArrayAdapter<String> adapter = new ArrayAdapter<>(this, android.R.layout.simple_spinner_item, types);
         adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
         spinnerNotificationType.setAdapter(adapter);
@@ -349,12 +368,12 @@ public class CreateNotificationActivity extends AppCompatActivity {
                     NOTIFICATION_API_URL,
                     body,
                     response -> {
-                        Toast.makeText(this, "✅ Gửi thông báo thành công!", Toast.LENGTH_LONG).show();
+                        Toast.makeText(this, "Gửi thông báo thành công!", Toast.LENGTH_LONG).show();
                         finish();
                     },
                     error -> {
                         error.printStackTrace();
-                        Toast.makeText(this, "❌ Lỗi khi gửi thông báo!", Toast.LENGTH_SHORT).show();
+                        Toast.makeText(this, "Lỗi khi gửi thông báo!", Toast.LENGTH_SHORT).show();
                     }
             );
 

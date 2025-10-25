@@ -29,5 +29,6 @@ public class NotificationItem {
     public String getContent() { return content; }
     public String getSender() { return sender; }
     public boolean isRead() { return isRead; }
+    public void setDate(String date) { date = date; }
     public void setRead(boolean read) { isRead = read; }
 }

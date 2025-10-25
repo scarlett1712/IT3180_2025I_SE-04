@@ -16,7 +16,7 @@ router.get("/:userId", async (req, res) => {
              n.type,
              n.created_at,
              COALESCE(ui.full_name, 'Hệ thống') AS sender,
-             n.expired_date,
+             TO_CHAR(n.expired_date, 'DD-MM-YYYY') AS expired_date,
              un.is_read
       FROM notification n
       JOIN user_notifications un ON n.notification_id = un.notification_id
