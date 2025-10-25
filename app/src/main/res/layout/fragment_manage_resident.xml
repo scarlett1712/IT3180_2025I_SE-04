@@ -39,7 +39,7 @@
                 android:textColor="@android:color/darker_gray"
                 android:layout_marginBottom="20dp" />
 
-            <!-- Tiêu đề Thông tin chung -->
+            <!-- Tiêu đề -->
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
@@ -68,7 +68,6 @@
                 android:gravity="center"
                 android:layout_marginBottom="12dp">
 
-                <!-- Lọc theo loại thông báo -->
                 <Spinner
                     android:id="@+id/spinnerFilterFloor"
                     android:layout_width="0dp"
@@ -78,7 +77,6 @@
                     android:background="@drawable/spinner_background"
                     android:layout_marginEnd="8dp" />
 
-                <!-- Lọc theo thời gian -->
                 <Spinner
                     android:id="@+id/spinnerFilterRoom"
                     android:layout_width="0dp"
@@ -88,7 +86,7 @@
                     android:spinnerMode="dropdown" />
             </LinearLayout>
 
-            <!-- Danh sách thông báo -->
+            <!-- Danh sách cư dân -->
             <androidx.recyclerview.widget.RecyclerView
                 android:id="@+id/recyclerViewResidents"
                 android:layout_width="match_parent"
@@ -99,7 +97,21 @@
         </LinearLayout>
     </ScrollView>
 
-    <!-- Nút nổi thêm thông báo -->
+    <!-- ⚡ Nút thêm cư dân (+) -->
+    <com.google.android.material.floatingactionbutton.FloatingActionButton
+        android:id="@+id/btnAddResident"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:contentDescription="@string/add_resident"
+        android:src="@drawable/ic_add"
+        app:tint="@android:color/white"
+        app:backgroundTint="?attr/colorPrimary"
+        android:layout_marginEnd="24dp"
+        android:layout_marginBottom="96dp"
+        android:layout_gravity="bottom|end"
+        app:layout_anchorGravity="bottom|end" />
+
+    <!-- 🧾 Nút xuất danh sách (Excel) -->
     <com.google.android.material.floatingactionbutton.FloatingActionButton
         android:id="@+id/btnExportExcel"
         android:layout_width="wrap_content"
@@ -109,7 +121,7 @@
         app:tint="@android:color/white"
         app:backgroundTint="?attr/colorPrimary"
         android:layout_margin="24dp"
-        app:layout_anchorGravity="bottom|end"
-        android:layout_gravity="bottom|end" />
+        android:layout_gravity="bottom|end"
+        app:layout_anchorGravity="bottom|end" />
 
 </androidx.coordinatorlayout.widget.CoordinatorLayout>

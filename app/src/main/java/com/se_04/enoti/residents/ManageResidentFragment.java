@@ -1,6 +1,7 @@
 package com.se_04.enoti.residents;
 
 import android.Manifest;
+import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.os.Bundle;
 import android.os.Environment;
@@ -15,6 +16,7 @@ import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.SearchView;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
@@ -53,7 +55,7 @@ public class ManageResidentFragment extends Fragment {
     private RecyclerView recyclerViewResidents;
     private SearchView searchView;
     private Spinner spinnerFilterFloor, spinnerFilterRoom;
-    private FloatingActionButton btnExportExcel;
+    private FloatingActionButton btnExportExcel, btnAddResident;
 
     private ResidentAdapter adapter;
     private List<ResidentItem> fullList;
@@ -84,6 +86,7 @@ public class ManageResidentFragment extends Fragment {
         spinnerFilterRoom = view.findViewById(R.id.spinnerFilterRoom);
         recyclerViewResidents = view.findViewById(R.id.recyclerViewResidents);
         btnExportExcel = view.findViewById(R.id.btnExportExcel);
+        btnAddResident = view.findViewById(R.id.btnAddResident);
 
         UserItem currentUser = UserManager.getInstance(requireContext()).getCurrentUser();
         String username = (currentUser != null) ? currentUser.getName() : "Người dùng";
@@ -92,10 +95,19 @@ public class ManageResidentFragment extends Fragment {
 
         Calendar calendar = Calendar.getInstance();
         int hour = calendar.get(Calendar.HOUR_OF_DAY);
-        String timeOfDay = (hour >= 5 && hour < 11) ? "sáng"
-                : (hour < 14) ? "trưa"
-                : (hour < 18) ? "chiều" : "tối";
-        txtGreeting.setText(getString(R.string.greeting, timeOfDay));
+
+        String timeOfDay;
+        if (hour >= 5 && hour < 11) {
+            timeOfDay = "sáng";
+        } else if (hour >= 11 && hour < 14) {
+            timeOfDay = "trưa";
+        } else if (hour >= 14 && hour < 18) {
+            timeOfDay = "chiều";
+        } else {
+            timeOfDay = "tối";
+        }
+        String greeting = getString(R.string.greeting, timeOfDay);
+        txtGreeting.setText(greeting);
 
         recyclerViewResidents.setLayoutManager(new LinearLayoutManager(requireContext()));
         fullList = new ArrayList<>();
@@ -140,6 +152,11 @@ public class ManageResidentFragment extends Fragment {
             } else {
                 exportResidentsToExcel(filteredList);
             }
+        });
+
+        btnAddResident.setOnClickListener(v -> {
+            Intent intent = new Intent(requireContext(), CreateResidentActivity.class);
+            startActivityForResult(intent, 101);
         });
     }
 
@@ -318,4 +335,15 @@ public class ManageResidentFragment extends Fragment {
         super.onResume();
         if (adapter != null) adapter.notifyDataSetChanged();
     }
+
+    @Override
+    public void onActivityResult(int requestCode, int resultCode, @Nullable Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+
+        if (requestCode == 101 && resultCode == AppCompatActivity.RESULT_OK) {
+            // 🔁 Gọi lại API để tải danh sách cư dân mới
+            fetchResidentsFromAPI();
+        }
+    }
+
 }

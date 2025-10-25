@@ -79,7 +79,7 @@ import avatarRoutes from "./routes/avatar.js";
 import notificationRoutes from "./routes/notification.js";
 import createNotificationRoutes from "./routes/create_notification.js";
 import changePasswordRoutes from "./routes/change_password.js";
-
+import createUserRoutes from "./routes/create_user.js";
 
 // Routes
 app.use("/api/users", userRoutes);
@@ -91,6 +91,7 @@ app.use("/api/avatar", avatarRoutes);
 app.use("/api/notification", notificationRoutes);
 app.use("/api/create_notification", createNotificationRoutes);
 app.use("/api/changepassword", changePasswordRoutes);
+app.use("/api/create_user", createUserRoutes);
 
 // Health check
 app.get("/", (req, res) => {

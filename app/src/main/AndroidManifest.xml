@@ -46,6 +46,8 @@
         <activity android:name=".feedback.FeedbackActivity"> </activity>
         <activity android:name=".notification.admin.CreateNotificationActivity"> </activity>
         <activity android:name=".residents.ResidentDetailActivity"> </activity>
+        <activity android:name=".residents.CreateResidentActivity"> </activity>
+
 
 
         <receiver
