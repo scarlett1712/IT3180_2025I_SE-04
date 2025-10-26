@@ -1,87 +1,92 @@
-const express = require('express');
+import express from 'express';
+import { pool } from '../db.js';
+
 const router = express.Router();
-const pool = require('../config/db');
 
-/**
- * Tạo khoản phí mới (invoice) theo apartment_number (phòng)
- * Body gồm:
- * {
- *   title: "Phí gửi xe tháng 10",
- *   content: "Phí gửi xe theo tháng",
- *   fee_id: 1,
- *   amount: 200000,
- *   due_date: "2025-11-05",
- *   receiver_numbers: ["P101", "P102"],
- *   send_all: false
- * }
- */
-router.post('/create', async (req, res) => {
-  const client = await pool.connect();
-  try {
-    const {
-      title,
-      content,
-      fee_id,
-      amount,
-      due_date,
-      receiver_numbers,
-      send_all
-    } = req.body;
+// A helper function for querying the database
+const query = (text, params) => pool.query(text, params);
 
-    if (!fee_id || !amount || !due_date) {
-      return res.status(400).json({ error: 'Thiếu dữ liệu bắt buộc!' });
+// This function will be exported and called from index.js on server startup
+export const createFinanceTables = async () => {
+    try {
+        await query(`
+            CREATE TABLE IF NOT EXISTS finances (
+                id SERIAL PRIMARY KEY,
+                title VARCHAR(255) NOT NULL,
+                content TEXT,
+                amount NUMERIC(12, 2) NOT NULL,
+                type VARCHAR(50) NOT NULL,
+                due_date DATE,
+                created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+            );
+        `);
+        await query(`
+            CREATE TABLE IF NOT EXISTS user_finances (
+                id SERIAL PRIMARY KEY,
+                user_id INTEGER NOT NULL,
+                finance_id INTEGER NOT NULL REFERENCES finances(id) ON DELETE CASCADE,
+                status VARCHAR(50) DEFAULT 'chua_thanh_toan',
+                UNIQUE(user_id, finance_id)
+            );
+        `);
+        console.log('✅ Finance tables structure checked/created.');
+    } catch (err) {
+        console.error('❌ Error creating finance tables:', err);
     }
+};
 
-    await client.query('BEGIN');
+// --- API Endpoints ---
 
-    let apartments = receiver_numbers;
-
-    // Nếu chọn "gửi tất cả" → lấy toàn bộ apartment_number
-    if (send_all) {
-      const all = await client.query('SELECT apartment_number FROM apartment');
-      apartments = all.rows.map(r => r.apartment_number);
+// [FOR ADMIN] Get all finance items for management
+router.get('/all', async (req, res) => {
+    try {
+        const result = await query(`SELECT id, title, content, amount, type, TO_CHAR(due_date, 'DD/MM/YYYY') as due_date FROM finances ORDER BY created_at DESC`);
+        res.json(result.rows);
+    } catch (err) {
+        res.status(500).json({ error: 'Internal Server Error' });
     }
-
-    for (const aptNumber of apartments) {
-      // Lấy apartment_id theo apartment_number
-      const apartmentRes = await client.query(
-        `SELECT apartment_id FROM apartment WHERE apartment_number = $1`,
-        [aptNumber]
-      );
-
-      if (apartmentRes.rows.length === 0) {
-        console.warn(`Không tìm thấy phòng: ${aptNumber}`);
-        continue;
-      }
-
-      const apartment_id = apartmentRes.rows[0].apartment_id;
-
-      // Tạo hóa đơn
-      const invoiceRes = await client.query(
-        `INSERT INTO invoice (apartment_id, issue_date, due_date, total_amount, status)
-         VALUES ($1, CURRENT_DATE, $2, $3, 'unpaid')
-         RETURNING invoice_id`,
-        [apartment_id, due_date, amount]
-      );
-      const invoiceId = invoiceRes.rows[0].invoice_id;
-
-      // Thêm chi tiết hóa đơn
-      await client.query(
-        `INSERT INTO invoicedetail (invoice_id, fee_id, quantity, amount)
-         VALUES ($1, $2, 1, $3)`,
-        [invoiceId, fee_id, amount]
-      );
-    }
-
-    await client.query('COMMIT');
-    res.status(201).json({ message: 'Tạo khoản phí thành công!' });
-  } catch (error) {
-    await client.query('ROLLBACK');
-    console.error(error);
-    res.status(500).json({ error: 'Lỗi khi tạo khoản phí!' });
-  } finally {
-    client.release();
-  }
 });
 
-module.exports = router;
+// [FOR USER] Get finance items for a specific user
+router.get('/user/:userId', async (req, res) => {
+    const { userId } = req.params;
+    try {
+        const result = await query(`
+            SELECT f.id, f.title, f.content, f.amount, f.type, TO_CHAR(f.due_date, 'DD/MM/YYYY') as due_date, uf.status
+            FROM finances f JOIN user_finances uf ON f.id = uf.finance_id
+            WHERE uf.user_id = $1 ORDER BY f.created_at DESC;
+        `, [userId]);
+        res.json(result.rows);
+    } catch (err) {
+        res.status(500).json({ error: 'Internal Server Error' });
+    }
+});
+
+// [FOR ADMIN] Create a new finance item
+router.post('/create', async (req, res) => {
+    const { title, content, amount, type, due_date, target_user_ids } = req.body;
+    if (!title || !amount || !type || !target_user_ids || !Array.isArray(target_user_ids)) {
+        return res.status(400).json({ error: 'Missing required fields.' });
+    }
+    const finalDate = (due_date && due_date.trim() !== '') ? due_date : null;
+    const client = await pool.connect();
+    try {
+        await client.query('BEGIN');
+        const financeQuery = `INSERT INTO finances (title, content, amount, type, due_date) VALUES ($1, $2, $3, $4, TO_DATE($5, 'DD/MM/YYYY')) RETURNING id`;
+        const financeResult = await client.query(financeQuery, [title, content, amount, type, finalDate]);
+        const newFinanceId = financeResult.rows[0].id;
+        const userFinanceQuery = 'INSERT INTO user_finances (user_id, finance_id) VALUES ($1, $2)';
+        for (const userId of target_user_ids) {
+            await client.query(userFinanceQuery, [userId, newFinanceId]);
+        }
+        await client.query('COMMIT');
+        res.status(201).json({ success: true, finance_id: newFinanceId });
+    } catch (err) {
+        await client.query('ROLLBACK');
+        res.status(500).json({ error: 'Internal Server Error' });
+    } finally {
+        client.release();
+    }
+});
+
+export default router;

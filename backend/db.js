@@ -1,10 +1,12 @@
-import pkg from 'pg';
+import pg from 'pg';
 import dotenv from 'dotenv';
+
 dotenv.config();
 
 const { Pool } = pg;
 
-
+// Create and export the database connection pool.
+// This will be imported by other files (like routes/finance.js) to interact with the database.
 export const pool = new Pool({
   host: process.env.PGHOST,
   port: process.env.PGPORT,
@@ -14,10 +16,4 @@ export const pool = new Pool({
   ssl: { rejectUnauthorized: false },
 });
 
-pool.connect()
-    .then(() => {
-      console.log('Connected to PostgreSQL database');
-    })
-    .catch((err) => {
-      console.error('Error connecting to PostgreSQL database:', err);
-    });
+console.log('✅ Database pool configured and ready.');
