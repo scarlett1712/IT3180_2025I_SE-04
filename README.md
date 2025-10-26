@@ -54,6 +54,14 @@ Trước khi thêm cần encrypt mật khẩu:
 
 Dòng cuối chính là mật khẩu sau khi mã hóa và có thể thêm vào CSDL.
 
+### EDIT 4 (ĐM QUÊN 08:30 PM 26/10/2025) 
+
+TK admin: 0936363636 admin123
+
+TK user: 0963291686 123456
+
+Lưu ý: Mỗi khi tạo mới user MK mặc định luôn là 123456
+
 ## Cách để chạy và cài đặt ứng dụng qua điện thoại (Khuyến khích dành cho người máy yếu & sử dụng điện thoại Android):
 - B1: Trên điện thoại: Truy cập vào Tùy chọn nhà phát triển (Developer options)
 Mỗi máy 1 khác, có thể tra cứu cách bật Tùy chọn nhà phát triển qua mạng.
