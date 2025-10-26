@@ -28,6 +28,8 @@ public class FinanceFragment extends Fragment {
 
     private FinanceAdapter adapter;
     private final List<FinanceItem> financeList = new ArrayList<>();
+    private SearchView searchView;
+    private Spinner spinnerFilter;
 
     @Nullable
     @Override
@@ -38,8 +40,8 @@ public class FinanceFragment extends Fragment {
 
         TextView txtWelcome = view.findViewById(R.id.txtWelcome);
         TextView txtGreeting = view.findViewById(R.id.txtGreeting);
-        SearchView searchView = view.findViewById(R.id.search_view);
-        Spinner spinnerFilter = view.findViewById(R.id.spinner_filter);
+        searchView = view.findViewById(R.id.search_view);
+        spinnerFilter = view.findViewById(R.id.spinner_filter);
 
         UserItem currentUser = UserManager.getInstance(requireContext()).getCurrentUser();
         String username = (currentUser != null) ? currentUser.getName() : "Người dùng";
@@ -59,7 +61,13 @@ public class FinanceFragment extends Fragment {
         adapter = new FinanceAdapter(financeList);
         recyclerView.setAdapter(adapter);
 
-        // 🔍 Handle Search
+        setupListeners();
+
+        return view;
+    }
+
+    private void setupListeners() {
+        // Handle Search
         searchView.setOnQueryTextListener(new SearchView.OnQueryTextListener() {
             @Override
             public boolean onQueryTextSubmit(String query) {
@@ -69,24 +77,28 @@ public class FinanceFragment extends Fragment {
 
             @Override
             public boolean onQueryTextChange(String newText) {
+                // When searching, reset the type filter to "Tất cả"
+                spinnerFilter.setSelection(0, false); // Avoid triggering onItemSelected
                 adapter.getFilter().filter(newText);
                 return false;
             }
         });
 
+        // Handle Spinner selection
         spinnerFilter.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
             @Override
             public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
                 String selected = parent.getItemAtPosition(position).toString();
-                adapter.getFilter().filter(selected.equals("Tất cả") ? "" : selected);
+                // When filtering by type, clear the search view
+                if (!searchView.getQuery().toString().isEmpty()) {
+                    searchView.setQuery("", false);
+                }
+                adapter.filterByType(selected);
             }
 
             @Override
             public void onNothingSelected(AdapterView<?> parent) {}
         });
-
-
-        return view;
     }
 
     private void loadFinances() {
@@ -103,6 +115,11 @@ public class FinanceFragment extends Fragment {
             public void onSuccess(List<FinanceItem> finances) {
                 if (isAdded()) {
                     adapter.updateList(finances);
+                    // After updating the list, re-apply the current filter selection
+                    if (spinnerFilter != null) {
+                        String selectedType = spinnerFilter.getSelectedItem().toString();
+                        adapter.filterByType(selectedType);
+                    }
                 }
             }
 

@@ -24,8 +24,8 @@ import java.util.regex.Pattern;
 
 public class FinanceAdapter extends RecyclerView.Adapter<FinanceAdapter.ViewHolder> implements Filterable {
 
-    private final List<FinanceItem> financeList;
-    private final List<FinanceItem> financeListFull;
+    private List<FinanceItem> financeList; // List being displayed
+    private final List<FinanceItem> financeListFull; // Master list, never modified
 
     // Constructor
     public FinanceAdapter(List<FinanceItem> financeList) {
@@ -82,6 +82,7 @@ public class FinanceAdapter extends RecyclerView.Adapter<FinanceAdapter.ViewHold
         return financeList.size();
     }
 
+    // This filter is for the SearchView (text search)
     @Override
     public Filter getFilter() {
         return searchFilter;
@@ -91,42 +92,17 @@ public class FinanceAdapter extends RecyclerView.Adapter<FinanceAdapter.ViewHold
         @Override
         protected FilterResults performFiltering(CharSequence constraint) {
             List<FinanceItem> filtered = new ArrayList<>();
-
             if (constraint == null || constraint.length() == 0) {
                 filtered.addAll(financeListFull);
             } else {
                 String query = removeAccents(constraint.toString().toLowerCase(Locale.ROOT).trim());
-                String[] keywords = query.split("\\s+");
-
                 for (FinanceItem item : financeListFull) {
-                    String combined = (item.getTitle() + " " +
-                            item.getType() + " " +
-                            item.getSender() + " " +
-                            item.getDate());
-
-                    String normalized = removeAccents(combined.toLowerCase(Locale.ROOT));
-                    String[] words = normalized.split("\\W+");
-
-                    // ✅ All keywords must be found in the text (AND logic)
-                    boolean allMatch = true;
-                    for (String key : keywords) {
-                        boolean found = false;
-                        for (String w : words) {
-                            if (w.equals(key)) {
-                                found = true;
-                                break;
-                            }
-                        }
-                        if (!found) {
-                            allMatch = false;
-                            break;
-                        }
+                    String combined = item.getTitle() + " " + item.getSender();
+                    if (removeAccents(combined.toLowerCase(Locale.ROOT)).contains(query)) {
+                        filtered.add(item);
                     }
-
-                    if (allMatch) filtered.add(item);
                 }
             }
-
             FilterResults results = new FilterResults();
             results.values = filtered;
             return results;
@@ -135,11 +111,30 @@ public class FinanceAdapter extends RecyclerView.Adapter<FinanceAdapter.ViewHold
         @Override
         protected void publishResults(CharSequence constraint, FilterResults results) {
             financeList.clear();
-            //noinspection unchecked
             financeList.addAll((List<FinanceItem>) results.values);
             notifyDataSetChanged();
         }
     };
+
+    // [NEW] Method to filter by type (from Spinner)
+    @SuppressLint("NotifyDataSetChanged")
+    public void filterByType(String type) {
+        List<FinanceItem> filteredList = new ArrayList<>();
+        if (type.equals("Tất cả")) {
+            filteredList.addAll(financeListFull);
+        } else {
+            for (FinanceItem item : financeListFull) {
+                // Use equalsIgnoreCase for robust comparison
+                if (item.getType().equalsIgnoreCase(type)) {
+                    filteredList.add(item);
+                }
+            }
+        }
+        financeList.clear();
+        financeList.addAll(filteredList);
+        notifyDataSetChanged();
+    }
+
 
     /** Remove Vietnamese accents */
     private static String removeAccents(String input) {
@@ -152,10 +147,11 @@ public class FinanceAdapter extends RecyclerView.Adapter<FinanceAdapter.ViewHold
 
     @SuppressLint("NotifyDataSetChanged")
     public void updateList(List<FinanceItem> newList) {
-        financeList.clear();
-        financeList.addAll(newList);
         financeListFull.clear();
         financeListFull.addAll(newList);
+        // Initially, show the full list
+        financeList.clear();
+        financeList.addAll(financeListFull);
         notifyDataSetChanged();
     }
 

@@ -55,8 +55,8 @@
 
     <string-array name="finance_filter_options">
         <item>Tất cả</item>
-        <item>Khoản thu bắt buộc</item>
-        <item>Đóng góp</item>
+        <item>Bắt buộc</item>
+        <item>Tự nguyện</item>
     </string-array>
     <string name="admin">Quản trị viên</string>
     <string name="add_resident">Thêm cư dân</string>
