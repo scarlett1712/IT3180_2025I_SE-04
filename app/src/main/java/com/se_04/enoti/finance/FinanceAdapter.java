@@ -150,6 +150,15 @@ public class FinanceAdapter extends RecyclerView.Adapter<FinanceAdapter.ViewHold
         return normalized.replaceAll("đ", "d").replaceAll("Đ", "D");
     }
 
+    @SuppressLint("NotifyDataSetChanged")
+    public void updateList(List<FinanceItem> newList) {
+        financeList.clear();
+        financeList.addAll(newList);
+        financeListFull.clear();
+        financeListFull.addAll(newList);
+        notifyDataSetChanged();
+    }
+
     static class ViewHolder extends RecyclerView.ViewHolder {
         TextView txtTitle, txtDate, txtPrice;
 

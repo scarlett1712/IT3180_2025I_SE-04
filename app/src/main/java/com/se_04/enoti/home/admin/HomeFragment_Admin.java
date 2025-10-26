@@ -1,5 +1,6 @@
 package com.se_04.enoti.home.admin; // Your package name
 
+import android.content.Intent;
 import android.os.Bundle;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -15,6 +16,7 @@ import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.se_04.enoti.account.UserItem;
+import com.se_04.enoti.finance.admin.CreateFinanceActivity;
 import com.se_04.enoti.notification.NotificationAdapter;
 import com.se_04.enoti.notification.NotificationItem;
 import com.se_04.enoti.utils.UserManager;
@@ -57,6 +59,12 @@ public class HomeFragment_Admin extends Fragment {
 
         String greeting = getString(R.string.greeting, timeOfDay);
         txtGreeting.setText(greeting);
+
+        LinearLayout layoutCreateFinance = view.findViewById(R.id.layoutCreateFinance);
+        layoutCreateFinance.setOnClickListener(v -> {
+            Intent intent = new Intent(getActivity(), CreateFinanceActivity.class);
+            startActivity(intent);
+        });
 
         return view;
     }

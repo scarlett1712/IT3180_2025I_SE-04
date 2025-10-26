@@ -78,6 +78,7 @@
             </LinearLayout>
 
             <LinearLayout
+                android:id="@+id/layoutManageNotification"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:orientation="vertical"
@@ -97,6 +98,31 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="@string/manage_notification"
+                    android:textSize="16sp"
+                    android:gravity="center"/>
+            </LinearLayout>
+
+            <LinearLayout
+                android:id="@+id/layoutCreateFinance"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:gravity="center"
+                android:layout_columnWeight="1"
+                android:layout_marginBottom="24dp">
+
+                <ImageView
+                    android:layout_width="90dp"
+                    android:layout_height="90dp"
+                    android:background="@drawable/bg_circle_blue"
+                    android:src="@drawable/ic_finance"
+                    android:padding="16dp"
+                    android:contentDescription="Tạo khoản thu"/>
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Tạo khoản thu"
                     android:textSize="16sp"
                     android:gravity="center"/>
             </LinearLayout>
@@ -186,7 +212,7 @@
                     android:layout_height="90dp"
                     android:background="@drawable/bg_circle_blue"
                     android:src="@drawable/ic_account"
-                    android:padding="16dp"
+                    android.padding="16dp"
                     android:contentDescription="@string/support"/>
 
                 <TextView

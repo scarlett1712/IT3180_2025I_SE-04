@@ -29,7 +29,7 @@
     <string name="bill">Hóa đơn</string>
     <string name="finance">Tài chính</string>
     <string name="sign_out">Đăng xuất</string>
-    <string name="welcome">Xin chào %1$s</string>
+    <string name="welcome">Xin chào %1$s!</string>
     <string name="greeting">Chúc bạn buổi %1$s tốt lành!</string>
     <string name="highlighted_notifications">Những hoạt động cần lưu ý</string>
     <string name="utilities">Tiện ích</string>

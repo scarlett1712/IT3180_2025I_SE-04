@@ -2,16 +2,18 @@ import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
 
+// Import the new finance functions and routes from db.js
+import financeRoutes, { createFinanceTables } from "./db.js";
+
 dotenv.config();
 
 const app = express();
 
 app.use(express.static('public'));
 
-// ✅ CORS đơn giản
 app.use(cors());
 
-// ✅ MIDDLEWARE QUAN TRỌNG: Xử lý raw body trước
+// Your existing middlewares for logging and parsing
 app.use((req, res, next) => {
   console.log("=== 🔥 RAW REQUEST ===");
   console.log("Method:", req.method);
@@ -44,22 +46,10 @@ app.use((req, res, next) => {
   }
 });
 
-// ✅ JSON parser thông thường (sẽ không chạy nếu body đã được xử lý ở trên)
-app.use(express.json({
-  limit: "10mb",
-  verify: (req, res, buf) => {
-    if (req.body === undefined) {
-      console.log("📦 express.json() is processing body");
-    }
-  }
-}));
+app.use(express.json({ limit: "10mb" }));
+app.use(express.urlencoded({ extended: true, limit: "10mb" }));
 
-app.use(express.urlencoded({
-  extended: true,
-  limit: "10mb"
-}));
-
-// ✅ Debug middleware sau khi parse
+// Your existing debug middleware
 app.use((req, res, next) => {
   console.log("=== ✅ FINAL BODY ===");
   console.log("Body:", req.body);
@@ -68,8 +58,7 @@ app.use((req, res, next) => {
   next();
 });
 
-// Import routes
-import { pool } from "./db.js";
+// Import your existing routes
 import userRoutes from "./routes/users.js";
 import userItemRoutes from "./routes/user_item.js";
 import feedbackRoutes from "./routes/feedback.js";
@@ -81,7 +70,7 @@ import createNotificationRoutes from "./routes/create_notification.js";
 import changePasswordRoutes from "./routes/change_password.js";
 
 
-// Routes
+// Use your existing routes
 app.use("/api/users", userRoutes);
 app.use("/api/user_item", userItemRoutes);
 app.use("/api/feedback", feedbackRoutes);
@@ -92,6 +81,9 @@ app.use("/api/notification", notificationRoutes);
 app.use("/api/create_notification", createNotificationRoutes);
 app.use("/api/changepassword", changePasswordRoutes);
 
+// [NEW] Use the finance routes
+app.use(financeRoutes);
+
 // Health check
 app.get("/", (req, res) => {
   res.json({
@@ -100,7 +92,7 @@ app.get("/", (req, res) => {
   });
 });
 
-// Test endpoint đặc biệt
+// Debug endpoint
 app.post("/api/debug", (req, res) => {
   res.json({
     success: true,
@@ -116,4 +108,7 @@ app.listen(PORT, () => {
   console.log(`🚀 Server started on port ${PORT}`);
   console.log(`📍 Health check: http://localhost:${PORT}/`);
   console.log(`📍 Debug endpoint: http://localhost:${PORT}/api/debug`);
+  
+  // [NEW] Initialize the finance tables on server start
+  createFinanceTables();
 });

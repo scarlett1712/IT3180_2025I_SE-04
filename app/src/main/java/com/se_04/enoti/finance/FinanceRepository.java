@@ -1,30 +1,63 @@
 package com.se_04.enoti.finance;
 
+import android.content.Context;
+
+import com.android.volley.Request;
+import com.android.volley.RequestQueue;
+import com.android.volley.toolbox.JsonArrayRequest;
+import com.android.volley.toolbox.Volley;
+
+import org.json.JSONArray;
+import org.json.JSONObject;
+
 import java.util.ArrayList;
 import java.util.List;
 
 public class FinanceRepository {
     private static FinanceRepository instance;
-    private final List<FinanceItem> receipts;
+    private final List<FinanceItem> finances = new ArrayList<>();
+    private static final String API_GET_FINANCES_URL = "http://10.0.2.2:5000/api/finance/user/";
 
     private FinanceRepository() {
-        receipts = new ArrayList<>();
-        seedData();
     }
 
-    public static FinanceRepository getInstance(){
-        if (instance == null){
+    public static synchronized FinanceRepository getInstance() {
+        if (instance == null) {
             instance = new FinanceRepository();
         }
         return instance;
     }
 
-    public List<FinanceItem> getReceipts(){ return receipts; }
+    public void fetchFinances(Context context, String userId, final FinanceCallback callback) {
+        String url = API_GET_FINANCES_URL + userId;
+        RequestQueue queue = Volley.newRequestQueue(context);
 
-    private void seedData(){
-        receipts.add(new FinanceItem("Hóa đơn điện", "31/10/2025", "Khoản thu bắt buộc", "Công ty nước sạch Hà Nội", 1800000L));
-        receipts.add(new FinanceItem("Hóa đơn nước", "31/10/2025", "Khoản thu bắt buộc", "Công ty nước sạch Hà Nội", 150000L));
-        receipts.add(new FinanceItem("Quỹ vì người giàu", "5/11/2025", "Quỹ", "Đóng góp"));
+        JsonArrayRequest request = new JsonArrayRequest(Request.Method.GET, url, null,
+                response -> {
+                    try {
+                        finances.clear();
+                        for (int i = 0; i < response.length(); i++) {
+                            JSONObject obj = response.getJSONObject(i);
+                            finances.add(new FinanceItem(
+                                    obj.getString("title"),
+                                    obj.getString("due_date"),
+                                    obj.getString("type"),
+                                    obj.getString("content"),
+                                    obj.getLong("amount")));
+                        }
+                        callback.onSuccess(finances);
+                    } catch (Exception e) {
+                        callback.onError(e.getMessage());
+                    }
+                },
+                error -> callback.onError(error.getMessage()));
+        queue.add(request);
     }
-}
 
+    public interface FinanceCallback {
+        void onSuccess(List<FinanceItem> finances);
+        void onError(String message);
+    }
+
+     public List<FinanceItem> getReceipts(){ return finances; }
+}

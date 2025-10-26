@@ -4,14 +4,14 @@ import android.os.Bundle;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
-import androidx.appcompat.widget.SearchView;
-
 import android.widget.AdapterView;
 import android.widget.Spinner;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import androidx.appcompat.widget.SearchView;
 import androidx.fragment.app.Fragment;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
@@ -20,12 +20,14 @@ import com.se_04.enoti.R;
 import com.se_04.enoti.account.UserItem;
 import com.se_04.enoti.utils.UserManager;
 
+import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.List;
 
 public class FinanceFragment extends Fragment {
 
     private FinanceAdapter adapter;
+    private final List<FinanceItem> financeList = new ArrayList<>();
 
     @Nullable
     @Override
@@ -41,8 +43,7 @@ public class FinanceFragment extends Fragment {
 
         UserItem currentUser = UserManager.getInstance(requireContext()).getCurrentUser();
         String username = (currentUser != null) ? currentUser.getName() : "Người dùng";
-        String message = "Xin chào " + username + "!";
-        txtWelcome.setText(message);
+        txtWelcome.setText(getString(R.string.welcome, username));
 
         Calendar calendar = Calendar.getInstance();
         int hour = calendar.get(Calendar.HOUR_OF_DAY);
@@ -55,8 +56,7 @@ public class FinanceFragment extends Fragment {
         RecyclerView recyclerView = view.findViewById(R.id.recyclerViewReceipts);
         recyclerView.setLayoutManager(new LinearLayoutManager(requireContext()));
 
-        List<FinanceItem> list = FinanceRepository.getInstance().getReceipts();
-        adapter = new FinanceAdapter(list);
+        adapter = new FinanceAdapter(financeList);
         recyclerView.setAdapter(adapter);
 
         // 🔍 Handle Search
@@ -78,18 +78,7 @@ public class FinanceFragment extends Fragment {
             @Override
             public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
                 String selected = parent.getItemAtPosition(position).toString();
-
-                switch (selected) {
-                    case "Tất cả":
-                        adapter.getFilter().filter(""); // không lọc
-                        break;
-                    case "Khoản thu bắt buộc":
-                        adapter.getFilter().filter("bắt buộc");
-                        break;
-                    case "Đóng góp":
-                        adapter.getFilter().filter("đóng góp");
-                        break;
-                }
+                adapter.getFilter().filter(selected.equals("Tất cả") ? "" : selected);
             }
 
             @Override
@@ -100,9 +89,35 @@ public class FinanceFragment extends Fragment {
         return view;
     }
 
+    private void loadFinances() {
+        UserItem currentUser = UserManager.getInstance(requireContext()).getCurrentUser();
+        if (currentUser == null) {
+            if (isAdded()) {
+                Toast.makeText(getContext(), "Vui lòng đăng nhập để xem thông tin tài chính", Toast.LENGTH_SHORT).show();
+            }
+            return;
+        }
+
+        FinanceRepository.getInstance().fetchFinances(requireContext(), currentUser.getId(), new FinanceRepository.FinanceCallback() {
+            @Override
+            public void onSuccess(List<FinanceItem> finances) {
+                if (isAdded()) {
+                    adapter.updateList(finances);
+                }
+            }
+
+            @Override
+            public void onError(String message) {
+                if (isAdded()) {
+                    Toast.makeText(getContext(), "Lỗi tải dữ liệu: " + message, Toast.LENGTH_SHORT).show();
+                }
+            }
+        });
+    }
+
     @Override
     public void onResume() {
         super.onResume();
-        if (adapter != null) adapter.notifyDataSetChanged();
+        loadFinances();
     }
 }
