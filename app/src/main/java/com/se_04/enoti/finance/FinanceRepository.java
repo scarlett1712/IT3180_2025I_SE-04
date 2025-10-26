@@ -1,26 +1,20 @@
 package com.se_04.enoti.finance;
 
 import android.content.Context;
-
+import android.util.Log;
 import com.android.volley.Request;
 import com.android.volley.RequestQueue;
 import com.android.volley.toolbox.JsonArrayRequest;
 import com.android.volley.toolbox.Volley;
-import com.se_04.enoti.utils.ApiConfig;
-
-import org.json.JSONArray;
 import org.json.JSONObject;
-
 import java.util.ArrayList;
 import java.util.List;
 
 public class FinanceRepository {
     private static FinanceRepository instance;
-    private final List<FinanceItem> finances = new ArrayList<>();
-    private static final String API_GET_FINANCES_URL = ApiConfig.BASE_URL + "/api/finance/user/";
+    private static final String API_GET_FINANCES_URL = "http://10.0.2.2:5000/api/finance/user/";
 
-    private FinanceRepository() {
-    }
+    private FinanceRepository() {}
 
     public static synchronized FinanceRepository getInstance() {
         if (instance == null) {
@@ -36,22 +30,36 @@ public class FinanceRepository {
         JsonArrayRequest request = new JsonArrayRequest(Request.Method.GET, url, null,
                 response -> {
                     try {
-                        finances.clear();
+                        List<FinanceItem> finances = new ArrayList<>();
                         for (int i = 0; i < response.length(); i++) {
                             JSONObject obj = response.getJSONObject(i);
-                            finances.add(new FinanceItem(
-                                    obj.getString("title"),
-                                    obj.getString("due_date"),
-                                    obj.getString("type"),
-                                    obj.getString("content"),
-                                    obj.getLong("amount")));
+
+                            // Use the single, official constructor for FinanceItem
+                            FinanceItem item = new FinanceItem(
+                                    obj.optString("title", "Không có tiêu đề"),
+                                    obj.optString("content", ""),
+                                    obj.optString("due_date", "N/A"),
+                                    obj.optString("type", "Khác"),
+                                    "Ban Quản lý", // Default sender for user view
+                                    (long) obj.optDouble("amount", 0.0)
+                            );
+                            item.setId(obj.getInt("id"));
+                            
+                            // You can set the paid status from API if available
+                            // item.setPaid("da_thanh_toan".equalsIgnoreCase(obj.optString("status")));
+
+                            finances.add(item);
                         }
                         callback.onSuccess(finances);
                     } catch (Exception e) {
-                        callback.onError(e.getMessage());
+                        Log.e("FinanceRepository", "Error parsing finance JSON", e);
+                        callback.onError("Lỗi xử lý dữ liệu.");
                     }
                 },
-                error -> callback.onError(error.getMessage()));
+                error -> {
+                    Log.e("FinanceRepository", "Volley network error", error);
+                    callback.onError("Không thể kết nối đến server.");
+                });
         queue.add(request);
     }
 
@@ -59,6 +67,4 @@ public class FinanceRepository {
         void onSuccess(List<FinanceItem> finances);
         void onError(String message);
     }
-
-     public List<FinanceItem> getReceipts(){ return finances; }
 }

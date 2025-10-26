@@ -3,7 +3,9 @@ package com.se_04.enoti.finance;
 import javax.annotation.Nullable;
 
 public class FinanceItem {
+    private int id;
     private final String title;
+    private final String content;
     private final String date;
     private final String type;
     @Nullable
@@ -11,33 +13,34 @@ public class FinanceItem {
     private final String sender;
     private boolean isPaid;
 
-    public FinanceItem(String title, String date, String type, String sender){
+    /**
+     * The single, official constructor for creating a FinanceItem.
+     * This ensures consistency across the entire application.
+     */
+    public FinanceItem(String title, String content, String date, String type, String sender, @Nullable Long price) {
         this.title = title;
+        this.content = (content == null) ? "" : content; // Prevent null content
         this.date = date;
         this.type = type;
         this.sender = sender;
-        this.price = null;
-        this.isPaid = false;
+        this.price = price;
+        this.isPaid = false; // Default value
     }
 
-    public FinanceItem(String title, String date, String type, String sender, long price) {
-        this.title = title;
-        this.date = date;
-        this.type = type;
-        this.sender = sender;
-        this.price = price; // auto-box sang Long
-        this.isPaid = false;
-    }
+    // --- Getters and Setters ---
+    public int getId() { return id; }
+    public void setId(int id) { this.id = id; }
 
     public String getTitle() { return title; }
+    public String getContent() { return content; }
     public String getDate() { return date; }
     public String getType() { return type; }
+    public String getSender() { return sender; }
 
     @Nullable
     public Long getPrice() { return price; }
-    public void setPrice(@Nullable long price) { this.price = price; }
+    public void setPrice(@Nullable Long price) { this.price = price; }
 
-    public String getSender() { return sender; }
     public boolean isPaid() { return isPaid; }
-    public void setPaid(boolean paid) { isPaid = paid; }
+    public void setPaid(boolean paid) { this.isPaid = paid; }
 }
