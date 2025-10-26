@@ -33,6 +33,31 @@ router.get("/sent/:adminId", async (req, res) => {
   }
 });
 
+// Lấy thông báo theo ID (dùng cho Android fetchNotificationTitle)
+router.get("/detail/:id", async (req, res) => {
+  const { id } = req.params;
+  try {
+    const result = await pool.query(
+      `SELECT notification_id, title, content, type, created_at,
+              TO_CHAR(expired_date, 'DD-MM-YYYY') AS expired_date,
+              COALESCE(ui.full_name, 'Hệ thống') AS sender
+       FROM notification n
+       LEFT JOIN user_item ui ON n.created_by = ui.user_id
+       WHERE n.notification_id = $1`,
+      [id]
+    );
+
+    if (result.rows.length > 0) {
+      res.json(result.rows[0]); // trả về object
+    } else {
+      res.status(404).json({ error: "Notification not found" });
+    }
+  } catch (err) {
+    console.error(`Error fetching notification ${id}:`, err);
+    res.status(500).json({ error: "Server error" });
+  }
+});
+
 // ✅ Route 2: Lấy tất cả thông báo của 1 user (có trạng thái đã đọc)
 router.get("/:userId", async (req, res) => {
   try {
@@ -94,5 +119,7 @@ router.put("/:notificationId/read", async (req, res) => {
     res.status(500).json({ message: "Lỗi server" });
   }
 });
+
+
 
 export default router;

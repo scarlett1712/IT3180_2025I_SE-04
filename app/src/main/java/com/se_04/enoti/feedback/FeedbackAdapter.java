@@ -1,7 +1,6 @@
 package com.se_04.enoti.feedback;
 
 import android.content.Intent;
-import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -12,29 +11,31 @@ import androidx.core.content.ContextCompat;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.se_04.enoti.R;
+import com.se_04.enoti.notification.NotificationRepository;
 
 import java.util.List;
 
 public class FeedbackAdapter extends RecyclerView.Adapter<FeedbackAdapter.ViewHolder> {
 
-    private final List<FeedbackItem> feedbackList;
+    private List<FeedbackItem> feedbackList;
     private OnItemClickListener listener;
 
-    // Interface for click events
     public interface OnItemClickListener {
         void onItemClick(FeedbackItem item);
     }
 
-    // Constructor for User
     public FeedbackAdapter(List<FeedbackItem> feedbackList) {
         this.feedbackList = feedbackList;
-        this.listener = null;
     }
 
-    // Constructor for Admin
     public FeedbackAdapter(List<FeedbackItem> feedbackList, OnItemClickListener listener) {
         this.feedbackList = feedbackList;
         this.listener = listener;
+    }
+
+    public void updateList(List<FeedbackItem> newList) {
+        this.feedbackList = newList;
+        notifyDataSetChanged();
     }
 
     @NonNull
@@ -48,41 +49,58 @@ public class FeedbackAdapter extends RecyclerView.Adapter<FeedbackAdapter.ViewHo
     @Override
     public void onBindViewHolder(@NonNull ViewHolder holder, int position) {
         FeedbackItem item = feedbackList.get(position);
-        holder.txtTitle.setText(item.getTitle());
-        holder.txtDate.setText(item.getDate());
-        holder.txtRepliedNotification.setText(item.getRepliedNotification());
 
-        int colorResId = R.color.status_default;
-        if (item.isReplied()) {
-            colorResId = R.color.status_replied;
-        } else if (item.isRead()) {
-            colorResId = R.color.status_read;
-        } else if (item.isSent()) {
-            colorResId = R.color.status_sent;
+        // --- Hiển thị tiêu đề và ngày tạo ---
+        holder.txtTitle.setText("Phản hồi #" + item.getFeedbackId());
+        holder.txtDate.setText(item.getCreatedAt());
+
+        // --- Hiển thị tạm ---
+        holder.txtContent.setText("Đang tải tên thông báo...");
+
+        // --- Lấy tên thông báo từ repository ---
+        NotificationRepository.getInstance().fetchNotificationTitle(
+                item.getNotificationId(),
+                new NotificationRepository.TitleCallback() {
+                    @Override
+                    public void onSuccess(String title) {
+                        holder.txtContent.setText("Phản hồi cho thông báo: " + title);
+                    }
+
+                    @Override
+                    public void onError(String message) {
+                        holder.txtContent.setText("Phản hồi cho thông báo #" + item.getNotificationId());
+                    }
+                }
+        );
+
+        // --- Hiển thị màu trạng thái ---
+        int colorResId;
+        switch (item.getStatus().toLowerCase()) {
+            case "read":
+                colorResId = R.color.status_read;
+                break;
+            case "resolved":
+            case "done":
+                colorResId = R.color.status_replied;
+                break;
+            default:
+                colorResId = R.color.status_sent;
+                break;
         }
 
         holder.statusIndicator.getBackground().setTint(
                 ContextCompat.getColor(holder.itemView.getContext(), colorResId)
         );
 
+        // --- Click item ---
         holder.itemView.setOnClickListener(v -> {
-            int pos = holder.getBindingAdapterPosition();
-            if (pos == RecyclerView.NO_POSITION) return;
-
-            FeedbackItem clicked = feedbackList.get(pos);
+            FeedbackItem clicked = feedbackList.get(holder.getBindingAdapterPosition());
 
             if (listener != null) {
-                // Admin flow: Use the callback
                 listener.onItemClick(clicked);
             } else {
-                // User flow: Open detail activity
                 Intent intent = new Intent(v.getContext(), FeedbackDetailActivity.class);
-                intent.putExtra("position", pos);
-                intent.putExtra("title", clicked.getTitle());
-                intent.putExtra("type", clicked.getType());
-                intent.putExtra("date", clicked.getDate());
-                intent.putExtra("content", clicked.getContent());
-                intent.putExtra("repliedNotification", clicked.getRepliedNotification());
+                intent.putExtra("feedback_item", clicked);
                 v.getContext().startActivity(intent);
             }
         });
@@ -90,18 +108,18 @@ public class FeedbackAdapter extends RecyclerView.Adapter<FeedbackAdapter.ViewHo
 
     @Override
     public int getItemCount() {
-        return feedbackList.size();
+        return (feedbackList != null) ? feedbackList.size() : 0;
     }
 
     static class ViewHolder extends RecyclerView.ViewHolder {
-        TextView txtTitle, txtDate, txtRepliedNotification;
+        TextView txtTitle, txtDate, txtContent;
         View statusIndicator;
 
         ViewHolder(View itemView) {
             super(itemView);
             txtTitle = itemView.findViewById(R.id.txtTitle);
             txtDate = itemView.findViewById(R.id.txtDate);
-            txtRepliedNotification = itemView.findViewById(R.id.txtRepliedNotification);
+            txtContent = itemView.findViewById(R.id.txtRepliedNotification);
             statusIndicator = itemView.findViewById(R.id.statusIndicator);
         }
     }

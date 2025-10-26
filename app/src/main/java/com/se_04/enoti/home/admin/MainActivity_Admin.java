@@ -14,8 +14,8 @@ import androidx.fragment.app.FragmentTransaction;
 
 import com.google.android.material.bottomnavigation.BottomNavigationView;
 import com.se_04.enoti.account.AccountFragment;
+import com.se_04.enoti.finance.admin.ManageFinanceFragment;
 import com.se_04.enoti.notification.admin.CreateNotificationActivity;
-import com.se_04.enoti.feedback.FeedbackFragment;
 import com.se_04.enoti.R;
 import com.se_04.enoti.notification.admin.ManageNotificationFragment;
 import com.se_04.enoti.residents.ManageResidentFragment;
@@ -30,7 +30,7 @@ public class MainActivity_Admin extends AppCompatActivity {
     private HomeFragment_Admin homeFragmentAdmin;
     private ManageResidentFragment manageResidentFragment;
     private ManageNotificationFragment manageNotificationFragment;
-    private FeedbackFragment feedbackFragment;
+    private ManageFinanceFragment manageFinanceFragment;
     private AccountFragment accountFragment;
 
     private Fragment activeFragment; // To keep track of the currently visible fragment
@@ -52,7 +52,7 @@ public class MainActivity_Admin extends AppCompatActivity {
             homeFragmentAdmin = new HomeFragment_Admin();
             manageResidentFragment = new ManageResidentFragment();
             manageNotificationFragment = new ManageNotificationFragment();
-            feedbackFragment = new FeedbackFragment();
+            manageFinanceFragment = new ManageFinanceFragment();
             accountFragment = new AccountFragment();
 
             // Start a transaction
@@ -61,7 +61,7 @@ public class MainActivity_Admin extends AppCompatActivity {
             // Add all fragments, hide non-default ones. Use tags to find them later.
             // Add the default fragment last so it's "on top" if others are mistakenly shown.
             transaction.add(R.id.fragment_container, accountFragment, "account").hide(accountFragment);
-            transaction.add(R.id.fragment_container, feedbackFragment, "feedback").hide(feedbackFragment);
+            transaction.add(R.id.fragment_container, manageFinanceFragment, "managefinance").hide(manageFinanceFragment);
             transaction.add(R.id.fragment_container, manageNotificationFragment, "managenotifications").hide(manageNotificationFragment);
             transaction.add(R.id.fragment_container, manageResidentFragment, "manageresidents").hide(manageResidentFragment);
             transaction.add(R.id.fragment_container, homeFragmentAdmin, "home"); // Default, so show it
@@ -80,21 +80,21 @@ public class MainActivity_Admin extends AppCompatActivity {
             homeFragmentAdmin = (HomeFragment_Admin) fragmentManager.findFragmentByTag("home");
             manageResidentFragment = (ManageResidentFragment) fragmentManager.findFragmentByTag("manageresidents");
             manageNotificationFragment = (ManageNotificationFragment) fragmentManager.findFragmentByTag("managenotifications");
-            feedbackFragment = (FeedbackFragment) fragmentManager.findFragmentByTag("feedback");
+            manageFinanceFragment = (ManageFinanceFragment) fragmentManager.findFragmentByTag("managefinance");
             accountFragment = (AccountFragment) fragmentManager.findFragmentByTag("account");
 
             // Fallback if fragments are somehow null (shouldn't happen if added correctly)
             if (homeFragmentAdmin == null) homeFragmentAdmin = new HomeFragment_Admin();
             if (manageResidentFragment == null) manageResidentFragment = new ManageResidentFragment();
             if (manageNotificationFragment == null) manageNotificationFragment = new ManageNotificationFragment();
-            if (feedbackFragment == null) feedbackFragment = new FeedbackFragment();
+            if (manageFinanceFragment == null) manageFinanceFragment = new ManageFinanceFragment();
             if (accountFragment == null) accountFragment = new AccountFragment();
 
 
             switch (activeTag) {
                 case "manageresidents": activeFragment = manageResidentFragment; break;
                 case "managenotifications": activeFragment = manageNotificationFragment; break;
-                case "feedback": activeFragment = feedbackFragment; break;
+                case "managefinance": activeFragment = manageFinanceFragment; break;
                 case "account": activeFragment = accountFragment; break;
                 case "home": // Fallthrough to default
                 default: activeFragment = homeFragmentAdmin; break;
@@ -118,9 +118,9 @@ public class MainActivity_Admin extends AppCompatActivity {
             } else if (itemId == R.id.nav_manage_noti) {
                 targetFragment = manageNotificationFragment;
                 targetTag = "managenotifications";
-            } else if (itemId == R.id.nav_feedback) {
-                targetFragment = feedbackFragment;
-                targetTag = "feedback";
+            } else if (itemId == R.id.nav_manage_finance) {
+                targetFragment = manageFinanceFragment;
+                targetTag = "managefinance";
             } else if (itemId == R.id.nav_account) {
                 targetFragment = accountFragment;
                 targetTag = "account";

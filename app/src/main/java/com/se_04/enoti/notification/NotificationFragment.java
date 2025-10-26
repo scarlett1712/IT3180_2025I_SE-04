@@ -5,6 +5,7 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.os.Bundle;
+import android.os.Handler;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -43,11 +44,24 @@ public class NotificationFragment extends Fragment {
 
     private final NotificationRepository repository = NotificationRepository.getInstance();
 
-    // BroadcastReceiver to listen for new notifications
+    // 🕒 Handler để refresh dữ liệu định kỳ
+    private final Handler refreshHandler = new Handler();
+    private final Runnable refreshRunnable = new Runnable() {
+        @Override
+        public void run() {
+            if (isAdded()) {
+                Log.d(TAG, "⏱ Refreshing notifications every 3s...");
+                loadNotificationsFromCurrentUser();
+                refreshHandler.postDelayed(this, 3000); // gọi lại sau 3s
+            }
+        }
+    };
+
+    // BroadcastReceiver để cập nhật khi có thông báo mới từ FCM
     private final BroadcastReceiver newNotificationReceiver = new BroadcastReceiver() {
         @Override
         public void onReceive(Context context, Intent intent) {
-            Log.d(TAG, "New notification broadcast received. Reloading list...");
+            Log.d(TAG, "📩 New notification broadcast received. Reloading list...");
             loadNotificationsFromCurrentUser();
         }
     };
@@ -80,7 +94,6 @@ public class NotificationFragment extends Fragment {
 
         RecyclerView recyclerView = view.findViewById(R.id.recyclerViewNotifications);
         recyclerView.setLayoutManager(new LinearLayoutManager(requireContext()));
-        
         adapter = new NotificationAdapter(filteredList, NotificationAdapter.VIEW_TYPE_NORMAL);
         recyclerView.setAdapter(adapter);
 
@@ -93,8 +106,8 @@ public class NotificationFragment extends Fragment {
     public void onStart() {
         super.onStart();
         LocalBroadcastManager.getInstance(requireContext()).registerReceiver(
-            newNotificationReceiver,
-            new IntentFilter(MyFirebaseMessagingService.ACTION_NEW_NOTIFICATION)
+                newNotificationReceiver,
+                new IntentFilter(MyFirebaseMessagingService.ACTION_NEW_NOTIFICATION)
         );
     }
 
@@ -107,12 +120,19 @@ public class NotificationFragment extends Fragment {
     @Override
     public void onResume() {
         super.onResume();
-        Log.d(TAG, "Fragment resumed. Reloading notifications...");
+        Log.d(TAG, "🔁 Fragment resumed. Starting auto-refresh and reloading notifications...");
         loadNotificationsFromCurrentUser();
+        refreshHandler.postDelayed(refreshRunnable, 3000); // bắt đầu chạy định kỳ 3s
+    }
+
+    @Override
+    public void onPause() {
+        super.onPause();
+        Log.d(TAG, "⏸ Fragment paused. Stopping auto-refresh...");
+        refreshHandler.removeCallbacks(refreshRunnable); // ngừng khi rời fragment
     }
 
     private void setupControls(UserItem currentUser) {
-        // Spinners
         String[] typeOptions = {"Tất cả", "Hành chính", "Kỹ thuật & bảo trì", "Tài chính", "Sự kiện & cộng đồng", "Khẩn cấp"};
         ArrayAdapter<String> typeAdapter = new ArrayAdapter<>(requireContext(),
                 android.R.layout.simple_spinner_item, typeOptions);
@@ -139,10 +159,10 @@ public class NotificationFragment extends Fragment {
     }
 
     private void loadNotificationsFromCurrentUser(){
-        if (getContext() == null) return; // Add safety check
+        if (getContext() == null) return;
         UserItem currentUser = UserManager.getInstance(getContext()).getCurrentUser();
         if (currentUser == null || currentUser.getId() == null) {
-            Log.e(TAG, "Cannot load notifications, user or user ID is null.");
+            Log.e(TAG, "⚠️ Cannot load notifications, user or user ID is null.");
             return;
         }
 
@@ -150,7 +170,7 @@ public class NotificationFragment extends Fragment {
             long userId = Long.parseLong(currentUser.getId());
             loadNotifications(userId);
         } catch (NumberFormatException e) {
-            Log.e(TAG, "Failed to parse user ID for reloading: " + currentUser.getId(), e);
+            Log.e(TAG, "❌ Failed to parse user ID for reloading: " + currentUser.getId(), e);
         }
     }
 
@@ -168,7 +188,7 @@ public class NotificationFragment extends Fragment {
             @Override
             public void onError(String message) {
                 if (isAdded()) {
-                    Log.e(TAG, "Failed to load notifications: " + message);
+                    Log.e(TAG, "❌ Failed to load notifications: " + message);
                     originalList.clear();
                     applyFiltersAndSearch();
                 }
@@ -197,7 +217,6 @@ public class NotificationFragment extends Fragment {
 
             if (matchesSearch && matchesType) filteredList.add(item);
         }
-
 
         if (selectedTime.equals("Mới nhất")) {
             Collections.sort(filteredList, (a, b) -> b.getDate().compareTo(a.getDate()));

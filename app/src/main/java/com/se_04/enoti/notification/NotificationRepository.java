@@ -40,21 +40,24 @@ public class NotificationRepository {
         return instance;
     }
 
-    // Callback khi lấy danh sách thông báo
+    // ===================== CALLBACK INTERFACES =====================
     public interface NotificationsCallback {
         void onSuccess(List<NotificationItem> items);
         void onError(String message);
     }
 
-    // Callback đơn giản cho PUT/POST request
     public interface SimpleCallback {
         void onSuccess();
         void onError(String message);
     }
 
-    /**
-     * 📨 Lấy danh sách thông báo của user (API: GET /api/notification/:userId)
-     */
+    public interface TitleCallback {
+        void onSuccess(String title);
+        void onError(String message);
+    }
+
+    // ===================== API FUNCTIONS =====================
+
     public void fetchNotifications(long userId, NotificationsCallback callback) {
         executor.execute(() -> {
             HttpURLConnection conn = null;
@@ -94,13 +97,12 @@ public class NotificationRepository {
         });
     }
 
-    // trong NotificationRepository.java
     public void fetchAdminNotifications(long adminId, NotificationsCallback callback) {
         executor.execute(() -> {
             HttpURLConnection conn = null;
             try {
                 URL url = new URL(BASE_URL + "/api/notification/sent/" + adminId);
-                Log.d(TAG, "fetchAdminNotifications -> " + url); // thêm log
+                Log.d(TAG, "fetchAdminNotifications -> " + url);
                 conn = (HttpURLConnection) url.openConnection();
                 conn.setRequestMethod("GET");
                 conn.setConnectTimeout(10_000);
@@ -108,7 +110,7 @@ public class NotificationRepository {
                 conn.setRequestProperty("Accept", "application/json");
 
                 int code = conn.getResponseCode();
-                Log.d(TAG, "HTTP code = " + code); // thêm log mã phản hồi
+                Log.d(TAG, "HTTP code = " + code);
 
                 InputStream is = (code >= 200 && code < 300)
                         ? conn.getInputStream()
@@ -120,7 +122,7 @@ public class NotificationRepository {
                 while ((line = br.readLine()) != null) sb.append(line);
                 String resp = sb.toString();
 
-                Log.d(TAG, "Response: " + resp); // thêm log phản hồi JSON
+                Log.d(TAG, "Response: " + resp);
 
                 if (code >= 200 && code < 300) {
                     List<NotificationItem> items = parseNotificationArray(resp);
@@ -139,10 +141,6 @@ public class NotificationRepository {
         });
     }
 
-
-    /**
-     * ✅ Đánh dấu thông báo là đã đọc (API: PUT /api/notification/:notificationId/read)
-     */
     public void markAsRead(long notificationId, long userId, SimpleCallback callback) {
         executor.execute(() -> {
             HttpURLConnection conn = null;
@@ -180,9 +178,63 @@ public class NotificationRepository {
         });
     }
 
-    /**
-     * 📦 Parse JSON array -> list<NotificationItem>
-     */
+    // ===================== 🆕 HÀM MỚI =====================
+    public void fetchNotificationTitle(long notificationId, TitleCallback callback) {
+        executor.execute(() -> {
+            HttpURLConnection conn = null;
+            try {
+                URL url = new URL(BASE_URL + "/api/notification/detail/" + notificationId);
+                Log.d(TAG, "fetchNotificationTitle -> " + url);
+
+                conn = (HttpURLConnection) url.openConnection();
+                conn.setRequestMethod("GET");
+                conn.setConnectTimeout(10_000);
+                conn.setReadTimeout(10_000);
+                conn.setRequestProperty("Accept", "application/json");
+
+                int code = conn.getResponseCode();
+                InputStream is = (code >= 200 && code < 300)
+                        ? conn.getInputStream()
+                        : conn.getErrorStream();
+
+                BufferedReader br = new BufferedReader(new InputStreamReader(is, "utf-8"));
+                StringBuilder sb = new StringBuilder();
+                String line;
+                while ((line = br.readLine()) != null) sb.append(line);
+                String resp = sb.toString().trim();
+
+                if (code >= 200 && code < 300) {
+                    if (resp.startsWith("[")) {
+                        JSONArray arr = new JSONArray(resp);
+                        if (arr.length() > 0) {
+                            JSONObject obj = arr.getJSONObject(0);
+                            String title = obj.optString("title", "Không xác định");
+                            mainHandler.post(() -> callback.onSuccess(title));
+                        } else {
+                            mainHandler.post(() -> callback.onError("Không có thông báo nào"));
+                        }
+                    } else if (resp.startsWith("{")) {
+                        JSONObject obj = new JSONObject(resp);
+                        String title = obj.optString("title", "Không xác định");
+                        mainHandler.post(() -> callback.onSuccess(title));
+                    } else {
+                        mainHandler.post(() -> callback.onError("Dữ liệu trả về không hợp lệ"));
+                    }
+                } else {
+                    Log.e(TAG, "fetchNotificationTitle HTTP " + code + ": " + resp);
+                    mainHandler.post(() -> callback.onError("Không thể lấy tiêu đề thông báo"));
+                }
+
+            } catch (Exception e) {
+                Log.e(TAG, "fetchNotificationTitle exception", e);
+                mainHandler.post(() -> callback.onError("Kết nối thất bại"));
+            } finally {
+                if (conn != null) conn.disconnect();
+            }
+        });
+    }
+
+    // ===================== JSON PARSERS =====================
     private List<NotificationItem> parseNotificationArray(String json) {
         List<NotificationItem> out = new ArrayList<>();
         try {

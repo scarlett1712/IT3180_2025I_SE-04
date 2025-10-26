@@ -23,10 +23,25 @@ public class FinanceAdapter extends RecyclerView.Adapter<FinanceAdapter.ViewHold
 
     private List<FinanceItem> financeList;
     private final List<FinanceItem> financeListFull;
+    private OnItemClickListener listener; // Listener for admin clicks
 
+    // Interface for click events (for admin)
+    public interface OnItemClickListener {
+        void onItemClick(FinanceItem item);
+    }
+
+    // Constructor for User flow
     public FinanceAdapter(List<FinanceItem> financeList) {
         this.financeList = new ArrayList<>(financeList);
         this.financeListFull = new ArrayList<>(financeList);
+        this.listener = null; // No listener, will use default user behavior
+    }
+
+    // NEW: Constructor for Admin flow
+    public FinanceAdapter(List<FinanceItem> financeList, OnItemClickListener listener) {
+        this.financeList = new ArrayList<>(financeList);
+        this.financeListFull = new ArrayList<>(financeList);
+        this.listener = listener; // Set listener for admin behavior
     }
 
     @NonNull
@@ -52,20 +67,27 @@ public class FinanceAdapter extends RecyclerView.Adapter<FinanceAdapter.ViewHold
 
         holder.itemView.setOnClickListener(v -> {
             FinanceItem clickedItem = financeList.get(holder.getBindingAdapterPosition());
-            Intent intent = new Intent(v.getContext(), FinanceDetailActivity.class);
-            
-            // --- ROBUST DATA PASSING ---
-            intent.putExtra("title", clickedItem.getTitle());
-            intent.putExtra("content", clickedItem.getContent());
-            intent.putExtra("date", clickedItem.getDate());
-            intent.putExtra("type", clickedItem.getType());
-            intent.putExtra("sender", clickedItem.getSender());
-            
-            // Always pass price as a primitive long. If it's null, pass 0.
-            long priceValue = (clickedItem.getPrice() != null) ? clickedItem.getPrice() : 0L;
-            intent.putExtra("price", priceValue);
-            
-            v.getContext().startActivity(intent);
+
+            if (listener != null) {
+                // --- ADMIN FLOW ---
+                // If a listener is set, use the callback. The fragment will decide where to go.
+                listener.onItemClick(clickedItem);
+            } else {
+                // --- USER FLOW ---
+                // If no listener, proceed with the default user behavior.
+                Intent intent = new Intent(v.getContext(), FinanceDetailActivity.class);
+
+                intent.putExtra("title", clickedItem.getTitle());
+                intent.putExtra("content", clickedItem.getContent());
+                intent.putExtra("date", clickedItem.getDate());
+                intent.putExtra("type", clickedItem.getType());
+                intent.putExtra("sender", clickedItem.getSender());
+
+                long priceValue = (clickedItem.getPrice() != null) ? clickedItem.getPrice() : 0L;
+                intent.putExtra("price", priceValue);
+
+                v.getContext().startActivity(intent);
+            }
         });
     }
 

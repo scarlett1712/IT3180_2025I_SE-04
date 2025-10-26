@@ -1,92 +1,234 @@
-import express from 'express';
-import { pool } from '../db.js';
+import express from "express";
+import { pool } from "../db.js";
 
 const router = express.Router();
 
-// A helper function for querying the database
+// 🧩 Helper query
 const query = (text, params) => pool.query(text, params);
 
-// This function will be exported and called from index.js on server startup
+// 🧱 Tạo bảng nếu chưa có
 export const createFinanceTables = async () => {
-    try {
-        await query(`
-            CREATE TABLE IF NOT EXISTS finances (
-                id SERIAL PRIMARY KEY,
-                title VARCHAR(255) NOT NULL,
-                content TEXT,
-                amount NUMERIC(12, 2) NOT NULL,
-                type VARCHAR(50) NOT NULL,
-                due_date DATE,
-                created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
-            );
-        `);
-        await query(`
-            CREATE TABLE IF NOT EXISTS user_finances (
-                id SERIAL PRIMARY KEY,
-                user_id INTEGER NOT NULL,
-                finance_id INTEGER NOT NULL REFERENCES finances(id) ON DELETE CASCADE,
-                status VARCHAR(50) DEFAULT 'chua_thanh_toan',
-                UNIQUE(user_id, finance_id)
-            );
-        `);
-        console.log('✅ Finance tables structure checked/created.');
-    } catch (err) {
-        console.error('❌ Error creating finance tables:', err);
-    }
+  try {
+    await query(`
+      CREATE TABLE IF NOT EXISTS finances (
+        id SERIAL PRIMARY KEY,
+        title VARCHAR(255) NOT NULL,
+        content TEXT,
+        amount NUMERIC(12, 2) NOT NULL,
+        type VARCHAR(50) DEFAULT 'khoan_thu' NOT NULL,
+        due_date DATE,
+        created_by INTEGER,
+        created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
+
+    await query(`
+      CREATE TABLE IF NOT EXISTS user_finances (
+        id SERIAL PRIMARY KEY,
+        user_id INTEGER NOT NULL,
+        finance_id INTEGER NOT NULL REFERENCES finances(id) ON DELETE CASCADE,
+        status VARCHAR(50) DEFAULT 'chua_thanh_toan',
+        UNIQUE(user_id, finance_id)
+      );
+    `);
+
+    console.log("✅ Finance tables verified or created successfully.");
+  } catch (err) {
+    console.error("💥 Error creating finance tables:", err);
+  }
 };
 
-// --- API Endpoints ---
-
-// [FOR ADMIN] Get all finance items for management
-router.get('/all', async (req, res) => {
-    try {
-        const result = await query(`SELECT id, title, content, amount, type, TO_CHAR(due_date, 'DD/MM/YYYY') as due_date FROM finances ORDER BY created_at DESC`);
-        res.json(result.rows);
-    } catch (err) {
-        res.status(500).json({ error: 'Internal Server Error' });
-    }
+// 🟢 [ADMIN] Lấy toàn bộ khoản thu
+router.get("/all", async (req, res) => {
+  try {
+    const result = await query(`
+      SELECT id, title, content, amount, type,
+             TO_CHAR(due_date, 'DD/MM/YYYY') AS due_date,
+             TO_CHAR(created_at, 'DD/MM/YYYY HH24:MI') AS created_at,
+             created_by
+      FROM finances
+      ORDER BY due_date ASC NULLS LAST
+    `);
+    res.json(result.rows);
+  } catch (err) {
+    console.error("💥 Error fetching finances:", err);
+    res.status(500).json({ error: "Lỗi server khi lấy dữ liệu tài chính." });
+  }
 });
 
-// [FOR USER] Get finance items for a specific user
-router.get('/user/:userId', async (req, res) => {
-    const { userId } = req.params;
-    try {
-        const result = await query(`
-            SELECT f.id, f.title, f.content, f.amount, f.type, TO_CHAR(f.due_date, 'DD/MM/YYYY') as due_date, uf.status
-            FROM finances f JOIN user_finances uf ON f.id = uf.finance_id
-            WHERE uf.user_id = $1 ORDER BY f.created_at DESC;
-        `, [userId]);
-        res.json(result.rows);
-    } catch (err) {
-        res.status(500).json({ error: 'Internal Server Error' });
-    }
+// 🟡 [USER] Lấy khoản thu của 1 user
+router.get("/user/:userId", async (req, res) => {
+  const { userId } = req.params;
+  try {
+    const result = await query(
+      `
+      SELECT f.id, f.title, f.content, f.amount, f.type,
+             TO_CHAR(f.due_date, 'DD/MM/YYYY') AS due_date,
+             uf.status
+      FROM finances f
+      JOIN user_finances uf ON f.id = uf.finance_id
+      WHERE uf.user_id = $1
+      ORDER BY f.due_date ASC NULLS LAST;
+    `,
+      [userId]
+    );
+    res.json(result.rows);
+  } catch (err) {
+    console.error("💥 Error fetching user finances:", err);
+    res.status(500).json({ error: "Lỗi server khi lấy dữ liệu tài chính người dùng." });
+  }
 });
 
-// [FOR ADMIN] Create a new finance item
-router.post('/create', async (req, res) => {
-    const { title, content, amount, type, due_date, target_user_ids } = req.body;
-    if (!title || !amount || !type || !target_user_ids || !Array.isArray(target_user_ids)) {
-        return res.status(400).json({ error: 'Missing required fields.' });
+// 🧾 [ADMIN] Tạo khoản thu theo phòng
+router.post("/create", async (req, res) => {
+  const { title, content, amount, due_date, target_rooms, type, created_by } = req.body;
+
+  if (!title || !amount || !target_rooms || !Array.isArray(target_rooms)) {
+    return res
+      .status(400)
+      .json({ error: "Thiếu trường bắt buộc hoặc target_rooms không hợp lệ." });
+  }
+
+  const finalType = type && type.trim() !== "" ? type : "Bắt buộc";
+
+  const client = await pool.connect();
+
+  try {
+    await client.query("BEGIN");
+
+    // 🧾 Lưu admin tạo khoản thu
+    const financeResult = await client.query(
+      `
+      INSERT INTO finances (title, content, amount, due_date, type, created_by)
+      VALUES ($1, $2, $3, TO_DATE($4, 'DD/MM/YYYY'), $5, $6)
+      RETURNING id
+      `,
+      [title, content || "", amount, due_date, finalType, created_by || null]
+    );
+
+    const newFinanceId = financeResult.rows[0].id;
+
+    // 🧍‍♂️ Lấy danh sách cư dân thuộc các phòng được chọn
+    const userQuery = `
+      SELECT ui.user_id
+      FROM user_item ui
+      LEFT JOIN relationship r ON ui.relationship = r.relationship_id
+      LEFT JOIN apartment a ON r.apartment_id = a.apartment_id
+      WHERE a.apartment_number = ANY($1)
+    `;
+    const userResult = await client.query(userQuery, [target_rooms]);
+
+    if (userResult.rows.length === 0) {
+      await client.query("ROLLBACK");
+      return res
+        .status(404)
+        .json({ error: "Không tìm thấy cư dân thuộc các phòng được chọn." });
     }
-    const finalDate = (due_date && due_date.trim() !== '') ? due_date : null;
-    const client = await pool.connect();
-    try {
-        await client.query('BEGIN');
-        const financeQuery = `INSERT INTO finances (title, content, amount, type, due_date) VALUES ($1, $2, $3, $4, TO_DATE($5, 'DD/MM/YYYY')) RETURNING id`;
-        const financeResult = await client.query(financeQuery, [title, content, amount, type, finalDate]);
-        const newFinanceId = financeResult.rows[0].id;
-        const userFinanceQuery = 'INSERT INTO user_finances (user_id, finance_id) VALUES ($1, $2)';
-        for (const userId of target_user_ids) {
-            await client.query(userFinanceQuery, [userId, newFinanceId]);
-        }
-        await client.query('COMMIT');
-        res.status(201).json({ success: true, finance_id: newFinanceId });
-    } catch (err) {
-        await client.query('ROLLBACK');
-        res.status(500).json({ error: 'Internal Server Error' });
-    } finally {
-        client.release();
+
+    // 🧾 Gán khoản thu cho từng cư dân
+    const insertUserFinance = `
+      INSERT INTO user_finances (user_id, finance_id)
+      VALUES ($1, $2)
+      ON CONFLICT (user_id, finance_id) DO NOTHING
+    `;
+
+    for (const { user_id } of userResult.rows) {
+      await client.query(insertUserFinance, [user_id, newFinanceId]);
     }
+
+    await client.query("COMMIT");
+    res.status(201).json({
+      success: true,
+      message: "Tạo khoản thu thành công.",
+      finance_id: newFinanceId,
+      assigned_users: userResult.rows.length,
+    });
+  } catch (err) {
+    await client.query("ROLLBACK");
+    console.error("💥 Error creating finance:", err);
+    res.status(500).json({ error: err.message });
+  } finally {
+    client.release();
+  }
+});
+
+// 🧾 [ADMIN] Lấy các khoản thu do admin tạo
+router.get("/admin/:adminId", async (req, res) => {
+  const { adminId } = req.params;
+
+  try {
+    const result = await query(
+      `
+      SELECT id, title, content, amount, type,
+             TO_CHAR(due_date, 'DD/MM/YYYY') AS due_date,
+             TO_CHAR(created_at, 'DD/MM/YYYY HH24:MI') AS created_at
+      FROM finances
+      WHERE created_by = $1
+      ORDER BY created_at DESC;
+      `,
+      [adminId]
+    );
+
+    res.json(result.rows);
+  } catch (err) {
+    console.error("💥 Error fetching admin finances:", err);
+    res.status(500).json({ error: "Lỗi server khi lấy các khoản thu do admin tạo." });
+  }
+});
+
+// 🧾 [ADMIN] Lấy danh sách cư dân trong 1 khoản thu
+router.get("/:financeId/users", async (req, res) => {
+  const { financeId } = req.params;
+  try {
+    const result = await query(
+      `SELECT uf.user_id, a.apartment_number AS room, uf.status
+       FROM user_finances uf
+       JOIN user_item ui ON uf.user_id = ui.user_id
+       JOIN relationship r ON ui.relationship = r.relationship_id
+       JOIN apartment a ON r.apartment_id = a.apartment_id
+       WHERE uf.finance_id = $1
+       ORDER BY a.apartment_number ASC`,
+      [financeId]
+    );
+    res.json(result.rows);
+  } catch (err) {
+    console.error("💥 Error fetching users by finance:", err);
+    res.status(500).json({ error: "Lỗi server khi lấy danh sách cư dân." });
+  }
+});
+
+// 🟢 [ADMIN] Cập nhật trạng thái thanh toán
+router.put("/update-status", async (req, res) => {
+  const { user_id, finance_id, status, admin_id } = req.body;
+
+  if (!user_id || !finance_id || !admin_id) {
+    return res.status(400).json({ error: "Thiếu user_id, finance_id hoặc admin_id" });
+  }
+
+  try {
+    const validStatuses = ["chua_thanh_toan", "da_thanh_toan", "da_qua_han"];
+    if (!validStatuses.includes(status)) {
+      return res.status(400).json({ error: "Trạng thái không hợp lệ." });
+    }
+
+    await query(
+      `UPDATE user_finances
+       SET status = $1
+       WHERE user_id = $2 AND finance_id = $3`,
+      [status || "da_thanh_toan", user_id, finance_id]
+    );
+
+    // ✅ Ghi log hoặc cập nhật người xác nhận (nếu muốn)
+    await query(
+      `UPDATE finances SET created_by = $1 WHERE id = $2`,
+      [admin_id, finance_id]
+    );
+
+    res.json({ success: true, message: "Cập nhật trạng thái thành công" });
+  } catch (err) {
+    console.error("💥 Error updating finance status:", err);
+    res.status(500).json({ error: "Lỗi server khi cập nhật trạng thái." });
+  }
 });
 
 export default router;
