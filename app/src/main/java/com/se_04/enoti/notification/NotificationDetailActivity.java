@@ -1,6 +1,7 @@
 package com.se_04.enoti.notification;
 
 import android.os.Bundle;
+import android.util.Log;
 import android.util.TypedValue;
 import android.view.MenuItem;
 import android.widget.TextView;
@@ -8,6 +9,7 @@ import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
 import com.google.android.material.appbar.MaterialToolbar;
 import com.se_04.enoti.R;
+import com.se_04.enoti.utils.UserManager;
 
 public class NotificationDetailActivity extends AppCompatActivity {
 
@@ -46,18 +48,31 @@ public class NotificationDetailActivity extends AppCompatActivity {
 
         // If not read, mark read (both local UI and backend)
         if (!isRead && notificationId > 0) {
-            repository.markAsRead(notificationId, new NotificationRepository.SimpleCallback() {
+            // 🔹 Lấy userId hiện tại
+            long userId = 0;
+            try {
+                userId = Long.parseLong(
+                        UserManager.getInstance(this).getCurrentUser().getId()
+                );
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+
+            // 🔹 Gọi API có truyền userId
+            repository.markAsRead(notificationId, userId, new NotificationRepository.SimpleCallback() {
                 @Override
                 public void onSuccess() {
-                    // no-op UI update required here (we already marked read in adapter)
+                    // UI đã được đánh dấu read tại adapter rồi, không cần thêm gì
                 }
 
                 @Override
                 public void onError(String message) {
-                    // optionally show toast
+                    // Có thể log hoặc hiện toast nếu cần
+                    Log.e("Notification", "Mark read failed: " + message);
                 }
             });
         }
+
     }
 
     @Override

@@ -3,7 +3,37 @@ import { pool } from "../db.js";
 
 const router = express.Router();
 
-// ✅ Lấy tất cả thông báo của 1 user (có trạng thái đã đọc)
+// ✅ Route 1: Lấy tất cả thông báo mà admin đã gửi
+router.get("/sent/:adminId", async (req, res) => {
+  try {
+    const { adminId } = req.params;
+
+    const result = await pool.query(
+      `
+      SELECT
+        n.notification_id,
+        n.title,
+        n.content,
+        n.type,
+        n.created_at,
+        TO_CHAR(n.expired_date, 'DD-MM-YYYY') AS expired_date,
+        COALESCE(ui.full_name, 'Hệ thống') AS sender
+      FROM notification n
+      LEFT JOIN user_item ui ON n.created_by = ui.user_id
+      WHERE n.created_by = $1
+      ORDER BY n.created_at DESC;
+      `,
+      [adminId]
+    );
+
+    res.json(result.rows);
+  } catch (error) {
+    console.error("Error fetching sent notifications:", error);
+    res.status(500).json({ message: "Lỗi server" });
+  }
+});
+
+// ✅ Route 2: Lấy tất cả thông báo của 1 user (có trạng thái đã đọc)
 router.get("/:userId", async (req, res) => {
   try {
     const { userId } = req.params;
@@ -29,28 +59,38 @@ router.get("/:userId", async (req, res) => {
 
     res.json(result.rows);
   } catch (error) {
-    console.error("❌ Error fetching notifications:", error);
+    console.error("Error fetching notifications:", error);
     res.status(500).json({ message: "Lỗi server" });
   }
 });
 
-// ✅ Đánh dấu là đã đọc
+// ✅ Route 3: Đánh dấu là đã đọc
 router.put("/:notificationId/read", async (req, res) => {
   try {
     const { notificationId } = req.params;
+    const { user_id } = req.body;
 
-    await pool.query(
+    if (!user_id) {
+      return res.status(400).json({ message: "Thiếu user_id" });
+    }
+
+    const result = await pool.query(
       `
       UPDATE user_notifications
       SET is_read = TRUE
-      WHERE notification_id = $1
+      WHERE notification_id = $1 AND user_id = $2
+      RETURNING *;
       `,
-      [notificationId]
+      [notificationId, user_id]
     );
 
-    res.json({ message: "Đã đánh dấu là đã đọc" });
+    if (result.rowCount === 0) {
+      return res.status(404).json({ message: "Không tìm thấy thông báo của user này" });
+    }
+
+    res.json({ message: "Đã đánh dấu là đã đọc", updated: result.rows[0] });
   } catch (error) {
-    console.error("❌ Error updating notification:", error);
+    console.error("Error updating notification:", error);
     res.status(500).json({ message: "Lỗi server" });
   }
 });

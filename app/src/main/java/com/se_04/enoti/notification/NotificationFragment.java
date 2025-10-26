@@ -1,6 +1,11 @@
 package com.se_04.enoti.notification;
 
+import android.content.BroadcastReceiver;
+import android.content.Context;
+import android.content.Intent;
+import android.content.IntentFilter;
 import android.os.Bundle;
+import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -12,6 +17,7 @@ import android.widget.ArrayAdapter;
 import android.widget.Spinner;
 import android.widget.TextView;
 import androidx.fragment.app.Fragment;
+import androidx.localbroadcastmanager.content.LocalBroadcastManager;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
@@ -27,6 +33,7 @@ import java.util.List;
 
 public class NotificationFragment extends Fragment {
 
+    private static final String TAG = "NotificationFragment";
     private NotificationAdapter adapter;
     private List<NotificationItem> originalList = new ArrayList<>();
     private List<NotificationItem> filteredList = new ArrayList<>();
@@ -35,6 +42,15 @@ public class NotificationFragment extends Fragment {
     private SearchView searchView;
 
     private final NotificationRepository repository = NotificationRepository.getInstance();
+
+    // BroadcastReceiver to listen for new notifications
+    private final BroadcastReceiver newNotificationReceiver = new BroadcastReceiver() {
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            Log.d(TAG, "New notification broadcast received. Reloading list...");
+            loadNotificationsFromCurrentUser();
+        }
+    };
 
     @Nullable
     @Override
@@ -64,9 +80,38 @@ public class NotificationFragment extends Fragment {
 
         RecyclerView recyclerView = view.findViewById(R.id.recyclerViewNotifications);
         recyclerView.setLayoutManager(new LinearLayoutManager(requireContext()));
-        adapter = new NotificationAdapter(filteredList, NotificationAdapter.VIEW_TYPE_HIGHLIGHTED);
+        
+        adapter = new NotificationAdapter(filteredList, NotificationAdapter.VIEW_TYPE_NORMAL);
         recyclerView.setAdapter(adapter);
 
+        setupControls(currentUser);
+
+        return view;
+    }
+
+    @Override
+    public void onStart() {
+        super.onStart();
+        LocalBroadcastManager.getInstance(requireContext()).registerReceiver(
+            newNotificationReceiver,
+            new IntentFilter(MyFirebaseMessagingService.ACTION_NEW_NOTIFICATION)
+        );
+    }
+
+    @Override
+    public void onStop() {
+        super.onStop();
+        LocalBroadcastManager.getInstance(requireContext()).unregisterReceiver(newNotificationReceiver);
+    }
+
+    @Override
+    public void onResume() {
+        super.onResume();
+        Log.d(TAG, "Fragment resumed. Reloading notifications...");
+        loadNotificationsFromCurrentUser();
+    }
+
+    private void setupControls(UserItem currentUser) {
         // Spinners
         String[] typeOptions = {"Tất cả", "Hành chính", "Kỹ thuật & bảo trì", "Tài chính", "Sự kiện & cộng đồng", "Khẩn cấp"};
         ArrayAdapter<String> typeAdapter = new ArrayAdapter<>(requireContext(),
@@ -91,39 +136,42 @@ public class NotificationFragment extends Fragment {
             @Override public boolean onQueryTextSubmit(String q) { applyFiltersAndSearch(); return true; }
             @Override public boolean onQueryTextChange(String newText) { applyFiltersAndSearch(); return true; }
         });
+    }
 
-        // Fetch from backend
-        long userIdForApi = 0;
-        if (currentUser != null) {
-            String idStr = currentUser.getId();
-            try {
-                userIdForApi = Long.parseLong(idStr);
-            } catch (Exception ignored) {
-                // if id is not numeric (e.g., phone), you should adapt your backend route to accept phone string
-                // For now use 0 -> backend should handle or change code to pass phone.
-                userIdForApi = 0;
-            }
+    private void loadNotificationsFromCurrentUser(){
+        if (getContext() == null) return; // Add safety check
+        UserItem currentUser = UserManager.getInstance(getContext()).getCurrentUser();
+        if (currentUser == null || currentUser.getId() == null) {
+            Log.e(TAG, "Cannot load notifications, user or user ID is null.");
+            return;
         }
 
-        loadNotifications(userIdForApi);
-
-        return view;
+        try {
+            long userId = Long.parseLong(currentUser.getId());
+            loadNotifications(userId);
+        } catch (NumberFormatException e) {
+            Log.e(TAG, "Failed to parse user ID for reloading: " + currentUser.getId(), e);
+        }
     }
 
     private void loadNotifications(long userId) {
         repository.fetchNotifications(userId, new NotificationRepository.NotificationsCallback() {
             @Override
             public void onSuccess(List<NotificationItem> items) {
-                originalList.clear();
-                originalList.addAll(items);
-                applyFiltersAndSearch();
+                if (isAdded()) {
+                    originalList.clear();
+                    originalList.addAll(items);
+                    applyFiltersAndSearch();
+                }
             }
 
             @Override
             public void onError(String message) {
-                // fallback: keep empty list or show snackbar/toast
-                originalList.clear();
-                applyFiltersAndSearch();
+                if (isAdded()) {
+                    Log.e(TAG, "Failed to load notifications: " + message);
+                    originalList.clear();
+                    applyFiltersAndSearch();
+                }
             }
         });
     }
@@ -144,7 +192,7 @@ public class NotificationFragment extends Fragment {
                     || item.getContent().toLowerCase().contains(searchQuery)
                     || item.getSender().toLowerCase().contains(searchQuery);
 
-            boolean matchesType = selectedType.equals("Tất cả")
+            boolean matchesType = selectedType.equals("All")
                     || item.getType().equalsIgnoreCase(selectedType);
 
             if (matchesSearch && matchesType) filteredList.add(item);
@@ -152,10 +200,7 @@ public class NotificationFragment extends Fragment {
 
 
         if (selectedTime.equals("Mới nhất")) {
-            Collections.sort(filteredList, (a, b) -> {
-                // fallback: compare strings if timestamps not parsed
-                return b.getDate().compareTo(a.getDate());
-            });
+            Collections.sort(filteredList, (a, b) -> b.getDate().compareTo(a.getDate()));
         } else {
             Collections.sort(filteredList, Comparator.comparing(NotificationItem::getDate));
         }
@@ -163,22 +208,14 @@ public class NotificationFragment extends Fragment {
         adapter.updateList(filteredList);
     }
 
-    /** 🔄 Chuyển loại thông báo từ tiếng Việt sang tiếng Anh để so sánh/lọc dữ liệu */
     private String convertTypeToEnglish(String typeVi) {
         switch (typeVi) {
-            case "Hành chính":
-                return "Administrative";
-            case "Kỹ thuật & bảo trì":
-                return "Maintenance";
-            case "Tài chính":
-                return "Finance";
-            case "Sự kiện & cộng đồng":
-                return "Event";
-            case "Khẩn cấp":
-                return "Emergency";
-            default:
-                return "Tất cả"; // hoặc "All" nếu có tùy chọn hiển thị tất cả
+            case "Hành chính": return "Administrative";
+            case "Kỹ thuật & bảo trì": return "Maintenance";
+            case "Tài chính": return "Finance";
+            case "Sự kiện & cộng đồng": return "Event";
+            case "Khẩn cấp": return "Emergency";
+            default: return "All";
         }
     }
-
 }

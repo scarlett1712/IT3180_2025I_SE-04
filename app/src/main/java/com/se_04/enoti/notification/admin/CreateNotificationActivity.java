@@ -19,6 +19,8 @@ import android.widget.Toast;
 import android.widget.Button;
 import android.widget.TextView;
 import android.widget.LinearLayout;
+import android.content.Intent;
+import androidx.localbroadcastmanager.content.LocalBroadcastManager;
 
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
@@ -61,6 +63,9 @@ public class CreateNotificationActivity extends AppCompatActivity {
     private TextInputEditText edtNotificationTitle, edtExpirationDate, edtNotificationContent;
     private Button btnSendNow, btnSendLater;
     private TextView txtSelectedResidents;
+    public static final String ACTION_NOTIFICATION_CREATED = "com.se_04.enoti.NOTIFICATION_CREATED";
+
+
 
     private final List<ResidentItem> allResidents = new ArrayList<>();
     private final List<ResidentItem> filteredResidents = new ArrayList<>();
@@ -132,7 +137,7 @@ public class CreateNotificationActivity extends AppCompatActivity {
                 return;
             }
 
-            // ✅ Chuyển định dạng ngày
+            // Chuyển định dạng ngày
             String expiredDate = null;
             try {
                 SimpleDateFormat inputFormat = new SimpleDateFormat("dd/MM/yyyy", Locale.getDefault());
@@ -343,16 +348,8 @@ public class CreateNotificationActivity extends AppCompatActivity {
             }
 
             UserItem currentUser = UserManager.getInstance(this).getCurrentUser();
-            int senderId;
-            if (currentUser != null) {
-                try {
-                    senderId = Integer.parseInt(currentUser.getId());
-                } catch (NumberFormatException e) {
-                    senderId = 1; // fallback ID cho admin
-                }
-            } else {
-                senderId = 1;
-            }
+            int senderId = (currentUser != null) ? Integer.parseInt(currentUser.getId()) : 1;
+
             JSONObject body = new JSONObject();
             body.put("title", title);
             body.put("content", content);
@@ -364,11 +361,11 @@ public class CreateNotificationActivity extends AppCompatActivity {
             RequestQueue queue = Volley.newRequestQueue(this);
 
             JsonObjectRequest request = new JsonObjectRequest(
-                    Request.Method.POST,
-                    NOTIFICATION_API_URL,
-                    body,
+                    Request.Method.POST, NOTIFICATION_API_URL, body,
                     response -> {
                         Toast.makeText(this, "Gửi thông báo thành công!", Toast.LENGTH_LONG).show();
+                        Intent intent = new Intent(ACTION_NOTIFICATION_CREATED);
+                        LocalBroadcastManager.getInstance(this).sendBroadcast(intent);
                         finish();
                     },
                     error -> {
@@ -377,7 +374,6 @@ public class CreateNotificationActivity extends AppCompatActivity {
                     }
             );
 
-            request.setShouldCache(false);
             queue.add(request);
 
         } catch (Exception e) {

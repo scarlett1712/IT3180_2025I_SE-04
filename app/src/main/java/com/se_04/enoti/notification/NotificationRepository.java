@@ -4,6 +4,8 @@ import android.os.Handler;
 import android.os.Looper;
 import android.util.Log;
 
+import com.se_04.enoti.utils.ApiConfig;
+
 import org.json.JSONArray;
 import org.json.JSONObject;
 
@@ -18,15 +20,13 @@ import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
-
 public class NotificationRepository {
     private static final String TAG = "NotificationRepo";
     private static NotificationRepository instance;
     private final ExecutorService executor;
     private final Handler mainHandler;
 
-    // Base URL của backend — sửa nếu cần (10.0.2.2 cho emulator)
-    private static final String BASE_URL = "http://10.0.2.2:5000";
+    private static final String BASE_URL = ApiConfig.BASE_URL;
 
     private NotificationRepository() {
         executor = Executors.newSingleThreadExecutor();
@@ -40,25 +40,26 @@ public class NotificationRepository {
         return instance;
     }
 
+    // Callback khi lấy danh sách thông báo
     public interface NotificationsCallback {
         void onSuccess(List<NotificationItem> items);
         void onError(String message);
     }
 
+    // Callback đơn giản cho PUT/POST request
     public interface SimpleCallback {
         void onSuccess();
         void onError(String message);
     }
 
     /**
-     * Fetch notifications for userId from backend.
+     * 📨 Lấy danh sách thông báo của user (API: GET /api/notification/:userId)
      */
     public void fetchNotifications(long userId, NotificationsCallback callback) {
         executor.execute(() -> {
             HttpURLConnection conn = null;
             try {
-                String urlStr = BASE_URL + "/api/notification/" + userId;
-                URL url = new URL(urlStr);
+                URL url = new URL(BASE_URL + "/api/notification/" + userId);
                 conn = (HttpURLConnection) url.openConnection();
                 conn.setRequestMethod("GET");
                 conn.setConnectTimeout(10_000);
@@ -66,7 +67,10 @@ public class NotificationRepository {
                 conn.setRequestProperty("Accept", "application/json");
 
                 int code = conn.getResponseCode();
-                InputStream is = (code >= 200 && code < 300) ? conn.getInputStream() : conn.getErrorStream();
+                InputStream is = (code >= 200 && code < 300)
+                        ? conn.getInputStream()
+                        : conn.getErrorStream();
+
                 BufferedReader br = new BufferedReader(new InputStreamReader(is, "utf-8"));
                 StringBuilder sb = new StringBuilder();
                 String line;
@@ -77,28 +81,73 @@ public class NotificationRepository {
                     List<NotificationItem> items = parseNotificationArray(resp);
                     mainHandler.post(() -> callback.onSuccess(items));
                 } else {
-                    String message = "Server error: HTTP " + code;
-                    Log.e(TAG, "fetchNotifications error: " + resp);
-                    mainHandler.post(() -> callback.onError(message));
+                    Log.e(TAG, "fetchNotifications HTTP " + code + ": " + resp);
+                    mainHandler.post(() -> callback.onError("Lỗi máy chủ (" + code + ")"));
                 }
+
             } catch (Exception e) {
                 Log.e(TAG, "fetchNotifications exception", e);
-                mainHandler.post(() -> callback.onError(e.getMessage() != null ? e.getMessage() : "Unknown error"));
+                mainHandler.post(() -> callback.onError("Không thể kết nối đến server"));
             } finally {
                 if (conn != null) conn.disconnect();
             }
         });
     }
 
-    /**
-     * Mark notification as read on backend.
-     */
-    public void markAsRead(long notificationId, SimpleCallback callback) {
+    // trong NotificationRepository.java
+    public void fetchAdminNotifications(long adminId, NotificationsCallback callback) {
         executor.execute(() -> {
             HttpURLConnection conn = null;
             try {
-                String urlStr = BASE_URL + "/api/notification/" + notificationId + "/read";
-                URL url = new URL(urlStr);
+                URL url = new URL(BASE_URL + "/api/notification/sent/" + adminId);
+                Log.d(TAG, "fetchAdminNotifications -> " + url); // thêm log
+                conn = (HttpURLConnection) url.openConnection();
+                conn.setRequestMethod("GET");
+                conn.setConnectTimeout(10_000);
+                conn.setReadTimeout(10_000);
+                conn.setRequestProperty("Accept", "application/json");
+
+                int code = conn.getResponseCode();
+                Log.d(TAG, "HTTP code = " + code); // thêm log mã phản hồi
+
+                InputStream is = (code >= 200 && code < 300)
+                        ? conn.getInputStream()
+                        : conn.getErrorStream();
+
+                BufferedReader br = new BufferedReader(new InputStreamReader(is, "utf-8"));
+                StringBuilder sb = new StringBuilder();
+                String line;
+                while ((line = br.readLine()) != null) sb.append(line);
+                String resp = sb.toString();
+
+                Log.d(TAG, "Response: " + resp); // thêm log phản hồi JSON
+
+                if (code >= 200 && code < 300) {
+                    List<NotificationItem> items = parseNotificationArray(resp);
+                    mainHandler.post(() -> callback.onSuccess(items));
+                } else {
+                    Log.e(TAG, "fetchAdminNotifications HTTP " + code + ": " + resp);
+                    mainHandler.post(() -> callback.onError("Lỗi máy chủ (" + code + ")"));
+                }
+
+            } catch (Exception e) {
+                Log.e(TAG, "fetchAdminNotifications exception", e);
+                mainHandler.post(() -> callback.onError("Không thể kết nối đến server"));
+            } finally {
+                if (conn != null) conn.disconnect();
+            }
+        });
+    }
+
+
+    /**
+     * ✅ Đánh dấu thông báo là đã đọc (API: PUT /api/notification/:notificationId/read)
+     */
+    public void markAsRead(long notificationId, long userId, SimpleCallback callback) {
+        executor.execute(() -> {
+            HttpURLConnection conn = null;
+            try {
+                URL url = new URL(BASE_URL + "/api/notification/" + notificationId + "/read");
                 conn = (HttpURLConnection) url.openConnection();
                 conn.setRequestMethod("PUT");
                 conn.setDoOutput(true);
@@ -107,29 +156,24 @@ public class NotificationRepository {
                 conn.setRequestProperty("Accept", "application/json");
                 conn.setRequestProperty("Content-Type", "application/json; charset=utf-8");
 
-                // no body required by our API; but some servers require {}
+                JSONObject body = new JSONObject();
+                body.put("user_id", userId);
+                byte[] input = body.toString().getBytes("utf-8");
                 try (OutputStream os = conn.getOutputStream()) {
-                    byte[] input = "{}".getBytes("utf-8");
                     os.write(input, 0, input.length);
                 }
 
                 int code = conn.getResponseCode();
-                InputStream is = (code >= 200 && code < 300) ? conn.getInputStream() : conn.getErrorStream();
-                BufferedReader br = new BufferedReader(new InputStreamReader(is, "utf-8"));
-                StringBuilder sb = new StringBuilder();
-                String line;
-                while ((line = br.readLine()) != null) sb.append(line);
-                String resp = sb.toString();
-
                 if (code >= 200 && code < 300) {
                     mainHandler.post(callback::onSuccess);
                 } else {
-                    Log.e(TAG, "markAsRead error: " + resp);
-                    mainHandler.post(() -> callback.onError("Server returned " + code));
+                    Log.e(TAG, "markAsRead HTTP " + code);
+                    mainHandler.post(() -> callback.onError("Không thể đánh dấu là đã đọc"));
                 }
+
             } catch (Exception e) {
                 Log.e(TAG, "markAsRead exception", e);
-                mainHandler.post(() -> callback.onError(e.getMessage() != null ? e.getMessage() : "Unknown error"));
+                mainHandler.post(() -> callback.onError("Kết nối thất bại"));
             } finally {
                 if (conn != null) conn.disconnect();
             }
@@ -137,30 +181,12 @@ public class NotificationRepository {
     }
 
     /**
-     * Parse JSON array string -> list of NotificationItem
-     * Accepts flexible key names with fallbacks.
+     * 📦 Parse JSON array -> list<NotificationItem>
      */
     private List<NotificationItem> parseNotificationArray(String json) {
         List<NotificationItem> out = new ArrayList<>();
         try {
-            // If server returns an object with data field, handle it
-            String trimmed = json.trim();
-            JSONArray arr;
-            if (trimmed.startsWith("[")) {
-                arr = new JSONArray(trimmed);
-            } else {
-                // try object wrapper
-                JSONObject obj = new JSONObject(trimmed);
-                if (obj.has("data") && obj.get("data") instanceof JSONArray) {
-                    arr = obj.getJSONArray("data");
-                } else if (obj.has("notifications") && obj.get("notifications") instanceof JSONArray) {
-                    arr = obj.getJSONArray("notifications");
-                } else {
-                    // not an array -> empty
-                    return out;
-                }
-            }
-
+            JSONArray arr = new JSONArray(json.trim());
             for (int i = 0; i < arr.length(); i++) {
                 JSONObject o = arr.getJSONObject(i);
                 NotificationItem item = parseNotificationFromJson(o);
@@ -174,35 +200,19 @@ public class NotificationRepository {
 
     private NotificationItem parseNotificationFromJson(JSONObject o) {
         try {
-            long id = o.has("notification_id") ? o.optLong("notification_id", -1)
-                    : o.has("id") ? o.optLong("id", -1) : -1;
+            long id = o.optLong("notification_id", -1);
+            String title = o.optString("title", "Thông báo mới");
+            String content = o.optString("content", "");
+            String type = o.optString("type", "Thông báo");
+            String createdAt = o.optString("created_at", "");
+            String expiredDate = o.optString("expired_date", "");
+            String sender = o.optString("sender", "Hệ thống");
+            boolean isRead = o.optBoolean("is_read", false);
 
-            // title fallback
-            String title = o.optString("title", null);
-            if (title == null || title.isEmpty()) title = o.optString("heading", o.optString("title", ""));
-
-            String content = o.optString("content", o.optString("body", ""));
-            String type = o.optString("type", o.optString("category", "Thông báo"));
-            String createdAt = o.optString("created_at", o.optString("createdAt", o.optString("date", "")));
-            String expired_date = o.optString("expired_date", o.optString("expiredDate", ""));
-            String sender = o.optString("sender", o.optString("created_by", "admin"));
-
-            boolean isRead = false;
-            // server might return is_read or status (e.g., "read"/"unread")
-            if (o.has("is_read")) {
-                isRead = o.optBoolean("is_read", false);
-            } else if (o.has("isRead")) {
-                isRead = o.optBoolean("isRead", false);
-            } else if (o.has("status")) {
-                String st = o.optString("status", "");
-                isRead = st.equalsIgnoreCase("read") || st.equalsIgnoreCase("1") || st.equalsIgnoreCase("true");
-            }
-
-            return new NotificationItem(id, title, createdAt, expired_date, type, sender, content, isRead);
+            return new NotificationItem(id, title, createdAt, expiredDate, type, sender, content, isRead);
         } catch (Exception e) {
             Log.e(TAG, "parseNotificationFromJson error", e);
             return null;
         }
     }
-
 }

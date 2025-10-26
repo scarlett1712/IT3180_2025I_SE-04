@@ -1,5 +1,6 @@
 plugins {
-    alias(libs.plugins.android.application)
+    id("com.android.application")
+    id("com.google.gms.google-services")
 }
 
 android {
@@ -12,7 +13,6 @@ android {
         targetSdk = 36
         versionCode = 1
         versionName = "1.0"
-
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
@@ -25,6 +25,7 @@ android {
             )
         }
     }
+
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11
@@ -32,7 +33,6 @@ android {
 }
 
 dependencies {
-
     implementation(libs.appcompat)
     implementation(libs.material)
     implementation(libs.activity)
@@ -41,27 +41,16 @@ dependencies {
     testImplementation(libs.junit)
     androidTestImplementation(libs.ext.junit)
     androidTestImplementation(libs.espresso.core)
-    // Import the BoM for the Firebase platform
-    implementation(platform("com.google.firebase:firebase-bom:34.3.0"))
 
-    // TODO: Add the dependencies for Firebase products you want to use
-    // When using the BoM, don't specify versions in Firebase dependencies
+    // Firebase BoM
+    implementation(platform("com.google.firebase:firebase-bom:34.4.0"))
     implementation("com.google.firebase:firebase-analytics")
-
-    // Add the dependency for the Firebase Authentication library
-    // When using the BoM, you don't specify versions in Firebase library dependencies
     implementation("com.google.firebase:firebase-auth")
+    implementation("com.google.firebase:firebase-messaging:25.0.1")
 
     implementation("io.github.chaosleung:pinview:1.4.4")
-
-    // Apache POI cho Android – hỗ trợ đầy đủ org.apache.poi.ss.usermodel.*
     implementation("com.github.SUPERCILEX.poi-android:poi:3.17")
-
-    implementation("androidx.core:core-ktx:1.13.1")
-
+    implementation("androidx.core:core-ktx:1.17.0")
     implementation("com.android.volley:volley:1.2.1")
-
-    implementation("com.android.volley:volley:1.2.1")
-
-    implementation("com.github.bumptech.glide:glide:4.15.1")
+    implementation("com.github.bumptech.glide:glide:5.0.5")
 }

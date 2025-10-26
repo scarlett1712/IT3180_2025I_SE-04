@@ -90,7 +90,7 @@
 
             <!-- Danh sách thông báo -->
             <androidx.recyclerview.widget.RecyclerView
-                android:id="@+id/recyclerViewNotifications"
+                android:id="@+id/recyclerViewSentNotifications"
                 android:layout_width="match_parent"
                 android:layout_height="match_parent"
                 android:clipToPadding="false"

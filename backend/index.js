@@ -1,6 +1,7 @@
 import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
+import admin from "firebase-admin";
 
 // Import the new finance functions and routes from db.js
 import financeRoutes, { createFinanceTables } from "./db.js";
@@ -8,6 +9,11 @@ import financeRoutes, { createFinanceTables } from "./db.js";
 dotenv.config();
 
 const app = express();
+const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
+
+admin.initializeApp({
+  credential: admin.credential.cert(serviceAccount),
+});
 
 app.use(express.static('public'));
 

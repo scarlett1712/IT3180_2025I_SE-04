@@ -1,13 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:tools="http://schemas.android.com/tools">
+    xmlns:tools="http://schemas.android.com/tools"
+    package="com.se_04.enoti">
 
-    <!-- Khai báo các quyền ứng dụng cần thiết -->
     <uses-permission android:name="android.permission.CAMERA" />
     <uses-feature android:name="android.hardware.camera" android:required="false" />
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
     <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.CAMERA" />
+    <uses-permission android:name="android.permission.INTERNET" />
 
     <application
         android:allowBackup="true"
@@ -22,7 +24,6 @@
         tools:targetApi="29"
         android:usesCleartextTraffic="true">
 
-        <!-- Activity khởi chạy đầu tiên của ứng dụng -->
         <activity
             android:name=".account_related.SplashActivity"
             android:exported="true">
@@ -31,32 +32,29 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+        <activity android:name=".account_related.LogInActivity"> </activity>
+        <activity android:name=".account_related.ForgetPasswordEnterPhoneActivity"> </activity>
+        <activity android:name=".account.ChangePasswordActivity"> </activity>
+        <activity android:name=".account_related.RegisterActivity"> </activity>
+        <activity android:name=".account_related.EnterOTPActivity"> </activity>
+        <activity android:name=".account_related.CreateNewPasswordActivity"> </activity>
+        <activity android:name=".account_related.RegisterEnterPhoneActivity"> </activity>
+        <activity android:name=".home.user.MainActivity_User"> </activity>
+        <activity android:name=".home.admin.MainActivity_Admin"> </activity>
+        <activity android:name=".notification.NotificationDetailActivity"> </activity>
+        <activity android:name=".finance.FinanceDetailActivity"> </activity>
+        <activity android:name=".feedback.FeedbackDetailActivity"> </activity>
+        <activity android:name=".feedback.FeedbackActivity"> </activity>
+        <activity android:name=".notification.admin.CreateNotificationActivity"> </activity>
+        <activity android:name=".residents.ResidentDetailActivity"> </activity>
+        <activity android:name=".residents.CreateResidentActivity"> </activity>
 
-        <!-- Khai báo tất cả các Activity khác của ứng dụng -->
-        <activity android:name=".account_related.LogInActivity" />
-        <activity android:name=".account_related.ForgetPasswordEnterPhoneActivity" />
-        <activity android:name=".account.ChangePasswordActivity" />
-        <activity android:name=".account_related.RegisterActivity" />
-        <activity android:name=".account_related.EnterOTPActivity" />
-        <activity android:name=".account_related.CreateNewPasswordActivity" />
-        <activity android:name=".account_related.RegisterEnterPhoneActivity" />
-        <activity android:name=".home.user.MainActivity_User" />
-        <activity android:name=".home.admin.MainActivity_Admin" />
-        <activity android:name=".notification.NotificationDetailActivity" />
-        <activity android:name=".finance.FinanceDetailActivity" />
-        <activity android:name=".feedback.FeedbackDetailActivity" />
-        <activity android:name=".feedback.FeedbackActivity" />
-        <activity android:name=".notification.admin.CreateNotificationActivity" />
-        <activity android:name=".residents.ResidentDetailActivity" />
-        <activity android:name=".finance.admin.CreateFinanceActivity" />
-        <activity android:name=".residents.CreateResidentActivity" />
 
-        <!-- Khai báo Receiver để xử lý các hành động thông báo -->
+
         <receiver
             android:name=".notification.admin.NotificationReceiver"
             android:exported="true" />
 
-        <!-- Khai báo Provider để chia sẻ file (ví dụ: chụp ảnh) một cách an toàn -->
         <provider
             android:name="androidx.core.content.FileProvider"
             android:authorities="${applicationId}.provider"

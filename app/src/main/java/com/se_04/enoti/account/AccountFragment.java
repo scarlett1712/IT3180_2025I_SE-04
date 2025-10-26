@@ -61,6 +61,7 @@ public class AccountFragment extends Fragment {
     private String currentPhotoPath;
 
     // 🔥 URL API cho avatar
+
     private static final String UPLOAD_AVATAR_URL = "http://10.0.2.2:5000/api/avatar/upload";
     private static final String GET_AVATAR_URL = "http://10.0.2.2:5000/api/avatar/user/";
 

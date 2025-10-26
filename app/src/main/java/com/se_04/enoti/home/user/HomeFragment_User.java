@@ -1,5 +1,9 @@
 package com.se_04.enoti.home.user;
 
+import android.content.BroadcastReceiver;
+import android.content.Context;
+import android.content.Intent;
+import android.content.IntentFilter;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.LayoutInflater;
@@ -13,6 +17,7 @@ import android.widget.Toast;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.fragment.app.Fragment;
+import androidx.localbroadcastmanager.content.LocalBroadcastManager;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.PagerSnapHelper;
 import androidx.recyclerview.widget.RecyclerView;
@@ -20,6 +25,7 @@ import androidx.recyclerview.widget.SnapHelper;
 
 import com.se_04.enoti.R;
 import com.se_04.enoti.account.UserItem;
+import com.se_04.enoti.notification.MyFirebaseMessagingService;
 import com.se_04.enoti.notification.NotificationAdapter;
 import com.se_04.enoti.notification.NotificationItem;
 import com.se_04.enoti.notification.NotificationRepository;
@@ -40,6 +46,15 @@ public class HomeFragment_User extends Fragment {
     private LinearLayoutManager layoutManager;
     private SnapHelper snapHelper;
 
+    // BroadcastReceiver to listen for new notifications
+    private final BroadcastReceiver newNotificationReceiver = new BroadcastReceiver() {
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            Log.d(TAG, "New notification broadcast received. Reloading notifications...");
+            loadHighlightedNotifications();
+        }
+    };
+
     @Nullable
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container, @Nullable Bundle savedInstanceState) {
@@ -52,7 +67,25 @@ public class HomeFragment_User extends Fragment {
         return view;
     }
 
+    @Override
+    public void onStart() {
+        super.onStart();
+        // Register the broadcast receiver
+        LocalBroadcastManager.getInstance(requireContext()).registerReceiver(
+            newNotificationReceiver,
+            new IntentFilter(MyFirebaseMessagingService.ACTION_NEW_NOTIFICATION)
+        );
+    }
+
+    @Override
+    public void onStop() {
+        super.onStop();
+        // Unregister the broadcast receiver to prevent memory leaks
+        LocalBroadcastManager.getInstance(requireContext()).unregisterReceiver(newNotificationReceiver);
+    }
+
     private void setupWelcomeViews(View view) {
+        // ... (existing code)
         TextView txtWelcome = view.findViewById(R.id.txtWelcome);
         TextView txtGreeting = view.findViewById(R.id.txtGreeting);
 
@@ -68,6 +101,7 @@ public class HomeFragment_User extends Fragment {
     }
 
     private void setupRecyclerView(View view) {
+        // ... (existing code)
         recyclerView = view.findViewById(R.id.recyclerHighlightedNotifications);
         indicatorLayout = view.findViewById(R.id.indicatorLayout);
         layoutManager = new LinearLayoutManager(requireContext(), LinearLayoutManager.HORIZONTAL, false);
@@ -81,22 +115,19 @@ public class HomeFragment_User extends Fragment {
     }
 
     private void loadHighlightedNotifications() {
+        // ... (existing code)
         UserItem currentUser = UserManager.getInstance(requireContext()).getCurrentUser();
         if (currentUser == null || currentUser.getId() == null) {
             Log.e(TAG, "Cannot load notifications: user or user ID is null.");
-            // Optionally, show a message to the user
-            // Toast.makeText(getContext(), "Không thể tải thông báo, vui lòng đăng nhập lại.", Toast.LENGTH_SHORT).show();
             return;
         }
 
-        // The user ID from your backend might be a string, but the repository expects a long.
-        // We need to handle this safely.
         long userId;
         try {
             userId = Long.parseLong(currentUser.getId());
         } catch (NumberFormatException e) {
             Log.e(TAG, "Could not parse user ID to long: " + currentUser.getId(), e);
-            return; // Exit if ID is not a valid number
+            return;
         }
 
         NotificationRepository.getInstance().fetchNotifications(userId, new NotificationRepository.NotificationsCallback() {
@@ -121,8 +152,9 @@ public class HomeFragment_User extends Fragment {
     }
 
     private void setupIndicator(int itemCount) {
-        indicatorLayout.removeAllViews(); // Clear old indicators
-        if (itemCount <= 1) return; // No need for indicator if 0 or 1 item
+        // ... (existing code)
+        indicatorLayout.removeAllViews();
+        if (itemCount <= 1) return;
 
         ImageView[] dots = new ImageView[itemCount];
 
@@ -135,7 +167,6 @@ public class HomeFragment_User extends Fragment {
             indicatorLayout.addView(dots[i], params);
         }
 
-        // Remove any existing listener before adding a new one
         recyclerView.clearOnScrollListeners();
         recyclerView.addOnScrollListener(new RecyclerView.OnScrollListener() {
             @Override
@@ -145,7 +176,7 @@ public class HomeFragment_User extends Fragment {
                     View centerView = snapHelper.findSnapView(layoutManager);
                     if (centerView != null) {
                         int pos = layoutManager.getPosition(centerView);
-                        if (pos >= 0 && pos < itemCount) { // Safety check
+                        if (pos >= 0 && pos < itemCount) { 
                             for (int i = 0; i < itemCount; i++) {
                                 dots[i].setImageResource(i == pos ? R.drawable.indicator_active : R.drawable.indicator_inactive);
                             }
@@ -157,6 +188,7 @@ public class HomeFragment_User extends Fragment {
     }
 
     private void setupQuickNav(View view) {
+        // ... (existing code)
         view.findViewById(R.id.layoutNotification).setOnClickListener(v -> {
             if (getActivity() instanceof MainActivity_User) {
                 ((MainActivity_User) getActivity()).switchToNotificationsTab();
