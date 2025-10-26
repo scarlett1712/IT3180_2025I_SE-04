@@ -17,3 +17,5 @@ export const pool = new Pool({
 });
 
 console.log('✅ Database pool configured and ready.');
+
+export default pool;
