@@ -34,6 +34,7 @@ import com.android.volley.toolbox.HttpHeaderParser;
 import com.android.volley.toolbox.Volley;
 import com.se_04.enoti.R;
 import com.se_04.enoti.account_related.LogInActivity;
+import com.se_04.enoti.utils.ApiConfig;
 import com.se_04.enoti.utils.UserManager;
 
 import org.json.JSONException;
@@ -62,8 +63,8 @@ public class AccountFragment extends Fragment {
 
     // 🔥 URL API cho avatar
 
-    private static final String UPLOAD_AVATAR_URL = "http://10.0.2.2:5000/api/avatar/upload";
-    private static final String GET_AVATAR_URL = "http://10.0.2.2:5000/api/avatar/user/";
+    private static final String UPLOAD_AVATAR_URL = ApiConfig.BASE_URL + "/api/avatar/upload";
+    private static final String GET_AVATAR_URL = ApiConfig.BASE_URL + "/api/avatar/user/";
 
     // 🔥 Thêm biến để kiểm tra fragment state
     private boolean isFragmentDestroyed = false;
@@ -242,7 +243,7 @@ public class AccountFragment extends Fragment {
             return;
         }
 
-        String fullUrl = "http://10.0.2.2:5000" + imageUrl;
+        String fullUrl = ApiConfig.BASE_URL + imageUrl;
 
         com.android.volley.toolbox.ImageRequest imageRequest = new com.android.volley.toolbox.ImageRequest(
                 fullUrl,

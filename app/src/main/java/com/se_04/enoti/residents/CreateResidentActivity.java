@@ -16,6 +16,7 @@ import com.google.android.material.appbar.MaterialToolbar;
 import com.google.android.material.button.MaterialButton;
 import com.google.android.material.textfield.TextInputEditText;
 import com.se_04.enoti.R;
+import com.se_04.enoti.utils.ApiConfig;
 
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -34,7 +35,7 @@ public class CreateResidentActivity extends AppCompatActivity {
     private RequestQueue requestQueue;
 
     // ⚙️ API endpoint
-    private static final String BASE_URL = "http://10.0.2.2:5000/api/create_user/create";
+    private static final String BASE_URL = ApiConfig.BASE_URL + "/create_user/create";
 
     // ⚙️ Date formatters
     private final SimpleDateFormat displayFormat = new SimpleDateFormat("dd-MM-yyyy", Locale.getDefault());

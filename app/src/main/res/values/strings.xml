@@ -60,5 +60,6 @@
     </string-array>
     <string name="admin">Quản trị viên</string>
     <string name="add_resident">Thêm cư dân</string>
+    <string name="inputFinanceDetails">Nhập nội dung hóa đơn</string>
 
 </resources>

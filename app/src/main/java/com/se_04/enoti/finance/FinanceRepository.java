@@ -6,6 +6,7 @@ import com.android.volley.Request;
 import com.android.volley.RequestQueue;
 import com.android.volley.toolbox.JsonArrayRequest;
 import com.android.volley.toolbox.Volley;
+import com.se_04.enoti.utils.ApiConfig;
 
 import org.json.JSONArray;
 import org.json.JSONObject;
@@ -16,7 +17,7 @@ import java.util.List;
 public class FinanceRepository {
     private static FinanceRepository instance;
     private final List<FinanceItem> finances = new ArrayList<>();
-    private static final String API_GET_FINANCES_URL = "http://10.0.2.2:5000/api/finance/user/";
+    private static final String API_GET_FINANCES_URL = ApiConfig.BASE_URL + "/api/finance/user/";
 
     private FinanceRepository() {
     }

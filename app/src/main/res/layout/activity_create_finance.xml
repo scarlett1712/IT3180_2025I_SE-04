@@ -5,12 +5,19 @@
     android:layout_height="match_parent"
     android:orientation="vertical">
 
-    <androidx.appcompat.widget.Toolbar
-        android:id="@+id/toolbar"
+    <!-- Thanh AppBar -->
+    <com.google.android.material.appbar.AppBarLayout
         android:layout_width="match_parent"
-        android:layout_height="?attr/actionBarSize"
+        android:layout_height="wrap_content"
         android:background="?attr/colorPrimary"
-        app:titleTextColor="@android:color/white" />
+        android:fitsSystemWindows="true">
+
+        <com.google.android.material.appbar.MaterialToolbar
+            android:id="@+id/toolbar_finance"
+            android:layout_width="match_parent"
+            android:layout_height="?attr/actionBarSize"
+            android:titleTextColor="@android:color/white" />
+    </com.google.android.material.appbar.AppBarLayout>
 
     <ScrollView
         android:layout_width="match_parent"
@@ -34,16 +41,19 @@
             </com.google.android.material.textfield.TextInputLayout>
 
             <com.google.android.material.textfield.TextInputLayout
+                android:id="@+id/inputLayoutFinance"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="8dp"
-                android:hint="Nội dung (tùy chọn)">
+                android:hint="@string/inputFinanceDetails"
+                android:layout_marginTop="4dp">
 
                 <com.google.android.material.textfield.TextInputEditText
                     android:id="@+id/edtFinanceContent"
                     android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:minLines="3" />
+                    android:layout_height="150dp"
+                    android:gravity="top|start"
+                    android:inputType="textMultiLine"
+                    android:padding="8dp"/>
             </com.google.android.material.textfield.TextInputLayout>
 
             <com.google.android.material.textfield.TextInputLayout
@@ -59,46 +69,163 @@
                     android:inputType="numberDecimal" />
             </com.google.android.material.textfield.TextInputLayout>
 
-            <Spinner
-                android:id="@+id/spinnerFinanceType"
-                android:layout_width="match_parent"
-                android:layout_height="48dp"
-                android:layout_marginTop="8dp" />
-
-            <com.google.android.material.textfield.TextInputLayout
+            <!-- Loại thông báo & Người nhận -->
+            <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
                 android:layout_marginTop="8dp"
-                android:hint="Hạn chót">
+                android:layout_marginBottom="8dp">
 
-                <com.google.android.material.textfield.TextInputEditText
-                    android:id="@+id/edtDueDate"
-                    android:layout_width="match_parent"
+                <!-- Cột 1: Loại thông báo -->
+                <LinearLayout
+                    android:layout_width="0dp"
                     android:layout_height="wrap_content"
-                    android:focusable="false" />
-            </com.google.android.material.textfield.TextInputLayout>
+                    android:layout_weight="0.7"
+                    android:orientation="vertical"
+                    android:layout_marginEnd="8dp">
+
+                    <TextView
+                        android:id="@+id/tvFinanceTypeLabel"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Loại phí"
+                        android:textStyle="bold"
+                        android:layout_marginBottom="4dp" />
+
+                    <Spinner
+                        android:id="@+id/spinnerFinanceType"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:spinnerMode="dropdown"
+                        android:background="@drawable/spinner_background"
+                        android:padding="8dp" />
+                </LinearLayout>
+
+                <!-- Cột 2: Người nhận -->
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:orientation="vertical"
+                    android:layout_marginStart="8dp">
+
+                    <TextView
+                        android:id="@+id/tvTargetLabel"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Ngày hết hạn"
+                        android:textStyle="bold" />
+
+                    <com.google.android.material.textfield.TextInputLayout
+                        android:id="@+id/inputLayoutExpirationDate"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="-1dp"
+                        android:hint="Ngày hết hạn">
+
+                        <com.google.android.material.textfield.TextInputEditText
+                            android:id="@+id/edtExpirationDate"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:focusable="false"
+                            android:clickable="true"
+                            android:background="@drawable/spinner_background"
+                            android:inputType="none"
+                            android:drawableEnd="@drawable/ic_calendar"
+                            android:padding="7dp" />
+                    </com.google.android.material.textfield.TextInputLayout>
+
+                </LinearLayout>
+            </LinearLayout>
 
             <TextView
-                android:id="@+id/txtSelectedResidents"
+                android:layout_width="wrap_content"
+                android:layout_height="match_parent"
+                android:text="Người nhận"
+                android:textStyle="bold"
+                android:layout_weight="0.5"
+                android:layout_marginBottom="8dp">
+            </TextView>
+
+            <CheckBox
+                android:id="@+id/chkSendAll"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="16dp"
-                android:text="Áp dụng cho: Tất cả cư dân" />
+                android:text="Gửi cho tất cả các hộ"
+                android:layout_marginBottom="8dp"
+                android:textSize="16sp"
+                android:buttonTint="@color/black" />
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="40dp"
+                android:orientation="horizontal"
+                android:layout_weight="1"
+                android:gravity="center_vertical"
+                android:layout_marginBottom="4dp">
+
+                <Spinner
+                    android:id="@+id/spinnerReceiverFloor"
+                    android:layout_width="0dp"
+                    android:layout_height="match_parent"
+                    android:layout_marginRight="7dp"
+                    android:layout_weight="0.3"
+                    android:background="@drawable/spinner_background"
+                    android:padding="8dp"
+                    android:spinnerMode="dropdown" />
+
+                <androidx.appcompat.widget.SearchView
+                    android:id="@+id/search_view"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="0.5"
+                    android:layout_marginEnd="7dp"
+                    app:queryHint="Tìm theo phòng"
+                    app:iconifiedByDefault="false"
+                    android:background="@drawable/search_view_background" />
+
+                <ImageButton
+                    android:id="@+id/btnReceiverList"
+                    android:layout_width="0dp"
+                    android:layout_height="match_parent"
+                    android:layout_weight="0.1"
+                    android:src="@drawable/ic_list_light"
+                    android:background="@drawable/bg_round_button"
+                    android:contentDescription="Danh sách người nhận" />
+
+            </LinearLayout>
 
             <androidx.recyclerview.widget.RecyclerView
                 android:id="@+id/recyclerResidents"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="8dp"
-                android:maxHeight="200dp"/>
+                android:layout_marginTop="4dp"
+                android:visibility="gone"/>
+
+            <TextView
+                android:id="@+id/txtSelectedResidents"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Chưa chọn hộ dân nào"
+                android:textColor="@android:color/darker_gray"
+                android:textStyle="italic"
+                android:padding="8dp"
+                android:layout_marginTop="8dp" />
 
             <Button
                 android:id="@+id/btnCreateFee"
-                android:layout_width="match_parent"
+                android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="16dp"
-                android:text="Tạo khoản thu" />
+                android:text="Tạo khoản thu"
+                android:layout_marginTop="8dp"
+                android:layout_marginBottom="8dp"
+                android:textColor="@android:color/white">
+            </Button>
 
         </LinearLayout>
+
     </ScrollView>
+
 </LinearLayout>

@@ -28,6 +28,7 @@ import com.google.android.material.textfield.TextInputEditText;
 import com.se_04.enoti.R;
 import com.se_04.enoti.residents.ResidentAdapter;
 import com.se_04.enoti.residents.ResidentItem;
+import com.se_04.enoti.utils.ApiConfig;
 import com.se_04.enoti.utils.UserManager;
 
 import org.json.JSONArray;
@@ -54,15 +55,15 @@ public class CreateFinanceActivity extends AppCompatActivity {
     private final List<ResidentItem> allResidents = new ArrayList<>();
     private Set<ResidentItem> selectedResidents = new HashSet<>();
 
-    private static final String API_GET_RESIDENTS_URL = "http://10.0.2.2:5000/api/residents";
-    private static final String API_CREATE_FINANCE_URL = "http://10.0.2.2:5000/api/finance/create";
+    private static final String API_GET_RESIDENTS_URL = ApiConfig.BASE_URL + "/api/residents";
+    private static final String API_CREATE_FINANCE_URL = ApiConfig.BASE_URL + "/api/finance/create";
 
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_create_finance);
 
-        Toolbar toolbar = findViewById(R.id.toolbar);
+        Toolbar toolbar = findViewById(R.id.toolbar_finance);
         setSupportActionBar(toolbar);
         getSupportActionBar().setDisplayHomeAsUpEnabled(true);
         getSupportActionBar().setTitle("Tạo khoản thu mới");
@@ -72,7 +73,7 @@ public class CreateFinanceActivity extends AppCompatActivity {
         edtFinanceTitle = findViewById(R.id.edtFinanceTitle);
         edtFinanceContent = findViewById(R.id.edtFinanceContent);
         edtAmount = findViewById(R.id.edtAmount);
-        edtDueDate = findViewById(R.id.edtDueDate);
+        edtDueDate = findViewById(R.id.edtExpirationDate);
         spinnerFinanceType = findViewById(R.id.spinnerFinanceType);
         btnCreateFee = findViewById(R.id.btnCreateFee);
         recyclerResidents = findViewById(R.id.recyclerResidents);
