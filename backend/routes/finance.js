@@ -67,7 +67,7 @@ router.get("/user/:userId", async (req, res) => {
     const result = await query(
       `
       SELECT f.id, f.title, f.content, f.amount, f.type,
-             TO_CHAR(f.due_date, 'YYYY-MM-DD') AS due_date,
+             TO_CHAR(f.due_date, 'DD-MM-YYYY') AS date,
              uf.status
       FROM finances f
       JOIN user_finances uf ON f.id = uf.finance_id
@@ -104,7 +104,7 @@ router.post("/create", async (req, res) => {
     const financeResult = await client.query(
       `
       INSERT INTO finances (title, content, amount, due_date, type, created_by)
-      VALUES ($1, $2, $3, TO_DATE($4, 'YYYY-MM-DD'), $5, $6)
+      VALUES ($1, $2, $3, TO_DATE($4, 'DD-MM-YYYY'), $5, $6)
       RETURNING id
       `,
       [title, content || "", amount, due_date, finalType, created_by || null]
@@ -169,8 +169,8 @@ router.get("/admin/:adminId", async (req, res) => {
         f.content,
         f.amount AS price,
         f.type,
-        TO_CHAR(f.due_date, 'YYYY-MM-DD') AS date,
-        TO_CHAR(f.created_at, 'YYYY-MM-DD HH24:MI') AS created_at,
+        TO_CHAR(f.due_date, 'DD-MM-YYYY') AS date,
+        TO_CHAR(f.created_at, 'DD-MM-YYYY HH24:MI') AS created_at,
         COUNT(DISTINCT a.apartment_number) AS total_rooms,
         COUNT(DISTINCT CASE WHEN uf.status = 'da_thanh_toan' THEN a.apartment_number END) AS paid_rooms
       FROM finances f
