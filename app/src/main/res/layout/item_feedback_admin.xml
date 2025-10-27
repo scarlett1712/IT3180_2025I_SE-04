@@ -59,7 +59,7 @@
             android:layout_height="wrap_content"
             android:ellipsize="end"
             android:singleLine="true"
-            android:text="[Thông báo phản hồi]"
+            android:text="[Người gửi]"
             android:textColor="@android:color/black"
             android:textSize="14sp"/>
     </LinearLayout>

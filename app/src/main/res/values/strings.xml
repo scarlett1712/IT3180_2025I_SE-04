@@ -74,4 +74,5 @@
     <string name="deadline">Hạn nộp:</string>
     <string name="invoice_name">Tên khoản thu</string>
     <string name="save_changes">Lưu thay đổi</string>
+    <string name="notification_detail">Chi tiết thông báo</string>
 </resources>
