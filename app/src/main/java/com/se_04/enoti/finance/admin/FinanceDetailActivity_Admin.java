@@ -40,7 +40,7 @@ public class FinanceDetailActivity_Admin extends AppCompatActivity {
     private int adminId;
     private final List<RoomStatus> roomStatusList = new ArrayList<>();
 
-    // Dữ liệu model đơn giản
+    // Model dữ liệu nhỏ gọn
     private static class RoomStatus {
         int userId;
         String room;
@@ -69,8 +69,7 @@ public class FinanceDetailActivity_Admin extends AppCompatActivity {
         financeId = getIntent().getIntExtra("finance_id", -1);
         String title = getIntent().getStringExtra("title");
         String dueDate = getIntent().getStringExtra("due_date");
-
-        adminId = Integer.parseInt(UserManager.getInstance(this).getID()); // Lấy id admin đang đăng nhập
+        adminId = Integer.parseInt(UserManager.getInstance(this).getID());
 
         txtFinanceTitle.setText(title != null ? title : "Khoản thu");
         txtFinanceDeadline.setText("Hạn nộp: " + (dueDate != null ? dueDate : "Không rõ"));
@@ -82,13 +81,14 @@ public class FinanceDetailActivity_Admin extends AppCompatActivity {
         }
 
         loadRoomStatuses();
-
         buttonSaveChanges.setOnClickListener(v -> updateStatuses());
     }
 
     // 🧩 Lấy danh sách phòng và trạng thái thanh toán
     private void loadRoomStatuses() {
         String url = ApiConfig.BASE_URL + "/api/finance/" + financeId + "/users";
+        Log.d("FinanceDetailAdmin", "GET " + url);
+
         JsonArrayRequest request = new JsonArrayRequest(Request.Method.GET, url, null,
                 response -> {
                     try {
@@ -116,14 +116,14 @@ public class FinanceDetailActivity_Admin extends AppCompatActivity {
                     }
                 },
                 error -> {
-                    Log.e("FinanceDetailAdmin", "Network error", error);
+                    Log.e("FinanceDetailAdmin", "Network error: " + error);
                     Toast.makeText(this, "Không thể tải danh sách phòng", Toast.LENGTH_SHORT).show();
                 });
 
         requestQueue.add(request);
     }
 
-    // 🟢 Cập nhật trạng thái đã thanh toán
+    // 🟢 Lưu thay đổi (cập nhật từng trạng thái)
     private void updateStatuses() {
         int totalChecked = 0;
         for (int i = 0; i < layoutRoomCheckboxes.getChildCount(); i++) {
@@ -138,12 +138,13 @@ public class FinanceDetailActivity_Admin extends AppCompatActivity {
             }
         }
 
-        Toast.makeText(this, "Đã lưu thay đổi cho " + totalChecked + " phòng.", Toast.LENGTH_SHORT).show();
+        Toast.makeText(this, "Đã gửi cập nhật cho " + totalChecked + " phòng.", Toast.LENGTH_SHORT).show();
     }
 
     private void updateSingleStatus(int userId, boolean isPaid) {
         String url = ApiConfig.BASE_URL + "/api/finance/update-status";
         JSONObject body = new JSONObject();
+
         try {
             body.put("user_id", userId);
             body.put("finance_id", financeId);
@@ -155,9 +156,16 @@ public class FinanceDetailActivity_Admin extends AppCompatActivity {
         }
 
         JsonObjectRequest request = new JsonObjectRequest(Request.Method.PUT, url, body,
-                response -> Log.i("FinanceDetailAdmin", "Status updated for user " + userId),
-                error -> Log.e("FinanceDetailAdmin", "Error updating status", error)
-        );
+                response -> Log.i("FinanceDetailAdmin", "Updated user " + userId),
+                error -> Log.e("FinanceDetailAdmin", "Error updating status: " + error)
+        ) {
+            @Override
+            public Map<String, String> getHeaders() {
+                Map<String, String> headers = new HashMap<>();
+                headers.put("Content-Type", "application/json");
+                return headers;
+            }
+        };
 
         requestQueue.add(request);
     }

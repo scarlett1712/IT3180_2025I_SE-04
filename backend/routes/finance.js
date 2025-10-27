@@ -32,11 +32,10 @@ export const createFinanceTables = async () => {
       );
     `);
 
-    // Tối ưu hiệu suất truy vấn với Indexes
+    // Tối ưu hiệu suất truy vấn
     await query(`CREATE INDEX IF NOT EXISTS idx_finances_created_by ON finances(created_by);`);
     await query(`CREATE INDEX IF NOT EXISTS idx_user_finances_finance_id ON user_finances(finance_id);`);
     await query(`CREATE INDEX IF NOT EXISTS idx_user_finances_user_id ON user_finances(user_id);`);
-
 
     console.log("✅ Finance tables and indexes verified or created successfully.");
   } catch (err) {
@@ -158,7 +157,7 @@ router.post("/create", async (req, res) => {
   }
 });
 
-// 🧾 [ADMIN] Lấy các khoản thu do admin tạo (mỗi bill chỉ hiển thị 1 lần)
+// 🧾 [ADMIN] Lấy các khoản thu do admin tạo
 router.get("/admin/:adminId", async (req, res) => {
   const { adminId } = req.params;
 
@@ -214,12 +213,12 @@ router.get("/:financeId/users", async (req, res) => {
   }
 });
 
-// 🟢 [ADMIN] Cập nhật trạng thái thanh toán
+// 🟢 [ADMIN] Cập nhật trạng thái thanh toán theo PHÒNG
 router.put("/update-status", async (req, res) => {
-  const { user_id, finance_id, status, admin_id } = req.body;
+  const { room, finance_id, status, admin_id } = req.body;
 
-  if (!user_id || !finance_id || !admin_id) {
-    return res.status(400).json({ error: "Thiếu user_id, finance_id hoặc admin_id" });
+  if (!room || !finance_id || !admin_id) {
+    return res.status(400).json({ error: "Thiếu room, finance_id hoặc admin_id" });
   }
 
   try {
@@ -228,23 +227,28 @@ router.put("/update-status", async (req, res) => {
       return res.status(400).json({ error: "Trạng thái không hợp lệ." });
     }
 
+    // ✅ Cập nhật tất cả user trong phòng đó
     await query(
-      `UPDATE user_finances
-       SET status = $1
-       WHERE user_id = $2 AND finance_id = $3`,
-      [status || "da_thanh_toan", user_id, finance_id]
+      `
+      UPDATE user_finances uf
+      SET status = $1
+      FROM user_item ui
+      JOIN relationship r ON ui.relationship = r.relationship_id
+      JOIN apartment a ON r.apartment_id = a.apartment_id
+      WHERE uf.user_id = ui.user_id
+        AND a.apartment_number = $2
+        AND uf.finance_id = $3
+      `,
+      [status, room, finance_id]
     );
 
-    // ✅ Ghi log hoặc cập nhật người xác nhận (nếu muốn)
-    await query(
-      `UPDATE finances SET created_by = $1 WHERE id = $2`,
-      [admin_id, finance_id]
-    );
-
-    res.json({ success: true, message: "Cập nhật trạng thái thành công" });
+    res.json({
+      success: true,
+      message: `Cập nhật trạng thái phòng ${room} → ${status}`,
+    });
   } catch (err) {
-    console.error("💥 Error updating finance status:", err);
-    res.status(500).json({ error: "Lỗi server khi cập nhật trạng thái." });
+    console.error("💥 Error updating finance by room:", err);
+    res.status(500).json({ error: "Lỗi server khi cập nhật trạng thái phòng." });
   }
 });
 

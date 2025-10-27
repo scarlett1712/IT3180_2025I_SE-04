@@ -49,6 +49,8 @@
         <activity android:name=".residents.ResidentDetailActivity"> </activity>
         <activity android:name=".residents.CreateResidentActivity"> </activity>
         <activity android:name=".finance.admin.CreateFinanceActivity"></activity>
+        <activity android:name=".finance.admin.FinanceDetailActivity_Admin"></activity>
+
 
         <receiver
             android:name=".notification.admin.NotificationReceiver"
