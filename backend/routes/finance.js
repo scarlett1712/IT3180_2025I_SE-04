@@ -6,7 +6,7 @@ const router = express.Router();
 // 🧩 Helper query
 const query = (text, params) => pool.query(text, params);
 
-// 🧱 Tạo bảng và chỉ mục nếu chưa có
+// 🧱 Tạo bảng nếu chưa có
 export const createFinanceTables = async () => {
   try {
     await query(`
@@ -32,7 +32,6 @@ export const createFinanceTables = async () => {
       );
     `);
 
-    // Tối ưu hiệu suất truy vấn
     await query(`CREATE INDEX IF NOT EXISTS idx_finances_created_by ON finances(created_by);`);
     await query(`CREATE INDEX IF NOT EXISTS idx_user_finances_finance_id ON user_finances(finance_id);`);
     await query(`CREATE INDEX IF NOT EXISTS idx_user_finances_user_id ON user_finances(user_id);`);
@@ -48,8 +47,8 @@ router.get("/all", async (req, res) => {
   try {
     const result = await query(`
       SELECT id, title, content, amount, type,
-             TO_CHAR(due_date, 'DD/MM/YYYY') AS due_date,
-             TO_CHAR(created_at, 'DD/MM/YYYY HH24:MI') AS created_at,
+             TO_CHAR(due_date, 'YYYY-MM-DD') AS due_date,
+             TO_CHAR(created_at, 'YYYY-MM-DD HH24:MI') AS created_at,
              created_by
       FROM finances
       ORDER BY due_date ASC NULLS LAST
@@ -68,7 +67,7 @@ router.get("/user/:userId", async (req, res) => {
     const result = await query(
       `
       SELECT f.id, f.title, f.content, f.amount, f.type,
-             TO_CHAR(f.due_date, 'DD/MM/YYYY') AS due_date,
+             TO_CHAR(f.due_date, 'YYYY-MM-DD') AS due_date,
              uf.status
       FROM finances f
       JOIN user_finances uf ON f.id = uf.finance_id
@@ -105,7 +104,7 @@ router.post("/create", async (req, res) => {
     const financeResult = await client.query(
       `
       INSERT INTO finances (title, content, amount, due_date, type, created_by)
-      VALUES ($1, $2, $3, TO_DATE($4, 'DD/MM/YYYY'), $5, $6)
+      VALUES ($1, $2, $3, TO_DATE($4, 'YYYY-MM-DD'), $5, $6)
       RETURNING id
       `,
       [title, content || "", amount, due_date, finalType, created_by || null]
@@ -170,12 +169,15 @@ router.get("/admin/:adminId", async (req, res) => {
         f.content,
         f.amount AS price,
         f.type,
-        TO_CHAR(f.due_date, 'DD/MM/YYYY') AS date,
-        TO_CHAR(f.created_at, 'DD/MM/YYYY HH24:MI') AS created_at,
-        COUNT(uf.user_id) AS total_users,
-        SUM(CASE WHEN uf.status = 'da_thanh_toan' THEN 1 ELSE 0 END) AS paid_users
+        TO_CHAR(f.due_date, 'YYYY-MM-DD') AS date,
+        TO_CHAR(f.created_at, 'YYYY-MM-DD HH24:MI') AS created_at,
+        COUNT(DISTINCT a.apartment_number) AS total_rooms,
+        COUNT(DISTINCT CASE WHEN uf.status = 'da_thanh_toan' THEN a.apartment_number END) AS paid_rooms
       FROM finances f
       LEFT JOIN user_finances uf ON f.id = uf.finance_id
+      LEFT JOIN user_item ui ON uf.user_id = ui.user_id
+      LEFT JOIN relationship r ON ui.relationship = r.relationship_id
+      LEFT JOIN apartment a ON r.apartment_id = a.apartment_id
       WHERE f.created_by = $1
       GROUP BY f.id, f.title, f.content, f.amount, f.type, f.due_date, f.created_at
       ORDER BY f.created_at DESC;
@@ -227,7 +229,6 @@ router.put("/update-status", async (req, res) => {
       return res.status(400).json({ error: "Trạng thái không hợp lệ." });
     }
 
-    // ✅ Cập nhật tất cả user trong phòng đó
     await query(
       `
       UPDATE user_finances uf
