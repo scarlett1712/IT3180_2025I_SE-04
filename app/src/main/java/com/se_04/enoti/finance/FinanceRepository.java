@@ -8,7 +8,6 @@ import com.android.volley.RequestQueue;
 import com.android.volley.toolbox.JsonArrayRequest;
 import com.android.volley.toolbox.Volley;
 import com.se_04.enoti.utils.ApiConfig;
-import com.se_04.enoti.utils.UserManager;
 
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -49,7 +48,7 @@ public class FinanceRepository {
         Log.d("FinanceRepo", "Fetching user finances: " + url);
 
         JsonArrayRequest request = new JsonArrayRequest(Request.Method.GET, url, null,
-                response -> callback.onSuccess(parseFinanceList(response, false)),
+                response -> callback.onSuccess(parseFinanceList(response)),
                 error -> {
                     Log.e("FinanceRepo", "Error fetching user finances", error);
                     callback.onError("Không thể tải dữ liệu khoản thu của cư dân");
@@ -64,7 +63,7 @@ public class FinanceRepository {
         Log.d("FinanceRepo", "Fetching admin finances: " + url);
 
         JsonArrayRequest request = new JsonArrayRequest(Request.Method.GET, url, null,
-                response -> callback.onSuccess(parseFinanceList(response, true)),
+                response -> callback.onSuccess(parseFinanceList(response)),
                 error -> {
                     Log.e("FinanceRepo", "Error fetching admin finances", error);
                     callback.onError("Không thể tải dữ liệu khoản thu (admin)");
@@ -82,8 +81,11 @@ public class FinanceRepository {
         }
     }
 
-    // 🧩 Hàm parse JSON chung cho cả admin & user
-    private List<FinanceItem> parseFinanceList(JSONArray response, boolean isAdmin) {
+    /**
+     * 🔥 HÀM QUAN TRỌNG: Parse JSON response sang danh sách FinanceItem.
+     * Hàm này giờ sẽ đọc các trường liên quan đến phòng và trạng thái.
+     */
+    private List<FinanceItem> parseFinanceList(JSONArray response) {
         List<FinanceItem> list = new ArrayList<>();
 
         try {
@@ -91,6 +93,7 @@ public class FinanceRepository {
                 JSONObject obj = response.getJSONObject(i);
 
                 FinanceItem item = new FinanceItem();
+                // Dữ liệu cơ bản
                 item.setId(obj.optInt("id", -1));
                 item.setTitle(obj.optString("title", "Không rõ"));
                 item.setContent(obj.optString("content", ""));
@@ -100,19 +103,16 @@ public class FinanceRepository {
 
                 // 💰 Giá trị khoản thu
                 if (obj.has("price") && !obj.isNull("price")) {
-                    try {
-                        item.setPrice(obj.getLong("price"));
-                    } catch (Exception e) {
-                        item.setPrice(0L);
-                    }
+                    item.setPrice(obj.optLong("price", 0L));
                 }
 
-                // 👇 Dữ liệu thống kê (chỉ admin)
-                if (isAdmin) {
-                    item.setPaidUsers(obj.optInt("paid_users", 0));
-                    item.setTotalUsers(obj.optInt("total_users", 0));
-                    item.calculateUnpaidUsers(); // ✅ Tự tính số chưa nộp
-                }
+                // 👇 THAY ĐỔI: Đọc dữ liệu trạng thái và phòng
+                item.setStatus(obj.optString("status", "chua_thanh_toan"));
+                item.setRoom(obj.optString("room", null));
+
+                // 👇 THAY ĐỔI: Đọc dữ liệu thống kê theo phòng (nếu có)
+                item.setPaidRooms(obj.optInt("paid_rooms", 0));
+                item.setTotalRooms(obj.optInt("total_rooms", 0));
 
                 list.add(item);
             }

@@ -20,7 +20,6 @@ import com.se_04.enoti.R;
 import com.se_04.enoti.utils.ApiConfig;
 import com.se_04.enoti.utils.UserManager;
 
-import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
@@ -38,20 +37,12 @@ public class FinanceDetailActivity_Admin extends AppCompatActivity {
     private RequestQueue requestQueue;
     private int financeId;
     private int adminId;
-    private final List<RoomStatus> roomStatusList = new ArrayList<>();
 
-    // Model dữ liệu nhỏ gọn
-    private static class RoomStatus {
-        int userId;
-        String room;
-        boolean isPaid;
+    // Map để nhóm người dùng theo phòng. Key: Tên phòng, Value: Danh sách ID người dùng
+    private final Map<String, List<Integer>> roomToUsersMap = new HashMap<>();
 
-        RoomStatus(int userId, String room, boolean isPaid) {
-            this.userId = userId;
-            this.room = room;
-            this.isPaid = isPaid;
-        }
-    }
+    // Map để lưu trạng thái thanh toán ban đầu của mỗi phòng
+    private final Map<String, Boolean> roomInitialStatusMap = new HashMap<>();
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -65,7 +56,6 @@ public class FinanceDetailActivity_Admin extends AppCompatActivity {
 
         requestQueue = Volley.newRequestQueue(this);
 
-        // 🧾 Nhận dữ liệu từ Intent
         financeId = getIntent().getIntExtra("finance_id", -1);
         String title = getIntent().getStringExtra("title");
         String dueDate = getIntent().getStringExtra("due_date");
@@ -81,10 +71,9 @@ public class FinanceDetailActivity_Admin extends AppCompatActivity {
         }
 
         loadRoomStatuses();
-        buttonSaveChanges.setOnClickListener(v -> updateStatuses());
+        buttonSaveChanges.setOnClickListener(v -> updateRoomStatuses());
     }
 
-    // 🧩 Lấy danh sách phòng và trạng thái thanh toán
     private void loadRoomStatuses() {
         String url = ApiConfig.BASE_URL + "/api/finance/" + financeId + "/users";
         Log.d("FinanceDetailAdmin", "GET " + url);
@@ -92,61 +81,89 @@ public class FinanceDetailActivity_Admin extends AppCompatActivity {
         JsonArrayRequest request = new JsonArrayRequest(Request.Method.GET, url, null,
                 response -> {
                     try {
-                        layoutRoomCheckboxes.removeAllViews();
-                        roomStatusList.clear();
+                        roomToUsersMap.clear();
+                        roomInitialStatusMap.clear();
 
                         for (int i = 0; i < response.length(); i++) {
                             JSONObject obj = response.getJSONObject(i);
                             int userId = obj.optInt("user_id");
                             String room = obj.optString("room", "N/A");
                             String status = obj.optString("status", "chua_thanh_toan");
-
                             boolean isPaid = status.equalsIgnoreCase("da_thanh_toan");
-                            roomStatusList.add(new RoomStatus(userId, room, isPaid));
 
-                            CheckBox checkBox = new CheckBox(this);
-                            checkBox.setText("Phòng " + room);
-                            checkBox.setChecked(isPaid);
-                            checkBox.setTag(userId);
-                            layoutRoomCheckboxes.addView(checkBox);
+                            if (!roomToUsersMap.containsKey(room)) {
+                                roomToUsersMap.put(room, new ArrayList<>());
+                            }
+                            roomToUsersMap.get(room).add(userId);
+
+                            if (!roomInitialStatusMap.containsKey(room)) {
+                                roomInitialStatusMap.put(room, isPaid);
+                            }
                         }
+                        createCheckboxesForRooms();
                     } catch (JSONException e) {
                         Log.e("FinanceDetailAdmin", "JSON parse error", e);
                         Toast.makeText(this, "Lỗi dữ liệu từ server", Toast.LENGTH_SHORT).show();
                     }
                 },
                 error -> {
-                    Log.e("FinanceDetailAdmin", "Network error: " + error);
+                    Log.e("FinanceDetailAdmin", "Network error: " + error.toString());
                     Toast.makeText(this, "Không thể tải danh sách phòng", Toast.LENGTH_SHORT).show();
                 });
 
         requestQueue.add(request);
     }
 
-    // 🟢 Lưu thay đổi (cập nhật từng trạng thái)
-    private void updateStatuses() {
-        int totalChecked = 0;
+    private void createCheckboxesForRooms() {
+        layoutRoomCheckboxes.removeAllViews();
+        // Sắp xếp tên phòng để hiển thị có thứ tự
+        List<String> sortedRooms = new ArrayList<>(roomToUsersMap.keySet());
+        java.util.Collections.sort(sortedRooms);
+
+        for (String room : sortedRooms) {
+            CheckBox checkBox = new CheckBox(this);
+            checkBox.setText("Phòng " + room);
+            boolean isPaid = roomInitialStatusMap.getOrDefault(room, false);
+            checkBox.setChecked(isPaid);
+            checkBox.setTag(room); // Tag của CheckBox là tên phòng
+            layoutRoomCheckboxes.addView(checkBox);
+        }
+    }
+
+    private void updateRoomStatuses() {
+        int updatedCount = 0;
         for (int i = 0; i < layoutRoomCheckboxes.getChildCount(); i++) {
             View view = layoutRoomCheckboxes.getChildAt(i);
             if (view instanceof CheckBox) {
                 CheckBox cb = (CheckBox) view;
+                String roomName = (String) cb.getTag(); // Lấy tên phòng từ tag
                 boolean isChecked = cb.isChecked();
-                int userId = (int) cb.getTag();
-                totalChecked += (isChecked ? 1 : 0);
 
-                updateSingleStatus(userId, isChecked);
+                boolean initialStatus = roomInitialStatusMap.getOrDefault(roomName, false);
+                if (isChecked != initialStatus) {
+                    // 🔥 THAY ĐỔI QUAN TRỌNG: Gọi hàm cập nhật theo tên phòng
+                    updateStatusForRoom(roomName, isChecked);
+                    updatedCount++;
+                }
             }
         }
 
-        Toast.makeText(this, "Đã gửi cập nhật cho " + totalChecked + " phòng.", Toast.LENGTH_SHORT).show();
+        if (updatedCount > 0) {
+            Toast.makeText(this, "Đã gửi yêu cầu cập nhật cho " + updatedCount + " phòng.", Toast.LENGTH_LONG).show();
+        } else {
+            Toast.makeText(this, "Không có thay đổi nào để lưu.", Toast.LENGTH_SHORT).show();
+        }
     }
 
-    private void updateSingleStatus(int userId, boolean isPaid) {
+    // 🔥 THAY ĐỔI QUAN TRỌNG: Hàm này giờ gửi yêu cầu tới API /update-status hiện có
+    private void updateStatusForRoom(String roomName, boolean isPaid) {
+        // Sử dụng API /update-status đã có trong file finance.js
         String url = ApiConfig.BASE_URL + "/api/finance/update-status";
         JSONObject body = new JSONObject();
 
         try {
-            body.put("user_id", userId);
+            // API của bạn cần "room", "finance_id", "admin_id", và "status"
+            body.put("room", roomName);
             body.put("finance_id", financeId);
             body.put("admin_id", adminId);
             body.put("status", isPaid ? "da_thanh_toan" : "chua_thanh_toan");
@@ -155,9 +172,14 @@ public class FinanceDetailActivity_Admin extends AppCompatActivity {
             return;
         }
 
+        Log.d("FinanceDetailAdmin", "Updating status for room: " + body.toString());
+
         JsonObjectRequest request = new JsonObjectRequest(Request.Method.PUT, url, body,
-                response -> Log.i("FinanceDetailAdmin", "Updated user " + userId),
-                error -> Log.e("FinanceDetailAdmin", "Error updating status: " + error)
+                response -> Log.i("FinanceDetailAdmin", "Successfully updated status for room: " + roomName),
+                error -> {
+                    Log.e("FinanceDetailAdmin", "Error updating status for room " + roomName + ": " + error.toString());
+                    Toast.makeText(this, "Lỗi khi cập nhật phòng " + roomName, Toast.LENGTH_SHORT).show();
+                }
         ) {
             @Override
             public Map<String, String> getHeaders() {

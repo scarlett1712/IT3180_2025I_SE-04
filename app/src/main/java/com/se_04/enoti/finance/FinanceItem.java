@@ -12,12 +12,14 @@ public class FinanceItem {
     private String sender;
     @Nullable
     private Long price;
-    private boolean isPaid;
 
-    // 🧮 Dành cho admin thống kê
-    private int totalUsers;   // Tổng cư dân trong bill
-    private int paidUsers;    // Số người đã thanh toán
-    private int unpaidUsers;  // Số người chưa thanh toán
+    // 🔥 THAY ĐỔI 1: Xóa isPaid và thay bằng status để đồng bộ với API
+    private String status;
+    private String room; // Thêm trường room để xử lý nhóm
+
+    // 🧮 Dành cho admin thống kê theo PHÒNG
+    private int paidRooms;     // Số phòng đã thanh toán
+    private int totalRooms;    // Tổng số phòng áp dụng
 
     // 🔹 Constructor trống (cần thiết cho khi parse từ JSON)
     public FinanceItem() {}
@@ -30,7 +32,7 @@ public class FinanceItem {
         this.type = (type != null) ? type : "Khác";
         this.sender = (sender != null) ? sender : "Ban quản lý";
         this.price = price;
-        this.isPaid = false;
+        this.status = "chua_thanh_toan"; // Mặc định là chưa thanh toán
     }
 
     // --- GETTERS & SETTERS ---
@@ -57,24 +59,18 @@ public class FinanceItem {
     public Long getPrice() { return price; }
     public void setPrice(@Nullable Long price) { this.price = price; }
 
-    public boolean isPaid() { return isPaid; }
-    public void setPaid(boolean paid) { this.isPaid = paid; }
+    public String getStatus() { return status; }
+    public void setStatus(String status) { this.status = status; }
 
-    public int getTotalUsers() { return totalUsers; }
-    public void setTotalUsers(int totalUsers) { this.totalUsers = totalUsers; }
+    public String getRoom() { return room; }
+    public void setRoom(String room) { this.room = room; }
 
-    public int getPaidUsers() { return paidUsers; }
-    public void setPaidUsers(int paidUsers) { this.paidUsers = paidUsers; }
+    // 🔥 THAY ĐỔI 2: Getters & Setters cho Room
+    public int getTotalRooms() { return totalRooms; }
+    public void setTotalRooms(int totalRooms) { this.totalRooms = totalRooms; }
 
-    public int getUnpaidUsers() { return unpaidUsers; }
-    public void setUnpaidUsers(int unpaidUsers) { this.unpaidUsers = unpaidUsers; }
-
-    // ✅ Tính tự động số chưa thanh toán (nếu có dữ liệu)
-    public void calculateUnpaidUsers() {
-        if (totalUsers > 0 && paidUsers >= 0) {
-            this.unpaidUsers = Math.max(totalUsers - paidUsers, 0);
-        }
-    }
+    public int getPaidRooms() { return paidRooms; }
+    public void setPaidRooms(int paidRooms) { this.paidRooms = paidRooms; }
 
     // --- Debug / Log tiện dụng ---
     @Override
@@ -83,8 +79,8 @@ public class FinanceItem {
                 "id=" + id +
                 ", title='" + title + '\'' +
                 ", price=" + price +
-                ", paidUsers=" + paidUsers +
-                ", totalUsers=" + totalUsers +
+                ", paidRooms=" + paidRooms +
+                ", totalRooms=" + totalRooms +
                 '}';
     }
 }

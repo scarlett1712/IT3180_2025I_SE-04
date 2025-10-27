@@ -75,13 +75,16 @@ public class FinanceAdapter extends RecyclerView.Adapter<FinanceAdapter.ViewHold
 
         // 🧾 Hiển thị khác nhau tùy vai trò
         if (isAdmin) {
-            if (item.getTotalUsers() > 0) {
+            // 🔥 THAY ĐỔI QUAN TRỌNG: HIỂN THỊ THEO SỐ PHÒNG
+            // Giả sử FinanceItem đã có getPaidRooms() và getTotalRooms()
+            if (item.getTotalRooms() > 0) {
                 holder.txtDate.setText(
-                        "Ngày tạo: " + safeDate +
-                                "  •  Đã thu " + item.getPaidUsers() + "/" + item.getTotalUsers()
+                        "Ngày hết hạn: " + safeDate +
+                                "  •  Đã thu " + item.getPaidRooms() + "/" + item.getTotalRooms() + " phòng"
                 );
             } else {
-                holder.txtDate.setText("Ngày tạo: " + safeDate);
+                // Nếu không có thông tin phòng, hiển thị như cũ
+                holder.txtDate.setText("Ngày hết hạn: " + safeDate);
             }
         } else {
             holder.txtDate.setText("Hạn đóng: " + safeDate);
@@ -89,7 +92,11 @@ public class FinanceAdapter extends RecyclerView.Adapter<FinanceAdapter.ViewHold
 
         // 👇 Xử lý sự kiện click
         holder.itemView.setOnClickListener(v -> {
-            FinanceItem clickedItem = financeList.get(holder.getBindingAdapterPosition());
+            // Dùng getBindingAdapterPosition() để đảm bảo lấy đúng vị trí ngay cả khi list đang thay đổi
+            int currentPosition = holder.getBindingAdapterPosition();
+            if (currentPosition == RecyclerView.NO_POSITION) return;
+
+            FinanceItem clickedItem = financeList.get(currentPosition);
 
             String clickedDate = (clickedItem.getDate() == null || clickedItem.getDate().trim().isEmpty() || clickedItem.getDate().equalsIgnoreCase("null"))
                     ? "Không" : clickedItem.getDate();
@@ -115,6 +122,7 @@ public class FinanceAdapter extends RecyclerView.Adapter<FinanceAdapter.ViewHold
             }
         });
     }
+
 
     @Override
     public int getItemCount() {
@@ -183,13 +191,14 @@ public class FinanceAdapter extends RecyclerView.Adapter<FinanceAdapter.ViewHold
     }
 
     static class ViewHolder extends RecyclerView.ViewHolder {
-        TextView txtTitle, txtDate, txtPrice;
+        TextView txtTitle, txtDate, txtPrice, txtStatus; // Thêm txtStatus nếu có
 
         ViewHolder(View itemView) {
             super(itemView);
             txtTitle = itemView.findViewById(R.id.txtTitle);
             txtDate = itemView.findViewById(R.id.txtDate);
             txtPrice = itemView.findViewById(R.id.txtPrice);
+            // txtStatus = itemView.findViewById(R.id.tvStatus); // Nếu bạn dùng tvStatus
         }
     }
 }
