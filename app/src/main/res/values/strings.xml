@@ -71,5 +71,6 @@
     <string name="no_data">Không có dữ liệu</string>
     <string name="pay_button">Thanh toán</string>
     <string name="manage_finance">Quản lý các khoản thu</string>
+    <string name="maintenance">Bảo trì hệ thống</string>
 
 </resources>

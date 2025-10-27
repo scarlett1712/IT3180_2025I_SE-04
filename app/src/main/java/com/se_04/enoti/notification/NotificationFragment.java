@@ -61,7 +61,7 @@ public class NotificationFragment extends Fragment {
     private final BroadcastReceiver newNotificationReceiver = new BroadcastReceiver() {
         @Override
         public void onReceive(Context context, Intent intent) {
-            Log.d(TAG, "📩 New notification broadcast received. Reloading list...");
+            Log.d(TAG, "New notification broadcast received. Reloading list...");
             loadNotificationsFromCurrentUser();
         }
     };

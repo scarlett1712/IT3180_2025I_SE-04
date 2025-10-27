@@ -6,7 +6,7 @@ const router = express.Router();
 // 🧩 Helper query
 const query = (text, params) => pool.query(text, params);
 
-// 🧱 Tạo bảng nếu chưa có
+// 🧱 Tạo bảng và chỉ mục nếu chưa có
 export const createFinanceTables = async () => {
   try {
     await query(`
@@ -32,9 +32,15 @@ export const createFinanceTables = async () => {
       );
     `);
 
-    console.log("✅ Finance tables verified or created successfully.");
+    // Tối ưu hiệu suất truy vấn với Indexes
+    await query(`CREATE INDEX IF NOT EXISTS idx_finances_created_by ON finances(created_by);`);
+    await query(`CREATE INDEX IF NOT EXISTS idx_user_finances_finance_id ON user_finances(finance_id);`);
+    await query(`CREATE INDEX IF NOT EXISTS idx_user_finances_user_id ON user_finances(user_id);`);
+
+
+    console.log("✅ Finance tables and indexes verified or created successfully.");
   } catch (err) {
-    console.error("💥 Error creating finance tables:", err);
+    console.error("💥 Error creating finance tables or indexes:", err);
   }
 };
 
@@ -152,19 +158,28 @@ router.post("/create", async (req, res) => {
   }
 });
 
-// 🧾 [ADMIN] Lấy các khoản thu do admin tạo
+// 🧾 [ADMIN] Lấy các khoản thu do admin tạo (mỗi bill chỉ hiển thị 1 lần)
 router.get("/admin/:adminId", async (req, res) => {
   const { adminId } = req.params;
 
   try {
     const result = await query(
       `
-      SELECT id, title, content, amount, type,
-             TO_CHAR(due_date, 'DD/MM/YYYY') AS due_date,
-             TO_CHAR(created_at, 'DD/MM/YYYY HH24:MI') AS created_at
-      FROM finances
-      WHERE created_by = $1
-      ORDER BY created_at DESC;
+      SELECT
+        f.id,
+        f.title,
+        f.content,
+        f.amount AS price,
+        f.type,
+        TO_CHAR(f.due_date, 'DD/MM/YYYY') AS date,
+        TO_CHAR(f.created_at, 'DD/MM/YYYY HH24:MI') AS created_at,
+        COUNT(uf.user_id) AS total_users,
+        SUM(CASE WHEN uf.status = 'da_thanh_toan' THEN 1 ELSE 0 END) AS paid_users
+      FROM finances f
+      LEFT JOIN user_finances uf ON f.id = uf.finance_id
+      WHERE f.created_by = $1
+      GROUP BY f.id, f.title, f.content, f.amount, f.type, f.due_date, f.created_at
+      ORDER BY f.created_at DESC;
       `,
       [adminId]
     );
@@ -172,7 +187,9 @@ router.get("/admin/:adminId", async (req, res) => {
     res.json(result.rows);
   } catch (err) {
     console.error("💥 Error fetching admin finances:", err);
-    res.status(500).json({ error: "Lỗi server khi lấy các khoản thu do admin tạo." });
+    res.status(500).json({
+      error: "Lỗi server khi lấy các khoản thu do admin tạo.",
+    });
   }
 });
 
@@ -181,7 +198,7 @@ router.get("/:financeId/users", async (req, res) => {
   const { financeId } = req.params;
   try {
     const result = await query(
-      `SELECT uf.user_id, a.apartment_number AS room, uf.status
+      `SELECT ui.full_name, uf.user_id, a.apartment_number AS room, uf.status
        FROM user_finances uf
        JOIN user_item ui ON uf.user_id = ui.user_id
        JOIN relationship r ON ui.relationship = r.relationship_id

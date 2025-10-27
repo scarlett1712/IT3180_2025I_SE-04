@@ -20,6 +20,7 @@ import androidx.recyclerview.widget.RecyclerView;
 
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
 import com.se_04.enoti.R;
+import com.se_04.enoti.account.UserItem;
 import com.se_04.enoti.finance.FinanceAdapter;
 import com.se_04.enoti.finance.FinanceItem;
 import com.se_04.enoti.finance.FinanceRepository;
@@ -27,6 +28,7 @@ import com.se_04.enoti.utils.UserManager;
 
 import java.util.ArrayList;
 import java.util.Calendar;
+import java.util.HashSet;
 import java.util.List;
 
 public class ManageFinanceFragment extends Fragment {
@@ -67,18 +69,21 @@ public class ManageFinanceFragment extends Fragment {
         });
 
         // 👋 Chào admin
-        txtWelcome.setText("Xin chào, Quản trị viên");
+
+        UserItem currentUser = UserManager.getInstance(requireContext()).getCurrentUser();
+        String username = (currentUser != null) ? currentUser.getName() : "Admin";
+        txtWelcome.setText("Xin chào " + username + "!");
+
         Calendar calendar = Calendar.getInstance();
         int hour = calendar.get(Calendar.HOUR_OF_DAY);
-        String timeOfDay = (hour >= 5 && hour < 11) ? "sáng"
-                : (hour >= 11 && hour < 14) ? "trưa"
-                : (hour >= 14 && hour < 18) ? "chiều" : "tối";
+        String timeOfDay = (hour >= 5 && hour < 11) ? "sáng" : (hour >= 11 && hour < 14) ? "trưa" : (hour >= 14 && hour < 18) ? "chiều" : "tối";
         txtGreeting.setText(getString(R.string.greeting, timeOfDay));
+
 
         RecyclerView recyclerView = view.findViewById(R.id.recyclerViewManageFinance);
         recyclerView.setLayoutManager(new LinearLayoutManager(requireContext()));
 
-        adapter = new FinanceAdapter(financeList);
+        adapter = new FinanceAdapter(financeList, null);
         recyclerView.setAdapter(adapter);
 
         setupListeners();
@@ -116,7 +121,6 @@ public class ManageFinanceFragment extends Fragment {
         });
     }
 
-    // 📥 Tải danh sách tài chính theo phòng cho admin
     private void loadFinanceByRoom() {
         String adminId = UserManager.getInstance(requireContext()).getID();
 
@@ -125,7 +129,38 @@ public class ManageFinanceFragment extends Fragment {
                     @Override
                     public void onSuccess(List<FinanceItem> finances) {
                         if (isAdded()) {
-                            adapter.updateList(finances);
+                            // 🧹 Lọc trùng theo ID thật sự
+                            List<FinanceItem> uniqueList = new ArrayList<>();
+                            HashSet<Integer> seenIds = new HashSet<>();
+
+                            for (FinanceItem item : finances) {
+                                if (item != null && !seenIds.contains(item.getId())) {
+                                    seenIds.add(item.getId());
+                                    uniqueList.add(item);
+                                }
+                            }
+
+                            // 🔽 Sắp xếp theo hạn (due_date gần nhất -> xa nhất)
+                            uniqueList.sort((f1, f2) -> {
+                                try {
+                                    java.text.SimpleDateFormat sdf = new java.text.SimpleDateFormat("dd/MM/yyyy");
+                                    java.util.Date d1 = (f1.getDate() != null && !f1.getDate().equals("null") && !f1.getDate().isEmpty())
+                                            ? sdf.parse(f1.getDate()) : null;
+                                    java.util.Date d2 = (f2.getDate() != null && !f2.getDate().equals("null") && !f2.getDate().isEmpty())
+                                            ? sdf.parse(f2.getDate()) : null;
+
+                                    if (d1 == null && d2 == null) return 0;
+                                    if (d1 == null) return 1; // Không có hạn -> để sau cùng
+                                    if (d2 == null) return -1;
+                                    return d1.compareTo(d2); // gần nhất trước
+                                } catch (Exception e) {
+                                    return 0;
+                                }
+                            });
+
+                            // 🔄 Cập nhật adapter
+                            adapter.updateList(uniqueList);
+
                             String selectedType = spinnerFilter.getSelectedItem().toString();
                             adapter.filterByType(selectedType);
                         }
@@ -139,6 +174,7 @@ public class ManageFinanceFragment extends Fragment {
                     }
                 });
     }
+
 
     @Override
     public void onResume() {
