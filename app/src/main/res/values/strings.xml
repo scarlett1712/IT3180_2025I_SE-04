@@ -61,9 +61,7 @@
     <string name="admin">Quản trị viên</string>
     <string name="add_resident">Thêm cư dân</string>
     <string name="inputFinanceDetails">Nhập nội dung hóa đơn</string>
-
-    <!-- Strings for FinanceDetailActivity that were missing -->
-    <string name="finance_detail_title">Chi tiết Khoản thu</string>
+    <string name="finance_detail_title">Chi tiết khoản thu</string>
     <string name="deadline_format">Hạn chót: %1$s</string>
     <string name="collector_format">Bên thu: %1$s</string>
     <string name="no_content_detail">Không có nội dung chi tiết.</string>

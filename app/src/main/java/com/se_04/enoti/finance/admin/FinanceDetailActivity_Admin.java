@@ -2,6 +2,7 @@ package com.se_04.enoti.finance.admin;
 
 import android.os.Bundle;
 import android.util.Log;
+import android.view.MenuItem;
 import android.view.View;
 import android.widget.Button;
 import android.widget.CheckBox;
@@ -9,13 +10,16 @@ import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.content.ContextCompat;
 
 import com.android.volley.Request;
 import com.android.volley.RequestQueue;
 import com.android.volley.toolbox.JsonArrayRequest;
 import com.android.volley.toolbox.JsonObjectRequest;
 import com.android.volley.toolbox.Volley;
+import com.google.android.material.appbar.MaterialToolbar;
 import com.se_04.enoti.R;
 import com.se_04.enoti.utils.ApiConfig;
 import com.se_04.enoti.utils.UserManager;
@@ -53,6 +57,15 @@ public class FinanceDetailActivity_Admin extends AppCompatActivity {
         txtFinanceDeadline = findViewById(R.id.txtFinanceDeadline);
         layoutRoomCheckboxes = findViewById(R.id.layoutRoomCheckboxes);
         buttonSaveChanges = findViewById(R.id.buttonSaveChanges);
+
+        MaterialToolbar toolbar = findViewById(R.id.toolbar);
+        // --- Toolbar Setup ---
+        setSupportActionBar(toolbar);
+        if (getSupportActionBar() != null) {
+            getSupportActionBar().setDisplayHomeAsUpEnabled(true);
+            getSupportActionBar().setTitle(R.string.finance_detail_title);
+            toolbar.setTitleTextColor(ContextCompat.getColor(this, android.R.color.white));
+        }
 
         requestQueue = Volley.newRequestQueue(this);
 
@@ -190,5 +203,16 @@ public class FinanceDetailActivity_Admin extends AppCompatActivity {
         };
 
         requestQueue.add(request);
+    }
+
+    @Override
+    public boolean onOptionsItemSelected(@NonNull MenuItem item) {
+        // Kiểm tra xem item được nhấn có phải là nút "home" (mũi tên quay lại) không
+        if (item.getItemId() == android.R.id.home) {
+            // Thực hiện hành động quay lại màn hình trước đó
+            onBackPressed(); // Hoặc finish();
+            return true; // Báo hiệu rằng sự kiện đã được xử lý
+        }
+        return super.onOptionsItemSelected(item);
     }
 }

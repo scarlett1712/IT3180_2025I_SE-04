@@ -8,6 +8,7 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.content.ContextCompat;
 
 import com.google.android.material.appbar.MaterialToolbar;
 import com.se_04.enoti.R;
@@ -35,6 +36,7 @@ public class FeedbackDetailActivity extends AppCompatActivity {
         if (getSupportActionBar() != null) {
             getSupportActionBar().setDisplayHomeAsUpEnabled(true);
             getSupportActionBar().setTitle("Chi tiết phản hồi");
+            toolbar.setTitleTextColor(ContextCompat.getColor(this, android.R.color.white));
         }
 
         // Lấy FeedbackItem từ Intent

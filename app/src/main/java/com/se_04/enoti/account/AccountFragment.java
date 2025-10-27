@@ -159,7 +159,7 @@ public class AccountFragment extends Fragment {
         txtApartment.setText("Căn hộ: " + user.getRoom());
         email.setText("Email: " + user.getEmail());
         phoneNumber.setText("Số điện thoại: " + user.getPhone());
-        relationship.setText("Quan hệ trong hộ: " + user.getRelationship());
+        relationship.setText("Quan hệ với chủ hộ: " + user.getRelationship());
         startDate.setText("Ngày sinh: " + user.getDob());
 
         // 🔹 TẠM THỜI CHỈ LOAD TỪ LOCAL ĐỂ TEST - COMMENT SERVER LOAD
