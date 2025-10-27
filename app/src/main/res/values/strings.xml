@@ -26,7 +26,6 @@
     <string name="your_name_text">Tên của bạn</string>
     <string name="family_id_text">Mã hộ gia đình (không bắt buộc)</string>"
     <string name="notification_sender">Người gửi: %1$s</string>
-    <string name="bill">Hóa đơn</string>
     <string name="finance">Tài chính</string>
     <string name="sign_out">Đăng xuất</string>
     <string name="welcome">Xin chào %1$s!</string>
@@ -68,7 +67,7 @@
     <string name="contribution_text">Tùy theo đóng góp</string>
     <string name="no_data">Không có dữ liệu</string>
     <string name="pay_button">Thanh toán</string>
-    <string name="manage_finance">Quản lý các khoản thu</string>
+    <string name="manage_finance">Quản lý tài chính</string>
     <string name="maintenance">Bảo trì hệ thống</string>
     <string name="room_paid_list">Danh sách phòng đã thanh toán:</string>
     <string name="deadline">Hạn nộp:</string>

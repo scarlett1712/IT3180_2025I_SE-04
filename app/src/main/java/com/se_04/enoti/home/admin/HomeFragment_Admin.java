@@ -15,8 +15,10 @@ import androidx.fragment.app.Fragment;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
+import com.google.android.material.snackbar.Snackbar;
 import com.se_04.enoti.account.UserItem;
 import com.se_04.enoti.finance.admin.CreateFinanceActivity;
+import com.se_04.enoti.home.user.MainActivity_User;
 import com.se_04.enoti.notification.NotificationAdapter;
 import com.se_04.enoti.notification.NotificationItem;
 import com.se_04.enoti.utils.UserManager;
@@ -66,6 +68,42 @@ public class HomeFragment_Admin extends Fragment {
             startActivity(intent);
         });
 
+        setupQuickNav(view);
+
         return view;
+    }
+
+    private void setupQuickNav(View view) {
+        view.findViewById(R.id.layoutManageResident).setOnClickListener(v -> {
+            if (getActivity() instanceof MainActivity_Admin) {
+                ((MainActivity_Admin) getActivity()).switchToManageResidentsTab();
+            }
+        });
+        view.findViewById(R.id.layoutManageNotification).setOnClickListener(v -> {
+            if (getActivity() instanceof MainActivity_Admin) {
+                ((MainActivity_Admin) getActivity()).switchToManageNotificationsTab();
+            }
+        });
+        view.findViewById(R.id.layoutBill).setOnClickListener(v -> {
+            if (getActivity() instanceof MainActivity_Admin) {
+                ((MainActivity_Admin) getActivity()).switchToManageFinanceTab();
+            }
+        });
+
+        view.findViewById(R.id.layoutMaintenance).setOnClickListener(v ->
+                Snackbar.make(v, "Chức năng sẽ được cập nhật trong thời gian tới.", Snackbar.LENGTH_LONG).show()
+        );
+
+        view.findViewById(R.id.layoutSettings).setOnClickListener(v ->
+                Snackbar.make(v, "Chức năng sẽ được cập nhật trong thời gian tới.", Snackbar.LENGTH_LONG).show()
+        );
+
+        view.findViewById(R.id.layoutSupport).setOnClickListener(v ->
+                Snackbar.make(v, "Chức năng sẽ được cập nhật trong thời gian tới.", Snackbar.LENGTH_LONG).show()
+        );
+
+
+
+
     }
 }

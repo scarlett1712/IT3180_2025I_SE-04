@@ -179,4 +179,9 @@ public class MainActivity_Admin extends AppCompatActivity {
         BottomNavigationView bottomNav = findViewById(R.id.bottom_navigation);
         bottomNav.setSelectedItemId(R.id.nav_manage_noti);
     }
+
+    public void switchToManageFinanceTab() {
+        BottomNavigationView bottomNav = findViewById(R.id.bottom_navigation);
+        bottomNav.setSelectedItemId(R.id.nav_manage_finance);
+    }
 }

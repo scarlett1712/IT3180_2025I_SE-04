@@ -25,6 +25,7 @@ import androidx.recyclerview.widget.PagerSnapHelper;
 import androidx.recyclerview.widget.RecyclerView;
 import androidx.recyclerview.widget.SnapHelper;
 
+import com.google.android.material.snackbar.Snackbar;
 import com.se_04.enoti.R;
 import com.se_04.enoti.account.UserItem;
 import com.se_04.enoti.notification.MyFirebaseMessagingService;
@@ -218,6 +219,13 @@ public class HomeFragment_User extends Fragment {
                 ((MainActivity_User) getActivity()).switchToFeedbackTab();
             }
         });
+        view.findViewById(R.id.layoutSettings).setOnClickListener(v ->
+                Snackbar.make(v, "Chức năng sẽ được cập nhật trong thời gian tới.", Snackbar.LENGTH_LONG).show()
+        );
+
+        view.findViewById(R.id.layoutSupport).setOnClickListener(v ->
+                Snackbar.make(v, "Chức năng sẽ được cập nhật trong thời gian tới.", Snackbar.LENGTH_LONG).show()
+        );
     }
 
     @Override

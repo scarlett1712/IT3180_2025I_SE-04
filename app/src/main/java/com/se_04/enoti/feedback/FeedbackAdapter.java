@@ -75,17 +75,26 @@ public class FeedbackAdapter extends RecyclerView.Adapter<FeedbackAdapter.ViewHo
 
         // --- Hiển thị màu trạng thái ---
         int colorResId;
-        switch (item.getStatus().toLowerCase()) {
-            case "read":
-                colorResId = R.color.status_read;
-                break;
-            case "resolved":
-            case "done":
-                colorResId = R.color.status_replied;
-                break;
-            default:
-                colorResId = R.color.status_sent;
-                break;
+        if (item.getStatus() == null) {
+            colorResId = R.color.status_default; // fallback
+        } else {
+            switch (item.getStatus().toLowerCase()) {
+                case "pending":
+                    colorResId = R.color.status_default;
+                    break;
+                case "sent":
+                    colorResId = R.color.status_sent;
+                    break;
+                case "read":
+                    colorResId = R.color.status_read;
+                    break;
+                case "replied":
+                    colorResId = R.color.status_replied;
+                    break;
+                default:
+                    colorResId = R.color.status_default;
+                    break;
+            }
         }
 
         holder.statusIndicator.getBackground().setTint(
@@ -95,7 +104,6 @@ public class FeedbackAdapter extends RecyclerView.Adapter<FeedbackAdapter.ViewHo
         // --- Click item ---
         holder.itemView.setOnClickListener(v -> {
             FeedbackItem clicked = feedbackList.get(holder.getBindingAdapterPosition());
-
             if (listener != null) {
                 listener.onItemClick(clicked);
             } else {
