@@ -14,12 +14,12 @@ export const createFeedback = async (req, res) => {
          content,
          file_url,
          status,
-         TO_CHAR(created_at, 'DD-MM-YYYY') AS created_at`,
+         TO_CHAR(created_at, 'DD-MM-YYYY HH24:MI') AS created_at`,
       [notification_id, user_id, content, file_url]
     );
     res.status(201).json(result.rows[0]);
   } catch (err) {
-    console.error(err);
+    console.error("💥 Error creating feedback:", err);
     res.status(500).json({ message: "Error creating feedback" });
   }
 };
@@ -35,17 +35,17 @@ export const getAllFeedback = async (req, res) => {
         f.content,
         f.file_url,
         f.status,
-        TO_CHAR(f.created_at, 'DD-MM-YYYY') AS created_at,
-        u.full_name AS user_name,
+        TO_CHAR(f.created_at, 'DD-MM-YYYY HH24:MI') AS created_at,
+        ui.full_name AS user_name,
         n.title AS notification_title
       FROM feedback f
-      JOIN user_item u ON f.user_id = u.user_id
+      JOIN user_item ui ON f.user_id = ui.user_id
       JOIN notification n ON f.notification_id = n.notification_id
       ORDER BY f.created_at DESC
     `);
     res.json(result.rows);
   } catch (err) {
-    console.error(err);
+    console.error("💥 Error fetching all feedback:", err);
     res.status(500).json({ message: "Error fetching feedbacks" });
   }
 };
@@ -63,7 +63,7 @@ export const getFeedbackByUser = async (req, res) => {
         f.content,
         f.file_url,
         f.status,
-        TO_CHAR(f.created_at, 'DD-MM-YYYY') AS created_at,
+        TO_CHAR(f.created_at, 'DD-MM-YYYY HH24:MI') AS created_at,
         n.title AS notification_title
       FROM feedback f
       JOIN notification n ON f.notification_id = n.notification_id
@@ -74,12 +74,12 @@ export const getFeedbackByUser = async (req, res) => {
     );
     res.json(result.rows);
   } catch (err) {
-    console.error(err);
+    console.error("💥 Error fetching user's feedback:", err);
     res.status(500).json({ message: "Error fetching user's feedback" });
   }
 };
 
-// 🟠 Admin đánh dấu đã đọc
+// 🟠 Admin đánh dấu feedback đã đọc
 export const markAsRead = async (req, res) => {
   const { feedback_id } = req.params;
   try {
@@ -94,7 +94,7 @@ export const markAsRead = async (req, res) => {
          content,
          file_url,
          status,
-         TO_CHAR(created_at, 'DD-MM-YYYY') AS created_at`,
+         TO_CHAR(created_at, 'DD-MM-YYYY HH24:MI') AS created_at`,
       [feedback_id]
     );
 
@@ -103,7 +103,36 @@ export const markAsRead = async (req, res) => {
 
     res.json(result.rows[0]);
   } catch (err) {
-    console.error(err);
+    console.error("💥 Error updating feedback status:", err);
     res.status(500).json({ message: "Error updating status" });
+  }
+};
+
+// 🟣 Admin lấy danh sách feedback theo notification_id
+export const getFeedbackByNotification = async (req, res) => {
+  const { notification_id } = req.params;
+  try {
+    const result = await pool.query(
+      `
+      SELECT
+        f.feedback_id,
+        f.notification_id,
+        f.user_id,
+        f.content,
+        f.file_url,
+        f.status,
+        TO_CHAR(f.created_at, 'DD-MM-YYYY HH24:MI') AS created_at,
+        ui.full_name
+      FROM feedback f
+      LEFT JOIN user_item ui ON f.user_id = ui.user_id
+      WHERE f.notification_id = $1
+      ORDER BY f.created_at DESC
+      `,
+      [notification_id]
+    );
+    res.json(result.rows);
+  } catch (err) {
+    console.error("💥 Error fetching feedback by notification:", err);
+    res.status(500).json({ message: "Lỗi server khi lấy danh sách phản hồi" });
   }
 };
