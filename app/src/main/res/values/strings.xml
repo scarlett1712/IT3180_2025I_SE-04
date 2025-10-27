@@ -60,5 +60,18 @@
     </string-array>
     <string name="admin">Quản trị viên</string>
     <string name="add_resident">Thêm cư dân</string>
-
+    <string name="inputFinanceDetails">Nhập nội dung hóa đơn</string>
+    <string name="finance_detail_title">Chi tiết khoản thu</string>
+    <string name="deadline_format">Hạn chót: %1$s</string>
+    <string name="collector_format">Bên thu: %1$s</string>
+    <string name="no_content_detail">Không có nội dung chi tiết.</string>
+    <string name="contribution_text">Tùy theo đóng góp</string>
+    <string name="no_data">Không có dữ liệu</string>
+    <string name="pay_button">Thanh toán</string>
+    <string name="manage_finance">Quản lý các khoản thu</string>
+    <string name="maintenance">Bảo trì hệ thống</string>
+    <string name="room_paid_list">Danh sách phòng đã thanh toán:</string>
+    <string name="deadline">Hạn nộp:</string>
+    <string name="invoice_name">Tên khoản thu</string>
+    <string name="save_changes">Lưu thay đổi</string>
 </resources>

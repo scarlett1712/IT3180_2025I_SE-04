@@ -3,9 +3,6 @@ import cors from "cors";
 import dotenv from "dotenv";
 import admin from "firebase-admin";
 
-// Import the new finance functions and routes from db.js
-import financeRoutes, { createFinanceTables } from "./db.js";
-
 dotenv.config();
 
 const app = express();
@@ -67,7 +64,6 @@ app.use((req, res, next) => {
 // Import your existing routes
 import userRoutes from "./routes/users.js";
 import userItemRoutes from "./routes/user_item.js";
-import feedbackRoutes from "./routes/feedback.js";
 import replyRoutes from "./routes/reply.js";
 import residentRoutes from "./routes/resident.js";
 import avatarRoutes from "./routes/avatar.js";
@@ -75,6 +71,9 @@ import notificationRoutes from "./routes/notification.js";
 import createNotificationRoutes from "./routes/create_notification.js";
 import changePasswordRoutes from "./routes/change_password.js";
 import createUserRoutes from "./routes/create_user.js";
+import feedbackRoutes from "./routes/feedback.js";
+import feedbackReplyRoutes from "./routes/feedbackReply.js";
+import financeRoutes, { createFinanceTables } from "./routes/finance.js";
 
 // Use your existing routes
 app.use("/api/users", userRoutes);
@@ -87,9 +86,11 @@ app.use("/api/notification", notificationRoutes);
 app.use("/api/create_notification", createNotificationRoutes);
 app.use("/api/changepassword", changePasswordRoutes);
 app.use("/api/create_user", createUserRoutes);
+app.use("/api/feedback", feedbackRoutes);
+app.use("/api/feedback", feedbackReplyRoutes);
 
 // [NEW] Use the finance routes
-app.use(financeRoutes);
+app.use("/api/finance", financeRoutes);
 
 // Health check
 app.get("/", (req, res) => {
@@ -115,7 +116,4 @@ app.listen(PORT, () => {
   console.log(`🚀 Server started on port ${PORT}`);
   console.log(`📍 Health check: http://localhost:${PORT}/`);
   console.log(`📍 Debug endpoint: http://localhost:${PORT}/api/debug`);
-  
-  // [NEW] Initialize the finance tables on server start
-  createFinanceTables();
 });

@@ -16,9 +16,9 @@
         android:title="@string/manage_notification" />
 
     <item
-        android:id="@+id/nav_feedback"
-        android:icon="@drawable/ic_feedback_light"
-        android:title="@string/feedback_reply" />
+        android:id="@+id/nav_manage_finance"
+        android:icon="@drawable/ic_bill"
+        android:title="@string/manage_finance" />
 
     <item
         android:id="@+id/nav_account"

@@ -15,12 +15,20 @@ import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.content.ContextCompat;
 
+import com.android.volley.Request;
+import com.android.volley.RequestQueue;
+import com.android.volley.toolbox.JsonObjectRequest;
+import com.android.volley.toolbox.Volley;
 import com.google.android.material.appbar.MaterialToolbar;
 import com.google.android.material.bottomsheet.BottomSheetDialog;
 import com.google.android.material.button.MaterialButton;
 import com.google.android.material.textfield.TextInputEditText;
 import com.se_04.enoti.R;
+import com.se_04.enoti.utils.ApiConfig;
+
+import org.json.JSONObject;
 
 import java.io.IOException;
 
@@ -53,6 +61,7 @@ public class FeedbackActivity extends AppCompatActivity {
         if (getSupportActionBar() != null) {
             getSupportActionBar().setDisplayHomeAsUpEnabled(true);
             getSupportActionBar().setTitle("Phản hồi");
+            toolbar.setTitleTextColor(ContextCompat.getColor(this, android.R.color.white));
             toolbar.setNavigationOnClickListener(v -> onBackPressed());
         }
 
@@ -69,7 +78,6 @@ public class FeedbackActivity extends AppCompatActivity {
         // Xử lý nút Đính kèm
         btnAttach.setOnClickListener(v -> showAttachmentOptions());
 
-        // Xử lý nút Gửi phản hồi
         btnSend.setOnClickListener(v -> {
             String content = edtContent.getText() != null ? edtContent.getText().toString().trim() : "";
             if (content.isEmpty()) {
@@ -77,16 +85,49 @@ public class FeedbackActivity extends AppCompatActivity {
                 return;
             }
 
-            String message = "Phản hồi đã được gửi";
-            if (position != -1) message += " cho thông báo #" + position;
-            if (attachedFileUri != null) message += " (kèm tệp)";
-            Toast.makeText(this, message, Toast.LENGTH_LONG).show();
+            long notificationId = getIntent().getLongExtra("notification_id", -1);
+            long userId = getIntent().getLongExtra("user_id", -1);
 
-            edtContent.setText("");
-            imgPreview.setVisibility(View.GONE);
-            attachedFileUri = null;
-            finish();
+            if (notificationId == -1 || userId == -1) {
+                Toast.makeText(this, "Thiếu dữ liệu phản hồi", Toast.LENGTH_SHORT).show();
+                return;
+            }
+
+            // 🔹 Nếu có file, lấy URL tạm hoặc null
+            String fileUrl = attachedFileUri != null ? attachedFileUri.toString() : null;
+
+            // 🔹 Tạo JSON body
+            JSONObject body = new JSONObject();
+            try {
+                body.put("notification_id", notificationId);
+                body.put("user_id", userId);
+                body.put("content", content);
+                body.put("file_url", fileUrl);
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+
+            // 🔹 Gửi request POST
+            String apiUrl = ApiConfig.BASE_URL + "/api/feedback"; // ⚠️ thay bằng URL thật, ví dụ: https://enoti-server.onrender.com/api/feedback
+
+            RequestQueue queue = Volley.newRequestQueue(this);
+            JsonObjectRequest request = new JsonObjectRequest(
+                    Request.Method.POST,
+                    apiUrl,
+                    body,
+                    response -> {
+                        Toast.makeText(this, "Gửi phản hồi thành công", Toast.LENGTH_SHORT).show();
+                        finish();
+                    },
+                    error -> {
+                        error.printStackTrace();
+                        Toast.makeText(this, "Lỗi khi gửi phản hồi", Toast.LENGTH_SHORT).show();
+                    }
+            );
+
+            queue.add(request);
         });
+
     }
 
     private void setupFilePickers() {

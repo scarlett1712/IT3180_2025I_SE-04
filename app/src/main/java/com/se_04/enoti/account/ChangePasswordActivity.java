@@ -8,6 +8,7 @@ import android.widget.EditText;
 import android.widget.Toast;
 
 import com.se_04.enoti.R;
+import com.se_04.enoti.utils.ApiConfig;
 import com.se_04.enoti.utils.UserManager;
 
 import org.json.JSONObject;
@@ -25,7 +26,7 @@ public class ChangePasswordActivity extends AppCompatActivity {
     private Button buttonChangePassword;
 
     // ⚙️ URL backend API
-    private static final String API_URL = "http://10.0.2.2:5000/api/changepassword";
+    private static final String API_URL = ApiConfig.BASE_URL + "/api/changepassword";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {

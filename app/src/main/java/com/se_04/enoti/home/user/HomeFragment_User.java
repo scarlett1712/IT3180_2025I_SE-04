@@ -5,6 +5,8 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -39,6 +41,7 @@ public class HomeFragment_User extends Fragment {
 
     private static final String TAG = "HomeFragment_User";
     private static final int MAX_HIGHLIGHTED_NOTIFICATIONS = 6;
+    private static final int REFRESH_INTERVAL = 3000; // 3 giây
 
     private NotificationAdapter adapter;
     private RecyclerView recyclerView;
@@ -46,11 +49,22 @@ public class HomeFragment_User extends Fragment {
     private LinearLayoutManager layoutManager;
     private SnapHelper snapHelper;
 
-    // BroadcastReceiver to listen for new notifications
+    private final Handler handler = new Handler(Looper.getMainLooper());
+    private final Runnable refreshRunnable = new Runnable() {
+        @Override
+        public void run() {
+            if (isAdded()) {
+                loadHighlightedNotifications();
+                handler.postDelayed(this, REFRESH_INTERVAL);
+            }
+        }
+    };
+
+    // Nhận broadcast từ Firebase khi có thông báo mới
     private final BroadcastReceiver newNotificationReceiver = new BroadcastReceiver() {
         @Override
         public void onReceive(Context context, Intent intent) {
-            Log.d(TAG, "New notification broadcast received. Reloading notifications...");
+            Log.d(TAG, "📩 New notification broadcast received. Reloading notifications...");
             loadHighlightedNotifications();
         }
     };
@@ -70,38 +84,41 @@ public class HomeFragment_User extends Fragment {
     @Override
     public void onStart() {
         super.onStart();
-        // Register the broadcast receiver
+        // Đăng ký nhận broadcast khi có thông báo mới
         LocalBroadcastManager.getInstance(requireContext()).registerReceiver(
-            newNotificationReceiver,
-            new IntentFilter(MyFirebaseMessagingService.ACTION_NEW_NOTIFICATION)
+                newNotificationReceiver,
+                new IntentFilter(MyFirebaseMessagingService.ACTION_NEW_NOTIFICATION)
         );
     }
 
     @Override
     public void onStop() {
         super.onStop();
-        // Unregister the broadcast receiver to prevent memory leaks
+        // Ngừng nhận broadcast để tránh rò rỉ bộ nhớ
         LocalBroadcastManager.getInstance(requireContext()).unregisterReceiver(newNotificationReceiver);
+        handler.removeCallbacks(refreshRunnable); // Ngừng cập nhật khi fragment bị ẩn
     }
 
     private void setupWelcomeViews(View view) {
-        // ... (existing code)
         TextView txtWelcome = view.findViewById(R.id.txtWelcome);
         TextView txtGreeting = view.findViewById(R.id.txtGreeting);
 
         UserItem currentUser = UserManager.getInstance(requireContext()).getCurrentUser();
-        String username = (currentUser != null && currentUser.getName() != null) ? currentUser.getName() : "Gia đình City";
+        String username = (currentUser != null && currentUser.getName() != null)
+                ? currentUser.getName()
+                : "Gia đình City";
 
         txtWelcome.setText(getString(R.string.welcome, username));
 
         Calendar calendar = Calendar.getInstance();
         int hour = calendar.get(Calendar.HOUR_OF_DAY);
-        String timeOfDay = (hour >= 5 && hour < 11) ? "sáng" : (hour >= 11 && hour < 14) ? "trưa" : (hour >= 14 && hour < 18) ? "chiều" : "tối";
+        String timeOfDay = (hour >= 5 && hour < 11) ? "sáng" :
+                (hour >= 11 && hour < 14) ? "trưa" :
+                        (hour >= 14 && hour < 18) ? "chiều" : "tối";
         txtGreeting.setText(getString(R.string.greeting, timeOfDay));
     }
 
     private void setupRecyclerView(View view) {
-        // ... (existing code)
         recyclerView = view.findViewById(R.id.recyclerHighlightedNotifications);
         indicatorLayout = view.findViewById(R.id.indicatorLayout);
         layoutManager = new LinearLayoutManager(requireContext(), LinearLayoutManager.HORIZONTAL, false);
@@ -115,10 +132,9 @@ public class HomeFragment_User extends Fragment {
     }
 
     private void loadHighlightedNotifications() {
-        // ... (existing code)
         UserItem currentUser = UserManager.getInstance(requireContext()).getCurrentUser();
         if (currentUser == null || currentUser.getId() == null) {
-            Log.e(TAG, "Cannot load notifications: user or user ID is null.");
+            Log.e(TAG, "❌ Cannot load notifications: user or user ID is null.");
             return;
         }
 
@@ -126,7 +142,7 @@ public class HomeFragment_User extends Fragment {
         try {
             userId = Long.parseLong(currentUser.getId());
         } catch (NumberFormatException e) {
-            Log.e(TAG, "Could not parse user ID to long: " + currentUser.getId(), e);
+            Log.e(TAG, "❌ Could not parse user ID: " + currentUser.getId(), e);
             return;
         }
 
@@ -144,7 +160,7 @@ public class HomeFragment_User extends Fragment {
             @Override
             public void onError(String message) {
                 if (isAdded()) {
-                    Log.e(TAG, "Failed to fetch notifications: " + message);
+                    Log.e(TAG, "⚠️ Failed to fetch notifications: " + message);
                     Toast.makeText(getContext(), "Lỗi tải thông báo: " + message, Toast.LENGTH_SHORT).show();
                 }
             }
@@ -152,17 +168,18 @@ public class HomeFragment_User extends Fragment {
     }
 
     private void setupIndicator(int itemCount) {
-        // ... (existing code)
         indicatorLayout.removeAllViews();
         if (itemCount <= 1) return;
 
         ImageView[] dots = new ImageView[itemCount];
-
         for (int i = 0; i < itemCount; i++) {
             dots[i] = new ImageView(requireContext());
             dots[i].setImageResource(i == 0 ? R.drawable.indicator_active : R.drawable.indicator_inactive);
 
-            LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+            LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.WRAP_CONTENT,
+                    ViewGroup.LayoutParams.WRAP_CONTENT
+            );
             params.setMargins(8, 0, 8, 0);
             indicatorLayout.addView(dots[i], params);
         }
@@ -176,10 +193,8 @@ public class HomeFragment_User extends Fragment {
                     View centerView = snapHelper.findSnapView(layoutManager);
                     if (centerView != null) {
                         int pos = layoutManager.getPosition(centerView);
-                        if (pos >= 0 && pos < itemCount) { 
-                            for (int i = 0; i < itemCount; i++) {
-                                dots[i].setImageResource(i == pos ? R.drawable.indicator_active : R.drawable.indicator_inactive);
-                            }
+                        for (int i = 0; i < itemCount; i++) {
+                            dots[i].setImageResource(i == pos ? R.drawable.indicator_active : R.drawable.indicator_inactive);
                         }
                     }
                 }
@@ -188,7 +203,6 @@ public class HomeFragment_User extends Fragment {
     }
 
     private void setupQuickNav(View view) {
-        // ... (existing code)
         view.findViewById(R.id.layoutNotification).setOnClickListener(v -> {
             if (getActivity() instanceof MainActivity_User) {
                 ((MainActivity_User) getActivity()).switchToNotificationsTab();
@@ -209,7 +223,8 @@ public class HomeFragment_User extends Fragment {
     @Override
     public void onResume() {
         super.onResume();
-        // Load or refresh notifications when the fragment becomes visible
+        Log.d(TAG, "▶️ HomeFragment_User resumed — starting auto-refresh every 3s");
         loadHighlightedNotifications();
+        handler.postDelayed(refreshRunnable, REFRESH_INTERVAL); // Bắt đầu lặp 3s/lần
     }
 }

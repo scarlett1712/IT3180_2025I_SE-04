@@ -76,4 +76,8 @@ public class UserManager {
     public boolean isLoggedIn() {
         return sharedPreferences.getBoolean("isLoggedIn", false);
     }
+
+    public String getID(){ return sharedPreferences.getString("id", "");}
+
+    public boolean isAdmin(){ return sharedPreferences.getString("role", "").equals("ADMIN");}
 }

@@ -1,20 +1,33 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<androidx.coordinatorlayout.widget.CoordinatorLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:orientation="vertical">
+    android:background="@color/white">
 
-    <androidx.appcompat.widget.Toolbar
-        android:id="@+id/toolbar"
+    <!-- Thanh tiêu đề -->
+    <com.google.android.material.appbar.AppBarLayout
         android:layout_width="match_parent"
-        android:layout_height="?attr/actionBarSize"
+        android:layout_height="wrap_content"
         android:background="?attr/colorPrimary"
-        app:titleTextColor="@android:color/white" />
+        android:fitsSystemWindows="true">
 
+        <com.google.android.material.appbar.MaterialToolbar
+            android:id="@+id/toolbar"
+            android:layout_width="match_parent"
+            android:layout_height="?attr/actionBarSize"
+            android:background="?attr/colorPrimary"
+            app:title="Tạo khoản thu mới"
+            app:titleTextColor="@android:color/white" />
+    </com.google.android.material.appbar.AppBarLayout>
+
+    <!-- Nội dung chính cuộn được -->
     <ScrollView
         android:layout_width="match_parent"
-        android:layout_height="match_parent">
+        android:layout_height="match_parent"
+        android:layout_marginBottom="90dp"
+        android:fillViewport="true"
+        app:layout_behavior="@string/appbar_scrolling_view_behavior">
 
         <LinearLayout
             android:layout_width="match_parent"
@@ -22,36 +35,38 @@
             android:orientation="vertical"
             android:padding="16dp">
 
+            <!-- Tiêu đề khoản thu -->
             <com.google.android.material.textfield.TextInputLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:hint="Tiêu đề khoản thu">
-
+                android:hint="Tiêu đề khoản thu (*)">
                 <com.google.android.material.textfield.TextInputEditText
                     android:id="@+id/edtFinanceTitle"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content" />
             </com.google.android.material.textfield.TextInputLayout>
 
+            <!-- Nội dung -->
             <com.google.android.material.textfield.TextInputLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="8dp"
                 android:hint="Nội dung (tùy chọn)">
-
                 <com.google.android.material.textfield.TextInputEditText
                     android:id="@+id/edtFinanceContent"
                     android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:minLines="3" />
+                    android:layout_height="150dp"
+                    android:gravity="top|start"
+                    android:inputType="textMultiLine"
+                    android:padding="8dp" />
             </com.google.android.material.textfield.TextInputLayout>
 
+            <!-- Số tiền -->
             <com.google.android.material.textfield.TextInputLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="8dp"
-                android:hint="Số tiền (VND)">
-
+                android:hint="Số tiền (VND) (*)">
                 <com.google.android.material.textfield.TextInputEditText
                     android:id="@+id/edtAmount"
                     android:layout_width="match_parent"
@@ -59,46 +74,110 @@
                     android:inputType="numberDecimal" />
             </com.google.android.material.textfield.TextInputLayout>
 
-            <Spinner
-                android:id="@+id/spinnerFinanceType"
-                android:layout_width="match_parent"
-                android:layout_height="48dp"
-                android:layout_marginTop="8dp" />
-
-            <com.google.android.material.textfield.TextInputLayout
+            <!-- Loại khoản thu + Hạn chót -->
+            <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="8dp"
-                android:hint="Hạn chót">
+                android:orientation="horizontal"
+                android:weightSum="2">
 
-                <com.google.android.material.textfield.TextInputEditText
-                    android:id="@+id/edtDueDate"
-                    android:layout_width="match_parent"
+                <!-- Spinner loại khoản thu -->
+                <LinearLayout
+                    android:layout_width="0dp"
                     android:layout_height="wrap_content"
-                    android:focusable="false" />
-            </com.google.android.material.textfield.TextInputLayout>
+                    android:layout_weight="1"
+                    android:orientation="vertical"
+                    android:layout_marginEnd="8dp">
 
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Loại khoản thu"
+                        android:textStyle="bold"
+                        android:textSize="14sp" />
+
+                    <Spinner
+                        android:id="@+id/spinnerType"
+                        android:layout_width="match_parent"
+                        android:layout_height="48dp"
+                        android:spinnerMode="dropdown"
+                        android:background="@drawable/spinner_background"
+                        android:padding="8dp" />
+                </LinearLayout>
+
+                <!-- Ô hạn chót -->
+                <com.google.android.material.textfield.TextInputLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:hint="Hạn chót (tùy chọn)">
+                    <com.google.android.material.textfield.TextInputEditText
+                        android:id="@+id/edtDueDate"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:focusable="false" />
+                </com.google.android.material.textfield.TextInputLayout>
+
+            </LinearLayout>
+
+            <!-- Chọn tầng -->
             <TextView
-                android:id="@+id/txtSelectedResidents"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="24dp"
+                android:text="Chọn tầng:"
+                android:textStyle="bold"
+                android:textSize="16sp" />
+
+            <Spinner
+                android:id="@+id/spinnerFloor"
+                android:layout_width="match_parent"
+                android:layout_height="48dp"
+                android:layout_marginTop="4dp"
+                android:spinnerMode="dropdown"
+                android:padding="8dp" />
+
+            <!-- Danh sách phòng -->
+            <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="16dp"
-                android:text="Áp dụng cho: Tất cả cư dân" />
+                android:text="Chọn phòng:"
+                android:textStyle="bold"
+                android:textSize="16sp" />
+
+            <TextView
+                android:id="@+id/txtSelectedRooms"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:text="Chưa chọn phòng nào (mặc định: tất cả)"
+                android:textColor="?attr/colorOnBackground" />
 
             <androidx.recyclerview.widget.RecyclerView
-                android:id="@+id/recyclerResidents"
+                android:id="@+id/recyclerRooms"
                 android:layout_width="match_parent"
-                android:layout_height="wrap_content"
+                android:layout_height="300dp"
                 android:layout_marginTop="8dp"
-                android:maxHeight="200dp"/>
-
-            <Button
-                android:id="@+id/btnCreateFee"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="16dp"
-                android:text="Tạo khoản thu" />
+                android:padding="4dp"
+                android:scrollbars="vertical" />
 
         </LinearLayout>
     </ScrollView>
-</LinearLayout>
+
+    <!-- Nút tạo khoản thu cố định (floating) -->
+    <com.google.android.material.floatingactionbutton.ExtendedFloatingActionButton
+        android:id="@+id/btnCreateFee"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Tạo khoản thu"
+        android:layout_gravity="bottom|end"
+        android:layout_margin="16dp"
+        app:layout_anchorGravity="bottom|end"
+        app:icon="@drawable/ic_add"
+        app:iconTint="@android:color/white"
+        android:textColor="@android:color/white"
+        app:backgroundTint="?attr/colorPrimary" />
+
+</androidx.coordinatorlayout.widget.CoordinatorLayout>

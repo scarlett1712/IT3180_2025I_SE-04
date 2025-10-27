@@ -1,8 +1,8 @@
 package com.se_04.enoti.finance;
 
 import android.annotation.SuppressLint;
+import android.content.Context;
 import android.content.Intent;
-import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -12,32 +12,45 @@ import android.widget.TextView;
 
 import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.RecyclerView;
+import androidx.core.content.ContextCompat;
 
 import com.se_04.enoti.R;
+import com.se_04.enoti.finance.admin.FinanceDetailActivity_Admin;
 
-import java.text.Normalizer;
 import java.text.NumberFormat;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
-import java.util.regex.Pattern;
 
 public class FinanceAdapter extends RecyclerView.Adapter<FinanceAdapter.ViewHolder> implements Filterable {
 
-    private List<FinanceItem> financeList; // List being displayed
-    private final List<FinanceItem> financeListFull; // Master list, never modified
+    private List<FinanceItem> financeList;
+    private final List<FinanceItem> financeListFull;
+    // Xóa listener không cần thiết, vì chúng ta sẽ kiểm tra bằng biến isAdmin
+    private final boolean isAdmin;
 
-    // Constructor
+    public interface OnItemClickListener {
+        void onItemClick(FinanceItem item);
+    }
+
+    // --- USER MODE ---
     public FinanceAdapter(List<FinanceItem> financeList) {
         this.financeList = new ArrayList<>(financeList);
         this.financeListFull = new ArrayList<>(financeList);
+        this.isAdmin = false;
+    }
+
+    // --- ADMIN MODE ---
+    public FinanceAdapter(List<FinanceItem> financeList, OnItemClickListener listener) {
+        this.financeList = new ArrayList<>(financeList);
+        this.financeListFull = new ArrayList<>(financeList);
+        this.isAdmin = true;
     }
 
     @NonNull
     @Override
     public ViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
-        View view = LayoutInflater.from(parent.getContext())
-                .inflate(R.layout.item_finance, parent, false);
+        View view = LayoutInflater.from(parent.getContext()).inflate(R.layout.item_finance, parent, false);
         return new ViewHolder(view);
     }
 
@@ -46,34 +59,68 @@ public class FinanceAdapter extends RecyclerView.Adapter<FinanceAdapter.ViewHold
     public void onBindViewHolder(@NonNull ViewHolder holder, int position) {
         FinanceItem item = financeList.get(position);
         holder.txtTitle.setText(item.getTitle());
-        holder.txtDate.setText(item.getDate());
 
-        if (item.getPrice() != null) {
-            String formatted = NumberFormat.getNumberInstance(Locale.getDefault())
-                    .format(item.getPrice()) + " đ";
+        String safeDate = (item.getDate() == null || item.getDate().trim().isEmpty() || item.getDate().equalsIgnoreCase("null"))
+                ? "Không" : item.getDate();
+
+        if (item.getPrice() != null && item.getPrice() > 0) {
+            String formatted = NumberFormat.getNumberInstance(Locale.getDefault()).format(item.getPrice()) + " đ";
             holder.txtPrice.setText(formatted);
         } else {
-            holder.txtPrice.setText("Tùy theo đóng góp");
+            holder.txtPrice.setText(R.string.contribution_text);
         }
 
-        holder.itemView.setAlpha(item.isPaid() ? 0.5f : 1f);
-
-        holder.itemView.setOnClickListener(v -> {
-            int pos = holder.getBindingAdapterPosition();
-            if (pos == RecyclerView.NO_POSITION) {
-                Log.e("FinanceAdapter", "Invalid position clicked");
-                return;
+        if (isAdmin) {
+            // ---- Giao diện cho ADMIN ----
+            if (item.getTotalRooms() > 0) {
+                holder.txtDate.setText(
+                        "Hạn đóng: " + safeDate +
+                                "  •  Đã thu " + item.getPaidRooms() + "/" + item.getTotalRooms() + " phòng"
+                );
+            } else {
+                holder.txtDate.setText("Hạn đóng: " + safeDate);
             }
+            holder.itemView.setAlpha(1.0f);
 
-            FinanceItem clicked = financeList.get(pos);
-            Intent intent = new Intent(v.getContext(), FinanceDetailActivity.class);
-            intent.putExtra("position", pos);
-            intent.putExtra("title", clicked.getTitle());
-            intent.putExtra("date", clicked.getDate());
-            intent.putExtra("type", clicked.getType());
-            intent.putExtra("price", clicked.getPrice());
-            intent.putExtra("sender", clicked.getSender());
-            v.getContext().startActivity(intent);
+        } else {
+            // ---- Giao diện cho USER ----
+            holder.txtDate.setText("Hạn đóng: " + safeDate);
+
+            if ("da_thanh_toan".equalsIgnoreCase(item.getStatus())) {
+                holder.itemView.setAlpha(0.6f);
+            } else {
+                holder.itemView.setAlpha(1.0f);
+            }
+        }
+
+        // 🔥 LOGIC CLICK ĐÃ ĐƯỢC SỬA LẠI HOÀN TOÀN
+        holder.itemView.setOnClickListener(v -> {
+            int currentPosition = holder.getBindingAdapterPosition();
+            if (currentPosition == RecyclerView.NO_POSITION) return;
+            FinanceItem clickedItem = financeList.get(currentPosition);
+            String clickedDate = (clickedItem.getDate() == null || clickedItem.getDate().trim().isEmpty() || clickedItem.getDate().equalsIgnoreCase("null"))
+                    ? "Không" : clickedItem.getDate();
+
+            if (isAdmin) {
+                // ✅ ADMIN CLICK: Mở màn hình FinanceDetailActivity_Admin
+                Intent intent = new Intent(v.getContext(), FinanceDetailActivity_Admin.class);
+                intent.putExtra("finance_id", clickedItem.getId());
+                intent.putExtra("title", clickedItem.getTitle());
+                intent.putExtra("due_date", clickedDate);
+                v.getContext().startActivity(intent);
+
+            } else {
+                // 👤 USER CLICK: Mở màn hình FinanceDetailActivity
+                Intent intent = new Intent(v.getContext(), FinanceDetailActivity.class);
+                intent.putExtra("title", clickedItem.getTitle());
+                intent.putExtra("content", clickedItem.getContent());
+                intent.putExtra("due_date", clickedDate);
+                intent.putExtra("type", clickedItem.getType());
+                intent.putExtra("sender", clickedItem.getSender());
+                long priceValue = (clickedItem.getPrice() != null) ? clickedItem.getPrice() : 0L;
+                intent.putExtra("price", priceValue);
+                v.getContext().startActivity(intent);
+            }
         });
     }
 
@@ -82,7 +129,6 @@ public class FinanceAdapter extends RecyclerView.Adapter<FinanceAdapter.ViewHold
         return financeList.size();
     }
 
-    // This filter is for the SearchView (text search)
     @Override
     public Filter getFilter() {
         return searchFilter;
@@ -91,23 +137,23 @@ public class FinanceAdapter extends RecyclerView.Adapter<FinanceAdapter.ViewHold
     private final Filter searchFilter = new Filter() {
         @Override
         protected FilterResults performFiltering(CharSequence constraint) {
-            List<FinanceItem> filtered = new ArrayList<>();
+            List<FinanceItem> filteredList = new ArrayList<>();
             if (constraint == null || constraint.length() == 0) {
-                filtered.addAll(financeListFull);
+                filteredList.addAll(financeListFull);
             } else {
-                String query = removeAccents(constraint.toString().toLowerCase(Locale.ROOT).trim());
+                String filterPattern = constraint.toString().toLowerCase().trim();
                 for (FinanceItem item : financeListFull) {
-                    String combined = item.getTitle() + " " + item.getSender();
-                    if (removeAccents(combined.toLowerCase(Locale.ROOT)).contains(query)) {
-                        filtered.add(item);
+                    if (item.getTitle().toLowerCase().contains(filterPattern)) {
+                        filteredList.add(item);
                     }
                 }
             }
             FilterResults results = new FilterResults();
-            results.values = filtered;
+            results.values = filteredList;
             return results;
         }
 
+        @SuppressLint("NotifyDataSetChanged")
         @Override
         protected void publishResults(CharSequence constraint, FilterResults results) {
             financeList.clear();
@@ -116,15 +162,22 @@ public class FinanceAdapter extends RecyclerView.Adapter<FinanceAdapter.ViewHold
         }
     };
 
-    // [NEW] Method to filter by type (from Spinner)
+    @SuppressLint("NotifyDataSetChanged")
+    public void updateList(List<FinanceItem> newList) {
+        financeListFull.clear();
+        financeListFull.addAll(newList);
+        financeList.clear();
+        financeList.addAll(newList);
+        notifyDataSetChanged();
+    }
+
     @SuppressLint("NotifyDataSetChanged")
     public void filterByType(String type) {
         List<FinanceItem> filteredList = new ArrayList<>();
-        if (type.equals("Tất cả")) {
+        if ("Tất cả".equalsIgnoreCase(type)) {
             filteredList.addAll(financeListFull);
         } else {
             for (FinanceItem item : financeListFull) {
-                // Use equalsIgnoreCase for robust comparison
                 if (item.getType().equalsIgnoreCase(type)) {
                     filteredList.add(item);
                 }
@@ -135,29 +188,8 @@ public class FinanceAdapter extends RecyclerView.Adapter<FinanceAdapter.ViewHold
         notifyDataSetChanged();
     }
 
-
-    /** Remove Vietnamese accents */
-    private static String removeAccents(String input) {
-        if (input == null) return "";
-        String normalized = Normalizer.normalize(input, Normalizer.Form.NFD);
-        Pattern pattern = Pattern.compile("\\p{InCombiningDiacriticalMarks}+");
-        normalized = pattern.matcher(normalized).replaceAll("");
-        return normalized.replaceAll("đ", "d").replaceAll("Đ", "D");
-    }
-
-    @SuppressLint("NotifyDataSetChanged")
-    public void updateList(List<FinanceItem> newList) {
-        financeListFull.clear();
-        financeListFull.addAll(newList);
-        // Initially, show the full list
-        financeList.clear();
-        financeList.addAll(financeListFull);
-        notifyDataSetChanged();
-    }
-
     static class ViewHolder extends RecyclerView.ViewHolder {
         TextView txtTitle, txtDate, txtPrice;
-
         ViewHolder(View itemView) {
             super(itemView);
             txtTitle = itemView.findViewById(R.id.txtTitle);

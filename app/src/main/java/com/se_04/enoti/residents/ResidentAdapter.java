@@ -54,7 +54,7 @@ public class ResidentAdapter extends RecyclerView.Adapter<ResidentAdapter.ViewHo
         holder.txtResidentName.setText(resident.getName());
         holder.txtResidentInfo.setText(resident.getRoom());
 
-        // 🔥 LOAD ẢNH AVATAR CHO ITEM TRONG LIST
+        // 🔥 LOAD ẢNH AVATAR
         loadResidentAvatar(holder.imgResident, String.valueOf(resident.getUserId()), resident.getGender());
 
         boolean isSelected = selectedResidents.contains(resident);
@@ -71,7 +71,7 @@ public class ResidentAdapter extends RecyclerView.Adapter<ResidentAdapter.ViewHo
                 intent.putExtra("relationship", resident.getRelationship());
                 intent.putExtra("room", resident.getRoom());
                 intent.putExtra("is_living", resident.isLiving());
-                intent.putExtra("user_id", resident.getUserId()); // 🔥 THÊM USER_ID
+                intent.putExtra("user_id", resident.getUserId());
                 v.getContext().startActivity(intent);
             });
         } else if (mode == MODE_SELECT_FOR_NOTIFICATION) {
@@ -92,7 +92,6 @@ public class ResidentAdapter extends RecyclerView.Adapter<ResidentAdapter.ViewHo
                 Bitmap bitmap = BitmapFactory.decodeFile(avatarFile.getAbsolutePath());
                 imageView.setImageBitmap(bitmap);
             } else {
-                // Set ảnh mặc định theo giới tính
                 setDefaultAvatar(imageView, gender);
             }
         } catch (Exception e) {
@@ -124,15 +123,31 @@ public class ResidentAdapter extends RecyclerView.Adapter<ResidentAdapter.ViewHo
         notifyDataSetChanged();
     }
 
+    // ✅ SỬA PHẦN NÀY: HÀM DÙNG BOOL CHO "CHỌN TẤT CẢ" VÀ "BỎ CHỌN"
+    public void selectAllResidents(boolean selectAll) {
+        if (mode == MODE_SELECT_FOR_NOTIFICATION) {
+            selectedResidents.clear();
+            if (selectAll && residentList != null) {
+                selectedResidents.addAll(residentList);
+            }
+            notifyDataSetChanged();
+            if (listener != null) listener.onSelectionChanged(selectedResidents);
+        }
+    }
+
+    public Set<ResidentItem> getSelectedResidents() {
+        return selectedResidents;
+    }
+
     public static class ViewHolder extends RecyclerView.ViewHolder {
         TextView txtResidentName, txtResidentInfo;
-        ImageView imgResident; // 🔥 THÊM IMAGEVIEW
+        ImageView imgResident;
 
         public ViewHolder(@NonNull View itemView) {
             super(itemView);
             txtResidentName = itemView.findViewById(R.id.txtName);
             txtResidentInfo = itemView.findViewById(R.id.txtInfo);
-            imgResident = itemView.findViewById(R.id.imgResident); // 🔥 ÁNH XẠ IMAGEVIEW
+            imgResident = itemView.findViewById(R.id.imgResident);
         }
     }
 }

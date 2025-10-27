@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="100dp"
+    android:orientation="horizontal"
+    android:padding="12dp"
+    android:background="@drawable/bg_box"
+    android:layout_marginBottom="12dp">
+
+    <!-- Icon -->
+    <ImageView
+        android:layout_width="24dp"
+        android:layout_height="17dp"
+        android:layout_marginEnd="12dp"
+        android:src="@drawable/ic_feedback_dark" />
+
+    <!-- Nội dung bên phải icon -->
+    <LinearLayout
+        android:layout_width="0dp"
+        android:layout_height="match_parent"
+        android:orientation="vertical"
+        android:layout_weight="1">
+
+        <!-- Tên hóa đơn -->
+        <TextView
+            android:id="@+id/txtTitle"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="[Tiêu đề phản hồi]"
+            android:textSize="16sp"
+            android:textColor="@android:color/black"
+            android:textStyle="bold"
+            android:layout_marginBottom="6dp"
+            android:ellipsize="end"
+            android:singleLine="true"/>
+
+        <!-- Ngày tháng -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:layout_marginBottom="6dp">
+
+            <TextView
+                android:id="@+id/txtDate"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_weight="9"
+                android:text="[DD/MM/YYYY]"
+                android:textColor="@android:color/darker_gray"
+                android:textSize="16sp" />
+        </LinearLayout>
+
+        <!-- Nội dung thông báo -->
+        <TextView
+            android:id="@+id/txtRepliedNotification"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:ellipsize="end"
+            android:singleLine="true"
+            android:text="[Thông báo phản hồi]"
+            android:textColor="@android:color/black"
+            android:textSize="14sp"/>
+    </LinearLayout>
+</LinearLayout>

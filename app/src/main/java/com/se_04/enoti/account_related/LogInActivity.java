@@ -17,6 +17,7 @@ import com.se_04.enoti.account.Role;
 import com.se_04.enoti.account.UserItem;
 import com.se_04.enoti.home.admin.MainActivity_Admin;
 import com.se_04.enoti.home.user.MainActivity_User;
+import com.se_04.enoti.utils.ApiConfig;
 import com.se_04.enoti.utils.UserManager;
 
 import org.json.JSONObject;
@@ -97,7 +98,7 @@ public class LogInActivity extends AppCompatActivity {
 
         final String finalPhone = phone;
         final String finalPassword = password;
-        final String apiUrl = "http://10.0.2.2:5000/api/users/login";
+        final String apiUrl = ApiConfig.BASE_URL + "/api/users/login";
 
         new Thread(() -> {
             HttpURLConnection conn = null;

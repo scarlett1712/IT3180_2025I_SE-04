@@ -45,7 +45,6 @@ public class SplashActivity extends AppCompatActivity {
                     }
 
                     if (cameraGranted && imageGranted) {
-                        Toast.makeText(this, "Quyền đã được cấp đầy đủ!", Toast.LENGTH_SHORT).show();
                         navigateNext();
                     } else {
                         // Kiểm tra nếu người dùng đã chọn "Không hỏi lại nữa"

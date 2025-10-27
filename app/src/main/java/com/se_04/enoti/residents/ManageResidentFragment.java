@@ -31,6 +31,7 @@ import com.android.volley.toolbox.Volley;
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
 import com.se_04.enoti.R;
 import com.se_04.enoti.account.UserItem;
+import com.se_04.enoti.utils.ApiConfig;
 import com.se_04.enoti.utils.UserManager;
 
 import org.apache.poi.ss.usermodel.Cell;
@@ -69,7 +70,7 @@ public class ManageResidentFragment extends Fragment {
     private static final int REQUEST_WRITE_PERMISSION = 1001;
 
     // ⚙️ API endpoint — thay bằng IP máy chạy Node.js
-    private static final String API_URL = "http://10.0.2.2:5000/api/residents";
+    private static final String API_URL = ApiConfig.BASE_URL + "/api/residents";
 
     @Nullable
     @Override

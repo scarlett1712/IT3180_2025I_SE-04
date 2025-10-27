@@ -1,5 +1,6 @@
 package com.se_04.enoti.notification;
 
+import android.content.Intent;
 import android.os.Bundle;
 import android.util.Log;
 import android.util.TypedValue;
@@ -8,7 +9,9 @@ import android.widget.TextView;
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
 import com.google.android.material.appbar.MaterialToolbar;
+import com.google.android.material.button.MaterialButton;
 import com.se_04.enoti.R;
+import com.se_04.enoti.feedback.FeedbackActivity;
 import com.se_04.enoti.utils.UserManager;
 
 public class NotificationDetailActivity extends AppCompatActivity {
@@ -19,6 +22,8 @@ public class NotificationDetailActivity extends AppCompatActivity {
     protected void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_notification_detail);
+
+        MaterialButton btnReply = findViewById(R.id.btnReply);
 
         TextView txtTitle = findViewById(R.id.txtDetailTitle);
         TextView txtDate = findViewById(R.id.txtDetailDate);
@@ -72,6 +77,25 @@ public class NotificationDetailActivity extends AppCompatActivity {
                 }
             });
         }
+
+        btnReply.setOnClickListener(v -> {
+            Intent intent = new Intent(NotificationDetailActivity.this, FeedbackActivity.class);
+            intent.putExtra("notification_id", notificationId);
+            intent.putExtra("title", title);
+            intent.putExtra("sender", sender);
+
+            // 🔹 Lấy user_id hiện tại
+            long userId = 0;
+            try {
+                userId = Long.parseLong(UserManager.getInstance(this).getCurrentUser().getId());
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+            intent.putExtra("user_id", userId);
+
+            startActivity(intent);
+        });
+
 
     }
 

@@ -22,23 +22,7 @@
 
 <div style="text-align:center"><img src="img/Edit1.png" /></div>
 
-### EDIT 2 (UPDATE 09:16 AM, 24/10/25): Trước khi chạy ứng dụng cần chạy server:
-
-- B1: Cài đặt Nodejs phiên bản mới nhất về máy tính <a href="https://nodejs.org/en/download" target="_blank">tại đây</a>
-
-- B2: Tìm System Properties -> Advance -> Environment Variables... -> Path -> Edit -> New -> (Đường dẫn folder nodejs, VD: C:\Program FIles\nodejs) -> OK -> OK -> OK
-
-- B3: Khởi động lại Terminal
-
-- B4: Trong Terminal, chuyển đường dẫn sang folder backend. VD:
-
- <div style="text-align:center"><img width="538" height="46" alt="image" src="https://github.com/user-attachments/assets/24d143e3-3a72-4f3e-9718-c61d196e2a0c" /></div>
-
-- B5: Chạy câu lệnh: node index.js. Khi chạy lần đầu tiên NodeJs sẽ yêu cầu truy cập vào mạng Public và Private.
-
-<img width="420" height="80" alt="image" src="https://github.com/user-attachments/assets/3e58332a-602f-4dd7-9092-2a205b1580a9" />
-
-Kết quả cuối cùng sau khi chạy câu lệnh như thế này là thành công.
+### EDIT 2 (UPDATE 11:37 AM, 27/10/25): Hiện tại đã không cần phải chạy server backend local nữa vì đã đẩy được lên cloud server.
 
 ### EDIT 3 (12:49 AM, 24/10/25): Hiện tại chưa có phần Đăng ký tài khoản. Nếu muốn thêm tài khoản cần thêm thẳng vào CSDL. 
 
@@ -53,6 +37,14 @@ Trước khi thêm cần encrypt mật khẩu:
 <img width="1587" height="129" alt="image" src="https://github.com/user-attachments/assets/c3617870-d548-4f92-94a8-abf3e1ca82de" />
 
 Dòng cuối chính là mật khẩu sau khi mã hóa và có thể thêm vào CSDL.
+
+### EDIT 4 (ĐM QUÊN 08:30 PM 26/10/2025) 
+
+TK admin: 0936363636 admin123
+
+TK user: 0963291686 123456
+
+Lưu ý: Mỗi khi tạo mới user MK mặc định luôn là 123456
 
 ## Cách để chạy và cài đặt ứng dụng qua điện thoại (Khuyến khích dành cho người máy yếu & sử dụng điện thoại Android):
 - B1: Trên điện thoại: Truy cập vào Tùy chọn nhà phát triển (Developer options)

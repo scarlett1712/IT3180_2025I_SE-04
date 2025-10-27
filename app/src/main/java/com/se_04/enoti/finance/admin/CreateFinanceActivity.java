@@ -4,193 +4,253 @@ import android.app.DatePickerDialog;
 import android.os.Bundle;
 import android.text.TextUtils;
 import android.util.Log;
-import android.view.View;
-import android.widget.ArrayAdapter;
-import android.widget.Button;
-import android.widget.Spinner;
-import android.widget.Toast;
-import android.widget.TextView;
-
+import android.view.MenuItem;
+import android.widget.*;
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.Toolbar;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
-import com.android.volley.NetworkResponse;
 import com.android.volley.Request;
 import com.android.volley.RequestQueue;
-import com.android.volley.VolleyError;
 import com.android.volley.toolbox.JsonArrayRequest;
 import com.android.volley.toolbox.JsonObjectRequest;
 import com.android.volley.toolbox.Volley;
 import com.google.android.material.textfield.TextInputEditText;
 import com.se_04.enoti.R;
-import com.se_04.enoti.residents.ResidentAdapter;
-import com.se_04.enoti.residents.ResidentItem;
+import com.se_04.enoti.utils.ApiConfig;
 import com.se_04.enoti.utils.UserManager;
 
 import org.json.JSONArray;
 import org.json.JSONObject;
 
-import java.nio.charset.StandardCharsets;
-import java.text.SimpleDateFormat;
-import java.util.ArrayList;
-import java.util.Calendar;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Locale;
-import java.util.Set;
+import java.util.*;
 
 public class CreateFinanceActivity extends AppCompatActivity {
 
     private TextInputEditText edtFinanceTitle, edtFinanceContent, edtAmount, edtDueDate;
-    private Spinner spinnerFinanceType;
+    private Spinner spinnerFloor, spinnerType;
     private Button btnCreateFee;
-    private RecyclerView recyclerResidents;
-    private ResidentAdapter residentAdapter;
-    private TextView txtSelectedResidents;
+    private RecyclerView recyclerRooms;
+    private RoomAdapter roomAdapter;
+    private TextView txtSelectedRooms;
 
-    private final List<ResidentItem> allResidents = new ArrayList<>();
-    private Set<ResidentItem> selectedResidents = new HashSet<>();
+    private final List<String> allRooms = new ArrayList<>();
+    private final Map<String, List<String>> roomsByFloor = new HashMap<>();
+    private Set<String> selectedRooms = new HashSet<>();
 
-    private static final String API_GET_RESIDENTS_URL = "http://10.0.2.2:5000/api/residents";
-    private static final String API_CREATE_FINANCE_URL = "http://10.0.2.2:5000/api/finance/create";
+    private static final String API_GET_RESIDENTS_URL = ApiConfig.BASE_URL + "/api/residents";
+    private static final String API_CREATE_FINANCE_URL = ApiConfig.BASE_URL + "/api/finance/create";
 
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_create_finance);
 
+        // --- Toolbar setup ---
         Toolbar toolbar = findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
-        getSupportActionBar().setDisplayHomeAsUpEnabled(true);
-        getSupportActionBar().setTitle("Tạo khoản thu mới");
-        toolbar.setNavigationOnClickListener(v -> finish());
+        if (getSupportActionBar() != null) {
+            getSupportActionBar().setDisplayHomeAsUpEnabled(true);
+            getSupportActionBar().setTitle("Tạo khoản thu mới");
+        }
 
-        // Ánh xạ views
+        // --- View Binding ---
         edtFinanceTitle = findViewById(R.id.edtFinanceTitle);
         edtFinanceContent = findViewById(R.id.edtFinanceContent);
         edtAmount = findViewById(R.id.edtAmount);
         edtDueDate = findViewById(R.id.edtDueDate);
-        spinnerFinanceType = findViewById(R.id.spinnerFinanceType);
+        spinnerFloor = findViewById(R.id.spinnerFloor);
+        spinnerType = findViewById(R.id.spinnerType);
         btnCreateFee = findViewById(R.id.btnCreateFee);
-        recyclerResidents = findViewById(R.id.recyclerResidents);
-        txtSelectedResidents = findViewById(R.id.txtSelectedResidents);
+        recyclerRooms = findViewById(R.id.recyclerRooms);
+        txtSelectedRooms = findViewById(R.id.txtSelectedRooms);
 
-        setupSpinner();
-        setupResidentList();
+        recyclerRooms.setLayoutManager(new LinearLayoutManager(this));
+        roomAdapter = new RoomAdapter(new ArrayList<>(), selected -> {
+            selectedRooms = selected;
+            updateSelectedRoomsDisplay();
+        });
+        recyclerRooms.setAdapter(roomAdapter);
+
         setupDueDate();
-
+        setupTypeSpinner();
         btnCreateFee.setOnClickListener(v -> createFee());
-
-        fetchResidentsFromAPI();
+        fetchRoomsFromAPI();
     }
 
-    private void setupSpinner() {
-        String[] types = {"Bắt buộc", "Tự nguyện"};
-        ArrayAdapter<String> adapter = new ArrayAdapter<>(this, android.R.layout.simple_spinner_item, types);
-        adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
-        spinnerFinanceType.setAdapter(adapter);
-    }
-
+    // -----------------------------
+    // Date picker setup
+    // -----------------------------
     private void setupDueDate() {
         edtDueDate.setOnClickListener(v -> {
             Calendar calendar = Calendar.getInstance();
-            DatePickerDialog dialog = new DatePickerDialog(this, (view, year, month, dayOfMonth) -> {
-                String selectedDate = String.format(Locale.getDefault(), "%02d/%02d/%d", dayOfMonth, month + 1, year);
+            new DatePickerDialog(this, (view, year, month, dayOfMonth) -> {
+                String selectedDate = String.format(Locale.getDefault(), "%02d/%02d/%d",
+                        dayOfMonth, month + 1, year);
                 edtDueDate.setText(selectedDate);
-            }, calendar.get(Calendar.YEAR), calendar.get(Calendar.MONTH), calendar.get(Calendar.DAY_OF_MONTH));
-            dialog.show();
+            }, calendar.get(Calendar.YEAR),
+                    calendar.get(Calendar.MONTH),
+                    calendar.get(Calendar.DAY_OF_MONTH))
+                    .show();
         });
     }
 
-    private void setupResidentList() {
-        recyclerResidents.setLayoutManager(new LinearLayoutManager(this));
-        residentAdapter = new ResidentAdapter(new ArrayList<>(), ResidentAdapter.MODE_SELECT_FOR_NOTIFICATION, selected -> {
-            selectedResidents = selected;
-            updateSelectedResidentsDisplay();
-        });
-        recyclerResidents.setAdapter(residentAdapter);
+    // -----------------------------
+    // Spinner loại khoản thu
+    // -----------------------------
+    private void setupTypeSpinner() {
+        List<String> types = Arrays.asList("Bắt buộc", "Tự nguyện");
+        ArrayAdapter<String> adapter = new ArrayAdapter<>(this,
+                android.R.layout.simple_spinner_item, types);
+        adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+        spinnerType.setAdapter(adapter);
     }
-    
-    private void fetchResidentsFromAPI() {
+
+    // -----------------------------
+    // Fetch rooms from API
+    // -----------------------------
+    private void fetchRoomsFromAPI() {
         RequestQueue queue = Volley.newRequestQueue(this);
         JsonArrayRequest request = new JsonArrayRequest(Request.Method.GET, API_GET_RESIDENTS_URL, null,
                 response -> {
                     try {
-                        allResidents.clear();
+                        allRooms.clear();
+                        roomsByFloor.clear();
+
+                        // Sử dụng Set để loại trùng phòng
+                        Set<String> uniqueRooms = new HashSet<>();
+
                         for (int i = 0; i < response.length(); i++) {
                             JSONObject obj = response.getJSONObject(i);
-                            if (obj.optInt("role_id", 0) == 1) { // Chỉ lấy user
-                                allResidents.add(new ResidentItem(
-                                    obj.optInt("user_item_id"),
-                                    obj.optInt("user_id"),
-                                    obj.optString("full_name"),
-                                    obj.optString("gender"),
-                                    obj.optString("dob"),
-                                    obj.optString("email"),
-                                    obj.optString("phone"),
-                                    obj.optString("relationship_with_the_head_of_household"),
-                                    obj.optString("family_id"),
-                                    obj.optBoolean("is_living"),
-                                    obj.optString("apartment_number")
-                                ));
+                            String room = obj.optString("apartment_number", "").trim();
+                            if (!TextUtils.isEmpty(room)) {
+                                uniqueRooms.add(room);
                             }
                         }
-                        residentAdapter.updateList(allResidents);
+
+                        allRooms.addAll(uniqueRooms);
+
+                        // Gom phòng theo tầng
+                        for (String room : allRooms) {
+                            String floor = extractFloorFromRoom(room);
+                            roomsByFloor.putIfAbsent(floor, new ArrayList<>());
+                            if (!roomsByFloor.get(floor).contains(room)) {
+                                roomsByFloor.get(floor).add(room);
+                            }
+                        }
+
+                        setupFloorSpinner();
+
                     } catch (Exception e) {
-                        e.printStackTrace();
+                        Log.e("CreateFinanceActivity", "Error parsing rooms", e);
+                        Toast.makeText(this, "Lỗi xử lý danh sách phòng", Toast.LENGTH_SHORT).show();
                     }
                 },
-                error -> Toast.makeText(this, "Lỗi tải danh sách cư dân", Toast.LENGTH_SHORT).show()
-        );
+                error -> {
+                    Log.e("CreateFinanceActivity", "Error fetching rooms", error);
+                    Toast.makeText(this, "Lỗi tải danh sách phòng", Toast.LENGTH_SHORT).show();
+                });
         queue.add(request);
     }
 
-    private void updateSelectedResidentsDisplay() {
-        if (selectedResidents.isEmpty()) {
-            txtSelectedResidents.setText("Áp dụng cho: Tất cả cư dân");
-        } else {
-            txtSelectedResidents.setText("Áp dụng cho: " + selectedResidents.size() + " cư dân được chọn");
+    // -----------------------------
+    // Spinner tầng
+    // -----------------------------
+    private void setupFloorSpinner() {
+        List<String> floors = new ArrayList<>(roomsByFloor.keySet());
+        Collections.sort(floors);
+        floors.add(0, "Tất cả tầng");
+
+        ArrayAdapter<String> floorAdapter = new ArrayAdapter<>(this,
+                android.R.layout.simple_spinner_item, floors);
+        floorAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+        spinnerFloor.setAdapter(floorAdapter);
+
+        spinnerFloor.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
+            @Override public void onItemSelected(AdapterView<?> parent, android.view.View view, int position, long id) {
+                String selectedFloor = floors.get(position);
+                if (selectedFloor.equals("Tất cả tầng")) {
+                    roomAdapter.updateRooms(allRooms);
+                } else {
+                    roomAdapter.updateRooms(roomsByFloor.getOrDefault(selectedFloor, new ArrayList<>()));
+                }
+                selectedRooms.clear();
+                updateSelectedRoomsDisplay();
+            }
+
+            @Override public void onNothingSelected(AdapterView<?> parent) { }
+        });
+    }
+
+    // -----------------------------
+    // Helper - tách tầng từ số phòng
+    // -----------------------------
+    private String extractFloorFromRoom(String room) {
+        if (room.length() <= 2) return "Tầng 0";
+        try {
+            String floorPart = room.substring(0, room.length() - 2);
+            return "Tầng " + Integer.parseInt(floorPart);
+        } catch (Exception e) {
+            return "Tầng 0";
         }
     }
 
+    // -----------------------------
+    // Hiển thị số phòng đã chọn
+    // -----------------------------
+    private void updateSelectedRoomsDisplay() {
+        if (selectedRooms.isEmpty()) {
+            txtSelectedRooms.setText("Chưa chọn phòng nào (mặc định: tất cả)");
+        } else {
+            txtSelectedRooms.setText("Đã chọn " + selectedRooms.size() + " phòng");
+        }
+    }
+
+    // -----------------------------
+    // Gửi yêu cầu tạo khoản thu
+    // -----------------------------
     private void createFee() {
         String title = edtFinanceTitle.getText().toString().trim();
         String content = edtFinanceContent.getText().toString().trim();
-        String amount = edtAmount.getText().toString().trim();
+        String amountStr = edtAmount.getText().toString().trim();
         String dueDateRaw = edtDueDate.getText().toString().trim();
-        String type = spinnerFinanceType.getSelectedItem().toString();
+        String type = spinnerType.getSelectedItem().toString().trim();
 
-        if (TextUtils.isEmpty(title) || TextUtils.isEmpty(amount) || TextUtils.isEmpty(dueDateRaw)) {
-            Toast.makeText(this, "Vui lòng nhập đủ thông tin", Toast.LENGTH_SHORT).show();
+        if (TextUtils.isEmpty(title) || TextUtils.isEmpty(amountStr)) {
+            Toast.makeText(this, "Vui lòng nhập Tiêu đề và Số tiền", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        double amount;
+        try {
+            amount = Double.parseDouble(amountStr);
+        } catch (NumberFormatException e) {
+            Toast.makeText(this, "Số tiền không hợp lệ", Toast.LENGTH_SHORT).show();
             return;
         }
 
         try {
+            JSONArray targetRooms = new JSONArray();
+            if (selectedRooms.isEmpty()) {
+                for (String room : allRooms) targetRooms.put(room);
+            } else {
+                for (String room : selectedRooms) targetRooms.put(room);
+            }
+
+            String adminId = UserManager.getInstance(this).getID(); // ✅ lấy ID admin hiện tại
+
             JSONObject body = new JSONObject();
             body.put("title", title);
-            body.put("content", content);
-            body.put("amount", Double.parseDouble(amount));
+            body.put("content", content.isEmpty() ? JSONObject.NULL : content);
+            body.put("amount", amount);
+            body.put("due_date", TextUtils.isEmpty(dueDateRaw) ? JSONObject.NULL : dueDateRaw);
             body.put("type", type);
-            
-            SimpleDateFormat inputFormat = new SimpleDateFormat("dd/MM/yyyy", Locale.getDefault());
-            SimpleDateFormat outputFormat = new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault());
-            String dueDate = outputFormat.format(inputFormat.parse(dueDateRaw));
-            body.put("due_date", dueDate);
+            body.put("target_rooms", targetRooms);
+            body.put("created_by", adminId); // gửi kèm id người tạo
 
-            JSONArray targetUserIds = new JSONArray();
-            if (selectedResidents.isEmpty()) { // Gửi cho tất cả
-                 for (ResidentItem resident : allResidents) {
-                    targetUserIds.put(resident.getUserId());
-                }
-            } else { // Gửi cho những người được chọn
-                for (ResidentItem resident : selectedResidents) {
-                    targetUserIds.put(resident.getUserId());
-                }
-            }
-            body.put("target_user_ids", targetUserIds);
+            Log.d("CreateFinanceActivity", "📤 Request body: " + body.toString());
 
             RequestQueue queue = Volley.newRequestQueue(this);
             JsonObjectRequest request = new JsonObjectRequest(Request.Method.POST, API_CREATE_FINANCE_URL, body,
@@ -198,31 +258,29 @@ public class CreateFinanceActivity extends AppCompatActivity {
                         Toast.makeText(this, "Tạo khoản thu thành công!", Toast.LENGTH_SHORT).show();
                         finish();
                     },
-                    this::handleError
-            );
+                    error -> {
+                        Log.e("CreateFinanceActivity", "Error creating fee", error);
+                        Toast.makeText(this, "Lỗi khi tạo khoản thu", Toast.LENGTH_SHORT).show();
+                    });
+
             queue.add(request);
 
         } catch (Exception e) {
-            e.printStackTrace();
+            Log.e("CreateFinanceActivity", "Error building JSON", e);
             Toast.makeText(this, "Có lỗi xảy ra khi chuẩn bị dữ liệu", Toast.LENGTH_SHORT).show();
         }
     }
 
-    private void handleError(VolleyError error) {
-        NetworkResponse response = error.networkResponse;
-        String errorMessage = "Lỗi không xác định";
-        if (response != null && response.data != null) {
-            try {
-                String body = new String(response.data, StandardCharsets.UTF_8);
-                JSONObject errorJson = new JSONObject(body);
-                errorMessage = errorJson.optString("error", "Lỗi từ server");
-            } catch (Exception e) {
-                errorMessage = "Status code: " + response.statusCode;
-            }
-        } else {
-            errorMessage = error.getMessage() != null ? error.getMessage() : "Lỗi kết nối server";
+
+    // -----------------------------
+    // Nút quay lại trên toolbar
+    // -----------------------------
+    @Override
+    public boolean onOptionsItemSelected(MenuItem item) {
+        if (item.getItemId() == android.R.id.home) {
+            finish();
+            return true;
         }
-        Log.e("CreateFinance", "Error: " + errorMessage, error);
-        Toast.makeText(this, "Lỗi: " + errorMessage, Toast.LENGTH_LONG).show();
+        return super.onOptionsItemSelected(item);
     }
 }
