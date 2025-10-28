@@ -122,9 +122,7 @@ public class ManageFinanceFragment extends Fragment {
     }
 
     private void loadFinanceByRoom() {
-        String adminId = UserManager.getInstance(requireContext()).getID();
-
-        FinanceRepository.getInstance().fetchAdminFinances(requireContext(), Integer.parseInt(adminId),
+        FinanceRepository.getInstance().fetchAdminFinances(requireContext(),
                 new FinanceRepository.FinanceCallback() {
                     @Override
                     public void onSuccess(List<FinanceItem> finances) {

@@ -101,7 +101,7 @@ public class NotificationRepository {
         executor.execute(() -> {
             HttpURLConnection conn = null;
             try {
-                URL url = new URL(BASE_URL + "/api/notification/sent");
+                URL url = new URL(BASE_URL + "/api/notification/sent/");
                 Log.d(TAG, "fetchAdminNotifications -> " + url);
                 conn = (HttpURLConnection) url.openConnection();
                 conn.setRequestMethod("GET");
@@ -110,6 +110,8 @@ public class NotificationRepository {
                 conn.setRequestProperty("Accept", "application/json");
 
                 int code = conn.getResponseCode();
+                Log.d(TAG, "HTTP code = " + code);
+
                 InputStream is = (code >= 200 && code < 300)
                         ? conn.getInputStream()
                         : conn.getErrorStream();
@@ -119,6 +121,8 @@ public class NotificationRepository {
                 String line;
                 while ((line = br.readLine()) != null) sb.append(line);
                 String resp = sb.toString();
+
+                Log.d(TAG, "Response: " + resp);
 
                 if (code >= 200 && code < 300) {
                     List<NotificationItem> items = parseNotificationArray(resp);

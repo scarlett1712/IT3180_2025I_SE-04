@@ -156,13 +156,10 @@ router.post("/create", async (req, res) => {
   }
 });
 
-// 🧾 [ADMIN] Lấy các khoản thu do admin tạo
-router.get("/admin/:adminId", async (req, res) => {
-  const { adminId } = req.params;
-
+// 🧾 [ADMIN] Lấy tất cả khoản thu (bỏ lọc theo admin)
+router.get("/admin", async (req, res) => {
   try {
-    const result = await query(
-      `
+    const result = await query(`
       SELECT
         f.id,
         f.title,
@@ -178,21 +175,19 @@ router.get("/admin/:adminId", async (req, res) => {
       LEFT JOIN user_item ui ON uf.user_id = ui.user_id
       LEFT JOIN relationship r ON ui.relationship = r.relationship_id
       LEFT JOIN apartment a ON r.apartment_id = a.apartment_id
-      WHERE f.created_by = $1
       GROUP BY f.id, f.title, f.content, f.amount, f.type, f.due_date, f.created_at
       ORDER BY f.created_at DESC;
-      `,
-      [adminId]
-    );
+    `);
 
     res.json(result.rows);
   } catch (err) {
-    console.error("💥 Error fetching admin finances:", err);
+    console.error("💥 Error fetching all finances:", err);
     res.status(500).json({
-      error: "Lỗi server khi lấy các khoản thu do admin tạo.",
+      error: "Lỗi server khi lấy danh sách tất cả khoản thu.",
     });
   }
 });
+
 
 // 🧾 [ADMIN] Lấy danh sách cư dân trong 1 khoản thu
 router.get("/:financeId/users", async (req, res) => {

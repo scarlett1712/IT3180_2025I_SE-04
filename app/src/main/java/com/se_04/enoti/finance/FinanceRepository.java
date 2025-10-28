@@ -58,9 +58,10 @@ public class FinanceRepository {
     }
 
     // 🧮 Dành cho admin
-    public void fetchAdminFinances(Context context, int adminId, FinanceCallback callback) {
-        String url = ApiConfig.BASE_URL + "/api/finance/admin/" + adminId;
-        Log.d("FinanceRepo", "Fetching admin finances: " + url);
+    public void fetchAdminFinances(Context context, FinanceCallback callback) {
+        String url = ApiConfig.BASE_URL + "/api/finance/admin"; // 🔥 bỏ adminId
+
+        Log.d("FinanceRepo", "Fetching all finances (admin view): " + url);
 
         JsonArrayRequest request = new JsonArrayRequest(Request.Method.GET, url, null,
                 response -> callback.onSuccess(parseFinanceList(response)),
@@ -72,10 +73,11 @@ public class FinanceRepository {
         getRequestQueue(context).add(request);
     }
 
+
     // ✅ Hàm dùng chung — tự động nhận biết role (user/admin)
     public void fetchFinances(Context context, int id, boolean isAdmin, FinanceCallback callback) {
         if (isAdmin) {
-            fetchAdminFinances(context, id, callback);
+            fetchAdminFinances(context, callback);
         } else {
             fetchUserFinances(context, id, callback);
         }
