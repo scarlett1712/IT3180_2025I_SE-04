@@ -1,5 +1,24 @@
 <?xml version="1.0" encoding="utf-8"?>
-<paths>
-    <external-files-path name="my_images" path="Pictures/" />
-    <cache-path name="my_cache" path="/" />
+<paths xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!-- 📁 Cho phép chia sẻ file Excel (và các loại file khác) trong thư mục Downloads -->
+    <external-path
+        name="downloads"
+        path="Download/" />
+
+    <!-- 🧾 Cho phép chia sẻ file trong thư mục con Enoti -->
+    <external-path
+        name="enoti_downloads"
+        path="Download/Enoti/" />
+
+    <!-- 🖼️ Nếu vẫn cần chia sẻ ảnh -->
+    <external-files-path
+        name="my_images"
+        path="Pictures/" />
+
+    <!-- ⚙️ Cho phép tạm dùng file cache -->
+    <cache-path
+        name="my_cache"
+        path="/" />
+
 </paths>
