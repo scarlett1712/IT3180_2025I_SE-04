@@ -1,10 +1,15 @@
 package com.se_04.enoti.residents;
 
 import android.Manifest;
+import android.content.ContentResolver;
+import android.content.ContentValues;
 import android.content.Intent;
 import android.content.pm.PackageManager;
+import android.net.Uri;
 import android.os.Bundle;
 import android.os.Environment;
+import android.provider.MediaStore;
+import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -37,17 +42,17 @@ import com.se_04.enoti.utils.UserManager;
 import org.apache.poi.ss.usermodel.Cell;
 import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
-import org.apache.poi.ss.usermodel.Workbook;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
-import java.io.File;
-import java.io.FileOutputStream;
+import java.io.OutputStream;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.Date;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
@@ -65,13 +70,12 @@ public class ManageResidentFragment extends Fragment {
     private List<ResidentItem> filteredList;
 
     private final Set<ResidentItem> selectedResidents = new HashSet<>();
-
     private final List<String> allFloors = new ArrayList<>();
     private final List<String> allRooms = new ArrayList<>();
 
     private static final int REQUEST_WRITE_PERMISSION = 1001;
 
-    // ⚙️ API endpoint — thay bằng IP máy chạy Node.js
+    // ⚙️ API endpoint
     private static final String API_URL = ApiConfig.BASE_URL + "/api/residents";
 
     @Nullable
@@ -91,27 +95,22 @@ public class ManageResidentFragment extends Fragment {
         btnExportExcel = view.findViewById(R.id.btnExportExcel);
         btnAddResident = view.findViewById(R.id.btnAddResident);
 
+        // Hiển thị lời chào
         UserItem currentUser = UserManager.getInstance(requireContext()).getCurrentUser();
         String username = (currentUser != null) ? currentUser.getName() : "Người dùng";
-        String message = "Xin chào " + username + "!";
-        txtWelcome.setText(message);
+        txtWelcome.setText("Xin chào " + username + "!");
 
+        // Chào theo buổi
         Calendar calendar = Calendar.getInstance();
         int hour = calendar.get(Calendar.HOUR_OF_DAY);
-
         String timeOfDay;
-        if (hour >= 5 && hour < 11) {
-            timeOfDay = "sáng";
-        } else if (hour >= 11 && hour < 14) {
-            timeOfDay = "trưa";
-        } else if (hour >= 14 && hour < 18) {
-            timeOfDay = "chiều";
-        } else {
-            timeOfDay = "tối";
-        }
-        String greeting = getString(R.string.greeting, timeOfDay);
-        txtGreeting.setText(greeting);
+        if (hour >= 5 && hour < 11) timeOfDay = "sáng";
+        else if (hour >= 11 && hour < 14) timeOfDay = "trưa";
+        else if (hour >= 14 && hour < 18) timeOfDay = "chiều";
+        else timeOfDay = "tối";
+        txtGreeting.setText(getString(R.string.greeting, timeOfDay));
 
+        // RecyclerView setup
         recyclerViewResidents.setLayoutManager(new LinearLayoutManager(requireContext()));
         fullList = new ArrayList<>();
         filteredList = new ArrayList<>();
@@ -147,14 +146,9 @@ public class ManageResidentFragment extends Fragment {
         });
 
         btnExportExcel.setOnClickListener(v -> {
-            if (ContextCompat.checkSelfPermission(requireContext(),
-                    Manifest.permission.WRITE_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
-                ActivityCompat.requestPermissions(requireActivity(),
-                        new String[]{Manifest.permission.WRITE_EXTERNAL_STORAGE},
-                        REQUEST_WRITE_PERMISSION);
-            } else {
-                exportResidentsToExcel(filteredList);
-            }
+
+            exportResidentsToXLS(filteredList);
+
         });
 
         btnAddResident.setOnClickListener(v -> {
@@ -164,26 +158,12 @@ public class ManageResidentFragment extends Fragment {
     }
 
     private void fetchResidentsFromAPI() {
-        if (!isAdded()) return;
-
         RequestQueue queue = Volley.newRequestQueue(requireContext());
-
         JsonArrayRequest request = new JsonArrayRequest(
-                Request.Method.GET,
-                API_URL,
-                null,
-                response -> {
-                    if (!isAdded()) return;
-                    parseResidents(response);
-                },
-                error -> {
-                    error.printStackTrace();
-                    if (isAdded() && getContext() != null) {
-                        Toast.makeText(getContext(), "Lỗi kết nối", Toast.LENGTH_SHORT).show();
-                    }
-                }
+                Request.Method.GET, API_URL, null,
+                response -> parseResidents(response),
+                error -> Toast.makeText(getContext(), "Lỗi kết nối", Toast.LENGTH_SHORT).show()
         );
-
         queue.add(request);
     }
 
@@ -207,31 +187,12 @@ public class ManageResidentFragment extends Fragment {
                 ));
             }
 
-            // 🧩 Sắp xếp theo số phòng → rồi theo tên (bỏ họ)
-            Collections.sort(fullList, new Comparator<ResidentItem>() {
-                @Override
-                public int compare(ResidentItem a, ResidentItem b) {
-                    // So sánh số phòng (ưu tiên số nhỏ hơn)
-                    int roomA, roomB;
-                    try {
-                        roomA = Integer.parseInt(a.getRoom().replaceAll("\\D+", ""));
-                        roomB = Integer.parseInt(b.getRoom().replaceAll("\\D+", ""));
-                    } catch (Exception e) {
-                        return a.getRoom().compareToIgnoreCase(b.getRoom());
-                    }
-                    if (roomA != roomB) return Integer.compare(roomA, roomB);
-
-                    // Nếu cùng phòng → so sánh theo TÊN (không lấy họ)
-                    String[] partsA = a.getName().trim().split("\\s+");
-                    String[] partsB = b.getName().trim().split("\\s+");
-                    String lastA = partsA[partsA.length - 1];
-                    String lastB = partsB[partsB.length - 1];
-                    int nameCompare = lastA.compareToIgnoreCase(lastB);
-                    if (nameCompare != 0) return nameCompare;
-
-                    // Nếu trùng tên → fallback so theo họ đầy đủ
-                    return a.getName().compareToIgnoreCase(b.getName());
-                }
+            // Sắp xếp cư dân
+            Collections.sort(fullList, (a, b) -> {
+                int roomA = extractRoomNumber(a.getRoom());
+                int roomB = extractRoomNumber(b.getRoom());
+                if (roomA != roomB) return Integer.compare(roomA, roomB);
+                return a.getName().compareToIgnoreCase(b.getName());
             });
 
             filteredList.clear();
@@ -244,6 +205,10 @@ public class ManageResidentFragment extends Fragment {
         }
     }
 
+    private int extractRoomNumber(String room) {
+        try { return Integer.parseInt(room.replaceAll("\\D+", "")); }
+        catch (Exception e) { return 0; }
+    }
 
     private void setupFloorSpinner() {
         allFloors.clear();
@@ -257,7 +222,6 @@ public class ManageResidentFragment extends Fragment {
                 android.R.layout.simple_spinner_item, allFloors);
         floorAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
         spinnerFilterFloor.setAdapter(floorAdapter);
-
         spinnerFilterRoom.setEnabled(false);
     }
 
@@ -293,62 +257,99 @@ public class ManageResidentFragment extends Fragment {
         filteredList.clear();
 
         for (ResidentItem item : fullList) {
-            // 🔍 Cho phép tìm theo tên
             boolean matchesSearch = item.getName().toLowerCase(Locale.ROOT).contains(searchQuery);
-
-            boolean matchesFloor =
-                    selectedFloor.equals("Tất cả tầng") || item.getFloor().equals(selectedFloor);
-
-            boolean matchesRoom =
-                    selectedRoom.equals("Tất cả phòng") || item.getRoom().equals(selectedRoom);
-
-            if (matchesSearch && matchesFloor && matchesRoom) {
-                filteredList.add(item);
-            }
+            boolean matchesFloor = selectedFloor.equals("Tất cả tầng") || item.getFloor().equals(selectedFloor);
+            boolean matchesRoom = selectedRoom.equals("Tất cả phòng") || item.getRoom().equals(selectedRoom);
+            if (matchesSearch && matchesFloor && matchesRoom) filteredList.add(item);
         }
 
         adapter.updateList(filteredList);
     }
 
-    private void exportResidentsToExcel(List<ResidentItem> residents) {
+    private void exportResidentsToXLS(List<ResidentItem> residents) {
         try {
-            Workbook workbook = new XSSFWorkbook();
-            Sheet sheet = workbook.createSheet("Cư dân");
+            // 🔹 Bước 1: Tạo workbook
+            org.apache.poi.hssf.usermodel.HSSFWorkbook workbook = new org.apache.poi.hssf.usermodel.HSSFWorkbook();
+            org.apache.poi.ss.usermodel.Sheet sheet = workbook.createSheet("Cư dân");
 
-            Row header = sheet.createRow(0);
-            String[] headers = {"Họ tên", "Giới tính", "Ngày sinh", "Điện thoại", "Email", "Phòng", "Quan hệ"};
+            // 🔹 Bước 2: Tạo header
+            String[] headers = {"Họ tên", "Giới tính", "Ngày sinh", "Điện thoại", "Email", "Phòng", "Chủ hộ", "Quan hệ với chủ hộ"};
+            org.apache.poi.ss.usermodel.Row headerRow = sheet.createRow(0);
             for (int i = 0; i < headers.length; i++) {
-                Cell cell = header.createCell(i);
+                org.apache.poi.ss.usermodel.Cell cell = headerRow.createCell(i);
                 cell.setCellValue(headers[i]);
             }
 
-            int rowIndex = 1;
+            // 🔹 Bước 3: Tạo map <mã hộ gia đình, tên chủ hộ>
+            java.util.Map<String, String> headMap = new java.util.HashMap<>();
+            for (ResidentItem r : fullList) {
+                if ("Bản thân".equalsIgnoreCase(r.getRelationship())) {
+                    headMap.put(r.getFamilyId(), r.getName());
+                }
+            }
+
+            // 🔹 Bước 4: Ghi dữ liệu cư dân
+            int rowNum = 1;
             for (ResidentItem r : residents) {
-                Row row = sheet.createRow(rowIndex++);
+                org.apache.poi.ss.usermodel.Row row = sheet.createRow(rowNum++);
+
+                String headName = headMap.getOrDefault(r.getFamilyId(), "Chưa xác định");
+
                 row.createCell(0).setCellValue(r.getName());
                 row.createCell(1).setCellValue(r.getGender());
                 row.createCell(2).setCellValue(r.getDob());
                 row.createCell(3).setCellValue(r.getPhone());
                 row.createCell(4).setCellValue(r.getEmail());
                 row.createCell(5).setCellValue(r.getRoom());
-                row.createCell(6).setCellValue(r.getRelationship());
+                row.createCell(6).setCellValue(headName); // 👈 Cột "Chủ hộ"
+                row.createCell(7).setCellValue(r.getRelationship());
             }
 
-            File dir = new File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS), "Enoti");
-            if (!dir.exists()) dir.mkdirs();
+            // 🔹 Bước 5: Đặt độ rộng cột thủ công (đơn vị là 1/256 ký tự)
+            for (int i = 0; i < headers.length; i++) {
+                sheet.setColumnWidth(i, 6000);
+            }
 
-            File file = new File(dir, "DanhSachCuDan.xlsx");
-            FileOutputStream fos = new FileOutputStream(file);
-            workbook.write(fos);
-            fos.close();
-            workbook.close();
+            // 🔹 Bước 6: Tạo tên file
+            String fileName = "DanhSachCuDan_" +
+                    new java.text.SimpleDateFormat("ddMMyyyy_HHmm", java.util.Locale.getDefault()).format(new java.util.Date()) +
+                    ".xls";
 
-            Toast.makeText(requireContext(), "Đã lưu: " + file.getAbsolutePath(), Toast.LENGTH_LONG).show();
+            // 🔹 Bước 7: Lưu file vào thư mục Enoti/Downloads
+            android.content.ContentValues values = new android.content.ContentValues();
+            values.put(android.provider.MediaStore.Downloads.DISPLAY_NAME, fileName);
+            values.put(android.provider.MediaStore.Downloads.MIME_TYPE, "application/vnd.ms-excel");
+            values.put(android.provider.MediaStore.Downloads.RELATIVE_PATH, android.os.Environment.DIRECTORY_DOWNLOADS + "/Enoti");
+
+            android.content.ContentResolver resolver = requireContext().getContentResolver();
+            android.net.Uri uri;
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
+                uri = resolver.insert(android.provider.MediaStore.Downloads.EXTERNAL_CONTENT_URI, values);
+            } else {
+                java.io.File dir = new java.io.File(android.os.Environment.getExternalStoragePublicDirectory(
+                        android.os.Environment.DIRECTORY_DOWNLOADS), "Enoti");
+                if (!dir.exists()) dir.mkdirs();
+                java.io.File file = new java.io.File(dir, fileName);
+                uri = android.net.Uri.fromFile(file);
+            }
+
+            // 🔹 Bước 8: Ghi dữ liệu ra OutputStream
+            if (uri != null) {
+                java.io.OutputStream outputStream = resolver.openOutputStream(uri);
+                workbook.write(outputStream);
+                outputStream.close();
+                workbook.close();
+                android.widget.Toast.makeText(requireContext(), "Đã lưu: " + fileName, android.widget.Toast.LENGTH_LONG).show();
+            } else {
+                android.widget.Toast.makeText(requireContext(), "Không thể tạo file Excel!", android.widget.Toast.LENGTH_SHORT).show();
+            }
+
         } catch (Exception e) {
             e.printStackTrace();
-            Toast.makeText(requireContext(), "Lỗi khi xuất file!", Toast.LENGTH_SHORT).show();
+            android.widget.Toast.makeText(requireContext(), "Lỗi khi xuất file Excel!", android.widget.Toast.LENGTH_SHORT).show();
         }
     }
+
 
     @Override
     public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions,
@@ -356,7 +357,7 @@ public class ManageResidentFragment extends Fragment {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults);
         if (requestCode == REQUEST_WRITE_PERMISSION) {
             if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-                exportResidentsToExcel(filteredList);
+                exportResidentsToXLS(filteredList);
             } else {
                 Toast.makeText(requireContext(), "Không có quyền ghi tệp!", Toast.LENGTH_SHORT).show();
             }
@@ -364,19 +365,10 @@ public class ManageResidentFragment extends Fragment {
     }
 
     @Override
-    public void onResume() {
-        super.onResume();
-        if (adapter != null) adapter.notifyDataSetChanged();
-    }
-
-    @Override
     public void onActivityResult(int requestCode, int resultCode, @Nullable Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
-
         if (requestCode == 101 && resultCode == AppCompatActivity.RESULT_OK) {
-            // 🔁 Gọi lại API để tải danh sách cư dân mới
             fetchResidentsFromAPI();
         }
     }
-
 }

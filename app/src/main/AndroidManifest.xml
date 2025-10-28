@@ -3,12 +3,22 @@
     xmlns:tools="http://schemas.android.com/tools"
     package="com.se_04.enoti">
 
+    <!-- 📷 CAMERA -->
     <uses-permission android:name="android.permission.CAMERA" />
     <uses-feature android:name="android.hardware.camera" android:required="false" />
+
+    <!-- 📁 Đọc/Ghi file cho Android < 10 -->
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"
+        android:maxSdkVersion="28" />
+
+    <!-- 🖼️ Quyền mới cho Android 13+ -->
     <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
+
+    <!-- 🔔 Thông báo (Android 13+) -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
-    <uses-permission android:name="android.permission.CAMERA" />
+
+    <!-- 🌐 Internet -->
     <uses-permission android:name="android.permission.INTERNET" />
 
     <application
@@ -21,9 +31,10 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.ENoti"
         android:forceDarkAllowed="false"
-        tools:targetApi="29"
-        android:usesCleartextTraffic="true">
+        android:usesCleartextTraffic="true"
+        tools:targetApi="33">
 
+        <!-- 🚀 Màn hình khởi động -->
         <activity
             android:name=".account_related.SplashActivity"
             android:exported="true">
@@ -32,29 +43,33 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
-        <activity android:name=".account_related.LogInActivity"> </activity>
-        <activity android:name=".account_related.ForgetPasswordEnterPhoneActivity"> </activity>
-        <activity android:name=".account.ChangePasswordActivity"> </activity>
-        <activity android:name=".account_related.RegisterActivity"> </activity>
-        <activity android:name=".account_related.EnterOTPActivity"> </activity>
-        <activity android:name=".account_related.CreateNewPasswordActivity"> </activity>
-        <activity android:name=".home.user.MainActivity_User"> </activity>
-        <activity android:name=".home.admin.MainActivity_Admin"> </activity>
-        <activity android:name=".notification.NotificationDetailActivity"> </activity>
-        <activity android:name=".finance.FinanceDetailActivity"> </activity>
-        <activity android:name=".feedback.FeedbackDetailActivity"> </activity>
-        <activity android:name=".feedback.FeedbackActivity"> </activity>
-        <activity android:name=".notification.admin.CreateNotificationActivity"> </activity>
-        <activity android:name=".residents.ResidentDetailActivity"> </activity>
-        <activity android:name=".residents.CreateResidentActivity"> </activity>
-        <activity android:name=".finance.admin.CreateFinanceActivity"> </activity>
-        <activity android:name=".finance.admin.FinanceDetailActivity_Admin"> </activity>
-        <activity android:name=".notification.admin.NotificationDetailActivity_Admin"> </activity>
 
+        <!-- 📱 Các Activity khác -->
+        <activity android:name=".account_related.LogInActivity" />
+        <activity android:name=".account_related.ForgetPasswordEnterPhoneActivity" />
+        <activity android:name=".account.ChangePasswordActivity" />
+        <activity android:name=".account_related.RegisterActivity" />
+        <activity android:name=".account_related.EnterOTPActivity" />
+        <activity android:name=".account_related.CreateNewPasswordActivity" />
+        <activity android:name=".home.user.MainActivity_User" />
+        <activity android:name=".home.admin.MainActivity_Admin" />
+        <activity android:name=".notification.NotificationDetailActivity" />
+        <activity android:name=".finance.FinanceDetailActivity" />
+        <activity android:name=".feedback.FeedbackDetailActivity" />
+        <activity android:name=".feedback.FeedbackActivity" />
+        <activity android:name=".notification.admin.CreateNotificationActivity" />
+        <activity android:name=".residents.ResidentDetailActivity" />
+        <activity android:name=".residents.CreateResidentActivity" />
+        <activity android:name=".finance.admin.CreateFinanceActivity" />
+        <activity android:name=".finance.admin.FinanceDetailActivity_Admin" />
+        <activity android:name=".notification.admin.NotificationDetailActivity_Admin" />
+
+        <!-- 🔔 Receiver thông báo -->
         <receiver
             android:name=".notification.admin.NotificationReceiver"
             android:exported="true" />
 
+        <!-- 📂 FileProvider để chia sẻ file (Excel, ảnh, PDF,...) -->
         <provider
             android:name="androidx.core.content.FileProvider"
             android:authorities="${applicationId}.provider"
@@ -66,5 +81,4 @@
         </provider>
 
     </application>
-
 </manifest>

@@ -3,114 +3,132 @@
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1" />
-    <title>ENoti — Ứng dụng quản lý tòa nhà</title>
+    <title>ENoti — Ứng dụng quản lý chung cư thông minh</title>
 
     <!-- Google Fonts -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&display=swap" rel="stylesheet">
 
-    <!-- Liên kết file CSS ngoài -->
+    <!-- Liên kết file CSS -->
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
 <div class="container">
     <header>
         <div class="brand">
-            <div class="logo">EN</div>
+            <div class="logo"> <img alt="logo" src="assets/logo/logo.webp" /> </div>
             <div>
                 <h1>ENoti</h1>
-                <div class="small">Quản lý toà nhà — Thông báo & Khoản thu</div>
+                <div class="small">Kết nối cư dân — Quản lý toà nhà hiệu quả</div>
             </div>
         </div>
         <nav>
-            <a href="#features">Tính năng</a>
-            <a href="#screens">Giao diện</a>
-            <a class="btn-primary" href="#download">Tải về</a>
+            <a href="index.html">Trang chủ</a>
+            <a href="guide.html">Hướng dẫn</a>
         </nav>
     </header>
 
     <main>
+        <!-- HERO -->
         <section class="hero">
             <div>
-                <h2 class="fade-up">Giải pháp quản lý tòa nhà hiện đại — ENoti</h2>
-                <p class="fade-up delay-1">Gửi thông báo, thu phí, quản lý cư dân và phản hồi — tất cả trong một ứng dụng nhẹ, an toàn và dễ sử dụng.</p>
+                <h2 class="fade-up">ENoti — Ứng dụng quản lý toà nhà toàn diện</h2>
+                <p class="fade-up delay-1">
+                    Hỗ trợ Ban quản lý và cư dân kết nối nhanh chóng: gửi thông báo, phản hồi, theo dõi khoản thu và quản lý thông tin cư dân chỉ với vài thao tác.
+                </p>
+                <p class="fade-up delay-1">
+                    Hiện đã có ứng dụng cho điện thoại Android.
+                </p>
 
                 <div class="cards">
-                    <div class="card fade-up delay-2">Tối ưu hoá liên lạc giữa ban quản lý và cư dân</div>
-                    <div class="card fade-up delay-3">Báo cáo & thống kê real-time</div>
+                    <div class="card fade-up delay-2">Kết nối cư dân & Ban quản trị dễ dàng</div>
+                    <div class="card fade-up delay-3">Tối ưu quản lý — Tăng hiệu quả vận hành</div>
                 </div>
 
                 <div style="margin-top:24px" class="fade-up delay-3">
-                    <a class="btn-primary" href="#download">Tải ngay</a>
+                    <a class="btn-primary"
+                       href="https://github.com/scarlett1712/NMCNPM_SE-04/releases/download/%23Release/ENoti.apk"
+                       target="_blank"
+                       rel="noopener noreferrer">
+                        Dùng thử ngay
+                    </a>
                     <a style="margin-left:12px;color:var(--muted)" href="#contact">Liên hệ</a>
-                </div>
-
-                <div class="contact">
-                    <form onsubmit="event.preventDefault();alert('Cảm ơn, chúng tôi sẽ liên hệ!');">
-                        <input placeholder="Tên của bạn" required />
-                        <input placeholder="Email" required />
-                        <textarea rows="3" placeholder="Lời nhắn"></textarea>
-                        <button class="btn-primary" type="submit">Gửi liên hệ</button>
-                    </form>
-                    <div style="width:280px;padding:16px;background:linear-gradient(180deg,rgba(255,255,255,0.02),transparent);border-radius:12px">
-                        <h4 style="margin:0 0 8px">Tại sao chọn ENoti?</h4>
-                        <p class="small">Bảo mật dữ liệu, dễ triển khai, hỗ trợ đa nền tảng (Android/iOS/Web) và tích hợp Firebase.</p>
-                    </div>
                 </div>
             </div>
 
-            <aside class="phone fade-up">
-                <div class="screen">
-                    <div class="mock-top">ENoti Preview</div>
-                    <div class="mock-content">
-                        <h3 style="margin:0 0 8px">Danh sách thông báo</h3>
-                        <p class="small">Hạn nộp, loại thông báo và trạng thái thanh toán nhanh chóng.</p>
-                    </div>
-                    <div class="mock-cta">
-                        <div style="display:flex;gap:8px;justify-content:center">
-                            <div style="background:#022433;padding:8px 12px;border-radius:10px">App Store</div>
-                            <div style="background:#022433;padding:8px 12px;border-radius:10px">Google Play</div>
-                        </div>
-                    </div>
-                </div>
-            </aside>
+
         </section>
 
+        <!-- FEATURES -->
         <section id="features">
             <h2 style="margin:24px 0 12px">Tính năng nổi bật</h2>
             <div class="features">
                 <div class="feature">
-                    <h3>Thông báo & Tin nhắn</h3>
-                    <p>Gửi thông báo theo phòng, toàn tòa nhà hoặc nhóm; đính kèm file, ảnh và theo dõi lượt đọc.</p>
+                    <h3>Thông báo nhanh</h3>
+                    <p>Gửi thông báo cho từng phòng, tầng hoặc toàn toà nhà. Cư dân nhận tức thì qua ứng dụng di động.</p>
                 </div>
                 <div class="feature">
                     <h3>Quản lý khoản thu</h3>
-                    <p>Tạo khoản thu theo phòng, theo cư dân; thống kê số phòng đã đóng — đơn giản hóa quy trình thu phí.</p>
+                    <p>Tạo, theo dõi và thống kê khoản thu theo căn hộ. Giảm thiểu sai sót và tiết kiệm thời gian cho ban quản lý.</p>
                 </div>
                 <div class="feature">
-                    <h3>Phản hồi & Hỗ trợ</h3>
-                    <p>Người dùng gửi feedback kèm file; ban quản lý trả lời trực tiếp trong app.</p>
+                    <h3>Phản hồi cư dân</h3>
+                    <p>Cư dân gửi phản hồi, góp ý hoặc báo sự cố trực tiếp. Ban quản lý có thể trả lời ngay trong hệ thống.</p>
+                </div>
+                <div class="feature">
+                    <h3>Quản lý cư dân</h3>
+                    <p>Lưu trữ thông tin cư dân, phòng, quan hệ hộ gia đình. Hỗ trợ xuất báo cáo nhanh sang Excel.</p>
+                </div>
+                <div class="feature">
+                    <h3>Bảo mật & Hiệu năng</h3>
+                    <p>Dữ liệu lưu trữ an toàn trên máy chủ Node.js — PostgreSQL, tích hợp xác thực OTP và Firebase.</p>
                 </div>
             </div>
         </section>
 
+        <!-- SCREENS -->
         <section id="screens">
-            <h2 style="margin:24px 0 12px">Một vài giao diện</h2>
+            <h2 style="margin:24px 0 12px">Giao diện ứng dụng</h2>
             <div style="display:flex;gap:12px;overflow:auto;padding-bottom:12px">
                 <img alt="screenshot" src="assets/screenshots/screen1.png" style="width:320px;border-radius:12px;box-shadow:0 8px 24px rgba(1,6,20,0.6)"/>
                 <img alt="screenshot" src="assets/screenshots/screen2.png" style="width:320px;border-radius:12px;box-shadow:0 8px 24px rgba(1,6,20,0.6)"/>
-                <img alt="screenshot" src="https://images.unsplash.com/photo-1515378791036-0648a3ef77b2?w=800&q=60" style="width:320px;border-radius:12px;box-shadow:0 8px 24px rgba(1,6,20,0.6)"/>
+                <img alt="screenshot" src="assets/screenshots/feedback.png" style="width:320px;border-radius:12px;box-shadow:0 8px 24px rgba(1,6,20,0.6)"/>
+                <img alt="screenshot" src="assets/screenshots/feedback.png" style="width:320px;border-radius:12px;box-shadow:0 8px 24px rgba(1,6,20,0.6)"/>
+                <img alt="screenshot" src="assets/screenshots/feedback.png" style="width:320px;border-radius:12px;box-shadow:0 8px 24px rgba(1,6,20,0.6)"/>
+                <img alt="screenshot" src="assets/screenshots/feedback.png" style="width:320px;border-radius:12px;box-shadow:0 8px 24px rgba(1,6,20,0.6)"/>
+            </div>
+        </section>
+
+        <!-- CONTACT -->
+        <section id="contact">
+            <h2 style="margin:24px 0 12px">Liên hệ & Góp ý</h2>
+            <div class="contact">
+                <form onsubmit="event.preventDefault();alert('Cảm ơn bạn! Chúng tôi sẽ liên hệ sớm nhất.');">
+                    <input placeholder="Tên của bạn" required />
+                    <input placeholder="Email" required />
+                    <textarea rows="3" placeholder="Nội dung góp ý"></textarea>
+                    <button class="btn-primary" type="submit">Gửi liên hệ</button>
+                </form>
+
+                <div style="width:280px;padding:16px;background:linear-gradient(180deg,rgba(255,255,255,0.05),transparent);border-radius:12px">
+                    <h4 style="margin:0 0 8px">Vì sao chọn ENoti?</h4>
+                    <p class="small">ENoti giúp bạn quản lý toà nhà nhanh chóng, chuyên nghiệp, bảo mật cao — phù hợp cho mọi mô hình chung cư hiện đại.</p>
+                </div>
             </div>
         </section>
     </main>
 
     <footer>
-        <div>© <strong>ENoti</strong> — Giải pháp quản lý tòa nhà</div>
-        <div style="color:var(--muted)">Email: contact@enoti.app &nbsp;•&nbsp; Hotline: +84 912 345 678</div>
+        <div>© 2025 <strong>ENoti</strong> — Giải pháp quản lý chung cư thông minh</div>
+<!--        <div style="color:var(&#45;&#45;muted)">Email: support@enoti.vn &nbsp;•&nbsp; Hotline: +84 963 291 687</div>-->
     </footer>
 </div>
 
 <script>
-    document.querySelectorAll('.fade-up').forEach(el => el.classList.add('delay-1'));
+    // hiệu ứng xuất hiện mượt
+    document.querySelectorAll('.fade-up').forEach((el, i) => {
+      el.style.animationDelay = `${i * 0.2}s`;
+      el.classList.add('visible');
+    });
 </script>
 </body>
 </html>
