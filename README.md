@@ -28,9 +28,7 @@
 
 ### EDIT 4 (08:30 PM 26/10/2025) 
 
-TK admin: 0936363636 admin123
-
-TK user: 0963291686 123456
+TK admin: 0912345678 admin123
 
 Lưu ý: Mỗi khi tạo mới user MK mặc định luôn là 123456
 
