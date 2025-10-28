@@ -37,12 +37,14 @@ public class EnterOTPActivity extends AppCompatActivity {
         setContentView(R.layout.activity_enter_otp);
 
         TextView txtOtpMessage = findViewById(R.id.textViewOTPSentToPhoneNumber);
+        TextView txtPhoneNumber = findViewById(R.id.textViewPhoneNumber);
         Button btnVerify = findViewById(R.id.buttonConfirm);
         pinView = findViewById(R.id.pinviewEnterOTP);
 
         String phone = getIntent().getStringExtra("phone");
         if (phone != null) {
-            txtOtpMessage.setText("Mã OTP (demo) đã được gửi đến số " + phone + " — (demo: nhập bất kỳ 6 chữ số)");
+            txtOtpMessage.setText("Mã OTP (demo) đã được gửi đến số ");
+            txtPhoneNumber.setText(phone);
         }
 
         btnVerify.setOnClickListener(v -> {
@@ -57,17 +59,22 @@ public class EnterOTPActivity extends AppCompatActivity {
 
     private void handleOTPVerification() {
         Intent intent = getIntent();
-        boolean isAdminRegistration = intent.getBooleanExtra("is_admin_registration", false);
+        String previousActivity = intent.getStringExtra(EXTRA_PREVIOUS_ACTIVITY);
 
-        if (isAdminRegistration) {
-            createAdminAccount();
-        } else {
+        if (FROM_FORGOT_PASSWORD.equals(previousActivity)) {
+            // 👉 Nếu đến từ màn quên mật khẩu → mở CreateNewPasswordActivity
             Intent createPasswordIntent = new Intent(this, CreateNewPasswordActivity.class);
             createPasswordIntent.putExtra("phone", intent.getStringExtra("phone"));
             startActivity(createPasswordIntent);
             finish();
+        } else if (FROM_REGISTER_PHONE.equals(previousActivity)) {
+            // 👉 Nếu đến từ đăng ký admin → gọi API tạo tài khoản admin
+            createAdminAccount();
+        } else {
+            Toast.makeText(this, "Không xác định được nguồn mở OTP.", Toast.LENGTH_SHORT).show();
         }
     }
+
 
     private void createAdminAccount() {
         Intent intent = getIntent();

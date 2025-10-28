@@ -122,4 +122,39 @@ router.post("/create_admin", async (req, res) => {
   }
 });
 
+/* ==========================================================
+   🟠 API: Đặt lại mật khẩu (Forget Password)
+========================================================== */
+router.post("/reset_password", async (req, res) => {
+  try {
+    const { phone, new_password } = req.body || {};
+
+    if (!phone || !new_password) {
+      return res.status(400).json({ error: "Thiếu số điện thoại hoặc mật khẩu mới." });
+    }
+
+    // 1️⃣ Tìm người dùng theo số điện thoại
+    const userRes = await pool.query("SELECT user_id FROM users WHERE phone = $1", [phone]);
+    if (userRes.rows.length === 0) {
+      return res.status(404).json({ error: "Không tìm thấy tài khoản với số điện thoại này." });
+    }
+
+    // 2️⃣ Hash mật khẩu mới
+    const bcrypt = await import("bcryptjs");
+    const hash = await bcrypt.default.hash(new_password, 10);
+
+    // 3️⃣ Cập nhật mật khẩu
+    await pool.query(
+      "UPDATE users SET password_hash = $1, updated_at = NOW() WHERE phone = $2",
+      [hash, phone]
+    );
+
+    return res.json({ message: "Đặt lại mật khẩu thành công." });
+  } catch (err) {
+    console.error("💥 [RESET PASSWORD ERROR]", err);
+    return res.status(500).json({ error: "Lỗi server khi đặt lại mật khẩu." });
+  }
+});
+
+
 export default router;
