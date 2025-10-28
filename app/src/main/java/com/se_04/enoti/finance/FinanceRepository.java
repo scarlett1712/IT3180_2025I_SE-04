@@ -98,7 +98,7 @@ public class FinanceRepository {
                 item.setTitle(obj.optString("title", "Không rõ"));
                 item.setContent(obj.optString("content", ""));
                 item.setType(obj.optString("type", "Khác"));
-                item.setDate(obj.optString("date", ""));
+                item.setDate(obj.optString("due_date", ""));
                 item.setSender(obj.optString("sender", "Ban quản lý"));
 
                 // 💰 Giá trị khoản thu

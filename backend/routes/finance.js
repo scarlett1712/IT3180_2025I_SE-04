@@ -66,7 +66,7 @@ router.get("/user/:userId", async (req, res) => {
   try {
     const result = await query(
       `
-      SELECT f.id, f.title, f.content, f.amount, f.type,
+      SELECT f.id, f.title, f.content, f.amount AS price, f.type,
              TO_CHAR(f.due_date, 'DD-MM-YYYY') AS date,
              uf.status
       FROM finances f
