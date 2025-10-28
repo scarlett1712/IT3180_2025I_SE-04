@@ -83,7 +83,7 @@ router.post("/create", async (req, res) => {
       // b. Tạo relationship cho chủ hộ (quan hệ là NULL)
       const relRes = await client.query(
         `INSERT INTO relationship (apartment_id, is_head_of_household, relationship_with_the_head_of_household)
-         VALUES ($1, TRUE, NULL) RETURNING relationship_id`,
+         VALUES ($1, TRUE, 'Bản thân') RETURNING relationship_id`,
         [apartment_id]
       );
       relationship_id = relRes.rows[0].relationship_id;
