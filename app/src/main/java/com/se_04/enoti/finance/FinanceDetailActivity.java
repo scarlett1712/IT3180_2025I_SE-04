@@ -48,7 +48,7 @@ public class FinanceDetailActivity extends AppCompatActivity {
         Intent intent = getIntent();
         String title = intent.getStringExtra("title") != null ? intent.getStringExtra("title") : getString(R.string.no_data);
         String content = intent.getStringExtra("content") != null ? intent.getStringExtra("content") : getString(R.string.no_content_detail);
-        String date = intent.getStringExtra("due_date") != null ? intent.getStringExtra("date") : "N/A";
+        String date = intent.getStringExtra("due_date") != null ? intent.getStringExtra("due_date") : "N/A";
         String sender = intent.getStringExtra("sender") != null ? intent.getStringExtra("sender") : "N/A";
         long price = intent.getLongExtra("price", 0L);
 

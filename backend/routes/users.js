@@ -109,6 +109,8 @@ router.post("/create_admin", async (req, res) => {
     );
     const user_id = insertUser.rows[0].user_id;
 
+    const formattedDob = dob ? dob.split('/').reverse().join('-') : null;
+
     // 4️⃣ Thêm vào user_item (🟢 Lưu giới tính tiếng Việt)
     await client.query(
       `INSERT INTO user_item (user_id, full_name, gender, dob, email, is_living)
