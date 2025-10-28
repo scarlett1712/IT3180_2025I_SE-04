@@ -24,19 +24,7 @@
 
 ### EDIT 2 (UPDATE 11:37 AM, 27/10/25): Hiện tại đã không cần phải chạy server backend local nữa vì đã đẩy được lên cloud server.
 
-### EDIT 3 (12:49 AM, 24/10/25): Hiện tại chưa có phần Đăng ký tài khoản. Nếu muốn thêm tài khoản cần thêm thẳng vào CSDL. 
-
-Trước khi thêm cần encrypt mật khẩu:
-
-- B1: Trong Terminal, chuyển đường dẫn sang folder backend. VD:
-
- <div style="text-align:center"><img width="538" height="46" alt="image" src="https://github.com/user-attachments/assets/24d143e3-3a72-4f3e-9718-c61d196e2a0c" /></div>
-
-- B2: Chạy câu lệnh: node createHash.js [Mật khẩu cần mã hóa]. VD:
-
-<img width="1587" height="129" alt="image" src="https://github.com/user-attachments/assets/c3617870-d548-4f92-94a8-abf3e1ca82de" />
-
-Dòng cuối chính là mật khẩu sau khi mã hóa và có thể thêm vào CSDL.
+### EDIT 3 (UPDATE 12:26 AM, 29/10/25): Hiện tại đã có phần Đăng ký tài khoản. 
 
 ### EDIT 4 (08:30 PM 26/10/2025) 
 
