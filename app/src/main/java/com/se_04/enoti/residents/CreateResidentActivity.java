@@ -7,6 +7,7 @@ import android.os.Bundle;
 import android.text.TextUtils;
 import android.widget.*;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.content.ContextCompat;
 
 import com.android.volley.Request;
 import com.android.volley.RequestQueue;
@@ -35,7 +36,7 @@ public class CreateResidentActivity extends AppCompatActivity {
     private RequestQueue requestQueue;
 
     // ⚙️ API endpoint
-    private static final String BASE_URL = ApiConfig.BASE_URL + "/create_user/create";
+    private static final String BASE_URL = ApiConfig.BASE_URL + "/api/create_user/create";
 
     // ⚙️ Date formatters
     private final SimpleDateFormat displayFormat = new SimpleDateFormat("dd-MM-yyyy", Locale.getDefault());
@@ -57,6 +58,7 @@ public class CreateResidentActivity extends AppCompatActivity {
             getSupportActionBar().setDisplayHomeAsUpEnabled(true);
             getSupportActionBar().setDisplayShowTitleEnabled(true);
             getSupportActionBar().setTitle("Thêm cư dân mới");
+            toolbar.setTitleTextColor(ContextCompat.getColor(this, android.R.color.white));
         }
 
         toolbar.setNavigationOnClickListener(v -> onBackPressed());
@@ -122,7 +124,9 @@ public class CreateResidentActivity extends AppCompatActivity {
         String floorInput = edtFloor.getText().toString().trim();
         String roomInput = edtRoom.getText().toString().trim();
         boolean isHead = checkboxIsHouseholder.isChecked();
-        String relation = edtRelation.getText().toString().trim();
+        String relation;
+        if (isHead) relation = "Bản thân";
+        else relation =  edtRelation.getText().toString().trim();
         String phoneBeforeNormalized = edtPhone.getText().toString().trim();
         String phone = normalizePhoneNumber(phoneBeforeNormalized);
         String email = edtEmail.getText().toString().trim();

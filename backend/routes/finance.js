@@ -169,7 +169,7 @@ router.get("/admin/:adminId", async (req, res) => {
         f.content,
         f.amount AS price,
         f.type,
-        TO_CHAR(f.due_date, 'DD-MM-YYYY') AS date,
+        TO_CHAR(f.due_date, 'DD-MM-YYYY') AS due_date,
         TO_CHAR(f.created_at, 'DD-MM-YYYY HH24:MI') AS created_at,
         COUNT(DISTINCT a.apartment_number) AS total_rooms,
         COUNT(DISTINCT CASE WHEN uf.status = 'da_thanh_toan' THEN a.apartment_number END) AS paid_rooms
