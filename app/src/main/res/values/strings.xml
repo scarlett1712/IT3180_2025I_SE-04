@@ -78,7 +78,7 @@
     <string name="room_paid_list">Danh sách căn hộ đã đóng</string>
     <string name="save_changes">Lưu thay đổi</string>
     <string name="maintenance">Bảo trì</string>
-    <string name="manage_finance">Quản lý Thu</string>
+    <string name="manage_finance">Quản lý khoản thu</string>
     <string name="notification_detail">Chi tiết thông báo</string>
 
 </resources>
