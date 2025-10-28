@@ -4,36 +4,32 @@ import androidx.appcompat.app.AppCompatActivity;
 
 import android.content.Intent;
 import android.os.Bundle;
-import android.util.Log;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import com.android.volley.Request;
+import com.android.volley.RequestQueue;
+import com.android.volley.toolbox.JsonObjectRequest;
+import com.android.volley.toolbox.Volley;
 import com.se_04.enoti.R;
-import com.se_04.enoti.account.ChangePasswordActivity;
-import com.se_04.enoti.account.Gender;
-import com.se_04.enoti.account.Role;
 import com.se_04.enoti.account.UserItem;
 import com.se_04.enoti.home.admin.MainActivity_Admin;
 import com.se_04.enoti.home.user.MainActivity_User;
-import com.se_04.enoti.utils.ApiConfig;
 import com.se_04.enoti.utils.UserManager;
 
 import org.json.JSONObject;
 
-import java.io.BufferedReader;
-import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.io.OutputStream;
-import java.net.HttpURLConnection;
-import java.net.URL;
-
 import static com.se_04.enoti.utils.ValidatePhoneNumberUtil.isValidVietnamesePhoneNumber;
-import static com.se_04.enoti.utils.ValidatePhoneNumberUtil.normalizePhoneNumber;
+
+import java.nio.charset.StandardCharsets;
+import java.util.HashMap;
+import java.util.Map;
 
 public class LogInActivity extends AppCompatActivity {
-    private static final String TAG = "LOGIN_DEBUG";
+
+    private static final String API_LOGIN_URL = "http://10.0.2.2:5000/api/users/login";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -44,176 +40,103 @@ public class LogInActivity extends AppCompatActivity {
         final EditText editTextPassword = findViewById(R.id.enterPassword);
         Button loginButton = findViewById(R.id.buttonSignIn);
         TextView textViewForgotPassword = findViewById(R.id.forgetPassword);
-        TextView textViewChangePassword = findViewById(R.id.changePassword);
         TextView textViewRegister = findViewById(R.id.textViewRegister);
 
-        // Đăng nhập
-        loginButton.setOnClickListener(v -> handleLogin(editTextPhone, editTextPassword));
+        loginButton.setOnClickListener(v -> handleLogin(
+                editTextPhone.getText().toString().trim(),
+                editTextPassword.getText().toString().trim()
+        ));
 
-        // Quên mật khẩu
         textViewForgotPassword.setOnClickListener(v -> {
             Intent intent = new Intent(LogInActivity.this, ForgetPasswordEnterPhoneActivity.class);
             startActivity(intent);
         });
 
-        // Đổi mật khẩu
-        textViewChangePassword.setOnClickListener(v -> {
-            Intent intent = new Intent(LogInActivity.this, ChangePasswordActivity.class);
-            startActivity(intent);
-        });
-
-        // Đăng ký
         textViewRegister.setOnClickListener(v -> {
-            Intent intent = new Intent(LogInActivity.this, RegisterEnterPhoneActivity.class);
+            Intent intent = new Intent(LogInActivity.this, RegisterActivity.class);
             startActivity(intent);
         });
     }
 
-    private void handleLogin(EditText phoneField, EditText passwordField) {
-        String phone = phoneField.getText().toString().trim();
-        String password = passwordField.getText().toString().trim();
-        int minPasswordLength = 6, maxPasswordLength = 16;
-
-        Log.d(TAG, "handleLogin start");
-
+    private void handleLogin(String phone, String password) {
         if (!isValidVietnamesePhoneNumber(phone)) {
-            phoneField.setError("Nhập số điện thoại chính xác.");
-            phoneField.requestFocus();
+            Toast.makeText(this, R.string.error_invalid_phone, Toast.LENGTH_SHORT).show();
             return;
-        } else {
-            phone = normalizePhoneNumber(phone);
         }
-
         if (password.isEmpty()) {
-            passwordField.setError("Mật khẩu không thể để trống");
-            passwordField.requestFocus();
+            Toast.makeText(this, R.string.error_password_empty, Toast.LENGTH_SHORT).show();
             return;
         }
 
-        if (password.length() < minPasswordLength || password.length() > maxPasswordLength) {
-            passwordField.setError("Mật khẩu phải dài từ " + minPasswordLength + " đến " + maxPasswordLength + " ký tự");
-            passwordField.requestFocus();
+        Toast.makeText(this, "🔄 Đang đăng nhập...", Toast.LENGTH_SHORT).show();
+
+        JSONObject requestBody = new JSONObject();
+        try {
+            requestBody.put("phone", phone);
+            requestBody.put("password", password);
+        } catch (Exception e) {
+            Toast.makeText(this, "Lỗi khi tạo dữ liệu đăng nhập.", Toast.LENGTH_SHORT).show();
             return;
         }
 
-        final String finalPhone = phone;
-        final String finalPassword = password;
-        final String apiUrl = ApiConfig.BASE_URL + "/api/users/login";
+        RequestQueue queue = Volley.newRequestQueue(this);
 
-        new Thread(() -> {
-            HttpURLConnection conn = null;
-            try {
-                URL url = new URL(apiUrl);
-                conn = (HttpURLConnection) url.openConnection();
-                conn.setRequestMethod("POST");
-                conn.setRequestProperty("Content-Type", "application/json; utf-8");
-                conn.setRequestProperty("Accept", "application/json");
-                conn.setDoOutput(true);
-                conn.setConnectTimeout(10000);
-                conn.setReadTimeout(10000);
-
-                JSONObject body = new JSONObject();
-                body.put("phone", finalPhone);
-                body.put("password", finalPassword);
-
-                try (OutputStream os = conn.getOutputStream()) {
-                    byte[] input = body.toString().getBytes("utf-8");
-                    os.write(input, 0, input.length);
-                }
-
-                int code = conn.getResponseCode();
-                InputStream responseStream = (code >= 200 && code < 300)
-                        ? conn.getInputStream()
-                        : conn.getErrorStream();
-                BufferedReader br = new BufferedReader(new InputStreamReader(responseStream, "utf-8"));
-                StringBuilder response = new StringBuilder();
-                String line;
-                while ((line = br.readLine()) != null) {
-                    response.append(line.trim());
-                }
-                String responseString = response.toString();
-                Log.d(TAG, "Raw response: " + responseString);
-
-                final int finalCode = code;
-                runOnUiThread(() -> {
-                    if (finalCode >= 200 && finalCode < 300) {
-                        try {
-                            // ✅ Đoạn parse JSON mới được thêm
-                            JSONObject json = new JSONObject(responseString);
-                            JSONObject userJson = json.getJSONObject("user");
-
-                            String id = userJson.optString("user_id", "");
-                            String familyId = userJson.optString("family_id", "");
-                            String email = userJson.optString("email", "");
-                            String name = userJson.optString("username",
-                                    userJson.optString("full_name",
-                                            userJson.optString("display_name",
-                                                    userJson.optString("name", finalPhone))));
-
-                            String dob = userJson.optString("dob", "");
-                            String genderStr = userJson.optString("gender", "MALE").toUpperCase();
-                            String relationship = userJson.optString("relationship_with_the_head_of_household", "");
-                            if ("0".equals(relationship) || "Quản trị viên".equalsIgnoreCase(relationship)) {
-                                relationship = "Không thuộc hộ gia đình nào";
-                            }
-                            String aptStr = userJson.optString("apartment_number", "0");
-                            int room = 0;
-                            try {
-                                if (aptStr != null && !aptStr.isEmpty() && !"null".equalsIgnoreCase(aptStr)) {
-                                    room = Integer.parseInt(aptStr);
-                                }
-                            } catch (NumberFormatException e) {
-                                room = 0;
-                            }
-                            String phoneResp = userJson.optString("phone", "");
-                            String roleStr = userJson.optString("role", "USER").toUpperCase();
-
-                            if (genderStr.equals("NAM")) genderStr = "MALE";
-                            else if (genderStr.equals("NU") || genderStr.equals("NỮ")) genderStr = "FEMALE";
-
-                            Gender gender = Gender.valueOf(genderStr);
-                            Role role = Role.valueOf(roleStr);
-
-                            UserItem user = new UserItem(
-                                    id, familyId, email, name, dob, gender, relationship, room, role, phoneResp
-                            );
-
-                            UserManager manager = UserManager.getInstance(getApplicationContext());
-                            manager.saveCurrentUser(user);
-                            manager.setLoggedIn(true);
-
-                            Log.d("LOGIN", "✅ Saved user: " + user.getName() + " | Role: " + user.getRole());
-                            Toast.makeText(this, "Đăng nhập thành công!", Toast.LENGTH_SHORT).show();
-
-                            Intent intent = (role == Role.ADMIN)
-                                    ? new Intent(this, MainActivity_Admin.class)
-                                    : new Intent(this, MainActivity_User.class);
-                            startActivity(intent);
-                            finish();
-
-                        } catch (Exception e) {
-                            Log.e("LOGIN", "❌ JSON parse error: " + e.getMessage());
-                            Toast.makeText(this, "Lỗi khi xử lý phản hồi server", Toast.LENGTH_LONG).show();
+        JsonObjectRequest jsonObjectRequest = new JsonObjectRequest(
+                Request.Method.POST,
+                API_LOGIN_URL,
+                requestBody,
+                response -> {
+                    try {
+                        // ✅ Server trả về JSON chứa user
+                        if (!response.has("user")) {
+                            Toast.makeText(this, "Phản hồi không hợp lệ từ server.", Toast.LENGTH_SHORT).show();
+                            return;
                         }
-                    } else {
-                        String msg = "Đăng nhập thất bại";
-                        try {
-                            JSONObject errJson = new JSONObject(responseString);
-                            if (errJson.has("error")) msg = errJson.optString("error", msg);
-                            else if (errJson.has("message")) msg = errJson.optString("message", msg);
-                        } catch (Exception ignored) {}
-                        Toast.makeText(this, msg, Toast.LENGTH_LONG).show();
-                    }
-                });
 
-            } catch (Exception e) {
-                Log.e(TAG, "Network/login exception: " + e.getMessage(), e);
-                runOnUiThread(() ->
-                        Toast.makeText(this, "Không thể kết nối đến máy chủ: " + e.getMessage(), Toast.LENGTH_LONG).show()
-                );
-            } finally {
-                if (conn != null) conn.disconnect();
+                        JSONObject userJson = response.getJSONObject("user");
+                        UserItem user = UserItem.fromJson(userJson);
+
+                        // ✅ Lưu user vào SharedPreferences
+                        UserManager.getInstance(getApplicationContext()).saveCurrentUser(user);
+                        UserManager.getInstance(getApplicationContext()).setLoggedIn(true);
+
+                        Toast.makeText(this, "✅ Đăng nhập thành công!", Toast.LENGTH_SHORT).show();
+
+                        // ✅ Chuyển trang tương ứng
+                        Intent intent = user.getRole() == com.se_04.enoti.account.Role.ADMIN
+                                ? new Intent(this, MainActivity_Admin.class)
+                                : new Intent(this, MainActivity_User.class);
+                        startActivity(intent);
+                        finish();
+
+                    } catch (Exception e) {
+                        Toast.makeText(this, "Lỗi xử lý phản hồi: " + e.getMessage(), Toast.LENGTH_LONG).show();
+                    }
+                },
+                error -> {
+                    // ❌ Xử lý lỗi khi đăng nhập thất bại
+                    String message = "Đăng nhập thất bại.";
+                    if (error.networkResponse != null && error.networkResponse.data != null) {
+                        try {
+                            String responseBody = new String(error.networkResponse.data, StandardCharsets.UTF_8);
+                            JSONObject data = new JSONObject(responseBody);
+                            message = data.optString("error", message);
+                        } catch (Exception e) {
+                            // ignore parse error
+                        }
+                    }
+                    Toast.makeText(this, message, Toast.LENGTH_LONG).show();
+                }
+        ) {
+            // 🧩 Thêm Content-Type cho đúng
+            @Override
+            public Map<String, String> getHeaders() {
+                Map<String, String> headers = new HashMap<>();
+                headers.put("Content-Type", "application/json; charset=UTF-8");
+                return headers;
             }
-        }).start();
+        };
+
+        queue.add(jsonObjectRequest);
     }
 }
