@@ -34,7 +34,7 @@ router.post("/login", async (req, res) => {
       return res.status(401).json({ error: "Sai mật khẩu." });
     }
 
-    // Lấy thêm thông tin chi tiết người dùng
+    // Lấy thêm thông tin người dùng
     const infoRes = await pool.query(
       `SELECT ui.full_name, ui.gender, TO_CHAR(ui.dob, 'DD-MM-YYYY') AS dob, ui.email
        FROM user_item ui
@@ -52,7 +52,7 @@ router.post("/login", async (req, res) => {
         phone: user.phone,
         role: role,
         name: info.full_name || user.phone,
-        gender: info.gender || "Other",
+        gender: info.gender || "Khác", // 🟢 Giới tính tiếng Việt
         dob: info.dob || "01-01-2000",
         email: info.email || "",
       },
@@ -65,7 +65,6 @@ router.post("/login", async (req, res) => {
 
 /* ==========================================================
    🟢 API: Tạo tài khoản Ban Quản Trị (Admin)
-   ✅ Dùng đúng schema bạn cung cấp
 ========================================================== */
 router.post("/create_admin", async (req, res) => {
   const client = await pool.connect();
@@ -73,18 +72,14 @@ router.post("/create_admin", async (req, res) => {
   try {
     const { phone, password, full_name, gender, dob, email } = req.body || {};
 
-    // ⚠️ Kiểm tra input cơ bản
     if (!phone || !password || !full_name) {
       return res.status(400).json({ error: "Thiếu thông tin bắt buộc." });
     }
 
     await client.query("BEGIN");
 
-    // 1️⃣ Kiểm tra số điện thoại trùng
-    const exists = await client.query(
-      "SELECT 1 FROM users WHERE phone = $1",
-      [phone]
-    );
+    // 1️⃣ Kiểm tra trùng số điện thoại
+    const exists = await client.query("SELECT 1 FROM users WHERE phone = $1", [phone]);
     if (exists.rows.length > 0) {
       await client.query("ROLLBACK");
       return res.status(400).json({ error: "Số điện thoại đã tồn tại." });
@@ -101,18 +96,15 @@ router.post("/create_admin", async (req, res) => {
     );
     const user_id = insertUser.rows[0].user_id;
 
-    // 4️⃣ Thêm vào user_item
+    // 4️⃣ Thêm vào user_item (🟢 Lưu giới tính tiếng Việt)
     await client.query(
       `INSERT INTO user_item (user_id, full_name, gender, dob, email, is_living)
        VALUES ($1, $2, $3, $4, $5, TRUE)`,
-      [user_id, full_name, gender || "Other", dob || null, email || null]
+      [user_id, full_name, gender || "Khác", dob || null, email || null]
     );
 
     // 5️⃣ Gán quyền ADMIN
-    await client.query(
-      `INSERT INTO userrole (user_id, role_id) VALUES ($1, 2)`,
-      [user_id]
-    );
+    await client.query(`INSERT INTO userrole (user_id, role_id) VALUES ($1, 2)`, [user_id]);
 
     await client.query("COMMIT");
 

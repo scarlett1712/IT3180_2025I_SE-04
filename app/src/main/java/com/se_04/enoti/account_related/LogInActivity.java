@@ -4,6 +4,7 @@ import androidx.appcompat.app.AppCompatActivity;
 
 import android.content.Intent;
 import android.os.Bundle;
+import android.util.Log;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.TextView;
@@ -17,19 +18,23 @@ import com.se_04.enoti.R;
 import com.se_04.enoti.account.UserItem;
 import com.se_04.enoti.home.admin.MainActivity_Admin;
 import com.se_04.enoti.home.user.MainActivity_User;
+import com.se_04.enoti.utils.ApiConfig;
 import com.se_04.enoti.utils.UserManager;
 
 import org.json.JSONObject;
-
-import static com.se_04.enoti.utils.ValidatePhoneNumberUtil.isValidVietnamesePhoneNumber;
 
 import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Map;
 
+// ✅ Import 2 hàm tiện ích
+import static com.se_04.enoti.utils.ValidatePhoneNumberUtil.isValidVietnamesePhoneNumber;
+import static com.se_04.enoti.utils.ValidatePhoneNumberUtil.normalizePhoneNumber;
+
 public class LogInActivity extends AppCompatActivity {
 
-    private static final String API_LOGIN_URL = "http://10.0.2.2:5000/api/users/login";
+    private static final String API_LOGIN_URL = ApiConfig.BASE_URL + "/api/users/login";
+    private static final String TAG = "LogInActivity";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -59,16 +64,22 @@ public class LogInActivity extends AppCompatActivity {
     }
 
     private void handleLogin(String phone, String password) {
+        // 🧩 Kiểm tra hợp lệ
         if (!isValidVietnamesePhoneNumber(phone)) {
             Toast.makeText(this, R.string.error_invalid_phone, Toast.LENGTH_SHORT).show();
             return;
         }
+
+        // 🧩 Chuẩn hóa số điện thoại sang định dạng +84...
+        phone = normalizePhoneNumber(phone);
+        Log.d(TAG, "Normalized phone number: " + phone);
+
         if (password.isEmpty()) {
             Toast.makeText(this, R.string.error_password_empty, Toast.LENGTH_SHORT).show();
             return;
         }
 
-        Toast.makeText(this, "🔄 Đang đăng nhập...", Toast.LENGTH_SHORT).show();
+        Toast.makeText(this, "Đang đăng nhập...", Toast.LENGTH_SHORT).show();
 
         JSONObject requestBody = new JSONObject();
         try {
@@ -87,7 +98,6 @@ public class LogInActivity extends AppCompatActivity {
                 requestBody,
                 response -> {
                     try {
-                        // ✅ Server trả về JSON chứa user
                         if (!response.has("user")) {
                             Toast.makeText(this, "Phản hồi không hợp lệ từ server.", Toast.LENGTH_SHORT).show();
                             return;
@@ -96,13 +106,12 @@ public class LogInActivity extends AppCompatActivity {
                         JSONObject userJson = response.getJSONObject("user");
                         UserItem user = UserItem.fromJson(userJson);
 
-                        // ✅ Lưu user vào SharedPreferences
+                        // Lưu user vào SharedPreferences
                         UserManager.getInstance(getApplicationContext()).saveCurrentUser(user);
                         UserManager.getInstance(getApplicationContext()).setLoggedIn(true);
 
-                        Toast.makeText(this, "✅ Đăng nhập thành công!", Toast.LENGTH_SHORT).show();
+                        Toast.makeText(this, "Đăng nhập thành công!", Toast.LENGTH_SHORT).show();
 
-                        // ✅ Chuyển trang tương ứng
                         Intent intent = user.getRole() == com.se_04.enoti.account.Role.ADMIN
                                 ? new Intent(this, MainActivity_Admin.class)
                                 : new Intent(this, MainActivity_User.class);
@@ -111,10 +120,10 @@ public class LogInActivity extends AppCompatActivity {
 
                     } catch (Exception e) {
                         Toast.makeText(this, "Lỗi xử lý phản hồi: " + e.getMessage(), Toast.LENGTH_LONG).show();
+                        Log.e(TAG, "Login response parse error", e);
                     }
                 },
                 error -> {
-                    // ❌ Xử lý lỗi khi đăng nhập thất bại
                     String message = "Đăng nhập thất bại.";
                     if (error.networkResponse != null && error.networkResponse.data != null) {
                         try {
@@ -126,9 +135,9 @@ public class LogInActivity extends AppCompatActivity {
                         }
                     }
                     Toast.makeText(this, message, Toast.LENGTH_LONG).show();
+                    Log.e(TAG, "Login error: " + message, error);
                 }
         ) {
-            // 🧩 Thêm Content-Type cho đúng
             @Override
             public Map<String, String> getHeaders() {
                 Map<String, String> headers = new HashMap<>();

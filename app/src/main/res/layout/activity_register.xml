@@ -10,6 +10,7 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="vertical"
+        android:layout_marginTop="60dp"
         android:padding="24dp">
 
         <TextView
@@ -30,17 +31,53 @@
                 android:layout_height="wrap_content" />
         </com.google.android.material.textfield.TextInputLayout>
 
-        <com.google.android.material.textfield.TextInputLayout
+        <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="16dp"
-            android:hint="Ngày sinh (dd/mm/yyyy)">
-            <com.google.android.material.textfield.TextInputEditText
-                android:id="@+id/edtDob"
-                android:layout_width="match_parent"
+            android:orientation="horizontal"
+            android:baselineAligned="false">
+
+            <!-- Ô Ngày sinh -->
+            <com.google.android.material.textfield.TextInputLayout
+                android:layout_width="0dp"
                 android:layout_height="wrap_content"
-                android:focusable="false" />
-        </com.google.android.material.textfield.TextInputLayout>
+                android:layout_weight="0.65"
+                android:layout_marginEnd="8dp"
+                android:hint="Ngày sinh (dd/mm/yyyy)">
+
+                <com.google.android.material.textfield.TextInputEditText
+                    android:id="@+id/edtDob"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:focusable="false"
+                    android:inputType="none"
+                    android:minHeight="56dp"
+                    android:paddingVertical="12dp" />
+            </com.google.android.material.textfield.TextInputLayout>
+
+            <!-- Ô Giới tính -->
+            <com.google.android.material.textfield.TextInputLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="0.35"
+                android:hint="Giới tính">
+
+                <com.google.android.material.textfield.MaterialAutoCompleteTextView
+                    android:id="@+id/spnGender"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:textSize="16dp"
+                    android:minHeight="56dp"
+                    android:paddingVertical="12dp"
+                    android:paddingLeft="13dp"
+                    android:inputType="none"
+                    android:focusable="false" />
+            </com.google.android.material.textfield.TextInputLayout>
+
+
+        </LinearLayout>
+
 
         <com.google.android.material.textfield.TextInputLayout
             android:layout_width="match_parent"

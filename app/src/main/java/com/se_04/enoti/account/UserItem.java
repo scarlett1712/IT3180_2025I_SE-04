@@ -41,15 +41,42 @@ public class UserItem {
         String phone = userJson.getString("phone");
         String roleStr = userJson.getString("role");
         String name = userJson.getString("name");
-        String genderStr = userJson.optString("gender", "OTHER");
+        String genderStr = userJson.optString("gender", "Khác");
         String dob = userJson.optString("dob", "01-01-2000");
-        String roomStr = userJson.optString("room", "N/A");
+        String roomStr = userJson.optString("room", "0");
         String relationship = userJson.optString("relationship", "Thành viên");
         String email = userJson.optString("email", "");
 
-        Role role = Role.valueOf(roleStr.toUpperCase());
-        Gender gender = Gender.valueOf(genderStr.toUpperCase());
-        int room = "N/A".equals(roomStr) ? 0 : Integer.parseInt(roomStr);
+        // --- Xử lý Role ---
+        Role role;
+        try {
+            role = Role.valueOf(roleStr.trim().toUpperCase());
+        } catch (Exception e) {
+            role = Role.USER; // default
+        }
+
+        // --- Xử lý Gender (chuyển từ "Nam"/"Nữ"/"Khác" sang enum) ---
+        Gender gender;
+        switch (genderStr.trim().toLowerCase()) {
+            case "nam":
+                gender = Gender.MALE;
+                break;
+            case "nữ":
+            case "nu":
+                gender = Gender.FEMALE;
+                break;
+            default:
+                gender = Gender.OTHER;
+                break;
+        }
+
+        // --- Xử lý room ---
+        int room;
+        try {
+            room = Integer.parseInt(roomStr);
+        } catch (NumberFormatException e) {
+            room = 0;
+        }
 
         return new UserItem(id, null, email, name, dob, gender, relationship, room, role, phone);
     }
