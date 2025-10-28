@@ -162,14 +162,7 @@ public class ManageNotificationFragment extends Fragment {
             return;
         }
 
-        long adminId;
-        try {
-            adminId = Long.parseLong(currentUser.getId());
-        } catch (NumberFormatException e) {
-            return;
-        }
-
-        repository.fetchAdminNotifications(adminId, new NotificationRepository.NotificationsCallback() {
+        repository.fetchAdminNotifications(new NotificationRepository.NotificationsCallback() {
             @Override
             public void onSuccess(List<NotificationItem> items) {
                 if (isAdded() && items != null) {
