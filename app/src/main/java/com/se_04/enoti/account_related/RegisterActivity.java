@@ -142,6 +142,7 @@ public class RegisterActivity extends AppCompatActivity {
         intent.putExtra("dob", dob);
         intent.putExtra("gender", gender); // 👈 Truyền mã enum cho backend
         intent.putExtra("is_admin_registration", true);
+        intent.putExtra(EnterOTPActivity.EXTRA_PREVIOUS_ACTIVITY, EnterOTPActivity.FROM_REGISTER_PHONE);
         startActivity(intent);
     }
 }
