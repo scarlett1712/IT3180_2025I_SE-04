@@ -3,7 +3,7 @@
     <string name="login_text">Đăng nhập</string>
     <string name="forgot_password_text">Quên mật khẩu?</string>
     <string name="forgot_password_header">Quên mật khẩu</string>
-    <string name="register_text">Đăng ký</string>
+    <string name="register_text">Đăng ký (QTV)</string>
     <string name="enter_phone_number_text">Nhập số điện thoại</string>
     <string name="enter_password_text">Nhập mật khẩu</string>
     <string name="get_otp_text">Nhận mã OTP</string>
