@@ -38,7 +38,6 @@
         <activity android:name=".account_related.RegisterActivity"> </activity>
         <activity android:name=".account_related.EnterOTPActivity"> </activity>
         <activity android:name=".account_related.CreateNewPasswordActivity"> </activity>
-        <activity android:name=".account_related.RegisterEnterPhoneActivity"> </activity>
         <activity android:name=".home.user.MainActivity_User"> </activity>
         <activity android:name=".home.admin.MainActivity_Admin"> </activity>
         <activity android:name=".notification.NotificationDetailActivity"> </activity>
@@ -48,9 +47,9 @@
         <activity android:name=".notification.admin.CreateNotificationActivity"> </activity>
         <activity android:name=".residents.ResidentDetailActivity"> </activity>
         <activity android:name=".residents.CreateResidentActivity"> </activity>
-        <activity android:name=".finance.admin.CreateFinanceActivity"></activity>
-        <activity android:name=".finance.admin.FinanceDetailActivity_Admin"></activity>
-
+        <activity android:name=".finance.admin.CreateFinanceActivity"> </activity>
+        <activity android:name=".finance.admin.FinanceDetailActivity_Admin"> </activity>
+        <activity android:name=".notification.admin.NotificationDetailActivity_Admin"> </activity>
 
         <receiver
             android:name=".notification.admin.NotificationReceiver"

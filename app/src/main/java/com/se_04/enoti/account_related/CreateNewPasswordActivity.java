@@ -8,8 +8,20 @@ import android.widget.Toast;
 
 import androidx.appcompat.app.AppCompatActivity;
 
+import com.android.volley.Request;
+import com.android.volley.RequestQueue;
+import com.android.volley.toolbox.JsonObjectRequest;
+import com.android.volley.toolbox.Volley;
 import com.se_04.enoti.R;
-import com.se_04.enoti.home.user.MainActivity_User;
+import com.se_04.enoti.account_related.LogInActivity;
+import com.se_04.enoti.utils.ApiConfig;
+
+import org.json.JSONException;
+import org.json.JSONObject;
+
+import java.nio.charset.StandardCharsets;
+import java.util.HashMap;
+import java.util.Map;
 
 public class CreateNewPasswordActivity extends AppCompatActivity {
 
@@ -17,60 +29,87 @@ public class CreateNewPasswordActivity extends AppCompatActivity {
     private EditText editTextConfirmPassword;
     private Button buttonConfirm;
 
+    private static final String API_RESET_PASSWORD_URL = ApiConfig.BASE_URL + "/api/users/reset_password";
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_create_new_password); // Link to your layout file
+        setContentView(R.layout.activity_create_new_password);
 
         editTextNewPassword = findViewById(R.id.editTextNewPassword);
         editTextConfirmPassword = findViewById(R.id.editTextConfirmNewPassword);
         buttonConfirm = findViewById(R.id.buttonConfirm);
 
-        buttonConfirm.setOnClickListener(v -> {
-            handleCreateNewPassword(editTextNewPassword, editTextConfirmPassword);
-        });
+        buttonConfirm.setOnClickListener(v -> handleCreateNewPassword());
     }
 
-    protected void handleCreateNewPassword(EditText newPasswordField, EditText confirmPasswordField) {
-        String newPassword = newPasswordField.getText().toString().trim();
-        String confirmPassword = confirmPasswordField.getText().toString().trim();
-        int minPasswordLength = 6, maxPasswordLength = 16;
+    private void handleCreateNewPassword() {
+        String newPassword = editTextNewPassword.getText().toString().trim();
+        String confirmPassword = editTextConfirmPassword.getText().toString().trim();
+        int minLen = 6, maxLen = 16;
 
-        if (newPassword.isEmpty()) {
-            newPasswordField.setError("Mật khẩu mới không thể để trống");
-            newPasswordField.requestFocus();
+        if (newPassword.isEmpty() || confirmPassword.isEmpty()) {
+            Toast.makeText(this, "Không được để trống mật khẩu.", Toast.LENGTH_SHORT).show();
             return;
         }
 
-        if (confirmPassword.isEmpty()) {
-            confirmPasswordField.setError("Mật khẩu xác nhận không thể để trống");
-            confirmPasswordField.requestFocus();
-            return;
-        }
-
-        if (newPassword.length() < minPasswordLength || newPassword.length() > maxPasswordLength) {
-            newPasswordField.setError("Mật khẩu cần phải dài trong khoảng từ " + minPasswordLength + " tới " + maxPasswordLength + " ký tự");
-            newPasswordField.requestFocus();
-        }
-
-        if (confirmPassword.length() < minPasswordLength || confirmPassword.length() > maxPasswordLength) {
-            confirmPasswordField.setError("Mật khẩu cần phải dài trong khoảng từ " + minPasswordLength + " tới " + maxPasswordLength + " ký tự");
-            confirmPasswordField.requestFocus();
+        if (newPassword.length() < minLen || newPassword.length() > maxLen) {
+            editTextNewPassword.setError("Độ dài mật khẩu từ " + minLen + "–" + maxLen + " ký tự");
             return;
         }
 
         if (!newPassword.equals(confirmPassword)) {
-            confirmPasswordField.setError("Mật khẩu xác nhận không khớp");
-            confirmPasswordField.requestFocus();
+            editTextConfirmPassword.setError("Mật khẩu xác nhận không khớp");
             return;
         }
 
-        newPasswordField.setError(null);
-        confirmPasswordField.setError(null);
+        String phone = getIntent().getStringExtra("phone");
+        if (phone == null || phone.isEmpty()) {
+            Toast.makeText(this, "Thiếu số điện thoại, vui lòng thử lại.", Toast.LENGTH_SHORT).show();
+            return;
+        }
 
-        Toast.makeText(this, "Tạo mật khẩu mới thành công.", Toast.LENGTH_LONG).show();
-        Intent intent = new Intent(CreateNewPasswordActivity.this, MainActivity_User.class);
-        startActivity(intent);
-        finish();
+        sendResetPasswordRequest(phone, newPassword);
+    }
+
+    private void sendResetPasswordRequest(String phone, String newPassword) {
+        JSONObject body = new JSONObject();
+        try {
+            body.put("phone", phone);
+            body.put("new_password", newPassword);
+        } catch (JSONException e) {
+            Toast.makeText(this, "Lỗi tạo dữ liệu yêu cầu.", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        RequestQueue queue = Volley.newRequestQueue(this);
+        JsonObjectRequest request = new JsonObjectRequest(Request.Method.POST, API_RESET_PASSWORD_URL, body,
+                response -> {
+                    Toast.makeText(this, "Cập nhật mật khẩu thành công!", Toast.LENGTH_LONG).show();
+                    Intent intent = new Intent(this, LogInActivity.class);
+                    intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_NEW_TASK);
+                    startActivity(intent);
+                    finish();
+                },
+                error -> {
+                    String msg = "Đặt lại mật khẩu thất bại.";
+                    if (error.networkResponse != null && error.networkResponse.data != null) {
+                        try {
+                            String responseBody = new String(error.networkResponse.data, StandardCharsets.UTF_8);
+                            JSONObject obj = new JSONObject(responseBody);
+                            msg = obj.optString("error", msg);
+                        } catch (Exception ignored) {}
+                    }
+                    Toast.makeText(this, msg, Toast.LENGTH_LONG).show();
+                }) {
+            @Override
+            public Map<String, String> getHeaders() {
+                Map<String, String> headers = new HashMap<>();
+                headers.put("Content-Type", "application/json; charset=UTF-8");
+                return headers;
+            }
+        };
+
+        queue.add(request);
     }
 }

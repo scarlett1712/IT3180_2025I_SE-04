@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>ENoti - Ứng dụng quản lý cư dân thông minh</title>
+    <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+<header>
+    <h1>ENoti</h1>
+    <p>Ứng dụng thông báo và quản lý cư dân hiện đại</p>
+</header>
+
+<section id="intro">
+    <div>
+        <h2>Giới thiệu</h2>
+        <p>
+            <strong>ENoti</strong> giúp quản lý thông tin cư dân, phản hồi, thông báo và tài chính một cách dễ dàng.
+            Được phát triển trong khuôn khổ dự án môn <em>Nhập môn Công nghệ Phần mềm</em>.
+        </p>
+        <a href="https://play.google.com/store/apps/details?id=com.se_04.enoti"
+           class="btn" target="_blank">
+            Tải xuống ngay
+        </a>
+    </div>
+    <img src="assets/screenshots/screen1.png" alt="Giao diện ứng dụng" />
+</section>
+
+<!-- Ảnh màn hình ngang -->
+<section id="screenshots">
+    <h2>Ảnh màn hình ứng dụng</h2>
+    <div class="screenshot-list">
+        <img src="assets/screenshots/screen1.png" alt="Màn hình chính" />
+        <img src="assets/screenshots/screen2.png" alt="Thông báo" />
+        <img src="assets/screenshots/screen3.png" alt="Phản hồi cư dân" />
+        <img src="assets/screenshots/screen4.png" alt="Tài chính" />
+    </div>
+</section>
+
+<section id="features">
+    <h2>Tính năng nổi bật</h2>
+    <ul>
+        <li>📢 Gửi và nhận thông báo nhanh chóng</li>
+        <li>💬 Phản hồi cư dân – Ban quản lý tiện lợi</li>
+        <li>💰 Quản lý tài chính minh bạch</li>
+        <li>👥 Hồ sơ cư dân và tài khoản người dùng</li>
+    </ul>
+</section>
+
+<footer>
+    <p>© 2025 ENoti | Nhóm SE04 - Đại học Bách Khoa Hà Nội</p>
+</footer>
+
+<script>
+    // Cuộn ngang tự động như RecyclerView auto-scroll
+    const list = document.querySelector('.screenshot-list');
+    let scrollPosition = 0;
+
+    setInterval(() => {
+      if (!list) return;
+      scrollPosition += 240;
+      if (scrollPosition >= list.scrollWidth - list.clientWidth) {
+        scrollPosition = 0;
+      }
+      list.scrollTo({ left: scrollPosition, behavior: 'smooth' });
+    }, 3000);
+</script>
+</body>
+</html>

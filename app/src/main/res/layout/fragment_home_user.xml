@@ -113,7 +113,7 @@
                     android:layout_height="90dp"
                     android:background="@drawable/bg_circle_blue"
                     android:padding="16dp"
-                    android:contentDescription="@string/bill"
+                    android:contentDescription="@string/finance"
                     android:scaleType="fitXY"
                     android:src="@drawable/ic_bill" />
 
@@ -153,6 +153,7 @@
 
             <!-- Nút 5: Cài đặt -->
             <LinearLayout
+                android:id="@+id/layoutSettings"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:orientation="vertical"
@@ -178,6 +179,7 @@
 
             <!-- Nút 6: Hỗ trợ -->
             <LinearLayout
+                android:id="@+id/layoutSupport"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:orientation="vertical"

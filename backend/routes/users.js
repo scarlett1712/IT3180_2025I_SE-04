@@ -4,86 +4,170 @@ import bcrypt from "bcryptjs";
 
 const router = express.Router();
 
+/* ==========================================================
+   🟢 API: Đăng nhập người dùng (User / Admin)
+========================================================== */
 router.post("/login", async (req, res) => {
   try {
     const { phone, password } = req.body || {};
 
-    if (!phone || !password)
-      return res.status(400).json({ error: "Thiếu số điện thoại hoặc mật khẩu" });
+    if (!phone || !password) {
+      return res.status(400).json({ error: "Thiếu số điện thoại hoặc mật khẩu." });
+    }
 
-    // 1️⃣ Tìm user
+    // 🔹 Lấy thông tin cơ bản
     const userRes = await pool.query(
-      `SELECT user_id, phone, password_hash FROM users WHERE phone = $1`,
+      `SELECT u.user_id, u.phone, u.password_hash, ur.role_id
+       FROM users u
+       LEFT JOIN userrole ur ON u.user_id = ur.user_id
+       WHERE u.phone = $1`,
       [phone]
     );
 
-    if (userRes.rows.length === 0)
-      return res.status(400).json({ error: "Số điện thoại không tồn tại" });
+    if (userRes.rows.length === 0) {
+      return res.status(404).json({ error: "Số điện thoại không tồn tại." });
+    }
 
     const user = userRes.rows[0];
+    const bcrypt = await import("bcryptjs");
+    const match = await bcrypt.default.compare(password, user.password_hash);
+    if (!match) {
+      return res.status(401).json({ error: "Sai mật khẩu." });
+    }
 
-    // 2️⃣ Kiểm tra mật khẩu
-    const match = await bcrypt.compare(password, user.password_hash);
-    if (!match)
-      return res.status(401).json({ error: "Sai mật khẩu" });
-
-    // 3️⃣ Lấy thông tin đầy đủ
+    // 🔹 Lấy thêm thông tin cư dân (JOIN relationship + apartment)
     const infoRes = await pool.query(
-      `SELECT
-          u.user_id,
-          u.phone,
-          ur.role_id,
-          ui.full_name,
-          ui.gender,
-          TO_CHAR(ui.dob, 'DD-MM-YYYY') AS dob,
-          a.apartment_number,
-          r.relationship_with_the_head_of_household,
-          ui.email,
-          ui.is_living,
-          ui.avatar_path
-       FROM users u
-       LEFT JOIN userrole ur ON u.user_id = ur.user_id
-       LEFT JOIN user_item ui ON u.user_id = ui.user_id
-       LEFT JOIN relationship r ON ui.relationship = r.relationship_id
-       LEFT JOIN apartment a ON r.apartment_id = a.apartment_id
-       WHERE u.user_id = $1`,
+      `
+      SELECT
+        ui.full_name,
+        ui.gender,
+        TO_CHAR(ui.dob, 'DD-MM-YYYY') AS dob,
+        ui.email,
+        r.relationship_with_the_head_of_household AS relationship,
+        a.apartment_number AS room
+      FROM user_item ui
+      LEFT JOIN relationship r ON ui.relationship = r.relationship_id
+      LEFT JOIN apartment a ON r.apartment_id = a.apartment_id
+      WHERE ui.user_id = $1
+      `,
       [user.user_id]
     );
 
-    if (infoRes.rows.length === 0)
-      return res.status(404).json({ error: "Không tìm thấy thông tin người dùng" });
+    const info = infoRes.rows.length > 0 ? infoRes.rows[0] : {};
+    const role = user.role_id === 2 ? "ADMIN" : "USER";
 
-    const info = infoRes.rows[0];
-
-    // 4️⃣ Chuẩn hóa vai trò (role)
-    const role =
-      info.role_id === 2 ? "ADMIN" :
-      info.role_id === 1 ? "USER" :
-      "USER";
-
-    // 5️⃣ Trả về JSON phù hợp với app Android
-    res.json({
+    return res.json({
       message: "Đăng nhập thành công",
       user: {
-        user_id: info.user_id,
-        phone: info.phone,
-        role,
-        full_name: info.full_name || info.phone,
-        gender: info.gender || "Không rõ",
-        dob: info.dob || "2000-01-01",
-        family_id: info.family_id || "Không rõ",
-        relationship_with_the_head_of_household:
-          info.relationship_with_the_head_of_household || "Thành viên",
+        id: user.user_id.toString(),
+        phone: user.phone,
+        role: role,
+        name: info.full_name || user.phone,
+        gender: info.gender || "Khác",
+        dob: info.dob || "01-01-2000",
         email: info.email || "",
-        apartment_number: info.apartment_number || null,
-        is_living: info.is_living ?? true,
-      }
+        room: info.room || "", // ✅ Trả về số phòng
+        relationship: info.relationship || "", // ✅ Trả về quan hệ
+      },
     });
-
   } catch (err) {
     console.error("💥 [LOGIN ERROR]", err);
-    res.status(500).json({ error: "Lỗi server", details: err.message });
+    res.status(500).json({ error: "Lỗi server khi đăng nhập." });
   }
 });
+
+/* ==========================================================
+   🟢 API: Tạo tài khoản Ban Quản Trị (Admin)
+========================================================== */
+router.post("/create_admin", async (req, res) => {
+  const client = await pool.connect();
+
+  try {
+    const { phone, password, full_name, gender, dob, email } = req.body || {};
+
+    if (!phone || !password || !full_name) {
+      return res.status(400).json({ error: "Thiếu thông tin bắt buộc." });
+    }
+
+    await client.query("BEGIN");
+
+    // 1️⃣ Kiểm tra trùng số điện thoại
+    const exists = await client.query("SELECT 1 FROM users WHERE phone = $1", [phone]);
+    if (exists.rows.length > 0) {
+      await client.query("ROLLBACK");
+      return res.status(400).json({ error: "Số điện thoại đã tồn tại." });
+    }
+
+    // 2️⃣ Hash mật khẩu
+    const passwordHash = await bcrypt.hash(password, 10);
+
+    // 3️⃣ Thêm vào bảng users
+    const insertUser = await client.query(
+      `INSERT INTO users (password_hash, phone, created_at, updated_at)
+       VALUES ($1, $2, NOW(), NOW()) RETURNING user_id`,
+      [passwordHash, phone]
+    );
+    const user_id = insertUser.rows[0].user_id;
+
+    // 4️⃣ Thêm vào user_item (🟢 Lưu giới tính tiếng Việt)
+    await client.query(
+      `INSERT INTO user_item (user_id, full_name, gender, dob, email, is_living)
+       VALUES ($1, $2, $3, $4, $5, TRUE)`,
+      [user_id, full_name, gender || "Khác", dob || null, email || null]
+    );
+
+    // 5️⃣ Gán quyền ADMIN
+    await client.query(`INSERT INTO userrole (user_id, role_id) VALUES ($1, 2)`, [user_id]);
+
+    await client.query("COMMIT");
+
+    return res.json({
+      message: "✅ Tạo tài khoản Ban Quản Trị thành công!",
+      user_id,
+      phone,
+    });
+  } catch (err) {
+    await client.query("ROLLBACK");
+    console.error("💥 [CREATE ADMIN ERROR]", err);
+    return res.status(500).json({ error: "Lỗi server khi tạo tài khoản admin." });
+  } finally {
+    client.release();
+  }
+});
+
+/* ==========================================================
+   🟠 API: Đặt lại mật khẩu (Forget Password)
+========================================================== */
+router.post("/reset_password", async (req, res) => {
+  try {
+    const { phone, new_password } = req.body || {};
+
+    if (!phone || !new_password) {
+      return res.status(400).json({ error: "Thiếu số điện thoại hoặc mật khẩu mới." });
+    }
+
+    // 1️⃣ Tìm người dùng theo số điện thoại
+    const userRes = await pool.query("SELECT user_id FROM users WHERE phone = $1", [phone]);
+    if (userRes.rows.length === 0) {
+      return res.status(404).json({ error: "Không tìm thấy tài khoản với số điện thoại này." });
+    }
+
+    // 2️⃣ Hash mật khẩu mới
+    const bcrypt = await import("bcryptjs");
+    const hash = await bcrypt.default.hash(new_password, 10);
+
+    // 3️⃣ Cập nhật mật khẩu
+    await pool.query(
+      "UPDATE users SET password_hash = $1, updated_at = NOW() WHERE phone = $2",
+      [hash, phone]
+    );
+
+    return res.json({ message: "Đặt lại mật khẩu thành công." });
+  } catch (err) {
+    console.error("💥 [RESET PASSWORD ERROR]", err);
+    return res.status(500).json({ error: "Lỗi server khi đặt lại mật khẩu." });
+  }
+});
+
 
 export default router;

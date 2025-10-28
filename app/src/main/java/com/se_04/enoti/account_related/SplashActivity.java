@@ -15,6 +15,7 @@ import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.appcompat.app.AppCompatDelegate; // <-- Thêm import này
 import androidx.core.content.ContextCompat;
 
 import com.se_04.enoti.account.Role;
@@ -30,6 +31,9 @@ public class SplashActivity extends AppCompatActivity {
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
+        // ✅ Ép buộc luôn ở chế độ sáng
+        AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_NO);
+
         super.onCreate(savedInstanceState);
 
         permissionLauncher = registerForActivityResult(
@@ -47,7 +51,6 @@ public class SplashActivity extends AppCompatActivity {
                     if (cameraGranted && imageGranted) {
                         navigateNext();
                     } else {
-                        // Kiểm tra nếu người dùng đã chọn "Không hỏi lại nữa"
                         if (isPermissionPermanentlyDenied()) {
                             showPermissionSettingsDialog();
                         } else {
@@ -84,7 +87,6 @@ public class SplashActivity extends AppCompatActivity {
     }
 
     private boolean isPermissionPermanentlyDenied() {
-        // Kiểm tra xem quyền đã bị từ chối vĩnh viễn (Không hỏi lại nữa)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             return (ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED
                     && !shouldShowRequestPermissionRationale(Manifest.permission.CAMERA))
