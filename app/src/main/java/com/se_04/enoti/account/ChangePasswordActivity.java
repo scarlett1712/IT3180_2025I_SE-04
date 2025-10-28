@@ -3,9 +3,11 @@ package com.se_04.enoti.account;
 import androidx.appcompat.app.AppCompatActivity;
 import android.os.Bundle;
 import android.util.Log;
+import android.view.MenuItem; // Import MenuItem
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.Toast;
+import androidx.appcompat.widget.Toolbar;
 
 import com.se_04.enoti.R;
 import com.se_04.enoti.utils.ApiConfig;
@@ -24,8 +26,8 @@ public class ChangePasswordActivity extends AppCompatActivity {
     private EditText editTextNewPassword;
     private EditText editTextConfirmPassword;
     private Button buttonChangePassword;
+    private Toolbar toolbar;
 
-    // ⚙️ URL backend API
     private static final String API_URL = ApiConfig.BASE_URL + "/api/changepassword";
 
     @Override
@@ -39,6 +41,24 @@ public class ChangePasswordActivity extends AppCompatActivity {
         buttonChangePassword = findViewById(R.id.buttonChangePassword);
 
         buttonChangePassword.setOnClickListener(v -> handleChangePassword());
+
+        toolbar = findViewById(R.id.changePasswordToolbar);
+        setSupportActionBar(toolbar);
+        if (getSupportActionBar() != null) {
+            getSupportActionBar().setDisplayHomeAsUpEnabled(true);
+            getSupportActionBar().setTitle("Đổi mật khẩu"); // FIX: Correct title
+        }
+    }
+
+    // FIX: Add this method to handle toolbar item clicks
+    @Override
+    public boolean onOptionsItemSelected(MenuItem item) {
+        // Handle arrow click here
+        if (item.getItemId() == android.R.id.home) {
+            finish(); // Close this activity and return to previous one
+            return true;
+        }
+        return super.onOptionsItemSelected(item);
     }
 
     private void handleChangePassword() {
@@ -81,7 +101,6 @@ public class ChangePasswordActivity extends AppCompatActivity {
             return;
         }
 
-        // Lấy user ID từ UserManager
         UserItem currentUser = UserManager.getInstance(getApplicationContext()).getCurrentUser();
         if (currentUser == null) {
             Toast.makeText(this, "Không tìm thấy thông tin người dùng", Toast.LENGTH_LONG).show();
@@ -96,7 +115,6 @@ public class ChangePasswordActivity extends AppCompatActivity {
             return;
         }
 
-        // Gửi request đổi mật khẩu
         new Thread(() -> sendChangePasswordRequest(userId, oldPassword, newPassword)).start();
     }
 
@@ -108,7 +126,6 @@ public class ChangePasswordActivity extends AppCompatActivity {
             conn.setRequestProperty("Content-Type", "application/json; charset=UTF-8");
             conn.setDoOutput(true);
 
-            // Gửi dữ liệu JSON lên backend
             JSONObject body = new JSONObject();
             body.put("user_id", userId);
             body.put("old_password", oldPassword);
@@ -144,7 +161,7 @@ public class ChangePasswordActivity extends AppCompatActivity {
             runOnUiThread(() -> {
                 if (responseCode == 200) {
                     Toast.makeText(this, finalMessage, Toast.LENGTH_LONG).show();
-                    finish(); // Quay lại trang trước
+                    finish();
                 } else {
                     Toast.makeText(this, finalMessage, Toast.LENGTH_LONG).show();
                 }

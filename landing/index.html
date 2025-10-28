@@ -1,70 +1,116 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="vi">
 <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>ENoti - Ứng dụng quản lý cư dân thông minh</title>
-    <link rel="stylesheet" href="style.css" />
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>ENoti — Ứng dụng quản lý tòa nhà</title>
+
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&display=swap" rel="stylesheet">
+
+    <!-- Liên kết file CSS ngoài -->
+    <link rel="stylesheet" href="style.css">
 </head>
 <body>
-<header>
-    <h1>ENoti</h1>
-    <p>Ứng dụng thông báo và quản lý cư dân hiện đại</p>
-</header>
+<div class="container">
+    <header>
+        <div class="brand">
+            <div class="logo">EN</div>
+            <div>
+                <h1>ENoti</h1>
+                <div class="small">Quản lý toà nhà — Thông báo & Khoản thu</div>
+            </div>
+        </div>
+        <nav>
+            <a href="#features">Tính năng</a>
+            <a href="#screens">Giao diện</a>
+            <a class="btn-primary" href="#download">Tải về</a>
+        </nav>
+    </header>
 
-<section id="intro">
-    <div>
-        <h2>Giới thiệu</h2>
-        <p>
-            <strong>ENoti</strong> giúp quản lý thông tin cư dân, phản hồi, thông báo và tài chính một cách dễ dàng.
-            Được phát triển trong khuôn khổ dự án môn <em>Nhập môn Công nghệ Phần mềm</em>.
-        </p>
-        <a href="https://play.google.com/store/apps/details?id=com.se_04.enoti"
-           class="btn" target="_blank">
-            Tải xuống ngay
-        </a>
-    </div>
-    <img src="assets/screenshots/screen1.png" alt="Giao diện ứng dụng" />
-</section>
+    <main>
+        <section class="hero">
+            <div>
+                <h2 class="fade-up">Giải pháp quản lý tòa nhà hiện đại — ENoti</h2>
+                <p class="fade-up delay-1">Gửi thông báo, thu phí, quản lý cư dân và phản hồi — tất cả trong một ứng dụng nhẹ, an toàn và dễ dùng.</p>
 
-<!-- Ảnh màn hình ngang -->
-<section id="screenshots">
-    <h2>Ảnh màn hình ứng dụng</h2>
-    <div class="screenshot-list">
-        <img src="assets/screenshots/screen1.png" alt="Màn hình chính" />
-        <img src="assets/screenshots/screen2.png" alt="Thông báo" />
-        <img src="assets/screenshots/screen3.png" alt="Phản hồi cư dân" />
-        <img src="assets/screenshots/screen4.png" alt="Tài chính" />
-    </div>
-</section>
+                <div class="cards">
+                    <div class="card fade-up delay-2">Tối ưu hoá liên lạc giữa ban quản lý và cư dân</div>
+                    <div class="card fade-up delay-3">Báo cáo & thống kê real-time</div>
+                </div>
 
-<section id="features">
-    <h2>Tính năng nổi bật</h2>
-    <ul>
-        <li>📢 Gửi và nhận thông báo nhanh chóng</li>
-        <li>💬 Phản hồi cư dân – Ban quản lý tiện lợi</li>
-        <li>💰 Quản lý tài chính minh bạch</li>
-        <li>👥 Hồ sơ cư dân và tài khoản người dùng</li>
-    </ul>
-</section>
+                <div style="margin-top:24px" class="fade-up delay-3">
+                    <a class="btn-primary" href="#download">Tải ngay</a>
+                    <a style="margin-left:12px;color:var(--muted)" href="#contact">Liên hệ</a>
+                </div>
 
-<footer>
-    <p>© 2025 ENoti | Nhóm SE04 - Đại học Bách Khoa Hà Nội</p>
-</footer>
+                <div class="contact">
+                    <form onsubmit="event.preventDefault();alert('Cảm ơn, chúng tôi sẽ liên hệ!');">
+                        <input placeholder="Tên của bạn" required />
+                        <input placeholder="Email" required />
+                        <textarea rows="3" placeholder="Lời nhắn"></textarea>
+                        <button class="btn-primary" type="submit">Gửi liên hệ</button>
+                    </form>
+                    <div style="width:280px;padding:16px;background:linear-gradient(180deg,rgba(255,255,255,0.02),transparent);border-radius:12px">
+                        <h4 style="margin:0 0 8px">Tại sao chọn ENoti?</h4>
+                        <p class="small">Bảo mật dữ liệu, dễ triển khai, hỗ trợ đa nền tảng (Android/iOS/Web) và tích hợp Firebase.</p>
+                    </div>
+                </div>
+            </div>
+
+            <aside class="phone fade-up">
+                <div class="screen">
+                    <div class="mock-top">ENoti Preview</div>
+                    <div class="mock-content">
+                        <h3 style="margin:0 0 8px">Danh sách thông báo</h3>
+                        <p class="small">Hạn nộp, loại thông báo và trạng thái thanh toán nhanh chóng.</p>
+                    </div>
+                    <div class="mock-cta">
+                        <div style="display:flex;gap:8px;justify-content:center">
+                            <div style="background:#022433;padding:8px 12px;border-radius:10px">App Store</div>
+                            <div style="background:#022433;padding:8px 12px;border-radius:10px">Google Play</div>
+                        </div>
+                    </div>
+                </div>
+            </aside>
+        </section>
+
+        <section id="features">
+            <h2 style="margin:24px 0 12px">Tính năng nổi bật</h2>
+            <div class="features">
+                <div class="feature">
+                    <h3>Thông báo & Tin nhắn</h3>
+                    <p>Gửi thông báo theo phòng, toàn tòa nhà hoặc nhóm; đính kèm file, ảnh và theo dõi lượt đọc.</p>
+                </div>
+                <div class="feature">
+                    <h3>Quản lý khoản thu</h3>
+                    <p>Tạo khoản thu theo phòng, theo cư dân; thống kê số phòng đã đóng — đơn giản hóa quy trình thu phí.</p>
+                </div>
+                <div class="feature">
+                    <h3>Phản hồi & Hỗ trợ</h3>
+                    <p>Người dùng gửi feedback kèm file; ban quản lý trả lời trực tiếp trong app.</p>
+                </div>
+            </div>
+        </section>
+
+        <section id="screens">
+            <h2 style="margin:24px 0 12px">Một vài giao diện</h2>
+            <div style="display:flex;gap:12px;overflow:auto;padding-bottom:12px">
+                <img alt="screenshot" src="assets/screenshots/screen1.png" style="width:320px;border-radius:12px;box-shadow:0 8px 24px rgba(1,6,20,0.6)"/>
+                <img alt="screenshot" src="assets/screenshots/screen2.png" style="width:320px;border-radius:12px;box-shadow:0 8px 24px rgba(1,6,20,0.6)"/>
+                <img alt="screenshot" src="https://images.unsplash.com/photo-1515378791036-0648a3ef77b2?w=800&q=60" style="width:320px;border-radius:12px;box-shadow:0 8px 24px rgba(1,6,20,0.6)"/>
+            </div>
+        </section>
+    </main>
+
+    <footer>
+        <div>© <strong>ENoti</strong> — Giải pháp quản lý tòa nhà</div>
+        <div style="color:var(--muted)">Email: contact@enoti.app &nbsp;•&nbsp; Hotline: +84 912 345 678</div>
+    </footer>
+</div>
 
 <script>
-    // Cuộn ngang tự động như RecyclerView auto-scroll
-    const list = document.querySelector('.screenshot-list');
-    let scrollPosition = 0;
-
-    setInterval(() => {
-      if (!list) return;
-      scrollPosition += 240;
-      if (scrollPosition >= list.scrollWidth - list.clientWidth) {
-        scrollPosition = 0;
-      }
-      list.scrollTo({ left: scrollPosition, behavior: 'smooth' });
-    }, 3000);
+    document.querySelectorAll('.fade-up').forEach(el => el.classList.add('delay-1'));
 </script>
 </body>
 </html>
