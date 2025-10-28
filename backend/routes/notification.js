@@ -3,13 +3,10 @@ import { pool } from "../db.js";
 
 const router = express.Router();
 
-// ✅ Route 1: Lấy tất cả thông báo mà admin đã gửi
-router.get("/sent/:adminId", async (req, res) => {
+// ✅ Route 1 (mới): Lấy tất cả thông báo do admin tạo
+router.get("/sent", async (req, res) => {
   try {
-    const { adminId } = req.params;
-
-    const result = await pool.query(
-      `
+    const result = await pool.query(`
       SELECT
         n.notification_id,
         n.title,
@@ -20,15 +17,15 @@ router.get("/sent/:adminId", async (req, res) => {
         COALESCE(ui.full_name, 'Hệ thống') AS sender
       FROM notification n
       LEFT JOIN user_item ui ON n.created_by = ui.user_id
-      WHERE n.created_by = $1
+      LEFT JOIN userrole ur ON ui.user_id = ur.user_id
+      LEFT JOIN role r ON ur.role_id = r.role_id
+      WHERE ur.role_id = 2  -- 👈 chỉ lấy thông báo do admin tạo
       ORDER BY n.created_at DESC;
-      `,
-      [adminId]
-    );
+    `);
 
     res.json(result.rows);
   } catch (error) {
-    console.error("Error fetching sent notifications:", error);
+    console.error("Error fetching admin notifications:", error);
     res.status(500).json({ message: "Lỗi server" });
   }
 });
