@@ -57,27 +57,23 @@
             </com.google.android.material.textfield.TextInputLayout>
 
             <!-- Ô Giới tính -->
-            <com.google.android.material.textfield.TextInputLayout
+            <LinearLayout
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="0.35"
-                android:hint="Giới tính">
+                android:orientation="vertical">
 
-                <com.google.android.material.textfield.MaterialAutoCompleteTextView
+                <Spinner
                     android:id="@+id/spnGender"
+                    android:layout_marginTop="4.5dp"
                     android:layout_width="match_parent"
-                    android:layout_height="match_parent"
-                    android:textSize="16dp"
-                    android:minHeight="56dp"
-                    android:paddingVertical="12dp"
-                    android:paddingLeft="13dp"
-                    android:inputType="none"
-                    android:focusable="false" />
-            </com.google.android.material.textfield.TextInputLayout>
-
+                    android:layout_height="56dp"
+                    android:background="@drawable/spinner_background"
+                    android:paddingStart="12dp"
+                    android:spinnerMode="dropdown" />
+            </LinearLayout>
 
         </LinearLayout>
-
 
         <com.google.android.material.textfield.TextInputLayout
             android:layout_width="match_parent"
@@ -121,7 +117,6 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="16dp"
-            app:passwordToggleEnabled="true"
             android:hint="Mã xác thực BQT (*)">
             <com.google.android.material.textfield.TextInputEditText
                 android:id="@+id/edtAdminKey"

@@ -6,12 +6,12 @@ import android.os.Bundle;
 import android.text.TextUtils;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
+import android.widget.Spinner;
 import android.widget.Toast;
 
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
 
-import com.google.android.material.textfield.MaterialAutoCompleteTextView;
 import com.google.android.material.textfield.TextInputEditText;
 import com.se_04.enoti.R;
 
@@ -24,7 +24,7 @@ import static com.se_04.enoti.utils.ValidatePhoneNumberUtil.normalizePhoneNumber
 public class RegisterActivity extends AppCompatActivity {
 
     private TextInputEditText edtFullName, edtDob, edtPhoneNumber, edtPassword, edtConfirmPassword, edtAdminKey;
-    private MaterialAutoCompleteTextView spnGender;
+    private Spinner spnGender;
     private Button btnRegister;
 
     private static final String ADMIN_SECRET_KEY = "ENOTI_ADMIN_2024";
@@ -65,22 +65,41 @@ public class RegisterActivity extends AppCompatActivity {
     private void setupGenderSpinner() {
         String[] genders = {"Nam", "Nữ", "Khác"};
         ArrayAdapter<String> adapter = new ArrayAdapter<>(
-                this, android.R.layout.simple_dropdown_item_1line, genders);
+                this, android.R.layout.simple_spinner_item, genders);
+        adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
         spnGender.setAdapter(adapter);
     }
 
     private void handleRegistration() {
         String fullName = edtFullName.getText().toString().trim();
         String dob = edtDob.getText().toString().trim();
-        String gender = spnGender.getText().toString().trim();
         String phone = edtPhoneNumber.getText().toString().trim();
         String password = edtPassword.getText().toString().trim();
         String confirmPassword = edtConfirmPassword.getText().toString().trim();
         String adminKey = edtAdminKey.getText().toString().trim();
 
+        // ✅ Lấy giới tính từ Spinner
+        String genderDisplay = spnGender.getSelectedItem() != null
+                ? spnGender.getSelectedItem().toString()
+                : "";
+
+        // Map sang Enum backend: MALE, FEMALE, OTHER
+        String gender = "";
+        switch (genderDisplay) {
+            case "Nam":
+                gender = "MALE";
+                break;
+            case "Nữ":
+                gender = "FEMALE";
+                break;
+            case "Khác":
+                gender = "OTHER";
+                break;
+        }
+
         // === 1. Kiểm tra trống ===
         if (TextUtils.isEmpty(fullName) || TextUtils.isEmpty(dob)
-                || TextUtils.isEmpty(gender) || TextUtils.isEmpty(phone)
+                || TextUtils.isEmpty(genderDisplay) || TextUtils.isEmpty(phone)
                 || TextUtils.isEmpty(password) || TextUtils.isEmpty(confirmPassword)
                 || TextUtils.isEmpty(adminKey)) {
             Toast.makeText(this, "Vui lòng điền đầy đủ tất cả các trường.", Toast.LENGTH_SHORT).show();
@@ -115,13 +134,13 @@ public class RegisterActivity extends AppCompatActivity {
             return;
         }
 
-        // === 5. Nếu mọi thứ hợp lệ, chuyển sang OTP ===
+        // === 5. Nếu hợp lệ, chuyển sang OTP ===
         Intent intent = new Intent(this, EnterOTPActivity.class);
         intent.putExtra("phone", normalizedPhone);
         intent.putExtra("password", password);
         intent.putExtra("fullName", fullName);
         intent.putExtra("dob", dob);
-        intent.putExtra("gender", gender); // 👈 Truyền giới tính
+        intent.putExtra("gender", gender); // 👈 Truyền mã enum cho backend
         intent.putExtra("is_admin_registration", true);
         startActivity(intent);
     }
