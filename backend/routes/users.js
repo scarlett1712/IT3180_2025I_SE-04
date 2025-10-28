@@ -15,7 +15,7 @@ router.post("/login", async (req, res) => {
       return res.status(400).json({ error: "Thiếu số điện thoại hoặc mật khẩu." });
     }
 
-    // Tìm user trong DB
+    // 🔹 Lấy thông tin cơ bản
     const userRes = await pool.query(
       `SELECT u.user_id, u.phone, u.password_hash, ur.role_id
        FROM users u
@@ -29,11 +29,13 @@ router.post("/login", async (req, res) => {
     }
 
     const user = userRes.rows[0];
-    const match = await bcrypt.compare(password, user.password_hash);
+    const bcrypt = await import("bcryptjs");
+    const match = await bcrypt.default.compare(password, user.password_hash);
     if (!match) {
       return res.status(401).json({ error: "Sai mật khẩu." });
     }
 
+    // 🔹 Lấy thêm thông tin cư dân (JOIN relationship + apartment)
     const infoRes = await pool.query(
       `
       SELECT
@@ -41,8 +43,8 @@ router.post("/login", async (req, res) => {
         ui.gender,
         TO_CHAR(ui.dob, 'DD-MM-YYYY') AS dob,
         ui.email,
-        a.apartment_number AS room,
-        r.relationship_with_the_head_of_household AS relationship
+        r.relationship_with_the_head_of_household AS relationship,
+        a.apartment_number AS room
       FROM user_item ui
       LEFT JOIN relationship r ON ui.relationship = r.relationship_id
       LEFT JOIN apartment a ON r.apartment_id = a.apartment_id
@@ -64,13 +66,13 @@ router.post("/login", async (req, res) => {
         gender: info.gender || "Khác",
         dob: info.dob || "01-01-2000",
         email: info.email || "",
-        room: info.room || "Không rõ",
-        relationship: info.relationship || "Không rõ",
+        room: info.room || "", // ✅ Trả về số phòng
+        relationship: info.relationship || "", // ✅ Trả về quan hệ
       },
     });
   } catch (err) {
     console.error("💥 [LOGIN ERROR]", err);
-    return res.status(500).json({ error: "Lỗi server khi đăng nhập." });
+    res.status(500).json({ error: "Lỗi server khi đăng nhập." });
   }
 });
 
