@@ -124,7 +124,9 @@ public class CreateResidentActivity extends AppCompatActivity {
         String floorInput = edtFloor.getText().toString().trim();
         String roomInput = edtRoom.getText().toString().trim();
         boolean isHead = checkboxIsHouseholder.isChecked();
-        String relation = edtRelation.getText().toString().trim();
+        String relation;
+        if (isHead) relation = "Bản thân";
+        else relation =  edtRelation.getText().toString().trim();
         String phoneBeforeNormalized = edtPhone.getText().toString().trim();
         String phone = normalizePhoneNumber(phoneBeforeNormalized);
         String email = edtEmail.getText().toString().trim();
