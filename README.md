@@ -38,7 +38,7 @@ Trước khi thêm cần encrypt mật khẩu:
 
 Dòng cuối chính là mật khẩu sau khi mã hóa và có thể thêm vào CSDL.
 
-### EDIT 4 (ĐM QUÊN 08:30 PM 26/10/2025) 
+### EDIT 4 (08:30 PM 26/10/2025) 
 
 TK admin: 0936363636 admin123
 
