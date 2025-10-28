@@ -34,11 +34,20 @@ router.post("/login", async (req, res) => {
       return res.status(401).json({ error: "Sai mật khẩu." });
     }
 
-    // Lấy thêm thông tin người dùng
     const infoRes = await pool.query(
-      `SELECT ui.full_name, ui.gender, TO_CHAR(ui.dob, 'DD-MM-YYYY') AS dob, ui.email
-       FROM user_item ui
-       WHERE ui.user_id = $1`,
+      `
+      SELECT
+        ui.full_name,
+        ui.gender,
+        TO_CHAR(ui.dob, 'DD-MM-YYYY') AS dob,
+        ui.email,
+        a.apartment_number AS room,
+        r.relationship_with_the_head_of_household AS relationship
+      FROM user_item ui
+      LEFT JOIN relationship r ON ui.relationship = r.relationship_id
+      LEFT JOIN apartment a ON r.apartment_id = a.apartment_id
+      WHERE ui.user_id = $1
+      `,
       [user.user_id]
     );
 
@@ -52,9 +61,11 @@ router.post("/login", async (req, res) => {
         phone: user.phone,
         role: role,
         name: info.full_name || user.phone,
-        gender: info.gender || "Khác", // 🟢 Giới tính tiếng Việt
+        gender: info.gender || "Khác",
         dob: info.dob || "01-01-2000",
         email: info.email || "",
+        room: info.room || "Không rõ",
+        relationship: info.relationship || "Không rõ",
       },
     });
   } catch (err) {
