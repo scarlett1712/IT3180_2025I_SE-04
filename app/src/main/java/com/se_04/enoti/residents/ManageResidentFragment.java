@@ -46,6 +46,8 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.util.ArrayList;
 import java.util.Calendar;
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
@@ -204,14 +206,44 @@ public class ManageResidentFragment extends Fragment {
                         obj.optString("apartment_number")
                 ));
             }
+
+            // 🧩 Sắp xếp theo số phòng → rồi theo tên (bỏ họ)
+            Collections.sort(fullList, new Comparator<ResidentItem>() {
+                @Override
+                public int compare(ResidentItem a, ResidentItem b) {
+                    // So sánh số phòng (ưu tiên số nhỏ hơn)
+                    int roomA, roomB;
+                    try {
+                        roomA = Integer.parseInt(a.getRoom().replaceAll("\\D+", ""));
+                        roomB = Integer.parseInt(b.getRoom().replaceAll("\\D+", ""));
+                    } catch (Exception e) {
+                        return a.getRoom().compareToIgnoreCase(b.getRoom());
+                    }
+                    if (roomA != roomB) return Integer.compare(roomA, roomB);
+
+                    // Nếu cùng phòng → so sánh theo TÊN (không lấy họ)
+                    String[] partsA = a.getName().trim().split("\\s+");
+                    String[] partsB = b.getName().trim().split("\\s+");
+                    String lastA = partsA[partsA.length - 1];
+                    String lastB = partsB[partsB.length - 1];
+                    int nameCompare = lastA.compareToIgnoreCase(lastB);
+                    if (nameCompare != 0) return nameCompare;
+
+                    // Nếu trùng tên → fallback so theo họ đầy đủ
+                    return a.getName().compareToIgnoreCase(b.getName());
+                }
+            });
+
             filteredList.clear();
             filteredList.addAll(fullList);
             adapter.updateList(filteredList);
             setupFloorSpinner();
+
         } catch (Exception e) {
             e.printStackTrace();
         }
     }
+
 
     private void setupFloorSpinner() {
         allFloors.clear();

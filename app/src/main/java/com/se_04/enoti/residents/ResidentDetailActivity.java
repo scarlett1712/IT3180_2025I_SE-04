@@ -4,6 +4,8 @@ import android.os.Bundle;
 import android.widget.ImageView;
 import android.widget.TextView;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.content.ContextCompat;
+
 import com.google.android.material.appbar.MaterialToolbar;
 import com.se_04.enoti.R;
 import android.graphics.Bitmap;
@@ -28,6 +30,7 @@ public class ResidentDetailActivity extends AppCompatActivity {
             getSupportActionBar().setDisplayHomeAsUpEnabled(true);
             getSupportActionBar().setDisplayShowTitleEnabled(true);
             getSupportActionBar().setTitle("Chi tiết cư dân");
+            toolbar.setTitleTextColor(ContextCompat.getColor(this, android.R.color.white));
         }
 
         toolbar.setNavigationOnClickListener(v -> onBackPressed());
