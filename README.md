@@ -30,6 +30,8 @@
 
 TK admin: 0912345678 admin123
 
+TK user: 0999999999 123456
+
 Lưu ý: Mỗi khi tạo mới user MK mặc định luôn là 123456
 
 ## Cách để chạy và cài đặt ứng dụng qua điện thoại (Khuyến khích dành cho người máy yếu & sử dụng điện thoại Android):
