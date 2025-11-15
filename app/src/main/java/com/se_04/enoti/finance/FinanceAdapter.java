@@ -119,6 +119,7 @@ public class FinanceAdapter extends RecyclerView.Adapter<FinanceAdapter.ViewHold
                 intent.putExtra("sender", clickedItem.getSender());
                 long priceValue = (clickedItem.getPrice() != null) ? clickedItem.getPrice() : 0L;
                 intent.putExtra("price", priceValue);
+                intent.putExtra("payment_status", clickedItem.getStatus());
                 v.getContext().startActivity(intent);
             }
         });

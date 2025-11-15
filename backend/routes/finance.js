@@ -14,7 +14,7 @@ export const createFinanceTables = async () => {
         id SERIAL PRIMARY KEY,
         title VARCHAR(255) NOT NULL,
         content TEXT,
-        amount NUMERIC(12, 2) NOT NULL,
+        amount NUMERIC(12, 2),
         type VARCHAR(50) DEFAULT 'khoan_thu' NOT NULL,
         due_date DATE,
         created_by INTEGER,

@@ -148,7 +148,6 @@
                             tools:text="50,000 đ" />
                     </LinearLayout>
 
-                    <!-- VOLUNTARY BILL INPUT (HIDDEN BY DEFAULT, SHOWN FOR VOLUNTARY) -->
                     <LinearLayout
                         android:id="@+id/layoutVoluntaryInput"
                         android:layout_width="match_parent"
@@ -181,36 +180,23 @@
                             android:textStyle="bold"/>
                     </LinearLayout>
 
-                    <LinearLayout
+                    <TextView
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:orientation="horizontal"
-                        android:layout_marginBottom="8dp">
+                        android:text="Nội dung thanh toán:"
+                        android:textSize="16sp"
+                        android:textColor="@android:color/black"
+                        android:layout_marginBottom="8dp"/>
 
-                        <TextView
-                            android:layout_width="0dp"
-                            android:layout_height="wrap_content"
-                            android:layout_weight="0.44"
-                            android:text="Nội dung thanh toán:"
-                            android:textSize="16sp"
-                            android:textColor="@android:color/black"/>
-
-                        <TextView
-                            android:id="@+id/txtBillInfoDetail"
-                            android:layout_width="0dp"
-                            android:layout_height="wrap_content"
-                            android:layout_weight="0.56"
-                            android:textAlignment="viewEnd"
-                            android:textColor="@android:color/black"
-                            android:textSize="16sp"
-                            tools:text="Phí dịch vụ hàng tháng" />
-                    </LinearLayout>
+                    <TextView
+                        android:id="@+id/txtBillInfoDetail"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:textColor="@android:color/black"
+                        android:textSize="16sp"
+                        tools:text="Phí dịch vụ hàng tháng" />
 
                 </LinearLayout>
-
-                <!-- Thay thế Spinner bằng AutoCompleteTextView để có thể tìm kiếm -->
-
             </LinearLayout>
         </ScrollView>
 
