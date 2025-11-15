@@ -4,7 +4,7 @@ import dotenv from "dotenv";
 
 dotenv.config();
 
-const PayOS = require("@payos/node");
+import { PayOS } from "@payos/node"; // ⬅️ Try a destructured named import
 const router = express.Router();
 
 // 💡 Load PayOS configuration from environment variables
