@@ -95,7 +95,7 @@ public class PayActivity extends AppCompatActivity {
                 return;
             }
             try {
-                finalAmount = Long.parseLong(input.replace(",", ""));
+                finalAmount = Long.parseLong(input.replaceAll("[^\\d]", ""));
             } catch (Exception e) {
                 Toast.makeText(this, "Số tiền không hợp lệ.", Toast.LENGTH_SHORT).show();
                 return;
