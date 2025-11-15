@@ -37,7 +37,7 @@ app.post("/create-payment-link", async (req, res) => {
   const YOUR_DOMAIN = `https://it3180-2025i-se-04.onrender.com`;
 
   // 🔥 Giới hạn description ≤ 25 ký tự
-  const fullDesc = `Thanh toán hóa đơn: ${title}`;
+  const fullDesc = `${title}`;
   const shortDesc = fullDesc.slice(0, 25);
 
   const body = {
