@@ -87,7 +87,7 @@ router.get("/user/:userId", async (req, res) => {
 router.post("/create", async (req, res) => {
   const { title, content, amount, due_date, target_rooms, type, created_by } = req.body;
 
-  if (!title || !amount || !target_rooms || !Array.isArray(target_rooms)) {
+  if (!title || !target_rooms || !Array.isArray(target_rooms)) {
     return res
       .status(400)
       .json({ error: "Thiếu trường bắt buộc hoặc target_rooms không hợp lệ." });

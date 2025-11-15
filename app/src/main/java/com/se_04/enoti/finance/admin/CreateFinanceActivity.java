@@ -218,18 +218,40 @@ public class CreateFinanceActivity extends AppCompatActivity {
         String dueDateRaw = edtDueDate.getText().toString().trim();
         String type = spinnerType.getSelectedItem().toString().trim();
 
-        if (TextUtils.isEmpty(title) || TextUtils.isEmpty(amountStr)) {
-            Toast.makeText(this, "Vui lòng nhập Tiêu đề và Số tiền", Toast.LENGTH_SHORT).show();
+        if (TextUtils.isEmpty(title)) {
+            Toast.makeText(this, "Vui lòng nhập Tiêu đề", Toast.LENGTH_SHORT).show();
             return;
         }
 
-        double amount;
-        try {
-            amount = Double.parseDouble(amountStr);
-        } catch (NumberFormatException e) {
-            Toast.makeText(this, "Số tiền không hợp lệ", Toast.LENGTH_SHORT).show();
-            return;
+        // --- Bắt đầu thay đổi logic xử lý Amount ---
+
+        Double amount = null; // ✅ Sử dụng kiểu đối tượng Double để cho phép null
+
+        if (type.equals("Tự nguyện")) {
+            // Nếu là "Tự nguyện", amount có thể rỗng
+            if (!TextUtils.isEmpty(amountStr)) {
+                try {
+                    amount = Double.parseDouble(amountStr);
+                } catch (NumberFormatException e) {
+                    Toast.makeText(this, "Số tiền không hợp lệ", Toast.LENGTH_SHORT).show();
+                    return;
+                }
+            }
+            // Nếu amountStr rỗng, amount sẽ giữ nguyên giá trị null.
+        } else {
+            // Nếu là "Bắt buộc" hoặc loại khác, amount không được rỗng
+            if (TextUtils.isEmpty(amountStr)) {
+                Toast.makeText(this, "Vui lòng nhập số tiền cho khoản thu bắt buộc", Toast.LENGTH_SHORT).show();
+                return;
+            }
+            try {
+                amount = Double.parseDouble(amountStr);
+            } catch (NumberFormatException e) {
+                Toast.makeText(this, "Số tiền không hợp lệ", Toast.LENGTH_SHORT).show();
+                return;
+            }
         }
+        // --- Kết thúc thay đổi ---
 
         try {
             JSONArray targetRooms = new JSONArray();
@@ -239,16 +261,17 @@ public class CreateFinanceActivity extends AppCompatActivity {
                 for (String room : selectedRooms) targetRooms.put(room);
             }
 
-            String adminId = UserManager.getInstance(this).getID(); // ✅ lấy ID admin hiện tại
+            String adminId = UserManager.getInstance(this).getID();
 
             JSONObject body = new JSONObject();
             body.put("title", title);
             body.put("content", content.isEmpty() ? JSONObject.NULL : content);
-            body.put("amount", amount);
+            // ✅ Gửi null đúng cách
+            body.put("amount", amount == null ? JSONObject.NULL : amount);
             body.put("due_date", TextUtils.isEmpty(dueDateRaw) ? JSONObject.NULL : dueDateRaw);
             body.put("type", type);
             body.put("target_rooms", targetRooms);
-            body.put("created_by", adminId); // gửi kèm id người tạo
+            body.put("created_by", adminId);
 
             Log.d("CreateFinanceActivity", "📤 Request body: " + body.toString());
 

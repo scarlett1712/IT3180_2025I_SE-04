@@ -46,11 +46,14 @@ public class FinanceDetailActivity extends AppCompatActivity {
 
         // --- Data Handling ---
         Intent intent = getIntent();
-        String title = intent.getStringExtra("title") != null ? intent.getStringExtra("title") : getString(R.string.no_data);
+        final String title = intent.getStringExtra("title") != null ? intent.getStringExtra("title") : getString(R.string.no_data);
         String content = intent.getStringExtra("content") != null ? intent.getStringExtra("content") : getString(R.string.no_content_detail);
         String date = intent.getStringExtra("due_date") != null ? intent.getStringExtra("due_date") : "N/A";
         String sender = intent.getStringExtra("sender") != null ? intent.getStringExtra("sender") : "N/A";
-        long price = intent.getLongExtra("price", 0L);
+        final long price = intent.getLongExtra("price", 0L);
+
+        // Determine the bill type: Mandatory ("Bắt buộc") if price > 0, Voluntary ("Tự nguyện") otherwise.
+        final boolean isMandatory = (price > 0);
 
         // --- Display Data ---
         txtReceiptTitle.setText(title);
@@ -63,6 +66,7 @@ public class FinanceDetailActivity extends AppCompatActivity {
             String formattedPrice = formatter.format(price) + " đ";
             txtPrice.setText(formattedPrice);
         } else {
+            // Assuming this text corresponds to "Tự nguyện"
             txtPrice.setText(R.string.contribution_text);
         }
 
@@ -71,6 +75,8 @@ public class FinanceDetailActivity extends AppCompatActivity {
             Intent intent1 = new Intent(FinanceDetailActivity.this, PayActivity.class);
             intent1.putExtra("title", title);
             intent1.putExtra("price", price);
+            // Pass the mandatory flag for PayActivity to determine UI layout
+            intent1.putExtra("is_mandatory", isMandatory);
             startActivity(intent1);
         });
     }
