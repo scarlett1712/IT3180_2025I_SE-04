@@ -48,7 +48,6 @@ import createUserRoutes from "./routes/create_user.js";
 import feedbackRoutes from "./routes/feedback.js";
 import feedbackReplyRoutes from "./routes/feedbackReply.js";
 import financeRoutes, { createFinanceTables } from "./routes/finance.js";
-import paymentRoutes from "./routes/payment.js"; // <-- ADDED IMPORT
 
 // ✅ Dùng tất cả routes
 app.use("/api/users", userRoutes);
@@ -63,7 +62,6 @@ app.use("/api/changepassword", changePasswordRoutes);
 app.use("/api/create_user", createUserRoutes);
 app.use("/api/feedback", feedbackReplyRoutes);
 app.use("/api/finance", financeRoutes);
-app.use("/api/payment", paymentRoutes); // <-- ADDED USAGE: All payment routes will be prefixed with /api/payment
 
 // ✅ Health check
 // ... (rest of the file remains the same)
@@ -91,6 +89,4 @@ app.listen(PORT, () => {
   console.log(`🚀 Server started on port ${PORT}`);
   console.log(`📍 Health check: http://localhost:${PORT}/`);
   console.log(`📍 Debug endpoint: http://localhost:${PORT}/api/debug`);
-  console.log(`📍 Payment link endpoint: http://localhost:${PORT}/api/payment/create-payment-link`); // <-- New endpoint
-  console.log(`📍 Payment webhook endpoint: http://localhost:${PORT}/api/payment/receive-hook`); // <-- New endpoint
 });

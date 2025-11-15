@@ -63,6 +63,8 @@
         <activity android:name=".finance.admin.CreateFinanceActivity" />
         <activity android:name=".finance.admin.FinanceDetailActivity_Admin" />
         <activity android:name=".notification.admin.NotificationDetailActivity_Admin" />
+        <activity android:name=".finance.PayActivity" />
+
 
         <!-- 🔔 Receiver thông báo -->
         <receiver

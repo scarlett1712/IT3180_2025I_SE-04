@@ -66,31 +66,18 @@ public class FinanceDetailActivity extends AppCompatActivity {
             txtPrice.setText(R.string.contribution_text);
         }
 
-        // --- [NEW] Payment Button Logic ---
-        btnPay.setOnClickListener(v -> showQrCodeDialog());
+        // --- [NEW] Payment Button Logic Open PayActivity and pass data ---
+        btnPay.setOnClickListener(v -> {
+            Intent intent1 = new Intent(FinanceDetailActivity.this, PayActivity.class);
+            intent1.putExtra("title", title);
+            intent1.putExtra("price", price);
+            startActivity(intent1);
+        });
     }
 
     /**
      * Creates and shows a dialog with a fixed QR code image.
      */
-    private void showQrCodeDialog() {
-        // Create a new Dialog
-        final Dialog qrDialog = new Dialog(this);
-        
-        // Inflate the custom layout we created
-        View dialogView = LayoutInflater.from(this).inflate(R.layout.dialog_qr_code, null);
-        qrDialog.setContentView(dialogView);
-
-        // Find the ImageView inside the dialog
-        ImageView imgQrCode = qrDialog.findViewById(R.id.imgQrCode);
-
-        // Set your static QR code image from the drawable folder
-        // IMPORTANT: Make sure you have an image named 'qr_payment.png' in your res/drawable folder.
-        imgQrCode.setImageResource(R.drawable.qr_payment);
-
-        // Show the dialog
-        qrDialog.show();
-    }
 
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
