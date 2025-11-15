@@ -1,3 +1,4 @@
+// ... (existing imports)
 import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
@@ -29,12 +30,12 @@ app.use((req, res, next) => {
   console.log("Method:", req.method);
   console.log("Path:", req.path);
   console.log("Content-Type:", req.headers["content-type"]);
-  console.log("Body:", req.body);
+  // console.log("Body:", req.body); // Uncomment for full body debug
   console.log("===============================");
   next();
 });
 
-// ✅ Import routes
+// ✅ Import routes (ADD THIS LINE)
 import userRoutes from "./routes/users.js";
 import userItemRoutes from "./routes/user_item.js";
 import replyRoutes from "./routes/reply.js";
@@ -47,6 +48,7 @@ import createUserRoutes from "./routes/create_user.js";
 import feedbackRoutes from "./routes/feedback.js";
 import feedbackReplyRoutes from "./routes/feedbackReply.js";
 import financeRoutes, { createFinanceTables } from "./routes/finance.js";
+import paymentRoutes from "./routes/payment.js"; // <-- ADDED IMPORT
 
 // ✅ Dùng tất cả routes
 app.use("/api/users", userRoutes);
@@ -61,8 +63,10 @@ app.use("/api/changepassword", changePasswordRoutes);
 app.use("/api/create_user", createUserRoutes);
 app.use("/api/feedback", feedbackReplyRoutes);
 app.use("/api/finance", financeRoutes);
+app.use("/api/payment", paymentRoutes); // <-- ADDED USAGE: All payment routes will be prefixed with /api/payment
 
 // ✅ Health check
+// ... (rest of the file remains the same)
 app.get("/", (req, res) => {
   res.json({
     message: "✅ ENoti backend running!",
@@ -87,4 +91,6 @@ app.listen(PORT, () => {
   console.log(`🚀 Server started on port ${PORT}`);
   console.log(`📍 Health check: http://localhost:${PORT}/`);
   console.log(`📍 Debug endpoint: http://localhost:${PORT}/api/debug`);
+  console.log(`📍 Payment link endpoint: http://localhost:${PORT}/api/payment/create-payment-link`); // <-- New endpoint
+  console.log(`📍 Payment webhook endpoint: http://localhost:${PORT}/api/payment/receive-hook`); // <-- New endpoint
 });

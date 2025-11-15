@@ -69,6 +69,7 @@
     <string name="contribution_text">Tùy theo đóng góp</string>
     <string name="no_data">Không có dữ liệu</string>
     <string name="pay_button">Thanh toán</string>
+    <string name="go_to_pay_page">Đi tới trang thanh toán</string>
     <string name="error_invalid_phone">Nhập số điện thoại chính xác.</string>
     <string name="error_password_empty">Mật khẩu không được để trống</string>
 

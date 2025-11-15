@@ -1,5 +1,7 @@
 package com.se_04.enoti.finance;
 
-public class PayActivity {
+import android.app.Activity;
+
+public class PayActivity extends Activity {
 
 }
