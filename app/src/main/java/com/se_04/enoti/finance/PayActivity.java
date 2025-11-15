@@ -171,7 +171,7 @@ public class PayActivity extends AppCompatActivity {
 
                 // ⚠ Android emulator cannot use localhost → must use 10.0.2.2
                 okhttp3.Request request = new okhttp3.Request.Builder()
-                        .url("http://10.0.2.2:3030/create-payment-link")
+                        .url("https://it3180-2025i-se-04.onrender.com/create-payment-link")
                         .post(body)
                         .build();
 

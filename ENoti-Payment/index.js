@@ -29,7 +29,7 @@ app.post("/create-payment-link", async (req, res) => {
     return res.status(400).json({ error: "Amount invalid" });
   }
 
-  const YOUR_DOMAIN = `http://localhost:3030`;
+  const YOUR_DOMAIN = `https://it3180-2025i-se-04.onrender.com`;
 
   const body = {
     orderCode: Number(String(Date.now()).slice(-6)),
@@ -56,5 +56,5 @@ app.post("/create-payment-link", async (req, res) => {
 });
 
 app.listen(3030, () => {
-    console.log("Server running at http://localhost:3030");
+    console.log("Server running at https://it3180-2025i-se-04.onrender.com");
 });
