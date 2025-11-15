@@ -8,9 +8,9 @@ const app = express();
 
 // --- PAYOS --- //
 const payOS = new PayOS(
-    process.env.PAYOS_CLIENT_ID,
-    process.env.PAYOS_API_KEY,
-    process.env.PAYOS_CHECKSUM_KEY
+  process.env.PAYOS_CLIENT_ID,
+  process.env.PAYOS_API_KEY,
+  process.env.PAYOS_CHECKSUM_KEY
 );
 
 // Render YÊU CẦU dùng PORT từ ENV
@@ -36,10 +36,14 @@ app.post("/create-payment-link", async (req, res) => {
 
   const YOUR_DOMAIN = `https://it3180-2025i-se-04.onrender.com`;
 
+  // 🔥 Giới hạn description ≤ 25 ký tự
+  const fullDesc = `Thanh toán hóa đơn: ${title}`;
+  const shortDesc = fullDesc.slice(0, 25);
+
   const body = {
     orderCode: Number(String(Date.now()).slice(-6)),
     amount: amount,
-    description: `Thanh toán hóa đơn: ${title}`,
+    description: shortDesc,
     items: [
       {
         name: title,
@@ -58,22 +62,22 @@ app.post("/create-payment-link", async (req, res) => {
 
     console.log("PayOS trả về:", paymentLinkResponse);
 
-    // Có trường checkoutUrl
     if (paymentLinkResponse.checkoutUrl) {
       return res.json({ checkoutUrl: paymentLinkResponse.checkoutUrl });
     }
 
-    // Trường hợp PayOS trả format khác
     if (paymentLinkResponse.data?.checkoutUrl) {
       return res.json({ checkoutUrl: paymentLinkResponse.data.checkoutUrl });
     }
 
-    // Không có URL → trả lỗi để Android không crash
     return res.status(500).json({ error: "No checkoutUrl from PayOS" });
 
   } catch (error) {
     console.log("PayOS ERROR:", error.response?.data || error);
-    return res.status(500).json({ error: "PayOS error", detail: error.message });
+    return res.status(500).json({
+      error: "PayOS error",
+      detail: error.message,
+    });
   }
 });
 
