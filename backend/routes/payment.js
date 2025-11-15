@@ -1,10 +1,10 @@
 import express from "express";
 import cors from "cors";
-import PayOS from "@payos/node";
 import dotenv from "dotenv";
 
 dotenv.config();
 
+const PayOS = require("@payos/node");
 const router = express.Router();
 
 // 💡 Load PayOS configuration from environment variables
