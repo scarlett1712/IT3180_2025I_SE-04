@@ -64,6 +64,33 @@
         <activity android:name=".finance.admin.FinanceDetailActivity_Admin" />
         <activity android:name=".notification.admin.NotificationDetailActivity_Admin" />
         <activity android:name=".finance.PayActivity" />
+        <activity android:name=".finance.PayResultActivity"
+            android:exported="true">
+            <!-- SUCCESS -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+
+                <data
+                    android:scheme="enoti"
+                    android:host="payment"
+                    android:path="/success" />
+            </intent-filter>
+
+            <!-- CANCEL -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+
+                <data
+                    android:scheme="enoti"
+                    android:host="payment"
+                    android:path="/cancel" />
+            </intent-filter>
+        </activity>
+
 
 
         <!-- 🔔 Receiver thông báo -->

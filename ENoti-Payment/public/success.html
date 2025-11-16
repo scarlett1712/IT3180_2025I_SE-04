@@ -1,22 +1,86 @@
 <!DOCTYPE html>
-<html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Thanh toán thành công</title>
-    <link rel="stylesheet" href="style.css" />
-  </head>
-  <body>
-    <div class="main-box">
-      <h4 class="payment-titlte">
-        Thanh toán thành công. Cảm ơn bạn đã sử dụng payOS!
-      </h4>
-      <p>
-        Nếu có bất kỳ câu hỏi nào, hãy gửi email tới
-        <a href="mailto:support@payos.vn">support@payos.vn</a>
-      </p>
-      <a href="/" id="return-page-btn">Trở về trang Tạo Link thanh toán</a>
-    </div>
-    <script src="script.js"></script>
-  </body>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Thanh toán thành công</title>
+
+  <style>
+    body {
+        margin: 0;
+        padding: 0;
+        font-family: Arial, sans-serif;
+        background: #f0f7ff;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        height: 100vh;
+        color: #333;
+    }
+
+    .container {
+        text-align: center;
+        background: white;
+        padding: 30px 40px;
+        border-radius: 15px;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        width: 90%;
+        max-width: 420px;
+        animation: fadeIn 0.6s ease-in-out;
+    }
+
+    .icon {
+        font-size: 70px;
+        color: #2ecc71;
+        margin-bottom: 10px;
+    }
+
+    h1 {
+        margin: 10px 0;
+        font-size: 26px;
+        color: #2ecc71;
+    }
+
+    p {
+        font-size: 16px;
+        margin-bottom: 20px;
+    }
+
+    .btn {
+        display: inline-block;
+        padding: 12px 22px;
+        background: #3498db;
+        color: white;
+        text-decoration: none;
+        border-radius: 10px;
+        font-size: 15px;
+        transition: 0.25s;
+    }
+
+    .btn:hover {
+        background: #2980b9;
+    }
+
+    @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(15px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+  </style>
+</head>
+
+<script>
+  setTimeout(() => {
+      window.location.href = "enoti://payment/success";
+  }, 2000);
+</script>
+
+<body>
+<div class="container">
+  <div class="icon">✔</div>
+  <h1>Thanh toán thành công!</h1>
+  <p>Cảm ơn bạn đã hoàn tất giao dịch. Bạn có thể quay lại ứng dụng để tiếp tục sử dụng.</p>
+
+  <a class="btn" href="enoti://payment/success">Quay về ứng dụng</a>
+</div>
+</body>
 </html>
