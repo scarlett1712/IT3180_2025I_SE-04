@@ -64,6 +64,7 @@
         <activity android:name=".notification.admin.NotificationDetailActivity_Admin" />
         <activity android:name=".finance.PayActivity" />
         <activity android:name=".finance.FinanceDetailActivity"
+            android:launchMode="singleTop"
             android:exported="true"
             tools:ignore="MissingClass">
 

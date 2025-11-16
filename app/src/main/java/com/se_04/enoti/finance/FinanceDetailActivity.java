@@ -29,6 +29,9 @@ import java.util.Objects;
 public class FinanceDetailActivity extends AppCompatActivity {
 
     private int financeId;
+    private long price;
+    private String title, content, dueDate, sender, paymentStatus;
+
     private Button btnPay;
     private TextView txtPaymentStatus;
 
@@ -47,7 +50,7 @@ public class FinanceDetailActivity extends AppCompatActivity {
         txtPaymentStatus = findViewById(R.id.txtPaymentStatus);
         MaterialToolbar toolbar = findViewById(R.id.toolbar);
 
-        // --- Toolbar Setup ---
+        // Toolbar
         setSupportActionBar(toolbar);
         if (getSupportActionBar() != null) {
             getSupportActionBar().setDisplayHomeAsUpEnabled(true);
@@ -55,17 +58,10 @@ public class FinanceDetailActivity extends AppCompatActivity {
             toolbar.setTitleTextColor(ContextCompat.getColor(this, android.R.color.white));
         }
 
-        // --- Get Intent Data ---
-        Intent intent = getIntent();
-        financeId = intent.getIntExtra("financeId", -1);
+        // --- Lấy dữ liệu từ Intent (CHỈ LẦN ĐẦU) ---
+        readIntentData(getIntent());
 
-        final String title = intent.getStringExtra("title");
-        final String content = intent.getStringExtra("content");
-        final String dueDate = intent.getStringExtra("due_date");
-        final String sender = intent.getStringExtra("sender");
-        final long price = intent.getLongExtra("price", 0L);
-        final String paymentStatus = intent.getStringExtra("payment_status");
-
+        // --- Bind dữ liệu lên UI ---
         txtReceiptTitle.setText(title);
         txtReceiptDeadline.setText("Hạn: " + dueDate);
         txtSender.setText("Người gửi: " + sender);
@@ -77,26 +73,103 @@ public class FinanceDetailActivity extends AppCompatActivity {
             txtPrice.setText("Khoản tự nguyện");
         }
 
-        // --- UI Thanh toán ban đầu ---
+        // --- UI thanh toán ---
+        updatePaymentUI();
+
+        btnPay.setOnClickListener(v -> {
+            Intent payIntent = new Intent(FinanceDetailActivity.this, PayActivity.class);
+            payIntent.putExtra("title", title);
+            payIntent.putExtra("price", price);
+            payIntent.putExtra("financeId", financeId);
+            payIntent.putExtra("is_mandatory", price > 0);
+            startActivity(payIntent);
+        });
+    }
+
+    // ======================================================
+    //   XỬ LÝ INTENT KHI QUAY LẠI TỪ PAYOS (singleTop)
+    // ======================================================
+    @Override
+    protected void onNewIntent(Intent intent) {
+        super.onNewIntent(intent);
+
+        setIntent(intent); // cập nhật intent mới
+
+        handlePayOSDeepLink(intent); // xử lý deep link
+    }
+
+    private void readIntentData(Intent intent) {
+        financeId = intent.getIntExtra("financeId", -1);
+        title = intent.getStringExtra("title");
+        content = intent.getStringExtra("content");
+        dueDate = intent.getStringExtra("due_date");
+        sender = intent.getStringExtra("sender");
+        price = intent.getLongExtra("price", 0L);
+        paymentStatus = intent.getStringExtra("payment_status");
+    }
+
+    // ======================================================
+    //                  PAYOS DEEP LINK
+    // ======================================================
+    private void handlePayOSDeepLink(Intent intent) {
+
+        if (!Intent.ACTION_VIEW.equals(intent.getAction())) return;
+
+        Uri data = intent.getData();
+        if (data == null) return;
+
+        String path = data.getPath();
+        if (path == null) return;
+
+        if (path.contains("success")) {
+            Toast.makeText(this, "Thanh toán thành công!", Toast.LENGTH_SHORT).show();
+            updatePaymentStatus(true);
+
+        } else if (path.contains("cancel")) {
+            Toast.makeText(this, "Bạn đã hủy thanh toán", Toast.LENGTH_SHORT).show();
+            updatePaymentStatus(false);
+        }
+    }
+
+    private void updatePaymentUI() {
         if (Objects.equals(paymentStatus, "da_thanh_toan")) {
             btnPay.setVisibility(View.GONE);
             txtPaymentStatus.setVisibility(View.VISIBLE);
         } else {
             btnPay.setVisibility(View.VISIBLE);
             txtPaymentStatus.setVisibility(View.GONE);
-
-            btnPay.setOnClickListener(v -> {
-                Intent payIntent = new Intent(FinanceDetailActivity.this, PayActivity.class);
-                payIntent.putExtra("title", title);
-                payIntent.putExtra("price", price);
-                payIntent.putExtra("financeId", financeId);
-                payIntent.putExtra("is_mandatory", price > 0);
-                startActivity(payIntent);
-            });
         }
+    }
 
-        // --- Handle deep link ---
-        handlePayOSDeepLink();
+    // ======================================================
+    //             UPDATE PAYMENT STATUS API
+    // ======================================================
+    private void updatePaymentStatus(boolean success) {
+        String newStatus = success ? "da_thanh_toan" : "da_huy";
+        paymentStatus = newStatus; // cập nhật local UI
+
+        updatePaymentUI(); // update UI ngay lập tức
+
+        int userId = Integer.parseInt(
+                UserManager.getInstance(getApplicationContext()).getID()
+        );
+
+        JSONObject body = new JSONObject();
+        try {
+            body.put("user_id", userId);
+            body.put("finance_id", financeId);
+            body.put("status", newStatus);
+        } catch (Exception ignored) {}
+
+        String url = ApiConfig.BASE_URL + "/api/finance/user/update-status";
+
+        JsonObjectRequest req = new JsonObjectRequest(
+                Request.Method.PUT, url, body,
+                response -> {},
+                error -> Toast.makeText(this, "Lỗi API cập nhật", Toast.LENGTH_SHORT).show()
+        );
+
+        Volley.newRequestQueue(this).add(req);
     }
 
     @Override
@@ -106,58 +179,5 @@ public class FinanceDetailActivity extends AppCompatActivity {
             return true;
         }
         return super.onOptionsItemSelected(item);
-    }
-
-    // =======================================
-    //        HANDLE DEEP LINK
-    // =======================================
-    private void handlePayOSDeepLink() {
-        Uri data = getIntent().getData();
-        if (data == null) return;
-
-        String path = data.getPath(); // /success hoặc /cancel
-
-        if ("/success".equals(path)) {
-            Toast.makeText(this, "Thanh toán thành công!", Toast.LENGTH_SHORT).show();
-            updatePaymentStatus(true);
-
-        } else if ("/cancel".equals(path)) {
-            Toast.makeText(this, "Bạn đã hủy thanh toán", Toast.LENGTH_SHORT).show();
-            updatePaymentStatus(false);
-        }
-    }
-
-    // =======================================
-    //        UPDATE PAYMENT STATUS API
-    // =======================================
-    private void updatePaymentStatus(boolean success) {
-        String newStatus = success ? "da_thanh_toan" : "da_huy";
-
-        String userId = UserManager.getInstance(getApplicationContext()).getID();
-
-        JSONObject body = new JSONObject();
-        try {
-            body.put("user_id", userId);
-            body.put("finance_id", financeId);
-            body.put("status", newStatus);
-        } catch (Exception ignored) {}
-
-        String url = ApiConfig.BASE_URL + "/finance/user/update-status";
-
-        JsonObjectRequest req = new JsonObjectRequest(
-                Request.Method.PUT, url, body,
-                response -> {
-                    Toast.makeText(this, "Cập nhật thành công!", Toast.LENGTH_SHORT).show();
-
-                    // Cập nhật UI
-                    btnPay.setVisibility(View.GONE);
-                    txtPaymentStatus.setVisibility(View.VISIBLE);
-                },
-                error -> {
-                    Toast.makeText(this, "Lỗi API cập nhật", Toast.LENGTH_SHORT).show();
-                }
-        );
-
-        Volley.newRequestQueue(this).add(req);
     }
 }
