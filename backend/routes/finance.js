@@ -248,4 +248,68 @@ router.put("/update-status", async (req, res) => {
   }
 });
 
+// 🟢 [USER] Thanh toán → cập nhật trạng thái cho toàn phòng
+router.put("/user/update-status", async (req, res) => {
+  const { user_id, finance_id, status } = req.body;
+
+  if (!user_id || !finance_id || !status) {
+    return res.status(400).json({
+      error: "Thiếu user_id, finance_id hoặc status.",
+    });
+  }
+
+  try {
+    const validStatuses = ["chua_thanh_toan", "da_thanh_toan", "da_huy"];
+    if (!validStatuses.includes(status)) {
+      return res.status(400).json({ error: "Trạng thái không hợp lệ." });
+    }
+
+    // 1️⃣ Lấy phong (apartment_number) từ user_id
+    const roomResult = await query(
+      `
+      SELECT a.apartment_number
+      FROM user_item ui
+      JOIN relationship r ON ui.relationship = r.relationship_id
+      JOIN apartment a ON r.apartment_id = a.apartment_id
+      WHERE ui.user_id = $1
+      `,
+      [user_id]
+    );
+
+    if (roomResult.rowCount === 0) {
+      return res.status(404).json({
+        error: "Không tìm thấy phòng của user.",
+      });
+    }
+
+    const room = roomResult.rows[0].apartment_number;
+
+    // 2️⃣ Update tất cả user trong phòng này
+    const updateResult = await query(
+      `
+      UPDATE user_finances uf
+      SET status = $1
+      FROM user_item ui
+      JOIN relationship r ON ui.relationship = r.relationship_id
+      JOIN apartment a ON r.apartment_id = a.apartment_id
+      WHERE uf.user_id = ui.user_id
+        AND a.apartment_number = $2
+        AND uf.finance_id = $3
+      `,
+      [status, room, finance_id]
+    );
+
+    res.json({
+      success: true,
+      message: `Đã cập nhật trạng thái cho toàn bộ phòng ${room} → ${status}`,
+    });
+
+  } catch (err) {
+    console.error("💥 Error updating user finance status:", err);
+    res.status(500).json({
+      error: "Lỗi server khi cập nhật trạng thái thanh toán.",
+    });
+  }
+});
+
 export default router;

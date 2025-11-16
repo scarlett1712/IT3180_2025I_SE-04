@@ -1,23 +1,36 @@
 package com.se_04.enoti.finance;
 
 import android.content.Intent;
+import android.net.Uri;
 import android.os.Bundle;
 import android.view.MenuItem;
-import android.view.View; // Import thêm View
+import android.view.View;
 import android.widget.Button;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.content.ContextCompat;
 
+import com.android.volley.Request;
+import com.android.volley.toolbox.JsonObjectRequest;
+import com.android.volley.toolbox.Volley;
 import com.google.android.material.appbar.MaterialToolbar;
 import com.se_04.enoti.R;
+import com.se_04.enoti.utils.ApiConfig;
+import com.se_04.enoti.utils.UserManager;
+
+import org.json.JSONObject;
 
 import java.text.DecimalFormat;
-import java.util.Objects; // Import thêm Objects
+import java.util.Objects;
 
 public class FinanceDetailActivity extends AppCompatActivity {
+
+    private int financeId;
+    private Button btnPay;
+    private TextView txtPaymentStatus;
 
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
@@ -30,9 +43,9 @@ public class FinanceDetailActivity extends AppCompatActivity {
         TextView txtPrice = findViewById(R.id.txtPrice);
         TextView txtDetailContent = findViewById(R.id.txtDetailContent);
         TextView txtSender = findViewById(R.id.txtSender);
-        Button btnPay = findViewById(R.id.buttonPay);
+        btnPay = findViewById(R.id.buttonPay);
+        txtPaymentStatus = findViewById(R.id.txtPaymentStatus);
         MaterialToolbar toolbar = findViewById(R.id.toolbar);
-        TextView txtPaymentStatus = findViewById(R.id.txtPaymentStatus);
 
         // --- Toolbar Setup ---
         setSupportActionBar(toolbar);
@@ -42,52 +55,48 @@ public class FinanceDetailActivity extends AppCompatActivity {
             toolbar.setTitleTextColor(ContextCompat.getColor(this, android.R.color.white));
         }
 
-        // --- Data Handling ---
+        // --- Get Intent Data ---
         Intent intent = getIntent();
-        final String title = intent.getStringExtra("title") != null ? intent.getStringExtra("title") : getString(R.string.no_data);
-        String content = intent.getStringExtra("content") != null ? intent.getStringExtra("content") : getString(R.string.no_content_detail);
-        String date = intent.getStringExtra("due_date") != null ? intent.getStringExtra("due_date") : "N/A";
-        String sender = intent.getStringExtra("sender") != null ? intent.getStringExtra("sender") : "N/A";
-        final long price = intent.getLongExtra("price", 0L);
+        financeId = intent.getIntExtra("financeId", -1);
 
-        // ✅ Nhận trạng thái thanh toán từ Intent
+        final String title = intent.getStringExtra("title");
+        final String content = intent.getStringExtra("content");
+        final String dueDate = intent.getStringExtra("due_date");
+        final String sender = intent.getStringExtra("sender");
+        final long price = intent.getLongExtra("price", 0L);
         final String paymentStatus = intent.getStringExtra("payment_status");
 
-        // --- Display Data ---
         txtReceiptTitle.setText(title);
-        txtReceiptDeadline.setText(getString(R.string.deadline_format, date));
-        txtSender.setText(getString(R.string.collector_format, sender));
+        txtReceiptDeadline.setText("Hạn: " + dueDate);
+        txtSender.setText("Người gửi: " + sender);
         txtDetailContent.setText(content);
 
         if (price > 0) {
-            DecimalFormat formatter = new DecimalFormat("#,###,###");
-            String formattedPrice = formatter.format(price) + " đ";
-            txtPrice.setText(formattedPrice);
+            txtPrice.setText(new DecimalFormat("#,###,###").format(price) + " đ");
         } else {
-            txtPrice.setText(R.string.contribution_text);
+            txtPrice.setText("Khoản tự nguyện");
         }
 
-        // Giả sử trạng thái "Đã thanh toán" được định nghĩa là "paid" hoặc "Đã thanh toán"
-        if (Objects.equals(paymentStatus, "paid") || Objects.equals(paymentStatus, "da_thanh_toan")) {
-            // Nếu đã thanh toán
-            btnPay.setVisibility(View.GONE); // Ẩn nút "Thanh toán"
-            txtPaymentStatus.setVisibility(View.VISIBLE); // Hiện thông báo "Đã thanh toán"
+        // --- UI Thanh toán ban đầu ---
+        if (Objects.equals(paymentStatus, "da_thanh_toan")) {
+            btnPay.setVisibility(View.GONE);
+            txtPaymentStatus.setVisibility(View.VISIBLE);
         } else {
-            // Nếu chưa thanh toán
-            btnPay.setVisibility(View.VISIBLE); // Hiện nút "Thanh toán"
-            txtPaymentStatus.setVisibility(View.GONE); // Ẩn thông báo
+            btnPay.setVisibility(View.VISIBLE);
+            txtPaymentStatus.setVisibility(View.GONE);
 
-            // Logic của nút thanh toán chỉ cần thiết khi chưa thanh toán
             btnPay.setOnClickListener(v -> {
                 Intent payIntent = new Intent(FinanceDetailActivity.this, PayActivity.class);
                 payIntent.putExtra("title", title);
                 payIntent.putExtra("price", price);
-                // isMandatory có thể được xác định từ price
-                boolean isMandatory = (price > 0);
-                payIntent.putExtra("is_mandatory", isMandatory);
+                payIntent.putExtra("financeId", financeId);
+                payIntent.putExtra("is_mandatory", price > 0);
                 startActivity(payIntent);
             });
         }
+
+        // --- Handle deep link ---
+        handlePayOSDeepLink();
     }
 
     @Override
@@ -97,5 +106,58 @@ public class FinanceDetailActivity extends AppCompatActivity {
             return true;
         }
         return super.onOptionsItemSelected(item);
+    }
+
+    // =======================================
+    //        HANDLE DEEP LINK
+    // =======================================
+    private void handlePayOSDeepLink() {
+        Uri data = getIntent().getData();
+        if (data == null) return;
+
+        String path = data.getPath(); // /success hoặc /cancel
+
+        if ("/success".equals(path)) {
+            Toast.makeText(this, "Thanh toán thành công!", Toast.LENGTH_SHORT).show();
+            updatePaymentStatus(true);
+
+        } else if ("/cancel".equals(path)) {
+            Toast.makeText(this, "Bạn đã hủy thanh toán", Toast.LENGTH_SHORT).show();
+            updatePaymentStatus(false);
+        }
+    }
+
+    // =======================================
+    //        UPDATE PAYMENT STATUS API
+    // =======================================
+    private void updatePaymentStatus(boolean success) {
+        String newStatus = success ? "da_thanh_toan" : "da_huy";
+
+        String userId = UserManager.getInstance(getApplicationContext()).getID();
+
+        JSONObject body = new JSONObject();
+        try {
+            body.put("user_id", userId);
+            body.put("finance_id", financeId);
+            body.put("status", newStatus);
+        } catch (Exception ignored) {}
+
+        String url = ApiConfig.BASE_URL + "/finance/user/update-status";
+
+        JsonObjectRequest req = new JsonObjectRequest(
+                Request.Method.PUT, url, body,
+                response -> {
+                    Toast.makeText(this, "Cập nhật thành công!", Toast.LENGTH_SHORT).show();
+
+                    // Cập nhật UI
+                    btnPay.setVisibility(View.GONE);
+                    txtPaymentStatus.setVisibility(View.VISIBLE);
+                },
+                error -> {
+                    Toast.makeText(this, "Lỗi API cập nhật", Toast.LENGTH_SHORT).show();
+                }
+        );
+
+        Volley.newRequestQueue(this).add(req);
     }
 }

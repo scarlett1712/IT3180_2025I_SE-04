@@ -54,7 +54,6 @@
         <activity android:name=".home.user.MainActivity_User" />
         <activity android:name=".home.admin.MainActivity_Admin" />
         <activity android:name=".notification.NotificationDetailActivity" />
-        <activity android:name=".finance.FinanceDetailActivity" />
         <activity android:name=".feedback.FeedbackDetailActivity" />
         <activity android:name=".feedback.FeedbackActivity" />
         <activity android:name=".notification.admin.CreateNotificationActivity" />
@@ -64,8 +63,10 @@
         <activity android:name=".finance.admin.FinanceDetailActivity_Admin" />
         <activity android:name=".notification.admin.NotificationDetailActivity_Admin" />
         <activity android:name=".finance.PayActivity" />
-        <activity android:name=".finance.PayResultActivity"
-            android:exported="true">
+        <activity android:name=".finance.FinanceDetailActivity"
+            android:exported="true"
+            tools:ignore="MissingClass">
+
             <!-- SUCCESS -->
             <intent-filter>
                 <action android:name="android.intent.action.VIEW" />
@@ -89,7 +90,9 @@
                     android:host="payment"
                     android:path="/cancel" />
             </intent-filter>
+
         </activity>
+
 
 
 
