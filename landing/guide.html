@@ -5,9 +5,224 @@
     <meta name="viewport" content="width=device-width,initial-scale=1" />
     <title>Hướng dẫn sử dụng — ENoti</title>
 
-    <!-- Font & CSS -->
+    <!-- Font -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="style.css">
+
+    <!-- 🔥 CSS ĐÃ ĐƯỢC CẬP NHẬT SANG THEME TỐI -->
+    <style>
+        :root {
+            --primary-color: #007aff;
+            --background-color: #121212; /* Nền tối */
+            --card-background: #1e1e1e; /* Nền thẻ tối hơn */
+            --text-color: #e1e1e1; /* Chữ sáng */
+            --muted-color: #888888; /* Chữ mờ */
+            --border-color: #333333; /* Màu viền */
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: var(--background-color);
+            color: var(--text-color);
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        /* --- Header --- */
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding-bottom: 20px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .brand img {
+            width: 50px;
+            height: 50px;
+            border-radius: 8px;
+        }
+
+        .brand h1 {
+            margin: 0;
+            font-size: 1.5em;
+            color: var(--text-color); /* Đảm bảo chữ header sáng */
+        }
+
+        .brand .small {
+            font-size: 0.9em;
+            color: var(--muted-color);
+        }
+
+        nav {
+            display: flex;
+            gap: 20px;
+        }
+
+        nav a {
+            text-decoration: none;
+            color: var(--text-color);
+            font-weight: 600;
+            padding-bottom: 4px;
+        }
+        nav a.active {
+            color: var(--primary-color);
+            border-bottom: 2px solid var(--primary-color);
+        }
+
+        /* --- Main Content --- */
+        main {
+            background: var(--card-background);
+            padding: 20px 40px;
+            margin-top: 20px;
+            border-radius: 12px;
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.2); /* Shadow cho nền tối */
+        }
+
+        /* --- Hero Section --- */
+        .hero {
+            padding: 40px 0;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .hero h2 {
+            font-size: 2.5em;
+            margin-top: 0;
+            margin-bottom: 15px;
+            line-height: 1.2;
+            color: #ffffff; /* Làm nổi bật tiêu đề */
+        }
+
+        .hero p {
+            font-size: 1.1em;
+            color: var(--muted-color);
+            max-width: 600px;
+        }
+
+        /* --- Button Style --- */
+        .btn-primary {
+            display: inline-block;
+            background-color: var(--primary-color);
+            color: #ffffff;
+            padding: 12px 25px;
+            font-size: 1em;
+            font-weight: 600;
+            text-decoration: none;
+            border-radius: 8px;
+            transition: background-color 0.2s ease, transform 0.2s ease;
+            cursor: pointer;
+            border: none;
+        }
+
+        .btn-primary:hover {
+            background-color: #0056b3;
+            transform: translateY(-2px);
+        }
+
+        /* --- Content Sections (Install, Usage) --- */
+        section {
+            margin-bottom: 40px;
+        }
+
+        section h2 {
+            font-size: 1.8em;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 10px;
+            color: #ffffff; /* Nổi bật tiêu đề section */
+        }
+
+        section h3 {
+            font-size: 1.4em;
+            color: var(--primary-color);
+            margin-top: 30px;
+            margin-bottom: 10px;
+        }
+
+        section h4 {
+            font-size: 1.1em;
+            font-weight: 700;
+            margin-top: 20px;
+            margin-bottom: 5px;
+            color: var(--text-color); /* Nổi bật tiêu đề h4 */
+        }
+
+        section p {
+            color: var(--muted-color);
+            margin-bottom: 15px;
+        }
+
+        section b {
+             color: var(--text-color); /* Làm chữ <b> dễ đọc hơn */
+        }
+
+        section ol,
+        section ul {
+            padding-left: 30px;
+        }
+
+        section li {
+            margin-bottom: 10px;
+            color: var(--muted-color);
+        }
+
+        section ul ul {
+            margin-top: 10px;
+        }
+
+        /* --- Contact Section --- */
+        #contact p {
+            font-size: 1.1em;
+        }
+
+        #contact b {
+            color: var(--text-color);
+            font-weight: 600;
+        }
+
+        #contact a { /* Làm link dễ thấy hơn */
+            color: var(--primary-color);
+            text-decoration: none;
+        }
+        #contact a:hover {
+            text-decoration: underline;
+        }
+
+        /* --- Footer --- */
+        footer {
+            text-align: center;
+            padding: 40px 20px 20px 20px;
+            color: var(--muted-color);
+            font-size: 0.9em;
+        }
+
+        footer strong {
+            color: var(--text-color);
+        }
+
+        /* --- Animation (Giữ nguyên) --- */
+        .fade-up {
+            opacity: 0;
+            transform: translateY(20px);
+            transition: opacity 0.5s ease, transform 0.5s ease;
+        }
+
+        .fade-up.visible {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    </style>
 </head>
 
 <body>
@@ -55,7 +270,7 @@
             </ol>
 
             <div style="margin-top:20px">
-                <a class="btn-primary" href="https://github.com/scarlett1712/IT3180_2025I_SE-04/releases/latest/download/ENoti.apk" target="_blank">Tải ENoti APK</a>
+                <a class="btn-primary" href="https://github.com/scarlett1712/IT3180_2025I_SE-04/releases/latest/download/enoti_update.apk" target="_blank">Tải ENoti APK</a>
             </div>
         </section>
 
@@ -163,8 +378,13 @@
 
 <script>
     document.querySelectorAll('.fade-up').forEach((el, i) => {
-      el.style.animationDelay = `${i * 0.2}s`;
-      el.classList.add('visible');
+        // Thêm một chút delay cơ bản nếu không có class delay-
+        if (!el.className.includes('delay-')) {
+            el.style.animationDelay = `${i * 0.1}s`;
+        } else if (el.className.includes('delay-1')) {
+            el.style.animationDelay = `0.2s`;
+        }
+        el.classList.add('visible');
     });
 </script>
 </body>
