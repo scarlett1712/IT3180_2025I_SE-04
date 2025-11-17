@@ -31,6 +31,7 @@ public class PayActivity extends AppCompatActivity {
 
     private long price;
     private boolean isMandatory;
+    private int financeId;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -50,6 +51,8 @@ public class PayActivity extends AppCompatActivity {
         String title = intent.getStringExtra("title");
         price = intent.getLongExtra("price", 0L);
         isMandatory = intent.getBooleanExtra("is_mandatory", price > 0);
+
+        financeId = intent.getIntExtra("financeId", -1);
 
         // Toolbar
         setSupportActionBar(toolbar);
@@ -163,6 +166,7 @@ public class PayActivity extends AppCompatActivity {
                 JSONObject json = new JSONObject();
                 json.put("title", title);
                 json.put("amount", amount);
+                json.put("financeId", financeId);
 
                 okhttp3.RequestBody body = okhttp3.RequestBody.create(
                         json.toString(),

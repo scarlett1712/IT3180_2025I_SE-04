@@ -69,27 +69,56 @@
 </head>
 
 <script>
-  const params = new URLSearchParams(window.location.search);
-  const ordercode = params.get("orderCode");
-  const amount = params.get("amount");
-  const description = params.get("description");
-  const currency = params.get("currency");
+  document.addEventListener("DOMContentLoaded", async () => {
+    const params = new URLSearchParams(window.location.search);
 
-  const finance_id = localStorage.getItem("finance_id");  // app set trước khi tạo link
+    // Lấy tất cả tham số từ URL
+    const ordercode = params.get("orderCode");
+    const amount = params.get("amount");
+    const description = params.get("description");
+    const currency = params.get("currency");
 
-  if (ordercode) {
-    fetch("https://nmcnpm-se-04.onrender.com/api/invoice/store", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        finance_id,
-        amount,
-        description,
-        ordercode,
-        currency
-      })
-    });
-  }
+    // ✅ FIX 1: Lấy finance_id từ URL, KHÔNG dùng localStorage
+    const finance_id = params.get("finance_id");
+
+    const statusMessage = document.querySelector("p");
+
+    if (ordercode && finance_id) {
+      try {
+        statusMessage.innerText = "Đang xử lý hóa đơn...";
+
+        // ✅ FIX 2: Dùng await để đợi server xử lý xong
+        const response = await fetch("https://nmcnpm-se-04.onrender.com/api/invoice/store", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            finance_id,
+            amount,
+            description,
+            ordercode,
+            currency
+          })
+        });
+
+        if (response.ok) {
+             console.log("Invoice created successfully");
+        } else {
+             console.error("Failed to create invoice", await response.text());
+        }
+
+      } catch (error) {
+        console.error("Network error:", error);
+      }
+    }
+
+    // Sau khi xử lý xong (hoặc nếu lỗi) thì mới redirect
+    statusMessage.innerText = "Đang quay về ứng dụng...";
+    setTimeout(() => {
+      // Truyền thêm cờ để App biết đã xử lý xong
+      window.location.href = "enoti://payment/success";
+    }, 1500);
+  });
+</script>
 
   // Redirect về app
   setTimeout(() => {

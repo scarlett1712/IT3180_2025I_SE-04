@@ -119,19 +119,16 @@ public class FinanceDetailActivity extends AppCompatActivity {
 
     private void handlePayOSDeepLink(Intent intent) {
         if (!Intent.ACTION_VIEW.equals(intent.getAction())) return;
-
         Uri data = intent.getData();
         if (data == null) return;
+        String path = data.getPath(); // path thường là /payment/success
 
-        String path = data.getPath();
-        if (path == null) return;
+        if (path != null && path.contains("success")) {
+            Toast.makeText(this, "Thanh toán thành công, đang cập nhật...", Toast.LENGTH_LONG).show();
 
-        if (path.contains("success")) {
-            Toast.makeText(this, "Thanh toán thành công!", Toast.LENGTH_SHORT).show();
+            // Gọi dây chuyền: Update Status -> Thành công -> Fetch Invoice
             updatePaymentStatus(true);
-            fetchInvoice();   // <--- load invoice ngay sau success
-
-        } else if (path.contains("cancel")) {
+        } else if (path != null && path.contains("cancel")) {
             Toast.makeText(this, "Bạn đã hủy thanh toán", Toast.LENGTH_SHORT).show();
             updatePaymentStatus(false);
         }
@@ -173,7 +170,13 @@ public class FinanceDetailActivity extends AppCompatActivity {
 
         JsonObjectRequest req = new JsonObjectRequest(
                 Request.Method.PUT, url, body,
-                response -> {},
+                response -> {
+                    // ✅ FIX 3: Chỉ gọi fetchInvoice KHI cập nhật status thành công
+                    if (success) {
+                        // Thêm delay nhỏ để đảm bảo DB bên server (Invoice) đã commit transaction xong
+                        new android.os.Handler().postDelayed(this::fetchInvoice, 500);
+                    }
+                },
                 error -> Toast.makeText(this, "Lỗi API cập nhật", Toast.LENGTH_SHORT).show()
         );
 

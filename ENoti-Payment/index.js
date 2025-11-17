@@ -51,7 +51,7 @@ app.post("/create-payment-link", async (req, res) => {
         price: amount,
       },
     ],
-    returnUrl: `${YOUR_DOMAIN}/success.html`,
+    returnUrl: `${YOUR_DOMAIN}/success.html?finance_id=${financeId}`,
     cancelUrl: `${YOUR_DOMAIN}/cancel.html`,
   };
 
