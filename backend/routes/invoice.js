@@ -62,24 +62,32 @@ router.get("/:ordercode", async (req, res) => {
   }
 });
 
+// 🔥 FIX: VIẾT LẠI ROUTE NÀY ĐỂ DÙNG `query` HELPER
 router.get("/by-finance/:financeId", async (req, res) => {
   try {
-    const financeId = req.params.financeId;
+    const { financeId } = req.params;
 
-    const invoice = await db("invoices")
-      .where("finance_id", financeId)
-      .first();
+    // Sử dụng helper 'query' thay vì biến 'db' không tồn tại
+    const result = await query(
+      `
+      SELECT * FROM invoice
+      WHERE finance_id = $1
+      LIMIT 1
+      `,
+      [financeId]
+    );
 
-    if (!invoice) {
+    if (result.rowCount === 0) {
       return res.status(404).json({ message: "Invoice not found" });
     }
 
-    return res.json(invoice);
+    // Trả về dòng đầu tiên tìm thấy
+    return res.json(result.rows[0]);
+
   } catch (error) {
-    console.error(error);
+    console.error("❌ Error fetching invoice by financeId:", error);
     res.status(500).json({ message: "Server error" });
   }
 });
-
 
 export default router;
