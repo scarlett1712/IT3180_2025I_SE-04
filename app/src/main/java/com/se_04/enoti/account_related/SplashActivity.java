@@ -31,6 +31,7 @@ import com.se_04.enoti.utils.UserManager;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
+import java.io.File; // 🔥 THÊM MỚI: Cần cho việc dọn dẹp
 import java.io.IOException;
 
 import okhttp3.OkHttpClient;
@@ -41,16 +42,22 @@ import okhttp3.Response;
 public class SplashActivity extends AppCompatActivity {
 
     private ActivityResultLauncher<String[]> permissionLauncher;
+    private static final String UPDATE_FILE_NAME = "enoti_update.apk"; // 🔥 THÊM MỚI: Dùng chung tên file
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_NO);
         super.onCreate(savedInstanceState);
 
+        // 🔥 THÊM MỚI: Chạy logic dọn dẹp ở background
+        // Việc này sẽ xóa file APK cũ từ lần cập nhật TRƯỚC ĐÓ.
+        new Thread(() -> cleanupOldApk(this)).start();
+
         // --- XIN QUYỀN NHƯ BẢN GỐC ---
         permissionLauncher = registerForActivityResult(
                 new ActivityResultContracts.RequestMultiplePermissions(),
                 result -> {
+                    // ... (Code gốc của bạn giữ nguyên)
                     boolean cameraGranted = Boolean.TRUE.equals(result.get(Manifest.permission.CAMERA));
                     boolean imageGranted = false;
 
@@ -80,9 +87,28 @@ public class SplashActivity extends AppCompatActivity {
             requestAppPermissions();
             prefs.edit().putBoolean("first_run", false).apply();
         } else {
-            checkUpdateFromGitHub();
+            // Nếu không phải lần chạy đầu, kiểm tra quyền trước khi check update
+            // (Vì checkUpdate() không phụ thuộc quyền, nhưng logic xin quyền gốc của bạn là vậy)
+            if (hasRequiredPermissions()) {
+                checkUpdateFromGitHub();
+            } else {
+                requestAppPermissions();
+            }
         }
     }
+
+    // 🔥 THÊM MỚI: Hàm kiểm tra quyền (Tách ra từ logic gốc của bạn)
+    private boolean hasRequiredPermissions() {
+        boolean cameraGranted = ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED;
+        boolean imageGranted;
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            imageGranted = ContextCompat.checkSelfPermission(this, Manifest.permission.READ_MEDIA_IMAGES) == PackageManager.PERMISSION_GRANTED;
+        } else {
+            imageGranted = ContextCompat.checkSelfPermission(this, Manifest.permission.READ_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED;
+        }
+        return cameraGranted && imageGranted;
+    }
+
 
     // -----------------------------
     // 🔥 PHẦN MỚI: CHECK UPDATE
@@ -90,6 +116,7 @@ public class SplashActivity extends AppCompatActivity {
     private void checkUpdateFromGitHub() {
         new Thread(() -> {
             try {
+                // ... (Code check update của bạn giữ nguyên)
                 OkHttpClient client = new OkHttpClient();
 
                 Request request = new Request.Builder()
@@ -126,7 +153,7 @@ public class SplashActivity extends AppCompatActivity {
         }).start();
     }
 
-    // So sánh version "1.0.5" > "1.0.3"
+    // ... (Code isNewer và showUpdateDialog giữ nguyên)
     private boolean isNewer(String latest, String current) {
         String[] l = latest.split("\\.");
         String[] c = current.split("\\.");
@@ -150,10 +177,15 @@ public class SplashActivity extends AppCompatActivity {
                 .show();
     }
 
+
     private void downloadApk(String url) {
         DownloadManager.Request request = new DownloadManager.Request(Uri.parse(url));
         request.setTitle("Đang tải bản cập nhật");
-        request.setDestinationInExternalPublicDir(Environment.DIRECTORY_DOWNLOADS, "enoti_update.apk");
+
+        // 🔥 CẢI TIẾN: Thay đổi đường dẫn lưu file
+        // Lưu vào thư mục riêng của app, không cần quyền.
+        request.setDestinationInExternalFilesDir(this, Environment.DIRECTORY_DOWNLOADS, UPDATE_FILE_NAME);
+
         request.setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED);
 
         DownloadManager dm = (DownloadManager) getSystemService(Context.DOWNLOAD_SERVICE);
@@ -162,10 +194,38 @@ public class SplashActivity extends AppCompatActivity {
         Toast.makeText(this, "Đang tải cập nhật… Sau khi tải xong hãy mở file để cài đặt.", Toast.LENGTH_LONG).show();
     }
 
+    // 🔥 THÊM MỚI: Hàm dọn dẹp file APK cũ
+    private void cleanupOldApk(Context context) {
+        try {
+            // Đường dẫn này PHẢI khớp với đường dẫn trong `downloadApk`
+            File downloadDir = context.getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS);
+
+            if (downloadDir == null || !downloadDir.isDirectory()) {
+                return;
+            }
+
+            File apkFile = new File(downloadDir, UPDATE_FILE_NAME);
+
+            if (apkFile.exists()) {
+                if (apkFile.delete()) {
+                    // Log ra console (Không T_Toast vì đây là tiến trình nền)
+                    System.out.println("✅ Đã dọn dẹp file APK cũ thành công.");
+                } else {
+                    System.err.println("❌ Không thể xóa file APK cũ.");
+                }
+            }
+        } catch (Exception e) {
+            // Bắt mọi exception về bảo mật hoặc I/O
+            System.err.println("❌ Lỗi khi dọn dẹp APK: " + e.getMessage());
+        }
+    }
+
+
     // -----------------------------
-    //  QUYỀN GIỐNG BẢN GỐC
+    //  QUYỀN VÀ ĐIỀU HƯỚNG (Code gốc)
     // -----------------------------
     private void requestAppPermissions() {
+        // ... (Code gốc của bạn giữ nguyên)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             permissionLauncher.launch(new String[]{
                     Manifest.permission.CAMERA,
@@ -181,6 +241,7 @@ public class SplashActivity extends AppCompatActivity {
     }
 
     private boolean isPermissionPermanentlyDenied() {
+        // ... (Code gốc của bạn giữ nguyên)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             return (ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED
                     && !shouldShowRequestPermissionRationale(Manifest.permission.CAMERA))
@@ -195,6 +256,7 @@ public class SplashActivity extends AppCompatActivity {
     }
 
     private void showPermissionSettingsDialog() {
+        // ... (Code gốc của bạn giữ nguyên)
         new AlertDialog.Builder(this)
                 .setTitle("Cần cấp quyền")
                 .setMessage("Vui lòng mở Cài đặt và cấp lại quyền.")
@@ -209,6 +271,7 @@ public class SplashActivity extends AppCompatActivity {
     }
 
     private void navigateNext() {
+        // ... (Code gốc của bạn giữ nguyên)
         UserManager userManager = UserManager.getInstance(this);
         UserItem user = userManager.getCurrentUser();
 
