@@ -68,65 +68,86 @@
   </style>
 </head>
 
-<script>
-  document.addEventListener("DOMContentLoaded", async () => {
-    const params = new URLSearchParams(window.location.search);
-
-    // Lấy tất cả tham số từ URL
-    const ordercode = params.get("orderCode");
-    const amount = params.get("amount");
-    const description = params.get("description");
-    const currency = params.get("currency");
-
-    // ✅ FIX 1: Lấy finance_id từ URL, KHÔNG dùng localStorage
-    const finance_id = params.get("finance_id");
-
-    const statusMessage = document.querySelector("p");
-
-    if (ordercode && finance_id) {
-      try {
-        statusMessage.innerText = "Đang xử lý hóa đơn...";
-
-        // ✅ FIX 2: Dùng await để đợi server xử lý xong
-        const response = await fetch("https://nmcnpm-se-04.onrender.com/api/invoice/store", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            finance_id,
-            amount,
-            description,
-            ordercode,
-            currency
-          })
-        });
-
-        if (response.ok) {
-             console.log("Invoice created successfully");
-        } else {
-             console.error("Failed to create invoice", await response.text());
-        }
-
-      } catch (error) {
-        console.error("Network error:", error);
-      }
-    }
-
-    // Sau khi xử lý xong (hoặc nếu lỗi) thì mới redirect
-    statusMessage.innerText = "Đang quay về ứng dụng...";
-    setTimeout(() => {
-      // Truyền thêm cờ để App biết đã xử lý xong
-      window.location.href = "enoti://payment/success";
-    }, 1500);
-  });
-</script>
-
 <body>
 <div class="container">
   <div class="icon">✔</div>
   <h1>Thanh toán thành công!</h1>
-  <p>Cảm ơn bạn đã hoàn tất giao dịch. Bạn có thể quay lại ứng dụng để tiếp tục sử dụng.</p>
+  <p id="statusMessage">Cảm ơn bạn đã hoàn tất giao dịch. Đang xử lý hóa đơn...</p>
 
   <a class="btn" href="enoti://payment/success">Quay về ứng dụng</a>
 </div>
+
+<!-- 🔥 SỬA TOÀN BỘ SCRIPT Ở ĐÂY -->
+<script>
+  // Chạy ngay khi DOM được load
+  document.addEventListener("DOMContentLoaded", () => {
+    // Gọi hàm xử lý bất đồng bộ
+    handleInvoiceAndRedirect();
+  });
+
+  async function handleInvoiceAndRedirect() {
+    const statusMessage = document.getElementById("statusMessage");
+
+    try {
+      const params = new URLSearchParams(window.location.search);
+
+      // 1. Lấy TẤT CẢ dữ liệu từ URL
+      // (PayOS có thể trả về orderCode, nhưng chúng ta ưu tiên
+      // ordercode (chữ thường) mà chúng ta tự thêm vào)
+      const finance_id = params.get("finance_id");
+      const amount = params.get("amount");
+      const description = params.get("description");
+      const ordercode = params.get("ordercode") || params.get("orderCode"); // Lấy 1 trong 2
+      const currency = params.get("currency") || "VND"; // Mặc định VND
+
+      // 2. Kiểm tra dữ liệu
+      if (!finance_id || !amount || !description || !ordercode) {
+        console.error("Dữ liệu URL bị thiếu:", { finance_id, amount, description, ordercode });
+        statusMessage.innerText = "Lỗi: Dữ liệu thanh toán bị thiếu.";
+        // Vẫn redirect về app
+        redirectToApp(3000);
+        return;
+      }
+
+      console.log("Đang gửi đi:", { finance_id, amount, description, ordercode, currency });
+
+      // 3. Gọi API /store và CHỜ (await)
+      const response = await fetch("https://nmcnpm-se-04.onrender.com/api/invoice/store", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          finance_id: parseInt(finance_id), // Đảm bảo là số
+          amount: parseInt(amount),         // Đảm bảo là số
+          description: description,
+          ordercode: ordercode,
+          currency: currency
+        })
+      });
+
+      if (response.ok) {
+        console.log("Tạo invoice thành công!");
+        statusMessage.innerText = "Đã xử lý hóa đơn. Đang quay về ứng dụng...";
+      } else {
+        const errorData = await response.json();
+        console.error("Lỗi tạo invoice:", errorData);
+        statusMessage.innerText = "Lỗi khi lưu hóa đơn.";
+      }
+
+    } catch (err) {
+      console.error("Lỗi fetch:", err);
+      statusMessage.innerText = "Lỗi mạng khi xử lý hóa đơn.";
+    }
+
+    // 4. Redirect về app sau khi đã xử lý xong
+    redirectToApp(2000);
+  }
+
+  function redirectToApp(delay) {
+    setTimeout(() => {
+      window.location.href = "enoti://payment/success";
+    }, delay);
+  }
+</script>
+
 </body>
 </html>
