@@ -28,7 +28,7 @@ app.use("/", express.static("public"));
  * { title: "Tên hóa đơn", amount: 150000 }
  */
 app.post("/create-payment-link", async (req, res) => {
-  const { title, amount, finance_id } = req.body;
+  const { title, amount, financeId } = req.body;
 
   if (!amount || amount <= 0) {
     return res.status(400).json({ error: "Amount invalid" });
