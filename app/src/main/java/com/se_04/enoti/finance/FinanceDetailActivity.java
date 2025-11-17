@@ -20,6 +20,7 @@ import com.google.android.material.appbar.MaterialToolbar;
 import com.se_04.enoti.R;
 import com.se_04.enoti.utils.ApiConfig;
 import com.se_04.enoti.utils.UserManager;
+import com.se_04.enoti.utils.VnNumberToWords; // 🔥 1. THÊM IMPORT NÀY
 
 import org.json.JSONObject;
 
@@ -119,16 +120,18 @@ public class FinanceDetailActivity extends AppCompatActivity {
 
     private void handlePayOSDeepLink(Intent intent) {
         if (!Intent.ACTION_VIEW.equals(intent.getAction())) return;
+
         Uri data = intent.getData();
         if (data == null) return;
-        String path = data.getPath(); // path thường là /payment/success
 
-        if (path != null && path.contains("success")) {
-            Toast.makeText(this, "Thanh toán thành công, đang cập nhật...", Toast.LENGTH_LONG).show();
+        String path = data.getPath();
+        if (path == null) return;
 
-            // Gọi dây chuyền: Update Status -> Thành công -> Fetch Invoice
-            updatePaymentStatus(true);
-        } else if (path != null && path.contains("cancel")) {
+        if (path.contains("success")) {
+            Toast.makeText(this, "Thanh toán thành công!", Toast.LENGTH_SHORT).show();
+            updatePaymentStatus(true);   // <--- Sẽ tự động gọi fetchInvoice() khi thành công
+
+        } else if (path.contains("cancel")) {
             Toast.makeText(this, "Bạn đã hủy thanh toán", Toast.LENGTH_SHORT).show();
             updatePaymentStatus(false);
         }
@@ -171,7 +174,6 @@ public class FinanceDetailActivity extends AppCompatActivity {
         JsonObjectRequest req = new JsonObjectRequest(
                 Request.Method.PUT, url, body,
                 response -> {
-                    // ✅ FIX 3: Chỉ gọi fetchInvoice KHI cập nhật status thành công
                     if (success) {
                         // Thêm delay nhỏ để đảm bảo DB bên server (Invoice) đã commit transaction xong
                         new android.os.Handler().postDelayed(this::fetchInvoice, 500);
@@ -197,7 +199,10 @@ public class FinanceDetailActivity extends AppCompatActivity {
 
                         txtOrderCode.setText(ordercode);
                         txtAmount.setText(new DecimalFormat("#,###,###").format(amount) + " đ");
-                        txtAmountInText.setText(convertNumberToWords(amount) + " Việt Nam Đồng");
+
+                        // 🔥 2. THAY ĐỔI Ở ĐÂY
+                        txtAmountInText.setText(convertNumberToWords(amount)); // Bỏ " Việt Nam Đồng" vì hàm mới đã có "đồng"
+
                         txtDetail.setText(desc);
 
                         findViewById(R.id.invoiceDetail).setVisibility(View.VISIBLE);
@@ -212,8 +217,8 @@ public class FinanceDetailActivity extends AppCompatActivity {
 
     // ----------------------- CHUYỂN SỐ → CHỮ ---------------------------
     private String convertNumberToWords(long number) {
-        // Bạn có thể thay bằng hàm chuyên nghiệp hơn
-        return new DecimalFormat("#,###").format(number);
+        // 🔥 3. THAY ĐỔI Ở ĐÂY: Gọi lớp tiện ích mới
+        return VnNumberToWords.convert(number);
     }
 
     @Override
