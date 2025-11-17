@@ -35,6 +35,9 @@ public class FinanceDetailActivity extends AppCompatActivity {
     private Button btnPay;
     private TextView txtPaymentStatus;
 
+    // INVOICE UI
+    private TextView txtOrderCode, txtAmount, txtAmountInText, txtDetail;
+
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -48,6 +51,13 @@ public class FinanceDetailActivity extends AppCompatActivity {
         TextView txtSender = findViewById(R.id.txtSender);
         btnPay = findViewById(R.id.buttonPay);
         txtPaymentStatus = findViewById(R.id.txtPaymentStatus);
+
+        // Invoice UI
+        txtOrderCode = findViewById(R.id.txtOrderCode);
+        txtAmount = findViewById(R.id.txtAmount);
+        txtAmountInText = findViewById(R.id.txtAmountInText);
+        txtDetail = findViewById(R.id.txtDetail);
+
         MaterialToolbar toolbar = findViewById(R.id.toolbar);
 
         // Toolbar
@@ -58,10 +68,9 @@ public class FinanceDetailActivity extends AppCompatActivity {
             toolbar.setTitleTextColor(ContextCompat.getColor(this, android.R.color.white));
         }
 
-        // --- Lấy dữ liệu từ Intent (CHỈ LẦN ĐẦU) ---
+        // Intent data
         readIntentData(getIntent());
 
-        // --- Bind dữ liệu lên UI ---
         txtReceiptTitle.setText(title);
         txtReceiptDeadline.setText("Hạn: " + dueDate);
         txtSender.setText("Người gửi: " + sender);
@@ -73,8 +82,12 @@ public class FinanceDetailActivity extends AppCompatActivity {
             txtPrice.setText("Khoản tự nguyện");
         }
 
-        // --- UI thanh toán ---
         updatePaymentUI();
+
+        // Nếu đã thanh toán → tự động load invoice
+        if (Objects.equals(paymentStatus, "da_thanh_toan")) {
+            fetchInvoice();
+        }
 
         btnPay.setOnClickListener(v -> {
             Intent payIntent = new Intent(FinanceDetailActivity.this, PayActivity.class);
@@ -86,16 +99,12 @@ public class FinanceDetailActivity extends AppCompatActivity {
         });
     }
 
-    // ======================================================
-    //   XỬ LÝ INTENT KHI QUAY LẠI TỪ PAYOS (singleTop)
-    // ======================================================
+    // ------------------------ PAYOS DEEP LINK -----------------------------
     @Override
     protected void onNewIntent(Intent intent) {
         super.onNewIntent(intent);
-
-        setIntent(intent); // cập nhật intent mới
-
-        handlePayOSDeepLink(intent); // xử lý deep link
+        setIntent(intent);
+        handlePayOSDeepLink(intent);
     }
 
     private void readIntentData(Intent intent) {
@@ -108,11 +117,7 @@ public class FinanceDetailActivity extends AppCompatActivity {
         paymentStatus = intent.getStringExtra("payment_status");
     }
 
-    // ======================================================
-    //                  PAYOS DEEP LINK
-    // ======================================================
     private void handlePayOSDeepLink(Intent intent) {
-
         if (!Intent.ACTION_VIEW.equals(intent.getAction())) return;
 
         Uri data = intent.getData();
@@ -124,6 +129,7 @@ public class FinanceDetailActivity extends AppCompatActivity {
         if (path.contains("success")) {
             Toast.makeText(this, "Thanh toán thành công!", Toast.LENGTH_SHORT).show();
             updatePaymentStatus(true);
+            fetchInvoice();   // <--- load invoice ngay sau success
 
         } else if (path.contains("cancel")) {
             Toast.makeText(this, "Bạn đã hủy thanh toán", Toast.LENGTH_SHORT).show();
@@ -131,24 +137,26 @@ public class FinanceDetailActivity extends AppCompatActivity {
         }
     }
 
+    // ------------------------- UI STATUS -------------------------------
     private void updatePaymentUI() {
         if (Objects.equals(paymentStatus, "da_thanh_toan")) {
             btnPay.setVisibility(View.GONE);
             txtPaymentStatus.setVisibility(View.VISIBLE);
+            findViewById(R.id.invoiceDetail).setVisibility(View.VISIBLE);
+
         } else {
             btnPay.setVisibility(View.VISIBLE);
             txtPaymentStatus.setVisibility(View.GONE);
+            findViewById(R.id.invoiceDetail).setVisibility(View.GONE);
         }
     }
 
-    // ======================================================
-    //             UPDATE PAYMENT STATUS API
-    // ======================================================
+    // ----------------------- UPDATE PAYMENT STATUS ---------------------
     private void updatePaymentStatus(boolean success) {
         String newStatus = success ? "da_thanh_toan" : "da_huy";
-        paymentStatus = newStatus; // cập nhật local UI
+        paymentStatus = newStatus;
 
-        updatePaymentUI(); // update UI ngay lập tức
+        updatePaymentUI();
 
         int userId = Integer.parseInt(
                 UserManager.getInstance(getApplicationContext()).getID()
@@ -170,6 +178,39 @@ public class FinanceDetailActivity extends AppCompatActivity {
         );
 
         Volley.newRequestQueue(this).add(req);
+    }
+
+    // -------------------------- FETCH INVOICE ---------------------------
+    private void fetchInvoice() {
+        String url = ApiConfig.BASE_URL + "/api/invoice/by-finance/" + financeId;
+
+        JsonObjectRequest request = new JsonObjectRequest(
+                Request.Method.GET, url, null,
+                response -> {
+                    try {
+                        String ordercode = response.getString("ordercode");
+                        long amount = response.getLong("amount");
+                        String desc = response.getString("description");
+
+                        txtOrderCode.setText(ordercode);
+                        txtAmount.setText(new DecimalFormat("#,###,###").format(amount) + " đ");
+                        txtAmountInText.setText(convertNumberToWords(amount) + " Việt Nam Đồng");
+                        txtDetail.setText(desc);
+
+                        findViewById(R.id.invoiceDetail).setVisibility(View.VISIBLE);
+
+                    } catch (Exception ignored) {}
+                },
+                error -> Toast.makeText(this, "Không lấy được hóa đơn!", Toast.LENGTH_SHORT).show()
+        );
+
+        Volley.newRequestQueue(this).add(request);
+    }
+
+    // ----------------------- CHUYỂN SỐ → CHỮ ---------------------------
+    private String convertNumberToWords(long number) {
+        // Bạn có thể thay bằng hàm chuyên nghiệp hơn
+        return new DecimalFormat("#,###").format(number);
     }
 
     @Override

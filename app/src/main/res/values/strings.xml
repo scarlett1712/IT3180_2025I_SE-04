@@ -82,5 +82,6 @@
     <string name="manage_finance">Quản lý khoản thu</string>
     <string name="notification_detail">Chi tiết thông báo</string>
     <string name="status_paid">Đã thanh toán</string>
+    <string name="see_invoice_detail">Xem chi tiết hóa đơn</string>
 
 </resources>

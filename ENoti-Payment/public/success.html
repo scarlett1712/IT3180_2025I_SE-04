@@ -69,8 +69,31 @@
 </head>
 
 <script>
+  const params = new URLSearchParams(window.location.search);
+  const ordercode = params.get("orderCode");
+  const amount = params.get("amount");
+  const description = params.get("description");
+  const currency = params.get("currency");
+
+  const finance_id = localStorage.getItem("finance_id");  // app set trước khi tạo link
+
+  if (ordercode) {
+    fetch("https://nmcnpm-se-04.onrender.com/api/invoice/store", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        finance_id,
+        amount,
+        description,
+        ordercode,
+        currency
+      })
+    });
+  }
+
+  // Redirect về app
   setTimeout(() => {
-      window.location.href = "enoti://payment/success";
+    window.location.href = "enoti://payment/success";
   }, 2000);
 </script>
 
