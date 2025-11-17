@@ -25,7 +25,7 @@ app.use("/", express.static("public"));
 
 /**
  * API nhận dữ liệu từ Android:
- * { title: "Tên hóa đơn", amount: 150000 }
+ * { title: "Tên hóa đơn", amount: 150000, financeId: 123 }
  */
 app.post("/create-payment-link", async (req, res) => {
   const { title, amount, financeId } = req.body;
@@ -44,8 +44,11 @@ app.post("/create-payment-link", async (req, res) => {
   const fullDesc = `${title}`;
   const shortDesc = fullDesc.slice(0, 25);
 
+  // 🔥 TẠO ORDER CODE Ở ĐÂY
+  const orderCode = Number(String(Date.now()).slice(-6));
+
   const body = {
-    orderCode: Number(String(Date.now()).slice(-6)),
+    orderCode: orderCode, // Sử dụng orderCode đã tạo
     amount: amount,
     description: shortDesc,
     items: [
@@ -55,7 +58,11 @@ app.post("/create-payment-link", async (req, res) => {
         price: amount,
       },
     ],
-    returnUrl: `${YOUR_DOMAIN}/success.html?finance_id=${financeId}`,
+    // 🔥 FIX: Thêm TOÀN BỘ data cần thiết vào returnUrl
+    // (Lưu ý: PayOS cũng sẽ tự động thêm orderCode, nhưng chúng ta thêm thủ công
+    // để đảm bảo 100% dữ liệu có mặt)
+    // Chúng ta dùng encodeURIComponent(title) để xử lý các tiêu đề có dấu
+    returnUrl: `${YOUR_DOMAIN}/success.html?finance_id=${financeId}&amount=${amount}&description=${encodeURIComponent(title)}&ordercode=${orderCode}`,
     cancelUrl: `${YOUR_DOMAIN}/cancel.html`,
   };
 
@@ -78,7 +85,7 @@ app.post("/create-payment-link", async (req, res) => {
 
   } catch (error) {
     console.log("PayOS ERROR:", error.response?.data || error);
-    return res.status(500).json({
+    return res.status(5T00).json({
       error: "PayOS error",
       detail: error.message,
     });
