@@ -85,7 +85,7 @@ app.post("/create-payment-link", async (req, res) => {
 
   } catch (error) {
     console.log("PayOS ERROR:", error.response?.data || error);
-    return res.status(5T00).json({
+    return res.status(500).json({
       error: "PayOS error",
       detail: error.message,
     });
