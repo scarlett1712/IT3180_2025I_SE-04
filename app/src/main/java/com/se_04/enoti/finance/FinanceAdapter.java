@@ -112,6 +112,7 @@ public class FinanceAdapter extends RecyclerView.Adapter<FinanceAdapter.ViewHold
             } else {
                 // 👤 USER CLICK: Mở màn hình FinanceDetailActivity
                 Intent intent = new Intent(v.getContext(), FinanceDetailActivity.class);
+                intent.putExtra("financeId", clickedItem.getId());
                 intent.putExtra("title", clickedItem.getTitle());
                 intent.putExtra("content", clickedItem.getContent());
                 intent.putExtra("due_date", clickedDate);
