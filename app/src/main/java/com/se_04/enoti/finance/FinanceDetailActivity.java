@@ -25,6 +25,8 @@ import com.se_04.enoti.utils.VnNumberToWords;
 import org.json.JSONObject;
 
 import java.text.DecimalFormat;
+import java.text.SimpleDateFormat; // 🔥 Import mới
+import java.util.TimeZone;       // 🔥 Import mới
 import java.util.Objects;
 
 public class FinanceDetailActivity extends AppCompatActivity {
@@ -37,7 +39,6 @@ public class FinanceDetailActivity extends AppCompatActivity {
     private TextView txtPaymentStatus;
 
     // INVOICE UI
-    // 🔥 1. Thêm txtPayDate vào danh sách biến
     private TextView txtOrderCode, txtAmount, txtAmountInText, txtDetail, txtPayDate;
 
     @Override
@@ -59,7 +60,6 @@ public class FinanceDetailActivity extends AppCompatActivity {
         txtAmount = findViewById(R.id.txtAmount);
         txtAmountInText = findViewById(R.id.txtAmountInText);
         txtDetail = findViewById(R.id.txtDetail);
-        // 🔥 2. Ánh xạ view mới từ layout
         txtPayDate = findViewById(R.id.txtPayDate);
 
         MaterialToolbar toolbar = findViewById(R.id.toolbar);
@@ -88,7 +88,6 @@ public class FinanceDetailActivity extends AppCompatActivity {
 
         updatePaymentUI();
 
-        // Nếu đã thanh toán → tự động load invoice
         if (Objects.equals(paymentStatus, "da_thanh_toan")) {
             fetchInvoice();
         }
@@ -103,7 +102,6 @@ public class FinanceDetailActivity extends AppCompatActivity {
         });
     }
 
-    // ------------------------ PAYOS DEEP LINK -----------------------------
     @Override
     protected void onNewIntent(Intent intent) {
         super.onNewIntent(intent);
@@ -133,20 +131,17 @@ public class FinanceDetailActivity extends AppCompatActivity {
         if (path.contains("success")) {
             Toast.makeText(this, "Thanh toán thành công!", Toast.LENGTH_SHORT).show();
             updatePaymentStatus(true);
-
         } else if (path.contains("cancel")) {
             Toast.makeText(this, "Bạn đã hủy thanh toán", Toast.LENGTH_SHORT).show();
             updatePaymentStatus(false);
         }
     }
 
-    // ------------------------- UI STATUS -------------------------------
     private void updatePaymentUI() {
         if (Objects.equals(paymentStatus, "da_thanh_toan")) {
             btnPay.setVisibility(View.GONE);
             txtPaymentStatus.setVisibility(View.VISIBLE);
             findViewById(R.id.invoiceDetail).setVisibility(View.VISIBLE);
-
         } else {
             btnPay.setVisibility(View.VISIBLE);
             txtPaymentStatus.setVisibility(View.GONE);
@@ -154,7 +149,6 @@ public class FinanceDetailActivity extends AppCompatActivity {
         }
     }
 
-    // ----------------------- UPDATE PAYMENT STATUS ---------------------
     private void updatePaymentStatus(boolean success) {
         String newStatus = success ? "da_thanh_toan" : "da_huy";
         paymentStatus = newStatus;
@@ -178,7 +172,6 @@ public class FinanceDetailActivity extends AppCompatActivity {
                 Request.Method.PUT, url, body,
                 response -> {
                     if (success) {
-                        // Thêm delay nhỏ để đảm bảo DB bên server (Invoice) đã commit transaction xong
                         new android.os.Handler().postDelayed(this::fetchInvoice, 500);
                     }
                 },
@@ -188,7 +181,6 @@ public class FinanceDetailActivity extends AppCompatActivity {
         Volley.newRequestQueue(this).add(req);
     }
 
-    // -------------------------- FETCH INVOICE ---------------------------
     private void fetchInvoice() {
         String url = ApiConfig.BASE_URL + "/api/invoice/by-finance/" + financeId;
 
@@ -199,17 +191,15 @@ public class FinanceDetailActivity extends AppCompatActivity {
                         String ordercode = response.getString("ordercode");
                         long amount = response.getLong("amount");
                         String desc = response.getString("description");
-
-                        // 🔥 3. Lấy thời gian từ JSON (đã được server format)
-                        String payTime = response.optString("pay_time_formatted", "");
+                        String rawPayTime = response.optString("pay_time_formatted", "");
 
                         txtOrderCode.setText(ordercode);
                         txtAmount.setText(new DecimalFormat("#,###,###").format(amount) + " đ");
                         txtAmountInText.setText(convertNumberToWords(amount));
                         txtDetail.setText(desc);
 
-                        // 🔥 4. Hiển thị thời gian
-                        txtPayDate.setText(payTime.isEmpty() ? "Vừa xong" : payTime);
+                        // 🔥 FIX: Gọi hàm chuyển đổi múi giờ tại Client
+                        txtPayDate.setText(convertUtcToLocal(rawPayTime));
 
                         findViewById(R.id.invoiceDetail).setVisibility(View.VISIBLE);
 
@@ -221,7 +211,26 @@ public class FinanceDetailActivity extends AppCompatActivity {
         Volley.newRequestQueue(this).add(request);
     }
 
-    // ----------------------- CHUYỂN SỐ → CHỮ ---------------------------
+    // 🔥 HÀM MỚI: Chuyển đổi giờ UTC (Server) sang giờ Local (Điện thoại)
+    private String convertUtcToLocal(String utcTime) {
+        if (utcTime == null || utcTime.isEmpty()) return "Vừa xong";
+        try {
+            // 1. Định dạng đầu vào (Server trả về dd/MM/yyyy HH:mm ở múi giờ UTC)
+            SimpleDateFormat inputFormat = new SimpleDateFormat("dd/MM/yyyy HH:mm");
+            inputFormat.setTimeZone(TimeZone.getTimeZone("UTC"));
+
+            java.util.Date date = inputFormat.parse(utcTime);
+
+            // 2. Định dạng đầu ra (Hiển thị theo múi giờ của điện thoại người dùng)
+            SimpleDateFormat outputFormat = new SimpleDateFormat("dd/MM/yyyy HH:mm");
+            outputFormat.setTimeZone(TimeZone.getDefault()); // Lấy timezone của máy (VD: Asia/Ho_Chi_Minh)
+
+            return outputFormat.format(date);
+        } catch (Exception e) {
+            return utcTime; // Nếu lỗi (do định dạng khác), hiển thị nguyên gốc
+        }
+    }
+
     private String convertNumberToWords(long number) {
         return VnNumberToWords.convert(number);
     }
