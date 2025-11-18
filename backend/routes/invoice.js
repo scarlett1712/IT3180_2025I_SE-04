@@ -7,6 +7,7 @@ const router = express.Router();
 const query = (text, params) => pool.query(text, params);
 
 // 🧾 Tạo invoice khi thanh toán thành công
+// (Đã thêm paytime vào INSERT để đảm bảo luôn có thời gian)
 router.post("/store", async (req, res) => {
   const { finance_id, amount, description, ordercode, currency } = req.body;
 
@@ -19,8 +20,8 @@ router.post("/store", async (req, res) => {
   try {
     const result = await query(
       `
-      INSERT INTO invoice (finance_id, amount, description, ordercode, currency)
-      VALUES ($1, $2, $3, $4, $5)
+      INSERT INTO invoice (finance_id, amount, description, ordercode, currency, paytime)
+      VALUES ($1, $2, $3, $4, $5, NOW())
       RETURNING *;
       `,
       [finance_id, amount, description, ordercode, currency || "VND"]
@@ -43,7 +44,7 @@ router.get("/:ordercode", async (req, res) => {
   try {
     const result = await query(
       `
-      SELECT *
+      SELECT *, TO_CHAR(paytime, 'DD/MM/YYYY HH24:MI') as pay_time_formatted
       FROM invoice
       WHERE ordercode = $1
       LIMIT 1
@@ -62,15 +63,17 @@ router.get("/:ordercode", async (req, res) => {
   }
 });
 
-// 🔥 FIX: VIẾT LẠI ROUTE NÀY ĐỂ DÙNG `query` HELPER
+// 🔥 FIX: Thêm lấy thời gian thanh toán (pay_time_formatted)
 router.get("/by-finance/:financeId", async (req, res) => {
   try {
     const { financeId } = req.params;
 
     // Sử dụng helper 'query' thay vì biến 'db' không tồn tại
+    // Lấy thêm cột pay_time_formatted
     const result = await query(
       `
-      SELECT * FROM invoice
+      SELECT *, TO_CHAR(paytime, 'DD/MM/YYYY HH24:MI') as pay_time_formatted
+      FROM invoice
       WHERE finance_id = $1
       LIMIT 1
       `,

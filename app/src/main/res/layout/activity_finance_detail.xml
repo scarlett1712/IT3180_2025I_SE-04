@@ -137,6 +137,32 @@
                             android:layout_width="0dp"
                             android:layout_height="wrap_content"
                             android:layout_weight="0.3"
+                            android:text="Thời gian thanh toán:"
+                            android:textSize="16sp"
+                            android:textColor="@android:color/black" />
+
+                        <TextView
+                            android:id="@+id/txtPayDate"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="0.3"
+                            android:text="dd/mm/yyyy hh:mm"
+                            android:textAlignment="viewEnd"
+                            android:textSize="16sp"
+                            android:textColor="@android:color/black" />
+                    </LinearLayout>
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:layout_weight="1"
+                        android:layout_marginBottom="16dp">
+
+                        <TextView
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="0.3"
                             android:text="Thành tiền:"
                             android:textSize="16sp"
                             android:textColor="@android:color/black" />

@@ -20,7 +20,7 @@ import com.google.android.material.appbar.MaterialToolbar;
 import com.se_04.enoti.R;
 import com.se_04.enoti.utils.ApiConfig;
 import com.se_04.enoti.utils.UserManager;
-import com.se_04.enoti.utils.VnNumberToWords; // 🔥 1. THÊM IMPORT NÀY
+import com.se_04.enoti.utils.VnNumberToWords;
 
 import org.json.JSONObject;
 
@@ -37,7 +37,8 @@ public class FinanceDetailActivity extends AppCompatActivity {
     private TextView txtPaymentStatus;
 
     // INVOICE UI
-    private TextView txtOrderCode, txtAmount, txtAmountInText, txtDetail;
+    // 🔥 1. Thêm txtPayDate vào danh sách biến
+    private TextView txtOrderCode, txtAmount, txtAmountInText, txtDetail, txtPayDate;
 
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
@@ -58,6 +59,8 @@ public class FinanceDetailActivity extends AppCompatActivity {
         txtAmount = findViewById(R.id.txtAmount);
         txtAmountInText = findViewById(R.id.txtAmountInText);
         txtDetail = findViewById(R.id.txtDetail);
+        // 🔥 2. Ánh xạ view mới từ layout
+        txtPayDate = findViewById(R.id.txtPayDate);
 
         MaterialToolbar toolbar = findViewById(R.id.toolbar);
 
@@ -129,7 +132,7 @@ public class FinanceDetailActivity extends AppCompatActivity {
 
         if (path.contains("success")) {
             Toast.makeText(this, "Thanh toán thành công!", Toast.LENGTH_SHORT).show();
-            updatePaymentStatus(true);   // <--- Sẽ tự động gọi fetchInvoice() khi thành công
+            updatePaymentStatus(true);
 
         } else if (path.contains("cancel")) {
             Toast.makeText(this, "Bạn đã hủy thanh toán", Toast.LENGTH_SHORT).show();
@@ -197,13 +200,16 @@ public class FinanceDetailActivity extends AppCompatActivity {
                         long amount = response.getLong("amount");
                         String desc = response.getString("description");
 
+                        // 🔥 3. Lấy thời gian từ JSON (đã được server format)
+                        String payTime = response.optString("pay_time_formatted", "");
+
                         txtOrderCode.setText(ordercode);
                         txtAmount.setText(new DecimalFormat("#,###,###").format(amount) + " đ");
-
-                        // 🔥 2. THAY ĐỔI Ở ĐÂY
-                        txtAmountInText.setText(convertNumberToWords(amount)); // Bỏ " Việt Nam Đồng" vì hàm mới đã có "đồng"
-
+                        txtAmountInText.setText(convertNumberToWords(amount));
                         txtDetail.setText(desc);
+
+                        // 🔥 4. Hiển thị thời gian
+                        txtPayDate.setText(payTime.isEmpty() ? "Vừa xong" : payTime);
 
                         findViewById(R.id.invoiceDetail).setVisibility(View.VISIBLE);
 
@@ -217,7 +223,6 @@ public class FinanceDetailActivity extends AppCompatActivity {
 
     // ----------------------- CHUYỂN SỐ → CHỮ ---------------------------
     private String convertNumberToWords(long number) {
-        // 🔥 3. THAY ĐỔI Ở ĐÂY: Gọi lớp tiện ích mới
         return VnNumberToWords.convert(number);
     }
 
