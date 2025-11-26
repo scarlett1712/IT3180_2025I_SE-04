@@ -21,7 +21,9 @@
     <string name="home">Trang chủ</string>
     <string name="notifications">Thông báo</string>
     <string name="create_notification">Tạo thông báo</string>
+    <string name="feedback_report">Phản hồi và báo cáo</string>
     <string name="feedback">Phản hồi</string>
+    <string name="report">Báo cáo</string>
     <string name="user_account">Tài khoản</string>
     <string name="your_name_text">Tên của bạn</string>
     <string name="family_id_text">Mã hộ gia đình (không bắt buộc)</string>"
@@ -37,6 +39,7 @@
     <string name="support">Hỗ trợ</string>
     <string name="manage_notification">Quản lý thông báo</string>
     <string name="send_feedback">Gửi phản hồi</string>
+    <string name="send_report">Gửi báo cáo</string>
     <string name="replied_notification">Trả lời cho: %1$s</string>
     <string name="changeInformation">Chỉnh sửa thông tin</string>
     <string name="profile_picture">Ảnh đại diện</string>
