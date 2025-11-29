@@ -1,24 +1,31 @@
 <?xml version="1.0" encoding="utf-8"?>
 <paths xmlns:android="http://schemas.android.com/apk/res/android">
 
-    <!-- 📁 Cho phép chia sẻ file Excel (và các loại file khác) trong thư mục Downloads -->
+    <!-- 1. Đường dẫn CÔNG CỘNG (Giữ nguyên cho file Excel, v.v.) -->
     <external-path
         name="downloads"
         path="Download/" />
-
-    <!-- 🧾 Cho phép chia sẻ file trong thư mục con Enoti -->
     <external-path
         name="enoti_downloads"
         path="Download/Enoti/" />
 
-    <!-- 🖼️ Nếu vẫn cần chia sẻ ảnh -->
+    <!-- 2. Đường dẫn RIÊNG TƯ cho Ảnh (Giữ nguyên) -->
     <external-files-path
         name="my_images"
         path="Pictures/" />
 
-    <!-- ⚙️ Cho phép tạm dùng file cache -->
+    <!-- 3. Đường dẫn RIÊNG TƯ cho Cache (Giữ nguyên) -->
     <cache-path
         name="my_cache"
         path="/" />
 
+    <!--
+      4. 🔥 THÊM ĐƯỜNG DẪN NÀY (BẮT BUỘC)
+      Đây là đường dẫn RIÊNG TƯ cho file APK update.
+      Nó khớp với `Context.getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS)`
+      mà SplashActivity đang dùng để lưu file.
+    -->
+    <external-files-path
+        name="my_updates"
+        path="Download/" />
 </paths>

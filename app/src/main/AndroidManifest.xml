@@ -21,6 +21,8 @@
     <!-- 🌐 Internet -->
     <uses-permission android:name="android.permission.INTERNET" />
 
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES"/>
+
     <application
         android:allowBackup="true"
         android:dataExtractionRules="@xml/data_extraction_rules"
@@ -54,7 +56,6 @@
         <activity android:name=".home.user.MainActivity_User" />
         <activity android:name=".home.admin.MainActivity_Admin" />
         <activity android:name=".notification.NotificationDetailActivity" />
-        <activity android:name=".finance.FinanceDetailActivity" />
         <activity android:name=".feedback.FeedbackDetailActivity" />
         <activity android:name=".feedback.FeedbackActivity" />
         <activity android:name=".notification.admin.CreateNotificationActivity" />
@@ -63,6 +64,41 @@
         <activity android:name=".finance.admin.CreateFinanceActivity" />
         <activity android:name=".finance.admin.FinanceDetailActivity_Admin" />
         <activity android:name=".notification.admin.NotificationDetailActivity_Admin" />
+        <activity android:name=".finance.PayActivity" />
+        <activity android:name=".account.EditProfileActivity"/>
+        <activity android:name=".finance.FinanceDetailActivity"
+            android:launchMode="singleTop"
+            android:exported="true"
+            tools:ignore="MissingClass">
+
+            <!-- SUCCESS -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+
+                <data
+                    android:scheme="enoti"
+                    android:host="payment"
+                    android:path="/success" />
+            </intent-filter>
+
+            <!-- CANCEL -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+
+                <data
+                    android:scheme="enoti"
+                    android:host="payment"
+                    android:path="/cancel" />
+            </intent-filter>
+
+        </activity>
+
+
+
 
         <!-- 🔔 Receiver thông báo -->
         <receiver

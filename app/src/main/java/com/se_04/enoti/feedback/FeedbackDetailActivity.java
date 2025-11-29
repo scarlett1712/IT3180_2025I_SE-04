@@ -107,6 +107,8 @@ public class FeedbackDetailActivity extends AppCompatActivity {
                 }
         );
 
+        // 🔥 Gán tag cho request để có thể hủy
+        request.setTag("FeedbackDetail");
         queue.add(request);
     }
 
@@ -144,6 +146,16 @@ public class FeedbackDetailActivity extends AppCompatActivity {
             return true;
         }
         return super.onOptionsItemSelected(item);
+    }
+
+    // 🔥 THÊM HÀM onStop() ĐỂ DỌN DẸP REQUEST
+    @Override
+    protected void onStop() {
+        super.onStop();
+        if (queue != null) {
+            // Hủy tất cả request có tag "FeedbackDetail"
+            queue.cancelAll("FeedbackDetail");
+        }
     }
 
     private String formatDate(String isoDate) {

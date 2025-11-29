@@ -32,6 +32,8 @@ TK admin: 0912345678 admin123
 
 Lưu ý: Mỗi khi tạo mới user MK mặc định luôn là 123456
 
+### EDIT 5 (12:57 AM, 17/11/25): PHẢI NHỚ: Trước khi build file apk để Release cần cập nhật phiên bản trong file build.gradle.kts(:app)
+
 ## Cách để chạy và cài đặt ứng dụng qua điện thoại (Khuyến khích dành cho người máy yếu & sử dụng điện thoại Android):
 - B1: Trên điện thoại: Truy cập vào Tùy chọn nhà phát triển (Developer options)
 Mỗi máy 1 khác, có thể tra cứu cách bật Tùy chọn nhà phát triển qua mạng.

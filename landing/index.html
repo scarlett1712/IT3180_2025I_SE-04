@@ -8,8 +8,268 @@
     <!-- Google Fonts -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&display=swap" rel="stylesheet">
 
-    <!-- Liên kết file CSS -->
-    <link rel="stylesheet" href="style.css">
+    <!-- 🔥 CSS ĐÃ ĐƯỢC CẬP NHẬT SANG THEME TỐI -->
+    <style>
+        :root {
+            --primary-color: #007aff;
+            --background-color: #121212; /* Nền tối */
+            --card-background: #1e1e1e; /* Nền thẻ tối hơn */
+            --text-color: #e1e1e1; /* Chữ sáng */
+            --muted-color: #888888; /* Chữ mờ */
+            --border-color: #333333; /* Màu viền */
+        }
+
+        ::placeholder { /* Đảm bảo placeholder hiển thị trên nền tối */
+             color: var(--muted-color);
+             opacity: 1;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: var(--background-color);
+            color: var(--text-color);
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 960px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        /* --- Header --- */
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding-bottom: 20px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .brand img {
+            width: 50px;
+            height: 50px;
+            border-radius: 8px;
+        }
+
+        .brand h1 {
+            margin: 0;
+            font-size: 1.5em;
+            color: var(--text-color);
+        }
+
+        .brand .small {
+            font-size: 0.9em;
+            color: var(--muted-color);
+        }
+
+        nav {
+            display: flex;
+            gap: 20px;
+        }
+
+        nav a {
+            text-decoration: none;
+            color: var(--text-color);
+            font-weight: 600;
+            padding-bottom: 4px;
+        }
+        /* Đánh dấu link 'Trang chủ' là active */
+        nav a[href="index.html"] {
+            color: var(--primary-color);
+            border-bottom: 2px solid var(--primary-color);
+        }
+
+        /* --- Sections --- */
+        main {
+            padding-top: 20px; /* Thêm khoảng cách đầu main */
+        }
+
+        section {
+             margin-bottom: 40px;
+        }
+
+        .hero {
+            padding: 40px 0;
+        }
+
+        .hero h2 {
+            font-size: 2.5em;
+            margin-top: 0;
+            margin-bottom: 15px;
+            line-height: 1.2;
+            color: #ffffff; /* Nổi bật tiêu đề */
+        }
+
+        .hero p {
+            font-size: 1.1em;
+            color: var(--muted-color);
+            max-width: 600px;
+        }
+
+        /* --- Cards (Hero) --- */
+        .cards {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            margin-top: 20px;
+        }
+
+        .card {
+            background: var(--card-background); /* Nền thẻ tối */
+            padding: 15px 20px;
+            border-radius: 10px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+            font-weight: 500;
+            color: var(--text-color);
+        }
+
+        /* --- Button Style --- */
+        .btn-primary {
+            display: inline-block;
+            background-color: var(--primary-color);
+            color: #ffffff;
+            padding: 15px 30px;
+            font-size: 16px;
+            font-weight: 600;
+            text-decoration: none;
+            border-radius: 10px;
+            transition: background-color 0.2s ease, transform 0.2s ease;
+            cursor: pointer;
+            border: none;
+        }
+
+        .btn-primary:hover {
+            background-color: #0056b3;
+            transform: translateY(-2px);
+        }
+
+        a[href="#contact"] {
+            color: var(--muted-color);
+        }
+
+        /* --- Features Section --- */
+        #features h2 {
+            font-size: 1.8em;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 10px;
+            color: #ffffff;
+        }
+
+        .features {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+        }
+
+        .feature {
+            background: var(--card-background); /* Nền thẻ tối */
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+        }
+
+        .feature h3 {
+            margin-top: 0;
+            color: var(--primary-color);
+        }
+
+        .feature p {
+            font-size: 0.95em;
+            line-height: 1.6;
+            color: var(--muted-color);
+        }
+
+        /* --- Screens Section --- */
+        #screens h2 {
+             font-size: 1.8em;
+             border-bottom: 1px solid var(--border-color);
+             padding-bottom: 10px;
+             color: #ffffff;
+        }
+
+        #screens div {
+            box-shadow: 0 8px 24px rgba(0,0,0,0.6); /* Đã hợp với theme tối */
+        }
+
+        /* --- Contact Section --- */
+        #contact h2 {
+             font-size: 1.8em;
+             border-bottom: 1px solid var(--border-color);
+             padding-bottom: 10px;
+             color: #ffffff;
+        }
+
+        .contact {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+        }
+
+        .contact form {
+            flex: 1;
+            min-width: 300px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .contact form input,
+        .contact form textarea {
+            padding: 12px;
+            font-family: 'Inter', sans-serif;
+            border-radius: 8px;
+            border: 1px solid var(--border-color);
+            background-color: var(--card-background); /* Nền input tối */
+            color: var(--text-color); /* Chữ input sáng */
+            font-size: 1em;
+        }
+
+        .contact form .btn-primary {
+            width: fit-content;
+        }
+
+        .contact h4 {
+             color: var(--text-color);
+        }
+
+        .contact .small {
+            color: var(--muted-color);
+        }
+
+        /* --- Footer --- */
+        footer {
+            text-align: center;
+            padding: 40px 20px 20px 20px;
+            border-top: 1px solid var(--border-color);
+            color: var(--muted-color);
+            font-size: 0.9em;
+        }
+
+        footer strong {
+            color: var(--text-color);
+        }
+
+        /* --- Animation --- */
+        .fade-up {
+            opacity: 0;
+            transform: translateY(20px);
+            transition: opacity 0.5s ease, transform 0.5s ease;
+        }
+
+        .fade-up.visible {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    </style>
 </head>
 <body>
 <div class="container">
@@ -45,13 +305,14 @@
                 </div>
 
                 <div style="margin-top:24px" class="fade-up delay-3">
+                    <!-- 🔥 SỬA ĐỔI: Sử dụng link tĩnh chính xác từ repo IT3180... -->
                     <a class="btn-primary"
-                       href="https://github.com/scarlett1712/NMCNPM_SE-04/releases/download/%23Release/ENoti.apk"
+                       href="https://github.com/scarlett1712/IT3180_2025I_SE-04/releases/latest/download/ENoti.apk"
                        target="_blank"
                        rel="noopener noreferrer">
                         Dùng thử ngay
                     </a>
-                    <a style="margin-left:12px;color:var(--muted)" href="#contact">Liên hệ</a>
+                    <a style="margin-left:12px;" href="#contact">Liên hệ</a>
                 </div>
             </div>
 
@@ -89,12 +350,12 @@
         <section id="screens">
             <h2 style="margin:24px 0 12px">Giao diện ứng dụng</h2>
             <div style="display:flex;gap:12px;overflow:auto;padding-bottom:12px">
-                <img alt="screenshot" src="assets/screenshots/screen1.png" style="width:320px;border-radius:12px;box-shadow:0 8px 24px rgba(1,6,20,0.6)"/>
-                <img alt="screenshot" src="assets/screenshots/screen2.png" style="width:320px;border-radius:12px;box-shadow:0 8px 24px rgba(1,6,20,0.6)"/>
-                <img alt="screenshot" src="assets/screenshots/feedback.png" style="width:320px;border-radius:12px;box-shadow:0 8px 24px rgba(1,6,20,0.6)"/>
-                <img alt="screenshot" src="assets/screenshots/feedback.png" style="width:320px;border-radius:12px;box-shadow:0 8px 24px rgba(1,6,20,0.6)"/>
-                <img alt="screenshot" src="assets/screenshots/feedback.png" style="width:320px;border-radius:12px;box-shadow:0 8px 24px rgba(1,6,20,0.6)"/>
-                <img alt="screenshot" src="assets/screenshots/feedback.png" style="width:320px;border-radius:12px;box-shadow:0 8px 24px rgba(1,6,20,0.6)"/>
+                <img alt="screenshot" src="assets/screenshots/screen1.png" style="width:320px;border-radius:12px;box-shadow:0 8px 24px rgba(0,0,0,0.6)"/>
+                <img alt="screenshot" src="assets/screenshots/screen2.png" style="width:320px;border-radius:12px;box-shadow:0 8px 24px rgba(0,0,0,0.6)"/>
+                <img alt="screenshot" src="assets/screenshots/feedback.png" style="width:320px;border-radius:12px;box-shadow:0 8px 24px rgba(0,0,0,0.6)"/>
+                <img alt="screenshot" src="assets/screenshots/feedback.png" style="width:320px;border-radius:12px;box-shadow:0 8px 24px rgba(0,0,0,0.6)"/>
+                <img alt="screenshot" src="assets/screenshots/feedback.png" style="width:320px;border-radius:12px;box-shadow:0 8px 24px rgba(0,0,0,0.6)"/>
+                <img alt="screenshot" src="assets/screenshots/feedback.png" style="width:320px;border-radius:12px;box-shadow:0 8px 24px rgba(0,0,0,0.6)"/>
             </div>
         </section>
 
@@ -119,15 +380,24 @@
 
     <footer>
         <div>© 2025 <strong>ENoti</strong> — Giải pháp quản lý chung cư thông minh</div>
-<!--        <div style="color:var(&#45;&#45;muted)">Email: support@enoti.vn &nbsp;•&nbsp; Hotline: +84 963 291 687</div>-->
+        <!--        <div style="color:var(&#45;&#45;muted)">Email: support@enoti.vn &nbsp;•&nbsp; Hotline: +84 963 291 687</div>-->
     </footer>
 </div>
 
 <script>
     // hiệu ứng xuất hiện mượt
     document.querySelectorAll('.fade-up').forEach((el, i) => {
-      el.style.animationDelay = `${i * 0.2}s`;
-      el.classList.add('visible');
+        // Thêm một chút delay cơ bản nếu không có class delay-
+        if (!el.className.includes('delay-')) {
+            el.style.animationDelay = `${i * 0.1}s`;
+        } else if (el.className.includes('delay-1')) {
+            el.style.animationDelay = `0.2s`;
+        } else if (el.className.includes('delay-2')) {
+            el.style.animationDelay = `0.3s`;
+        } else if (el.className.includes('delay-3')) {
+            el.style.animationDelay = `0.4s`;
+        }
+        el.classList.add('visible');
     });
 </script>
 </body>

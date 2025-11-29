@@ -112,6 +112,7 @@ public class FinanceAdapter extends RecyclerView.Adapter<FinanceAdapter.ViewHold
             } else {
                 // 👤 USER CLICK: Mở màn hình FinanceDetailActivity
                 Intent intent = new Intent(v.getContext(), FinanceDetailActivity.class);
+                intent.putExtra("financeId", clickedItem.getId());
                 intent.putExtra("title", clickedItem.getTitle());
                 intent.putExtra("content", clickedItem.getContent());
                 intent.putExtra("due_date", clickedDate);
@@ -119,6 +120,7 @@ public class FinanceAdapter extends RecyclerView.Adapter<FinanceAdapter.ViewHold
                 intent.putExtra("sender", clickedItem.getSender());
                 long priceValue = (clickedItem.getPrice() != null) ? clickedItem.getPrice() : 0L;
                 intent.putExtra("price", priceValue);
+                intent.putExtra("payment_status", clickedItem.getStatus());
                 v.getContext().startActivity(intent);
             }
         });
