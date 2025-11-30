@@ -55,7 +55,7 @@ public class AccountFragment extends Fragment {
 
     private ImageView imgAvatar;
     private TextView txtFullName, txtApartment, email, phoneNumber, relationship, startDate;
-    private Button btnChangePassword, btnSignOut;
+    private Button btnChangeInformtion, btnChangePassword, btnSignOut;
 
     private static final int REQUEST_IMAGE_CAPTURE = 1;
     private static final int REQUEST_IMAGE_PICK = 2;
@@ -87,6 +87,7 @@ public class AccountFragment extends Fragment {
         phoneNumber = view.findViewById(R.id.phoneNumber);
         relationship = view.findViewById(R.id.relationship);
         startDate = view.findViewById(R.id.startDate);
+        btnChangeInformtion = view.findViewById(R.id.btnChangeInformation);
         btnChangePassword = view.findViewById(R.id.btnChangePassword);
         btnSignOut = view.findViewById(R.id.btnSignOut);
 
@@ -132,6 +133,13 @@ public class AccountFragment extends Fragment {
         });
 
         // 🔹 Nút chỉnh sửa hồ sơ
+        btnChangeInformtion.setOnClickListener(v -> {
+            if (isFragmentDestroyed) return;
+            Intent editIntent = new Intent(requireContext(), EditProfileActivity.class);
+            startActivity(editIntent);
+        });
+
+        // 🔹 Nút chỉnh sửa mật khẩu
         btnChangePassword.setOnClickListener(v -> {
             if (isFragmentDestroyed) return;
             Intent editIntent = new Intent(requireContext(), ChangePasswordActivity.class);

@@ -49,6 +49,7 @@ import feedbackRoutes from "./routes/feedback.js";
 import feedbackReplyRoutes from "./routes/feedbackReply.js";
 import financeRoutes, { createFinanceTables } from "./routes/finance.js";
 import invoiceRoute from "./routes/invoice.js";
+import profileRequestRoutes from "./routes/profileRequest.js";
 
 // ✅ Dùng tất cả routes
 app.use("/api/users", userRoutes);
@@ -64,6 +65,7 @@ app.use("/api/create_user", createUserRoutes);
 app.use("/api/feedback", feedbackReplyRoutes);
 app.use("/api/finance", financeRoutes);
 app.use("/api/invoice", invoiceRoute);
+app.use("/api/profile-requests", profileRequestRoutes);
 
 // ✅ Health check
 // ... (rest of the file remains the same)
