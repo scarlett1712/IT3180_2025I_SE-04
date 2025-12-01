@@ -5,9 +5,10 @@ import crypto from "crypto"; // 🔥 Import thư viện tạo chuỗi ngẫu nhi
 
 const router = express.Router();
 
-// 🛠️ TẠO BẢNG login_requests NẾU CHƯA CÓ
+// 🛠️ KHỞI TẠO DB: TẠO BẢNG login_requests VÀ CỘT session_token
 (async () => {
   try {
+    // 1. Tạo bảng login_requests nếu chưa có
     await pool.query(`
       CREATE TABLE IF NOT EXISTS login_requests (
         id SERIAL PRIMARY KEY,
@@ -17,9 +18,16 @@ const router = express.Router();
         created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
       );
     `);
-    console.log("✅ Table 'login_requests' ready.");
+
+    // 2. 🔥 QUAN TRỌNG: Tự động thêm cột session_token vào bảng users nếu chưa có
+    // (Tránh lỗi "column does not exist" gây ra lỗi 500)
+    await pool.query(`
+      ALTER TABLE users ADD COLUMN IF NOT EXISTS session_token VARCHAR(255);
+    `);
+
+    console.log("✅ Database schema verified (login_requests table + session_token column).");
   } catch (err) {
-    console.error("Error creating login_requests table", err);
+    console.error("Error initializing database schema:", err);
   }
 })();
 
