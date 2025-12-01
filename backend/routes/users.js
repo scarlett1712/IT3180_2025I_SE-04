@@ -34,7 +34,8 @@ const router = express.Router();
 ========================================================== */
 router.post("/login", async (req, res) => {
   try {
-    const { phone, password, is_polling, request_id } = req.body || {};
+    // 🔥 Thêm tham số force_login để hỗ trợ trường hợp mất máy
+    const { phone, password, is_polling, request_id, force_login } = req.body || {};
 
     // --- CASE 1: POLLING (MÁY MỚI ĐANG CHỜ DUYỆT) ---
     if (is_polling) {
@@ -58,8 +59,7 @@ router.post("/login", async (req, res) => {
         // ✅ Approved (Được duyệt)
         await pool.query("UPDATE users SET session_token = $1 WHERE user_id = $2", [request.temp_token, request.user_id]);
 
-        // 🔥 FIX QUAN TRỌNG: Xóa TẤT CẢ request của user này (kể cả cái cũ)
-        // để máy mới không bị hiện lại popup cảnh báo
+        // 🔥 Xóa TẤT CẢ request của user này
         await pool.query("DELETE FROM login_requests WHERE user_id = $1", [request.user_id]);
 
         // Lấy lại info user để trả về
@@ -122,7 +122,8 @@ router.post("/login", async (req, res) => {
     }
 
     // CHECK SESSION
-    if (user.session_token) {
+    // 🔥 Nếu có session_token VÀ KHÔNG PHẢI là force_login thì mới chặn
+    if (user.session_token && !force_login) {
         const tempToken = crypto.randomBytes(32).toString('hex');
         const insertReq = await pool.query(
             "INSERT INTO login_requests (user_id, temp_token) VALUES ($1, $2) RETURNING id",
@@ -136,14 +137,14 @@ router.post("/login", async (req, res) => {
         });
     }
 
-    // Chưa ai đăng nhập -> Vào luôn
+    // Chưa ai đăng nhập (hoặc force_login) -> Vào luôn
     const sessionToken = crypto.randomBytes(32).toString('hex');
     await pool.query(
         "UPDATE users SET session_token = $1 WHERE user_id = $2",
         [sessionToken, user.user_id]
     );
 
-    // 🔥 FIX: Xóa luôn request cũ nếu có (đề phòng rác)
+    // Xóa request cũ
     await pool.query("DELETE FROM login_requests WHERE user_id = $1", [user.user_id]);
 
     const infoRes = await pool.query(
@@ -211,6 +212,21 @@ router.post("/resolve_login", async (req, res) => {
         const { request_id, action } = req.body;
         await pool.query("UPDATE login_requests SET status = $1 WHERE id = $2", [action, request_id]);
         res.json({ success: true });
+    } catch (err) {
+        res.status(500).json({ error: "Lỗi server" });
+    }
+});
+
+/* ==========================================================
+   🚪 API MỚI: Đăng xuất (Clear session)
+========================================================== */
+router.post("/logout", async (req, res) => {
+    try {
+        const { user_id } = req.body;
+        if (user_id) {
+            await pool.query("UPDATE users SET session_token = NULL WHERE user_id = $1", [user_id]);
+        }
+        res.json({ success: true, message: "Đã đăng xuất." });
     } catch (err) {
         res.status(500).json({ error: "Lỗi server" });
     }
