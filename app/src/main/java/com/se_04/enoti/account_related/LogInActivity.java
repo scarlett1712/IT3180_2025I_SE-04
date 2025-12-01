@@ -98,11 +98,23 @@ public class LogInActivity extends AppCompatActivity {
                 requestBody,
                 response -> {
                     try {
+                        // Kiểm tra object "user" trước
                         if (!response.has("user")) {
                             Toast.makeText(this, "Phản hồi không hợp lệ từ server.", Toast.LENGTH_SHORT).show();
                             return;
                         }
 
+                        // 🔥 [BẢO MẬT] Lấy session_token và lưu vào UserManager
+                        // Token này nằm ở root của response JSON, ngang cấp với "user"
+                        String sessionToken = response.optString("session_token", "");
+                        if (!sessionToken.isEmpty()) {
+                            UserManager.getInstance(getApplicationContext()).saveAuthToken(sessionToken);
+                            Log.d(TAG, "Session Token saved: " + sessionToken);
+                        } else {
+                            Log.w(TAG, "No session token received!");
+                        }
+
+                        // Xử lý thông tin user
                         JSONObject userJson = response.getJSONObject("user");
                         UserItem user = UserItem.fromJson(userJson);
 
@@ -112,6 +124,7 @@ public class LogInActivity extends AppCompatActivity {
 
                         Toast.makeText(this, "Đăng nhập thành công!", Toast.LENGTH_SHORT).show();
 
+                        // Điều hướng dựa trên vai trò
                         Intent intent = user.getRole() == com.se_04.enoti.account.Role.ADMIN
                                 ? new Intent(this, MainActivity_Admin.class)
                                 : new Intent(this, MainActivity_User.class);

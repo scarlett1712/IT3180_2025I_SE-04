@@ -1,20 +1,25 @@
 package com.se_04.enoti.utils;
 
 import android.content.Context;
+import android.content.Intent; // 🔥 Import thêm
 import android.content.SharedPreferences;
 
 import com.se_04.enoti.account.Gender;
 import com.se_04.enoti.account.Role;
 import com.se_04.enoti.account.UserItem;
+import com.se_04.enoti.account_related.LogInActivity; // 🔥 Import Activity đăng nhập
 
 public class UserManager {
     private static final String PREF_NAME = "UserPrefs";
+    private static final String KEY_AUTH_TOKEN = "auth_token"; // 🔥 Key lưu Session Token
+
     private static UserManager instance;
     private final SharedPreferences sharedPreferences;
+    private final Context context; // 🔥 Lưu context để dùng cho logout
 
     private UserManager(Context context) {
-        sharedPreferences = context.getApplicationContext()
-                .getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE);
+        this.context = context.getApplicationContext();
+        sharedPreferences = this.context.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE);
     }
 
     public static synchronized UserManager getInstance(Context context) {
@@ -23,6 +28,32 @@ public class UserManager {
         }
         return instance;
     }
+
+    // ----------------------------------------------------
+    // 🔥 1. CÁC HÀM BẠN ĐANG THIẾU (SỬA LỖI Ở ĐÂY)
+    // ----------------------------------------------------
+
+    public void saveAuthToken(String token) {
+        sharedPreferences.edit().putString(KEY_AUTH_TOKEN, token).apply();
+    }
+
+    public String getAuthToken() {
+        return sharedPreferences.getString(KEY_AUTH_TOKEN, null);
+    }
+
+    public void logout() {
+        // Xóa toàn bộ dữ liệu
+        clearUser();
+
+        // Chuyển về màn hình đăng nhập
+        Intent intent = new Intent(context, LogInActivity.class);
+        intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TASK | Intent.FLAG_ACTIVITY_NEW_TASK);
+        context.startActivity(intent);
+    }
+
+    // ----------------------------------------------------
+    // CODE CŨ CỦA BẠN (GIỮ NGUYÊN)
+    // ----------------------------------------------------
 
     public void saveCurrentUser(UserItem user) {
         if (user == null) {
@@ -35,11 +66,19 @@ public class UserManager {
         editor.putString("email", user.getEmail());
         editor.putString("name", user.getName());
         editor.putString("dob", user.getDob());
-        editor.putString("gender", user.getGender().name());
+
+        if (user.getGender() != null) {
+            editor.putString("gender", user.getGender().name());
+        }
+
         editor.putString("relationship_with_the_head_of_household", user.getRelationship());
         editor.putInt("apartment_number", user.getRoom());
         editor.putString("phone", user.getPhone());
-        editor.putString("role", user.getRole().name());
+
+        if (user.getRole() != null) {
+            editor.putString("role", user.getRole().name());
+        }
+
         editor.apply();
 
         android.util.Log.d("USER_MANAGER", "✅ Saved user: " + user.getName() + " | Role: " + user.getRole());
@@ -51,16 +90,29 @@ public class UserManager {
             return null;
         }
 
+        // Xử lý an toàn cho Enum đề phòng lỗi crash nếu dữ liệu sai
+        Gender gender = Gender.MALE;
+        try {
+            String g = sharedPreferences.getString("gender", Gender.MALE.name());
+            gender = Gender.valueOf(g);
+        } catch (Exception e) {}
+
+        Role role = Role.USER;
+        try {
+            String r = sharedPreferences.getString("role", Role.USER.name());
+            role = Role.valueOf(r);
+        } catch (Exception e) {}
+
         return new UserItem(
                 sharedPreferences.getString("id", ""),
                 sharedPreferences.getString("familyId", ""),
                 sharedPreferences.getString("email", ""),
                 sharedPreferences.getString("name", ""),
                 sharedPreferences.getString("dob", ""),
-                Gender.valueOf(sharedPreferences.getString("gender", Gender.MALE.name())),
+                gender,
                 sharedPreferences.getString("relationship_with_the_head_of_household", ""),
                 sharedPreferences.getInt("apartment_number", 0),
-                Role.valueOf(sharedPreferences.getString("role", Role.USER.name())),
+                role,
                 sharedPreferences.getString("phone", "")
         );
     }

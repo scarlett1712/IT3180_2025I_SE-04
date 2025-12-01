@@ -1,6 +1,7 @@
 package com.se_04.enoti.account;
 
 import android.app.DatePickerDialog;
+import android.graphics.Color;
 import android.os.Bundle;
 import android.text.TextUtils;
 import android.view.MenuItem;
@@ -9,6 +10,7 @@ import android.widget.AutoCompleteTextView;
 import android.widget.Button;
 import android.widget.CheckBox;
 import android.widget.Toast;
+import androidx.appcompat.widget.Toolbar;
 
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
@@ -16,7 +18,6 @@ import androidx.appcompat.app.AppCompatActivity;
 import com.android.volley.Request;
 import com.android.volley.toolbox.JsonObjectRequest;
 import com.android.volley.toolbox.Volley;
-import com.google.android.material.appbar.MaterialToolbar;
 import com.google.android.material.textfield.TextInputEditText;
 import com.se_04.enoti.R;
 import com.se_04.enoti.utils.ApiConfig;
@@ -39,6 +40,7 @@ public class EditProfileActivity extends AppCompatActivity {
     private AutoCompleteTextView edtGender;
     private Button btnSubmit;
     private UserItem currentUser;
+    private Toolbar toolbar;
 
     // Định dạng ngày: Hiển thị (dd-MM-yyyy) và API (yyyy-MM-dd)
     private final SimpleDateFormat displayDateFormat = new SimpleDateFormat("dd-MM-yyyy", Locale.getDefault());
@@ -53,11 +55,12 @@ public class EditProfileActivity extends AppCompatActivity {
         apiDateFormat.setLenient(false);
         displayDateFormat.setLenient(false);
 
-        MaterialToolbar toolbar = findViewById(R.id.toolbar);
+        toolbar = findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
         if (getSupportActionBar() != null) {
             getSupportActionBar().setDisplayHomeAsUpEnabled(true);
             getSupportActionBar().setTitle("Chỉnh sửa thông tin");
+            toolbar.setTitleTextColor(Color.WHITE);
         }
 
         initViews();

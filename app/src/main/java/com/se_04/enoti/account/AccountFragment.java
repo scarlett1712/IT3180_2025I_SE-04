@@ -9,6 +9,8 @@ import android.graphics.BitmapFactory;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.Environment;
+import android.os.Handler;
+import android.os.Looper;
 import android.provider.MediaStore;
 import android.util.Log;
 import android.view.LayoutInflater;
@@ -31,6 +33,8 @@ import com.android.volley.RequestQueue;
 import com.android.volley.Response;
 import com.android.volley.VolleyError;
 import com.android.volley.toolbox.HttpHeaderParser;
+import com.android.volley.toolbox.JsonArrayRequest;
+import com.android.volley.toolbox.JsonObjectRequest;
 import com.android.volley.toolbox.Volley;
 import com.se_04.enoti.R;
 import com.se_04.enoti.account_related.LogInActivity;
@@ -61,13 +65,19 @@ public class AccountFragment extends Fragment {
     private static final int REQUEST_IMAGE_PICK = 2;
     private String currentPhotoPath;
 
-    // 🔥 URL API cho avatar
-
+    // URL API
     private static final String UPLOAD_AVATAR_URL = ApiConfig.BASE_URL + "/api/avatar/upload";
     private static final String GET_AVATAR_URL = ApiConfig.BASE_URL + "/api/avatar/user/";
+    // 🔥 URL cho bảo mật
+    private static final String CHECK_LOGIN_REQUEST_URL = ApiConfig.BASE_URL + "/api/users/check_pending_login/";
+    private static final String RESOLVE_LOGIN_REQUEST_URL = ApiConfig.BASE_URL + "/api/users/resolve_login";
 
-    // 🔥 Thêm biến để kiểm tra fragment state
     private boolean isFragmentDestroyed = false;
+
+    // 🔥 Polling Variables
+    private Handler pollingHandler;
+    private Runnable pollingRunnable;
+    private boolean isDialogShowing = false; // Tránh hiện nhiều dialog cùng lúc
 
     @Nullable
     @Override
@@ -75,8 +85,6 @@ public class AccountFragment extends Fragment {
                              @Nullable ViewGroup container,
                              @Nullable Bundle savedInstanceState) {
         View view = inflater.inflate(R.layout.activity_account, container, false);
-
-        // 🔥 Reset state khi fragment được tạo lại
         isFragmentDestroyed = false;
 
         // Ánh xạ view
@@ -91,71 +99,153 @@ public class AccountFragment extends Fragment {
         btnChangePassword = view.findViewById(R.id.btnChangePassword);
         btnSignOut = view.findViewById(R.id.btnSignOut);
 
-        // 🔹 Lấy thông tin user từ UserManager
+        // Lấy thông tin user
         UserManager userManager = UserManager.getInstance(requireContext());
         UserItem currentUser = userManager.getCurrentUser();
 
-        // Nếu chưa có dữ liệu thì tạo demo user
         if (currentUser == null) {
             currentUser = new UserItem(
-                    "U01",
-                    "F01",
-                    "a.nguyenvan@example.com",
-                    "Nguyễn Văn A",
-                    "12/03/1950",
-                    Gender.MALE,
-                    "Chủ hộ",
-                    0,
-                    Role.USER,
-                    "0987654321"
+                    "U01", "F01", "a.nguyenvan@example.com", "Nguyễn Văn A",
+                    "12/03/1950", Gender.MALE, "Chủ hộ", 0, Role.USER, "0987654321"
             );
             userManager.saveCurrentUser(currentUser);
         }
 
-        // Gán dữ liệu lên giao diện
         bindUserData(currentUser);
 
-        // 🔹 Click ảnh đại diện để thay đổi - THÊM HIỆU ỨNG CLICK
+        // Sự kiện click
         imgAvatar.setOnClickListener(v -> {
-            Log.d("AvatarDebug", "ImageView clicked - showing dialog");
-
-            // 🔥 Kiểm tra fragment còn active không
-            if (isFragmentDestroyed || !isAdded() || getContext() == null) {
-                Log.d("AvatarDebug", "Fragment not attached, ignoring click");
-                return;
+            if (isFragmentAttached()) {
+                v.animate().scaleX(0.95f).scaleY(0.95f).setDuration(100)
+                        .withEndAction(() -> v.animate().scaleX(1f).scaleY(1f).setDuration(100).start()).start();
+                showImagePickerDialog();
             }
-
-            // Thêm hiệu ứng click
-            v.animate().scaleX(0.95f).scaleY(0.95f).setDuration(100)
-                    .withEndAction(() -> v.animate().scaleX(1f).scaleY(1f).setDuration(100).start())
-                    .start();
-            showImagePickerDialog();
         });
 
-        // 🔹 Nút chỉnh sửa hồ sơ
         btnChangeInformtion.setOnClickListener(v -> {
-            if (isFragmentDestroyed) return;
-            Intent editIntent = new Intent(requireContext(), EditProfileActivity.class);
-            startActivity(editIntent);
+            if (!isFragmentDestroyed) startActivity(new Intent(requireContext(), EditProfileActivity.class));
         });
 
-        // 🔹 Nút chỉnh sửa mật khẩu
         btnChangePassword.setOnClickListener(v -> {
-            if (isFragmentDestroyed) return;
-            Intent editIntent = new Intent(requireContext(), ChangePasswordActivity.class);
-            startActivity(editIntent);
+            if (!isFragmentDestroyed) startActivity(new Intent(requireContext(), ChangePasswordActivity.class));
         });
 
-        // 🔹 Nút đăng xuất
         btnSignOut.setOnClickListener(v -> {
-            if (isFragmentDestroyed) return;
-            showLogoutConfirmation();
+            if (!isFragmentDestroyed) showLogoutConfirmation();
         });
 
         return view;
     }
 
-    // 🔥 PHƯƠNG THỨC KIỂM TRA FRAGMENT STATE
+    // 🔥 BẮT ĐẦU POLLING KHI MÀN HÌNH HIỆN
+    @Override
+    public void onResume() {
+        super.onResume();
+        startPolling();
+    }
+
+    // 🔥 DỪNG POLLING KHI RỜI MÀN HÌNH
+    @Override
+    public void onPause() {
+        super.onPause();
+        stopPolling();
+    }
+
+    private void startPolling() {
+        if (pollingHandler == null) pollingHandler = new Handler(Looper.getMainLooper());
+
+        pollingRunnable = new Runnable() {
+            @Override
+            public void run() {
+                checkLoginRequests();
+                // Lặp lại sau 5 giây
+                if (!isFragmentDestroyed) pollingHandler.postDelayed(this, 5000);
+            }
+        };
+        pollingHandler.post(pollingRunnable);
+    }
+
+    private void stopPolling() {
+        if (pollingHandler != null && pollingRunnable != null) {
+            pollingHandler.removeCallbacks(pollingRunnable);
+        }
+    }
+
+    // 🔥 HÀM GỌI API KIỂM TRA
+    private void checkLoginRequests() {
+        if (!isFragmentAttached() || isDialogShowing) return;
+
+        UserItem user = UserManager.getInstance(requireContext()).getCurrentUser();
+        if (user == null) return;
+
+        String url = CHECK_LOGIN_REQUEST_URL + user.getId();
+
+        JsonArrayRequest request = new JsonArrayRequest(Request.Method.GET, url, null,
+                response -> {
+                    if (response.length() > 0) {
+                        try {
+                            // Có yêu cầu mới!
+                            JSONObject req = response.getJSONObject(0);
+                            int reqId = req.getInt("id");
+                            showLoginRequestDialog(reqId);
+                        } catch (JSONException e) {
+                            e.printStackTrace();
+                        }
+                    }
+                },
+                error -> { /* Log lỗi âm thầm, không làm phiền user */ }
+        );
+
+        Volley.newRequestQueue(requireContext()).add(request);
+    }
+
+    // 🔥 HIỆN DIALOG CẢNH BÁO BẢO MẬT
+    private void showLoginRequestDialog(int requestId) {
+        if (!isFragmentAttached()) return;
+
+        isDialogShowing = true; // Chặn polling hiện thêm dialog
+
+        new AlertDialog.Builder(requireContext())
+                .setTitle("⚠️ Cảnh báo bảo mật")
+                .setMessage("Có một thiết bị khác đang cố gắng đăng nhập vào tài khoản của bạn.\n\nBạn có muốn cho phép không?")
+                .setPositiveButton("Cho phép", (dialog, which) -> {
+                    resolveLoginRequest(requestId, "approved");
+                    isDialogShowing = false;
+                })
+                .setNegativeButton("Từ chối", (dialog, which) -> {
+                    resolveLoginRequest(requestId, "rejected");
+                    isDialogShowing = false;
+                })
+                .setCancelable(false)
+                .show();
+    }
+
+    // 🔥 GỬI QUYẾT ĐỊNH LÊN SERVER
+    private void resolveLoginRequest(int requestId, String action) {
+        JSONObject body = new JSONObject();
+        try {
+            body.put("request_id", requestId);
+            body.put("action", action);
+        } catch (JSONException e) { e.printStackTrace(); }
+
+        JsonObjectRequest request = new JsonObjectRequest(Request.Method.POST, RESOLVE_LOGIN_REQUEST_URL, body,
+                response -> {
+                    if (action.equals("approved")) {
+                        Toast.makeText(requireContext(), "Đã cho phép. Bạn sẽ bị đăng xuất.", Toast.LENGTH_LONG).show();
+                        // Nếu cho phép máy khác vào, máy này phải đăng xuất
+                        UserManager.getInstance(requireContext()).logout();
+                    } else {
+                        Toast.makeText(requireContext(), "Đã chặn đăng nhập lạ.", Toast.LENGTH_SHORT).show();
+                    }
+                },
+                error -> {
+                    Toast.makeText(requireContext(), "Lỗi kết nối", Toast.LENGTH_SHORT).show();
+                    isDialogShowing = false; // Reset cờ nếu lỗi
+                }
+        );
+        Volley.newRequestQueue(requireContext()).add(request);
+    }
+
     private boolean isFragmentAttached() {
         return !isFragmentDestroyed && isAdded() && getContext() != null && getActivity() != null;
     }
@@ -170,13 +260,8 @@ public class AccountFragment extends Fragment {
         relationship.setText("Quan hệ với chủ hộ: " + user.getRelationship());
         startDate.setText("Ngày sinh: " + user.getDob());
 
-        // 🔹 TẠM THỜI CHỈ LOAD TỪ LOCAL ĐỂ TEST - COMMENT SERVER LOAD
         loadAvatarFromLocal(user.getId());
 
-        // 🔹 Nếu muốn load từ server, comment dòng trên và bỏ comment dòng dưới:
-        // loadAvatarFromServer(user.getId());
-
-        // 🔹 Nếu là Admin → ẩn các trường không cần thiết
         if (user.getRole() == Role.ADMIN) {
             txtApartment.setText("Quản trị viên");
             relationship.setVisibility(View.GONE);
@@ -186,45 +271,34 @@ public class AccountFragment extends Fragment {
         }
     }
 
+    // ------------------------------------------------------------------------
+    // 🔥 CÁC PHƯƠNG THỨC XỬ LÝ ẢNH (CAMERA, GALLERY, UPLOAD)
+    // ------------------------------------------------------------------------
+
     private void loadAvatarFromServer(String userId) {
-        if (!isFragmentAttached()) {
-            Log.d("AvatarDebug", "Fragment not attached, skipping server load");
-            return;
-        }
+        if (!isFragmentAttached()) return;
         checkServerAvatar(userId);
     }
 
     private void checkServerAvatar(String userId) {
-        if (!isFragmentAttached()) {
-            Log.d("AvatarDebug", "Fragment not attached, skipping server check");
-            return;
-        }
-
+        if (!isFragmentAttached()) return;
         String url = GET_AVATAR_URL + userId;
-
         RequestQueue queue = Volley.newRequestQueue(requireContext());
 
         com.android.volley.toolbox.StringRequest stringRequest = new com.android.volley.toolbox.StringRequest(
                 Request.Method.GET, url,
                 response -> {
-                    // 🔥 KIỂM TRA FRAGMENT CÒN ATTACHED KHÔNG
-                    if (!isFragmentAttached()) {
-                        Log.d("AvatarDebug", "Fragment detached, ignoring server response");
-                        return;
-                    }
-
+                    if (!isFragmentAttached()) return;
                     try {
                         JSONObject jsonResponse = new JSONObject(response);
                         if (jsonResponse.getBoolean("success")) {
                             JSONObject userObj = jsonResponse.getJSONObject("user");
                             if (userObj.getBoolean("hasAvatar")) {
                                 String avatarUrl = userObj.getString("avatarUrl");
-                                // Load ảnh từ server URL
                                 loadImageFromUrl(avatarUrl);
                                 return;
                             }
                         }
-                        // Nếu server không có avatar, load từ local
                         loadAvatarFromLocal(userId);
                     } catch (JSONException e) {
                         e.printStackTrace();
@@ -232,71 +306,42 @@ public class AccountFragment extends Fragment {
                     }
                 },
                 error -> {
-                    // 🔥 KIỂM TRA FRAGMENT CÒN ATTACHED KHÔNG
-                    if (!isFragmentAttached()) {
-                        Log.d("AvatarDebug", "Fragment detached, ignoring server error");
-                        return;
-                    }
-                    // Nếu có lỗi, load từ local
+                    if (!isFragmentAttached()) return;
                     loadAvatarFromLocal(userId);
                 }
         );
-
         queue.add(stringRequest);
     }
 
     private void loadImageFromUrl(String imageUrl) {
-        if (!isFragmentAttached()) {
-            Log.d("AvatarDebug", "Fragment not attached, skipping image load from URL");
-            return;
-        }
-
+        if (!isFragmentAttached()) return;
         String fullUrl = ApiConfig.BASE_URL + imageUrl;
 
         com.android.volley.toolbox.ImageRequest imageRequest = new com.android.volley.toolbox.ImageRequest(
                 fullUrl,
                 response -> {
-                    // 🔥 KIỂM TRA FRAGMENT CÒN ATTACHED KHÔNG
-                    if (!isFragmentAttached()) {
-                        Log.d("AvatarDebug", "Fragment detached, ignoring image response");
-                        return;
-                    }
-
+                    if (!isFragmentAttached()) return;
                     imgAvatar.setImageBitmap(response);
-                    // Lưu ảnh vào local storage để cache
                     saveBitmapToLocal(response, UserManager.getInstance(requireContext()).getCurrentUser().getId());
                 },
                 0, 0, ImageView.ScaleType.CENTER_CROP, Bitmap.Config.RGB_565,
                 error -> {
-                    // 🔥 KIỂM TRA FRAGMENT CÒN ATTACHED KHÔNG
-                    if (!isFragmentAttached()) {
-                        Log.d("AvatarDebug", "Fragment detached, ignoring image error");
-                        return;
-                    }
-                    // Nếu load từ URL thất bại, load từ local
+                    if (!isFragmentAttached()) return;
                     loadAvatarFromLocal(UserManager.getInstance(requireContext()).getCurrentUser().getId());
                 }
         );
-
         RequestQueue queue = Volley.newRequestQueue(requireContext());
         queue.add(imageRequest);
     }
 
     private void loadAvatarFromLocal(String userId) {
-        // 🔥 KIỂM TRA FRAGMENT CÒN ATTACHED KHÔNG
-        if (!isFragmentAttached()) {
-            Log.d("AvatarDebug", "Fragment not attached, skipping local load");
-            return;
-        }
-
+        if (!isFragmentAttached()) return;
         try {
             File avatarFile = getAvatarFile(userId);
             if (avatarFile.exists()) {
                 Bitmap bitmap = BitmapFactory.decodeFile(avatarFile.getAbsolutePath());
                 imgAvatar.setImageBitmap(bitmap);
-                Log.d("AvatarDebug", "Loaded avatar from local storage");
             } else {
-                // Set ảnh mặc định theo giới tính
                 setDefaultAvatar();
             }
         } catch (Exception e) {
@@ -306,12 +351,7 @@ public class AccountFragment extends Fragment {
     }
 
     private void setDefaultAvatar() {
-        // 🔥 KIỂM TRA FRAGMENT CÒN ATTACHED KHÔNG
-        if (!isFragmentAttached()) {
-            Log.d("AvatarDebug", "Fragment not attached, skipping default avatar");
-            return;
-        }
-
+        if (!isFragmentAttached()) return;
         UserItem currentUser = UserManager.getInstance(requireContext()).getCurrentUser();
         if (currentUser != null) {
             imgAvatar.setImageResource(
@@ -319,48 +359,24 @@ public class AccountFragment extends Fragment {
                             ? R.drawable.ic_person
                             : R.drawable.ic_person_female
             );
-            Log.d("AvatarDebug", "Set default avatar based on gender");
         }
     }
 
     private void showImagePickerDialog() {
-        if (!isFragmentAttached()) {
-            Log.d("AvatarDebug", "Fragment not attached, cannot show dialog");
-            return;
-        }
-
+        if (!isFragmentAttached()) return;
         String[] options = {"Chụp ảnh", "Chọn từ thư viện", "Hủy"};
-
         AlertDialog.Builder builder = new AlertDialog.Builder(requireContext());
         builder.setTitle("Chọn ảnh đại diện");
         builder.setItems(options, (dialog, which) -> {
             if (!isFragmentAttached()) return;
-
-            if (which == 0) {
-                Log.d("AvatarDebug", "User selected camera");
-                openCamera();
-            } else if (which == 1) {
-                Log.d("AvatarDebug", "User selected gallery");
-                openGallery();
-            }
+            if (which == 0) openCamera();
+            else if (which == 1) openGallery();
         });
-
-        // Thêm cancel listener
-        builder.setOnCancelListener(dialog -> {
-            Log.d("AvatarDebug", "Image picker dialog cancelled");
-        });
-
-        try {
-            builder.show();
-            Log.d("AvatarDebug", "Image picker dialog shown");
-        } catch (Exception e) {
-            Log.e("AvatarDebug", "Error showing dialog: " + e.getMessage());
-        }
+        builder.show();
     }
 
     private void openCamera() {
         if (!isFragmentAttached()) return;
-
         Intent takePictureIntent = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
         if (takePictureIntent.resolveActivity(requireActivity().getPackageManager()) != null) {
             File photoFile = createImageFile();
@@ -370,7 +386,6 @@ public class AccountFragment extends Fragment {
                         photoFile);
                 takePictureIntent.putExtra(MediaStore.EXTRA_OUTPUT, photoURI);
                 startActivityForResult(takePictureIntent, REQUEST_IMAGE_CAPTURE);
-                Log.d("AvatarDebug", "Camera intent started");
             }
         } else {
             Toast.makeText(requireContext(), "Không tìm thấy ứng dụng máy ảnh", Toast.LENGTH_SHORT).show();
@@ -379,29 +394,23 @@ public class AccountFragment extends Fragment {
 
     private void openGallery() {
         if (!isFragmentAttached()) return;
-
         Intent intent = new Intent(Intent.ACTION_PICK);
         intent.setType("image/*");
         intent.putExtra(Intent.EXTRA_MIME_TYPES, new String[]{"image/jpeg", "image/png"});
         startActivityForResult(intent, REQUEST_IMAGE_PICK);
-        Log.d("AvatarDebug", "Gallery intent started");
     }
 
     private File createImageFile() {
         if (!isFragmentAttached()) return null;
-
         String timeStamp = new SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(new Date());
         String imageFileName = "JPEG_" + timeStamp + "_";
         File storageDir = requireContext().getExternalFilesDir(Environment.DIRECTORY_PICTURES);
-
         try {
             File image = File.createTempFile(imageFileName, ".jpg", storageDir);
             currentPhotoPath = image.getAbsolutePath();
-            Log.d("AvatarDebug", "Created image file: " + currentPhotoPath);
             return image;
         } catch (IOException e) {
             e.printStackTrace();
-            Toast.makeText(requireContext(), "Lỗi khi tạo file ảnh", Toast.LENGTH_SHORT).show();
             return null;
         }
     }
@@ -409,35 +418,21 @@ public class AccountFragment extends Fragment {
     @Override
     public void onActivityResult(int requestCode, int resultCode, @Nullable Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
-
-        // 🔥 KIỂM TRA FRAGMENT CÒN ATTACHED KHÔNG
-        if (!isFragmentAttached()) {
-            Log.d("AvatarDebug", "Fragment not attached, ignoring activity result");
-            return;
-        }
+        if (!isFragmentAttached()) return;
 
         if (resultCode == getActivity().RESULT_OK) {
             if (requestCode == REQUEST_IMAGE_CAPTURE) {
-                // Xử lý ảnh từ camera
-                Log.d("AvatarDebug", "Camera result OK, processing image");
                 processImage(currentPhotoPath);
             } else if (requestCode == REQUEST_IMAGE_PICK && data != null) {
-                // Xử lý ảnh từ gallery
-                Log.d("AvatarDebug", "Gallery result OK, processing image");
                 Uri selectedImage = data.getData();
                 String imagePath = getRealPathFromURI(selectedImage);
-                if (imagePath != null) {
-                    processImage(imagePath);
-                }
+                if (imagePath != null) processImage(imagePath);
             }
-        } else {
-            Log.d("AvatarDebug", "Activity result cancelled");
         }
     }
 
     private String getRealPathFromURI(Uri contentUri) {
         if (!isFragmentAttached()) return null;
-
         String[] proj = {MediaStore.Images.Media.DATA};
         Cursor cursor = requireContext().getContentResolver().query(contentUri, proj, null, null, null);
         if (cursor != null) {
@@ -451,97 +446,52 @@ public class AccountFragment extends Fragment {
     }
 
     private void processImage(String imagePath) {
-        if (!isFragmentAttached()) {
-            Log.d("AvatarDebug", "Fragment not attached, cannot process image");
-            return;
-        }
-
+        if (!isFragmentAttached()) return;
         try {
-            Log.d("AvatarDebug", "Processing image: " + imagePath);
-
-            // Nén và resize ảnh
             File compressedFile = compressImage(imagePath);
-
-            // Lưu ảnh với tên là userId
             UserItem currentUser = UserManager.getInstance(requireContext()).getCurrentUser();
             File finalAvatarFile = saveAvatarForUser(compressedFile, currentUser.getId());
-
-            // Hiển thị ảnh lên ImageView
             Bitmap bitmap = BitmapFactory.decodeFile(finalAvatarFile.getAbsolutePath());
             imgAvatar.setImageBitmap(bitmap);
-
-            // 🔥 UPLOAD ẢNH LÊN SERVER
             uploadAvatarToServer(finalAvatarFile, currentUser.getId());
-
             Toast.makeText(requireContext(), "Đã cập nhật ảnh đại diện", Toast.LENGTH_SHORT).show();
-
-            // Xóa file tạm
-            if (compressedFile.exists()) {
-                compressedFile.delete();
-            }
-
+            if (compressedFile.exists()) compressedFile.delete();
         } catch (Exception e) {
             e.printStackTrace();
             Toast.makeText(requireContext(), "Lỗi khi xử lý ảnh", Toast.LENGTH_SHORT).show();
         }
     }
 
-    // 🔥 PHƯƠNG THỨC UPLOAD AVATAR LÊN SERVER
     private void uploadAvatarToServer(File imageFile, String userId) {
-        if (!isFragmentAttached()) {
-            Log.d("AvatarDebug", "Fragment not attached, skipping upload");
-            return;
-        }
-
+        if (!isFragmentAttached()) return;
         try {
             VolleyMultipartRequest multipartRequest = new VolleyMultipartRequest(
                     Request.Method.POST, UPLOAD_AVATAR_URL,
-                    new Response.Listener<NetworkResponse>() {
-                        @Override
-                        public void onResponse(NetworkResponse response) {
-                            // 🔥 KIỂM TRA FRAGMENT CÒN ATTACHED KHÔNG
-                            if (!isFragmentAttached()) {
-                                Log.d("AvatarDebug", "Fragment detached, ignoring upload response");
-                                return;
+                    response -> {
+                        if (!isFragmentAttached()) return;
+                        try {
+                            String jsonString = new String(response.data, HttpHeaderParser.parseCharset(response.headers));
+                            JSONObject result = new JSONObject(jsonString);
+                            if (result.getBoolean("success")) {
+                                Toast.makeText(requireContext(), "Đã cập nhật avatar lên server", Toast.LENGTH_SHORT).show();
+                            } else {
+                                Toast.makeText(requireContext(), "Lỗi server: " + result.getString("error"), Toast.LENGTH_SHORT).show();
                             }
-
-                            try {
-                                String jsonString = new String(response.data, HttpHeaderParser.parseCharset(response.headers));
-                                JSONObject result = new JSONObject(jsonString);
-
-                                if (result.getBoolean("success")) {
-                                    Toast.makeText(requireContext(), "Đã cập nhật avatar lên server", Toast.LENGTH_SHORT).show();
-                                    Log.d("AvatarDebug", "Avatar uploaded successfully to server");
-                                } else {
-                                    Toast.makeText(requireContext(), "Lỗi: " + result.getString("error"), Toast.LENGTH_SHORT).show();
-                                }
-                            } catch (Exception e) {
-                                e.printStackTrace();
-                                Toast.makeText(requireContext(), "Lỗi khi xử lý phản hồi", Toast.LENGTH_SHORT).show();
-                            }
+                        } catch (Exception e) {
+                            e.printStackTrace();
                         }
                     },
-                    new Response.ErrorListener() {
-                        @Override
-                        public void onErrorResponse(VolleyError error) {
-                            // 🔥 KIỂM TRA FRAGMENT CÒN ATTACHED KHÔNG
-                            if (!isFragmentAttached()) {
-                                Log.d("AvatarDebug", "Fragment detached, ignoring upload error");
-                                return;
-                            }
-
-                            error.printStackTrace();
-                            Toast.makeText(requireContext(), "Lỗi kết nối đến server", Toast.LENGTH_SHORT).show();
-                        }
+                    error -> {
+                        if (!isFragmentAttached()) return;
+                        error.printStackTrace();
+                        Toast.makeText(requireContext(), "Lỗi kết nối khi upload ảnh", Toast.LENGTH_SHORT).show();
                     }) {
-
                 @Override
                 protected Map<String, String> getParams() {
                     Map<String, String> params = new HashMap<>();
                     params.put("userId", userId);
                     return params;
                 }
-
                 @Override
                 protected Map<String, DataPart> getByteData() {
                     Map<String, DataPart> params = new HashMap<>();
@@ -553,14 +503,10 @@ public class AccountFragment extends Fragment {
                     return params;
                 }
             };
-
             RequestQueue queue = Volley.newRequestQueue(requireContext());
             queue.add(multipartRequest);
-            Log.d("AvatarDebug", "Upload request sent to server");
-
         } catch (Exception e) {
             e.printStackTrace();
-            Toast.makeText(requireContext(), "Lỗi khi upload avatar", Toast.LENGTH_SHORT).show();
         }
     }
 
@@ -578,63 +524,45 @@ public class AccountFragment extends Fragment {
 
     private File compressImage(String imagePath) throws IOException {
         Bitmap bitmap = BitmapFactory.decodeFile(imagePath);
-        if (bitmap == null) {
-            throw new IOException("Không thể đọc file ảnh");
-        }
-
-        // Resize ảnh để giảm kích thước
+        if (bitmap == null) throw new IOException("Không thể đọc file ảnh");
         int maxWidth = 800;
         int maxHeight = 800;
         int width = bitmap.getWidth();
         int height = bitmap.getHeight();
-
         if (width > maxWidth || height > maxHeight) {
             float ratio = Math.min((float) maxWidth / width, (float) maxHeight / height);
             int newWidth = (int) (width * ratio);
             int newHeight = (int) (height * ratio);
-
             Bitmap resizedBitmap = Bitmap.createScaledBitmap(bitmap, newWidth, newHeight, true);
             bitmap.recycle();
             bitmap = resizedBitmap;
         }
-
-        // Nén ảnh
         File compressedFile = new File(requireContext().getFilesDir(), "temp_compressed.jpg");
         FileOutputStream fos = new FileOutputStream(compressedFile);
         bitmap.compress(Bitmap.CompressFormat.JPEG, 80, fos);
         fos.flush();
         fos.close();
         bitmap.recycle();
-
         return compressedFile;
     }
 
     private File saveAvatarForUser(File sourceFile, String userId) throws IOException {
         File avatarDir = new File(requireContext().getFilesDir(), "avatars");
-        if (!avatarDir.exists()) {
-            avatarDir.mkdirs();
-        }
-
+        if (!avatarDir.exists()) avatarDir.mkdirs();
         File destinationFile = new File(avatarDir, userId + ".jpg");
-
-        // Copy file
         Bitmap bitmap = BitmapFactory.decodeFile(sourceFile.getAbsolutePath());
         FileOutputStream fos = new FileOutputStream(destinationFile);
         bitmap.compress(Bitmap.CompressFormat.JPEG, 90, fos);
         fos.flush();
         fos.close();
         bitmap.recycle();
-
         return destinationFile;
     }
 
     private void saveBitmapToLocal(Bitmap bitmap, String userId) {
         try {
             File avatarDir = new File(requireContext().getFilesDir(), "avatars");
-            if (!avatarDir.exists()) {
-                avatarDir.mkdirs();
-            }
-
+            if (!avatarDir.exists()) avatarDir.mkdirs();
             File destinationFile = new File(avatarDir, userId + ".jpg");
             FileOutputStream fos = new FileOutputStream(destinationFile);
             bitmap.compress(Bitmap.CompressFormat.JPEG, 90, fos);
@@ -652,51 +580,28 @@ public class AccountFragment extends Fragment {
 
     private void showLogoutConfirmation() {
         if (!isFragmentAttached()) return;
-
         new AlertDialog.Builder(requireContext())
                 .setTitle("Xác nhận đăng xuất")
                 .setMessage("Bạn có chắc chắn muốn đăng xuất không?")
-                .setPositiveButton("Đăng xuất", (dialog, which) -> logout())
+                .setPositiveButton("Đăng xuất", (dialog, which) -> UserManager.getInstance(requireContext()).logout())
                 .setNegativeButton("Hủy", (dialog, which) -> dialog.dismiss())
                 .setCancelable(false)
                 .show();
     }
 
-    private void logout() {
-        if (!isFragmentAttached()) return;
-
-        // Xóa toàn bộ dữ liệu người dùng khỏi UserManager
-        UserManager.getInstance(requireContext()).clearUser();
-
-        // Xóa mọi dữ liệu khác nếu có SharedPreferences khác
-        requireContext().getSharedPreferences("AppPrefs", Context.MODE_PRIVATE)
-                .edit()
-                .clear()
-                .apply();
-
-        // Quay lại màn hình đăng nhập, xóa ngăn xếp Activity
-        Intent intent = new Intent(requireContext(), LogInActivity.class);
-        intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_NEW_TASK);
-        startActivity(intent);
-        requireActivity().finish();
-    }
-
-    // 🔥 THÊM FRAGMENT LIFECYCLE METHODS
     @Override
     public void onDestroyView() {
         super.onDestroyView();
         isFragmentDestroyed = true;
-        Log.d("AvatarDebug", "onDestroyView - Fragment view destroyed");
+        stopPolling(); // 🔥 Dừng polling khi destroy view
     }
 
     @Override
     public void onDetach() {
         super.onDetach();
         isFragmentDestroyed = true;
-        Log.d("AvatarDebug", "onDetach - Fragment detached from activity");
     }
 
-    // 🔥 LỚP VOLLEY MULTIPART REQUEST
     public class VolleyMultipartRequest extends Request<NetworkResponse> {
         private final Response.Listener<NetworkResponse> mListener;
         private final Response.ErrorListener mErrorListener;
