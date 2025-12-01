@@ -44,9 +44,10 @@ public class UserManager {
         return sharedPreferences.getString(KEY_AUTH_TOKEN, null);
     }
 
-    // 🔥 HÀM LOGOUT ĐÃ ĐƯỢC NÂNG CẤP
+    // 🔥 LOGOUT CHUẨN: Gọi Server xóa session + Xóa local
+    // Dùng khi người dùng bấm nút "Đăng xuất"
     public void logout() {
-        // 1. Gọi API báo Server xóa Session (Fire-and-forget)
+        // 1. Gọi API báo Server xóa Session
         String url = ApiConfig.BASE_URL + "/api/users/logout";
         JSONObject body = new JSONObject();
         try {
@@ -56,7 +57,6 @@ public class UserManager {
             }
         } catch (JSONException e) { e.printStackTrace(); }
 
-        // Gửi request không cần chờ kết quả UI
         JsonObjectRequest request = new JsonObjectRequest(Request.Method.POST, url, body,
                 response -> Log.d("UserManager", "Server logout success"),
                 error -> Log.e("UserManager", "Server logout failed")
@@ -64,9 +64,21 @@ public class UserManager {
         Volley.newRequestQueue(context).add(request);
 
         // 2. Xóa dữ liệu Local
+        performLocalLogout();
+    }
+
+    // 🔥 LOGOUT LOCAL: CHỈ XÓA DỮ LIỆU TRÊN MÁY (KHÔNG GỌI SERVER)
+    // Dùng cho trường hợp:
+    // 1. Máy cũ nhường quyền cho máy mới (Máy mới cần request trên server tồn tại để login)
+    // 2. Token đã hết hạn (Server đã tự xóa session rồi)
+    public void logoutLocal() {
+        performLocalLogout();
+    }
+
+    // Hàm nội bộ thực hiện xóa dữ liệu và chuyển màn hình
+    private void performLocalLogout() {
         clearUser();
 
-        // 3. Chuyển về màn hình đăng nhập
         Intent intent = new Intent(context, LogInActivity.class);
         intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TASK | Intent.FLAG_ACTIVITY_NEW_TASK);
         context.startActivity(intent);

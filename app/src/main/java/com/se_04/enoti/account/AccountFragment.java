@@ -231,9 +231,8 @@ public class AccountFragment extends Fragment {
         JsonObjectRequest request = new JsonObjectRequest(Request.Method.POST, RESOLVE_LOGIN_REQUEST_URL, body,
                 response -> {
                     if (action.equals("approved")) {
-                        Toast.makeText(requireContext(), "Đã cho phép. Bạn sẽ bị đăng xuất.", Toast.LENGTH_LONG).show();
-                        // Nếu cho phép máy khác vào, máy này phải đăng xuất
-                        UserManager.getInstance(requireContext()).logout();
+                        Toast.makeText(requireContext(), "Đã cho phép...", Toast.LENGTH_LONG).show();
+                        UserManager.getInstance(requireContext()).logoutLocal();
                     } else {
                         Toast.makeText(requireContext(), "Đã chặn đăng nhập lạ.", Toast.LENGTH_SHORT).show();
                     }
