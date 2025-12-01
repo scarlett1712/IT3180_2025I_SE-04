@@ -4,7 +4,9 @@ import { pool } from "../db.js";
 const router = express.Router();
 const query = (text, params) => pool.query(text, params);
 
-// 🛠️ 1. Tạo bảng profile_requests (Giữ nguyên cấu trúc để tương thích dữ liệu cũ)
+// 🛠️ 1. Cập nhật bảng profile_requests
+// 🔥 FIX: Đổi tham chiếu REFERENCES từ user_item(user_id) sang users(user_id)
+// Vì users(user_id) là Primary Key, đảm bảo tạo được khóa ngoại.
 const createTableQuery = `
   CREATE TABLE IF NOT EXISTS profile_requests (
     request_id SERIAL PRIMARY KEY,
@@ -20,7 +22,7 @@ const createTableQuery = `
     new_is_head BOOLEAN,
     status VARCHAR(20) DEFAULT 'pending',
     created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (user_id) REFERENCES user_item(user_id) ON DELETE CASCADE
+    FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE
   );
 `;
 
@@ -33,12 +35,11 @@ const createTableQuery = `
   }
 })();
 
-// 📤 2. [USER] Gửi yêu cầu (🔥 FIX: Bỏ room và floor khỏi insert)
+// 📤 2. [USER] Gửi yêu cầu
 router.post("/create", async (req, res) => {
   const {
     user_id, full_name, phone, email, gender, dob,
     relationship, is_head
-    // room, floor bị loại bỏ vì không cho phép cập nhật
   } = req.body;
 
   if (!user_id) return res.status(400).json({ error: "Thiếu user_id" });
@@ -53,7 +54,6 @@ router.post("/create", async (req, res) => {
       return res.status(400).json({ error: "Bạn đang có yêu cầu chờ duyệt." });
     }
 
-    // Không insert new_room và new_floor (để null)
     await query(
       `INSERT INTO profile_requests
        (user_id, new_full_name, new_phone, new_email, new_gender, new_dob, new_relationship, new_is_head)
@@ -68,7 +68,7 @@ router.post("/create", async (req, res) => {
   }
 });
 
-// 📋 3. [ADMIN] Lấy danh sách yêu cầu (Giữ nguyên JOIN chuẩn)
+// 📋 3. [ADMIN] Lấy danh sách yêu cầu
 router.get("/pending", async (req, res) => {
   try {
     const result = await query(`
@@ -112,11 +112,6 @@ router.post("/resolve", async (req, res) => {
     const request = reqResult.rows[0];
 
     if (action === 'approve') {
-      // Cập nhật thông tin cơ bản (Không cập nhật room/floor)
-      // Lưu ý: Cập nhật 'relationship' cần logic phức tạp hơn nếu bảng 'relationship'
-      // liên kết chặt với apartment_id. Ở đây tạm thời update text nếu có thể hoặc bỏ qua.
-      // Dưới đây chỉ update thông tin cá nhân an toàn.
-
       await client.query(
         `UPDATE user_item
          SET full_name = COALESCE($1, full_name),
