@@ -18,7 +18,6 @@ const router = express.Router();
       );
     `);
 
-    // Tự động thêm cột session_token nếu chưa có
     await pool.query(`
       ALTER TABLE users ADD COLUMN IF NOT EXISTS session_token VARCHAR(255);
     `);
@@ -34,7 +33,6 @@ const router = express.Router();
 ========================================================== */
 router.post("/login", async (req, res) => {
   try {
-    // 🔥 Thêm tham số force_login để hỗ trợ trường hợp mất máy
     const { phone, password, is_polling, request_id, force_login } = req.body || {};
 
     // --- CASE 1: POLLING (MÁY MỚI ĐANG CHỜ DUYỆT) ---
@@ -51,18 +49,14 @@ router.post("/login", async (req, res) => {
         }
 
         if (request.status === 'rejected') {
-            // Nếu bị từ chối, chỉ xóa request này
             await pool.query("DELETE FROM login_requests WHERE id = $1", [request_id]);
             return res.status(403).json({ error: "Đăng nhập bị từ chối bởi thiết bị chính." });
         }
 
-        // ✅ Approved (Được duyệt)
+        // ✅ Approved
         await pool.query("UPDATE users SET session_token = $1 WHERE user_id = $2", [request.temp_token, request.user_id]);
-
-        // 🔥 Xóa TẤT CẢ request của user này
         await pool.query("DELETE FROM login_requests WHERE user_id = $1", [request.user_id]);
 
-        // Lấy lại info user để trả về
         const userRes = await pool.query(`SELECT u.user_id, u.phone, ur.role_id FROM users u LEFT JOIN userrole ur ON u.user_id = ur.user_id WHERE u.user_id = $1`, [request.user_id]);
         const user = userRes.rows[0];
 
@@ -96,7 +90,7 @@ router.post("/login", async (req, res) => {
         });
     }
 
-    // --- CASE 2: NORMAL LOGIN (ĐĂNG NHẬP LẦN ĐẦU) ---
+    // --- CASE 2: NORMAL LOGIN ---
     if (!phone || !password) {
       return res.status(400).json({ error: "Thiếu số điện thoại hoặc mật khẩu." });
     }
@@ -114,15 +108,16 @@ router.post("/login", async (req, res) => {
     }
 
     const user = userRes.rows[0];
-
     const match = await bcrypt.compare(password, user.password_hash);
 
     if (!match) {
       return res.status(401).json({ error: "Sai mật khẩu." });
     }
 
+    // 🔥 Dọn dẹp request cũ quá hạn
+    await pool.query("DELETE FROM login_requests WHERE user_id = $1 AND created_at < NOW() - INTERVAL '5 minutes'", [user.user_id]);
+
     // CHECK SESSION
-    // 🔥 Nếu có session_token VÀ KHÔNG PHẢI là force_login thì mới chặn
     if (user.session_token && !force_login) {
         const tempToken = crypto.randomBytes(32).toString('hex');
         const insertReq = await pool.query(
@@ -133,18 +128,17 @@ router.post("/login", async (req, res) => {
         return res.json({
             require_approval: true,
             request_id: insertReq.rows[0].id,
+            allow_force_login: true,
             message: "Tài khoản đang đăng nhập nơi khác. Vui lòng xác nhận trên thiết bị cũ."
         });
     }
 
-    // Chưa ai đăng nhập (hoặc force_login) -> Vào luôn
     const sessionToken = crypto.randomBytes(32).toString('hex');
     await pool.query(
         "UPDATE users SET session_token = $1 WHERE user_id = $2",
         [sessionToken, user.user_id]
     );
 
-    // Xóa request cũ
     await pool.query("DELETE FROM login_requests WHERE user_id = $1", [user.user_id]);
 
     const infoRes = await pool.query(
@@ -218,13 +212,16 @@ router.post("/resolve_login", async (req, res) => {
 });
 
 /* ==========================================================
-   🚪 API MỚI: Đăng xuất (Clear session)
+   🚪 API: Đăng xuất (Updated)
 ========================================================== */
 router.post("/logout", async (req, res) => {
     try {
         const { user_id } = req.body;
         if (user_id) {
+            // 🔥 Xóa session token
             await pool.query("UPDATE users SET session_token = NULL WHERE user_id = $1", [user_id]);
+            // 🔥 Xóa luôn mọi yêu cầu login đang treo để tránh lỗi hiển thị khi đăng nhập lại
+            await pool.query("DELETE FROM login_requests WHERE user_id = $1", [user_id]);
         }
         res.json({ success: true, message: "Đã đăng xuất." });
     } catch (err) {
