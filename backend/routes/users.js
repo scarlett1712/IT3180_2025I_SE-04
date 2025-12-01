@@ -1,6 +1,6 @@
 import express from "express";
 import { pool } from "../db.js";
-import bcrypt from "bcryptjs"; // Sử dụng import này
+import bcrypt from "bcryptjs";
 import crypto from "crypto";
 
 const router = express.Router();
@@ -36,7 +36,7 @@ router.post("/login", async (req, res) => {
   try {
     const { phone, password, is_polling, request_id } = req.body || {};
 
-    // --- CASE 1: POLLING ---
+    // --- CASE 1: POLLING (MÁY MỚI ĐANG CHỜ DUYỆT) ---
     if (is_polling) {
         if (!request_id) return res.status(400).json({ error: "Thiếu request_id" });
 
@@ -50,13 +50,17 @@ router.post("/login", async (req, res) => {
         }
 
         if (request.status === 'rejected') {
+            // Nếu bị từ chối, chỉ xóa request này
             await pool.query("DELETE FROM login_requests WHERE id = $1", [request_id]);
             return res.status(403).json({ error: "Đăng nhập bị từ chối bởi thiết bị chính." });
         }
 
-        // Approved
+        // ✅ Approved (Được duyệt)
         await pool.query("UPDATE users SET session_token = $1 WHERE user_id = $2", [request.temp_token, request.user_id]);
-        await pool.query("DELETE FROM login_requests WHERE id = $1", [request_id]);
+
+        // 🔥 FIX QUAN TRỌNG: Xóa TẤT CẢ request của user này (kể cả cái cũ)
+        // để máy mới không bị hiện lại popup cảnh báo
+        await pool.query("DELETE FROM login_requests WHERE user_id = $1", [request.user_id]);
 
         // Lấy lại info user để trả về
         const userRes = await pool.query(`SELECT u.user_id, u.phone, ur.role_id FROM users u LEFT JOIN userrole ur ON u.user_id = ur.user_id WHERE u.user_id = $1`, [request.user_id]);
@@ -92,7 +96,7 @@ router.post("/login", async (req, res) => {
         });
     }
 
-    // --- CASE 2: NORMAL LOGIN ---
+    // --- CASE 2: NORMAL LOGIN (ĐĂNG NHẬP LẦN ĐẦU) ---
     if (!phone || !password) {
       return res.status(400).json({ error: "Thiếu số điện thoại hoặc mật khẩu." });
     }
@@ -111,7 +115,6 @@ router.post("/login", async (req, res) => {
 
     const user = userRes.rows[0];
 
-    // 🔥 FIX: Sử dụng trực tiếp bcrypt đã import, không dùng import() động
     const match = await bcrypt.compare(password, user.password_hash);
 
     if (!match) {
@@ -133,11 +136,15 @@ router.post("/login", async (req, res) => {
         });
     }
 
+    // Chưa ai đăng nhập -> Vào luôn
     const sessionToken = crypto.randomBytes(32).toString('hex');
     await pool.query(
         "UPDATE users SET session_token = $1 WHERE user_id = $2",
         [sessionToken, user.user_id]
     );
+
+    // 🔥 FIX: Xóa luôn request cũ nếu có (đề phòng rác)
+    await pool.query("DELETE FROM login_requests WHERE user_id = $1", [user.user_id]);
 
     const infoRes = await pool.query(
       `
