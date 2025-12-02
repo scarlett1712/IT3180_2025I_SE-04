@@ -1,17 +1,17 @@
 import express from "express";
 import { pool } from "../db.js";
-// 🔥 Import Helper để gửi thông báo
+// 🔥 Import Helper
 import { sendMulticastNotification } from "../utils/firebaseHelper.js";
 
 const router = express.Router();
 
 router.post("/", async (req, res) => {
-  // Lưu ý: App cũ gửi 'sender_id', trong DB là 'created_by'. Chúng ta sẽ map lại.
+  // Map sender_id từ App thành created_by trong DB
   const { content, title, type, sender_id, expired_date, target_user_ids, send_to_all } = req.body;
 
-  console.log("📩 [SEND_NOTIFICATION] Body:", req.body);
+  console.log("📢 [NOTI] Creating new notification:", { title, type, send_to_all });
 
-  // Validate cơ bản
+  // Validate
   if (!content || !title || !type || !sender_id) {
     return res.status(400).json({ message: "Thiếu thông tin bắt buộc!" });
   }
@@ -21,13 +21,12 @@ router.post("/", async (req, res) => {
   try {
     await client.query("BEGIN");
 
-    // 1️⃣ Tạo thông báo mới
+    // 1️⃣ Insert Notification
     const insertNotification = `
       INSERT INTO notification (title, content, expired_date, type, created_by, created_at)
       VALUES ($1, $2, $3, $4, $5, NOW())
       RETURNING notification_id;
     `;
-    // expired_date có thể null
     const result = await client.query(insertNotification, [
       title,
       content,
@@ -37,11 +36,12 @@ router.post("/", async (req, res) => {
     ]);
 
     const notificationId = result.rows[0].notification_id;
+    console.log(`✅ [NOTI] Saved to DB. ID: ${notificationId}`);
 
-    // 2️⃣ Xác định danh sách người nhận
+    // 2️⃣ Tìm người nhận
     let recipients = [];
     if (send_to_all) {
-        // Nếu gửi tất cả: Lấy hết user_id (trừ sender_id/admin)
+        // Lấy tất cả user trừ Admin (role=2) và người gửi
         const allUsersRes = await client.query(`
             SELECT u.user_id
             FROM users u
@@ -53,33 +53,32 @@ router.post("/", async (req, res) => {
         recipients = target_user_ids;
     }
 
-    // Loại bỏ trùng lặp
-    recipients = [...new Set(recipients)];
+    recipients = [...new Set(recipients)]; // Lọc trùng
+    console.log(`👥 [NOTI] Recipients found: ${recipients.length}`);
 
-    // 3️⃣ Gán thông báo cho từng user vào bảng user_notifications
+    // 3️⃣ Lưu user_notifications & Gửi Firebase
     if (recipients.length > 0) {
-        const insertUserNotification = `
-          INSERT INTO user_notifications (user_id, notification_id, is_read)
-          VALUES ($1, $2, FALSE)
-          ON CONFLICT DO NOTHING;
-        `;
-
+        // Lưu trạng thái chưa đọc
         for (const userId of recipients) {
-          await client.query(insertUserNotification, [userId, notificationId]);
+          await client.query(
+              `INSERT INTO user_notifications (user_id, notification_id, is_read)
+               VALUES ($1, $2, FALSE) ON CONFLICT DO NOTHING`,
+               [userId, notificationId]
+          );
         }
 
-        // 4️⃣ 🔥 GỬI PUSH NOTIFICATION QUA FIREBASE 🔥
-        // Lấy token của danh sách người nhận
+        // 🔥 LẤY TOKEN ĐỂ GỬI
         const tokensRes = await client.query(
             `SELECT fcm_token FROM users WHERE user_id = ANY($1) AND fcm_token IS NOT NULL AND fcm_token != ''`,
             [recipients]
         );
         const tokens = tokensRes.rows.map(r => r.fcm_token);
 
-        console.log(`📲 [SEND_NOTIFICATION] Found ${tokens.length} FCM tokens. Sending push...`);
+        console.log(`🔑 [NOTI] Valid FCM Tokens found: ${tokens.length}`);
 
         if (tokens.length > 0) {
-            sendMulticastNotification(
+            // Gửi thông báo (Có await để bắt lỗi nếu cần debug)
+            await sendMulticastNotification(
               tokens,
               title,
               content,
@@ -88,19 +87,22 @@ router.post("/", async (req, res) => {
                  id: notificationId.toString()
               }
             );
+        } else {
+            console.log("⚠️ [NOTI] No tokens found. Users might not have logged in yet.");
         }
+    } else {
+        console.log("⚠️ [NOTI] No recipients to send to.");
     }
 
     await client.query("COMMIT");
 
-    console.log(`✅ [SEND_NOTIFICATION] Created notification_id=${notificationId}`);
     res.status(201).json({
       message: "Tạo thông báo thành công",
       notification_id: notificationId,
     });
   } catch (error) {
     await client.query("ROLLBACK");
-    console.error("❌ [SEND_NOTIFICATION] Lỗi khi tạo thông báo:", error);
+    console.error("❌ [NOTI ERROR] Failed to create notification:", error);
     res.status(500).json({ message: "Lỗi server khi tạo thông báo!" });
   } finally {
     client.release();

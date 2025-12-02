@@ -21,6 +21,7 @@ import androidx.fragment.app.Fragment;
 import androidx.fragment.app.FragmentManager;
 import androidx.fragment.app.FragmentTransaction;
 
+import com.android.volley.DefaultRetryPolicy; // 🔥 Import RetryPolicy
 import com.android.volley.Request;
 import com.android.volley.toolbox.JsonObjectRequest;
 import com.android.volley.toolbox.Volley;
@@ -40,7 +41,7 @@ import com.se_04.enoti.utils.UserManager;
 import org.json.JSONException;
 import org.json.JSONObject;
 
-import java.nio.charset.StandardCharsets; // Thêm import này
+import java.nio.charset.StandardCharsets;
 
 public class MainActivity_User extends AppCompatActivity {
 
@@ -48,9 +49,12 @@ public class MainActivity_User extends AppCompatActivity {
     private static final String SELECTED_ITEM_ID_KEY = "selectedItemIdKey";
     private static final String ACTIVE_FRAGMENT_TAG_KEY = "activeFragmentTagKey";
 
+    // 🔥 Tăng thời gian chờ lên 30 giây để đợi Server Render khởi động
+    private static final int MY_SOCKET_TIMEOUT_MS = 30000;
+
     private BottomNavigationView bottomNavigationView;
 
-    // 🔥 Khai báo các Fragment
+    // Khai báo các Fragment
     private HomeFragment_User homeFragmentUser;
     private NotificationFragment notificationFragment;
     private FinanceFragment financeFragment;
@@ -61,14 +65,14 @@ public class MainActivity_User extends AppCompatActivity {
     private FragmentManager fragmentManager;
     private int currentSelectedItemId = R.id.nav_home; // Item mặc định
 
-    // 🔥 Launcher xin quyền thông báo
+    // Launcher xin quyền thông báo
     private final ActivityResultLauncher<String> requestPermissionLauncher =
             registerForActivityResult(new ActivityResultContracts.RequestPermission(), isGranted -> {
                 if (!isGranted) {
-                    Log.w(TAG, "Permission denied: POST_NOTIFICATIONS"); // Log cảnh báo
+                    Log.w(TAG, "Permission denied: POST_NOTIFICATIONS");
                     Toast.makeText(this, "Bạn cần cấp quyền để nhận thông báo mới.", Toast.LENGTH_LONG).show();
                 } else {
-                    Log.d(TAG, "Permission granted: POST_NOTIFICATIONS"); // Log thành công
+                    Log.d(TAG, "Permission granted: POST_NOTIFICATIONS");
                     // Sau khi cấp quyền, thử update token lại
                     updateFcmToken();
                 }
@@ -77,7 +81,7 @@ public class MainActivity_User extends AppCompatActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        Log.d(TAG, "🚀 onCreate: Starting MainActivity_User..."); // Log khởi động
+        Log.d(TAG, "🚀 onCreate: Starting MainActivity_User...");
 
         AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_NO);
         setContentView(R.layout.activity_main_menu_user);
@@ -192,11 +196,10 @@ public class MainActivity_User extends AppCompatActivity {
         }
     }
 
-    // 🔥 KIỂM TRA GOOGLE PLAY SERVICES
     private boolean checkPlayServices() {
         GoogleApiAvailability apiAvailability = GoogleApiAvailability.getInstance();
         int resultCode = apiAvailability.isGooglePlayServicesAvailable(this);
-        Log.d(TAG, "checkPlayServices: resultCode = " + resultCode); // Log kết quả kiểm tra
+        Log.d(TAG, "checkPlayServices: resultCode = " + resultCode);
 
         if (resultCode != ConnectionResult.SUCCESS) {
             if (apiAvailability.isUserResolvableError(resultCode)) {
@@ -211,9 +214,7 @@ public class MainActivity_User extends AppCompatActivity {
         return true;
     }
 
-    // 🔥 HÀM KIỂM TRA QUYỀN MỚI
     private void checkAndRequestNotificationPermission() {
-        // 1. Kiểm tra Android 13+
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             if (ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) !=
                     PackageManager.PERMISSION_GRANTED) {
@@ -225,7 +226,6 @@ public class MainActivity_User extends AppCompatActivity {
             }
         }
 
-        // 2. Kiểm tra xem user có tắt thông báo trong cài đặt hệ thống không
         if (!NotificationManagerCompat.from(this).areNotificationsEnabled()) {
             Log.w(TAG, "Notifications are disabled in system settings");
             new AlertDialog.Builder(this)
@@ -241,10 +241,8 @@ public class MainActivity_User extends AppCompatActivity {
         }
     }
 
-    // 🔥 HÀM CẬP NHẬT TOKEN (ĐÃ BẬT DEBUG TOAST)
     private void updateFcmToken() {
         Log.d(TAG, "updateFcmToken: Starting...");
-        // Đăng ký topic chung để test
         FirebaseMessaging.getInstance().subscribeToTopic("all_devices");
 
         FirebaseMessaging.getInstance().getToken()
@@ -255,11 +253,9 @@ public class MainActivity_User extends AppCompatActivity {
                         return;
                     }
 
-                    // Lấy token mới nhất
                     String token = task.getResult();
                     Log.d(TAG, "updateFcmToken: Token retrieved = " + token);
 
-                    // Gửi lên server
                     UserItem currentUser = UserManager.getInstance(this).getCurrentUser();
                     if (currentUser != null) {
                         Log.d(TAG, "updateFcmToken: Sending token to server for UserID: " + currentUser.getId());
@@ -288,7 +284,6 @@ public class MainActivity_User extends AppCompatActivity {
                     Toast.makeText(this, "Đã kết nối hệ thống thông báo ✅", Toast.LENGTH_SHORT).show();
                 },
                 error -> {
-                    // 🔥 DEBUG CHI TIẾT LỖI SERVER
                     String errorMsg = "Lỗi kết nối Server";
                     if (error.networkResponse != null && error.networkResponse.data != null) {
                         try {
@@ -304,6 +299,14 @@ public class MainActivity_User extends AppCompatActivity {
                     Toast.makeText(this, "Lỗi Server: " + errorMsg, Toast.LENGTH_LONG).show();
                 }
         );
+
+        // 🔥 FIX: Áp dụng RetryPolicy (Tăng timeout lên 30s)
+        request.setRetryPolicy(new DefaultRetryPolicy(
+                MY_SOCKET_TIMEOUT_MS,
+                DefaultRetryPolicy.DEFAULT_MAX_RETRIES,
+                DefaultRetryPolicy.DEFAULT_BACKOFF_MULT
+        ));
+
         Volley.newRequestQueue(this).add(request);
     }
 

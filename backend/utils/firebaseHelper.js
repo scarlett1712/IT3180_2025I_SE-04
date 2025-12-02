@@ -1,78 +1,82 @@
 import admin from "firebase-admin";
 import { createRequire } from "module";
-import fs from "fs"; // Import thêm fs để kiểm tra file tồn tại
+import fs from "fs";
 
 const require = createRequire(import.meta.url);
 
-// 🔥 LOGIC TÌM FILE KEY THÔNG MINH
+// 🔥 Tự động tìm file key (Render hoặc Local)
 let serviceAccount;
-
-// 1. Đường dẫn trên Render (Secret Files luôn nằm ở đây)
 const renderPath = "/etc/secrets/serviceAccountKey.json";
-
-// 2. Đường dẫn trên máy Local (Dev)
 const localPath = "../config/serviceAccountKey.json";
 
 try {
   if (fs.existsSync(renderPath)) {
-    console.log("🔑 Loading Firebase Key from Render Secrets...");
     serviceAccount = require(renderPath);
   } else {
-    console.log("💻 Loading Firebase Key from Local Config...");
     serviceAccount = require(localPath);
   }
 } catch (error) {
-  console.error("❌ CRITICAL: Could not load Firebase Service Account Key!");
-  console.error("Please check if 'serviceAccountKey.json' exists in '/etc/secrets/' (Render) or 'backend/config/' (Local).");
-  console.error(error);
+  console.error("❌ [FIREBASE] Critical: Service Account Key not found!");
 }
 
 if (!admin.apps.length && serviceAccount) {
   admin.initializeApp({
     credential: admin.credential.cert(serviceAccount)
   });
+  console.log("✅ [FIREBASE] Initialized successfully.");
 }
 
 /**
- * Gửi thông báo đến danh sách token
- * @param {Array<string>} tokens - Mảng chứa FCM Tokens
- * @param {string} title
- * @param {string} body
- * @param {Object} data - Dữ liệu kèm theo (tùy chọn)
+ * Gửi thông báo đến nhiều người
  */
 export const sendMulticastNotification = async (tokens, title, body, data = {}) => {
   if (!tokens || tokens.length === 0) return;
 
-  // Lọc các token null/undefined
-  const validTokens = tokens.filter(t => t);
-  if (validTokens.length === 0) return;
-
+  // Cấu hình thông báo chuẩn để hiện Popup trên Android
   const message = {
-    notification: { title, body },
-    data: data,
-    tokens: validTokens,
+    notification: { title, body }, // Phần hiển thị
+    data: data, // Phần dữ liệu ngầm
+    tokens: tokens,
+    android: {
+        priority: "high",
+        notification: {
+            channelId: "ENOTI_HIGH_PRIORITY_V2", // Khớp với App Android
+            sound: "default",
+            priority: "high"
+        }
+    }
   };
 
   try {
     const response = await admin.messaging().sendMulticast(message);
-    console.log(`🔔 Sent: ${response.successCount} success, ${response.failureCount} failed.`);
+    console.log(`🚀 [FIREBASE] Sent: ${response.successCount} success, ${response.failureCount} failed.`);
+
+    if (response.failureCount > 0) {
+        const failedTokens = [];
+        response.responses.forEach((resp, idx) => {
+            if (!resp.success) {
+                failedTokens.push(tokens[idx]);
+            }
+        });
+        // console.log('Failed tokens:', failedTokens); // Bỏ comment nếu muốn debug sâu
+    }
   } catch (error) {
-    console.error("❌ Error sending notification:", error);
+    console.error("❌ [FIREBASE] Send Error:", error);
   }
 };
 
-/**
- * Gửi thông báo đến 1 token
- */
 export const sendNotification = async (token, title, body, data = {}) => {
     if (!token) return;
+    const message = {
+        token: token,
+        notification: { title, body },
+        data: data,
+        android: { priority: "high" }
+    };
     try {
-        await admin.messaging().send({
-            token: token,
-            notification: { title, body },
-            data: data
-        });
+        await admin.messaging().send(message);
+        console.log("🚀 [FIREBASE] Single message sent.");
     } catch (error) {
-        console.error("❌ Error sending single notification:", error);
+        console.error("❌ [FIREBASE] Single Send Error:", error);
     }
 };
