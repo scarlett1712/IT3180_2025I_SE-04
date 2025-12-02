@@ -48,7 +48,10 @@ export const sendMulticastNotification = async (tokens, title, body, data = {}) 
   };
 
   try {
-    const response = await admin.messaging().sendMulticast(message);
+    // 🔥 FIX: Sử dụng sendEachForMulticast thay vì sendMulticast
+    // sendEachForMulticast là phương thức mới, ổn định hơn trên các bản SDK mới
+    const response = await admin.messaging().sendEachForMulticast(message);
+
     console.log(`🚀 [FIREBASE] Sent: ${response.successCount} success, ${response.failureCount} failed.`);
 
     if (response.failureCount > 0) {
@@ -56,12 +59,19 @@ export const sendMulticastNotification = async (tokens, title, body, data = {}) 
         response.responses.forEach((resp, idx) => {
             if (!resp.success) {
                 failedTokens.push(tokens[idx]);
+                // In lỗi chi tiết của từng token hỏng để debug
+                console.error(`❌ Token failed: ${tokens[idx]} - Reason:`, resp.error);
             }
         });
-        // console.log('Failed tokens:', failedTokens); // Bỏ comment nếu muốn debug sâu
     }
   } catch (error) {
     console.error("❌ [FIREBASE] Send Error:", error);
+    // Fallback: Nếu sendEachForMulticast cũng lỗi, thử gửi vòng lặp thủ công (Chỉ dùng khi bí quá)
+    /*
+    for (const token of tokens) {
+        await sendNotification(token, title, body, data);
+    }
+    */
   }
 };
 
@@ -71,7 +81,13 @@ export const sendNotification = async (token, title, body, data = {}) => {
         token: token,
         notification: { title, body },
         data: data,
-        android: { priority: "high" }
+        android: {
+            priority: "high",
+            notification: {
+                channelId: "ENOTI_HIGH_PRIORITY_V2",
+                priority: "high"
+            }
+        }
     };
     try {
         await admin.messaging().send(message);
