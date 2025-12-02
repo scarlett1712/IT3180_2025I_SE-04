@@ -1,11 +1,33 @@
 import admin from "firebase-admin";
 import { createRequire } from "module";
+import fs from "fs"; // Import thêm fs để kiểm tra file tồn tại
+
 const require = createRequire(import.meta.url);
 
-// 🔥 Đảm bảo bạn đã tải file này từ Firebase Console
-const serviceAccount = require("/etc/secrets/serviceAccountKey.json");
+// 🔥 LOGIC TÌM FILE KEY THÔNG MINH
+let serviceAccount;
 
-if (!admin.apps.length) {
+// 1. Đường dẫn trên Render (Secret Files luôn nằm ở đây)
+const renderPath = "/etc/secrets/serviceAccountKey.json";
+
+// 2. Đường dẫn trên máy Local (Dev)
+const localPath = "../config/serviceAccountKey.json";
+
+try {
+  if (fs.existsSync(renderPath)) {
+    console.log("🔑 Loading Firebase Key from Render Secrets...");
+    serviceAccount = require(renderPath);
+  } else {
+    console.log("💻 Loading Firebase Key from Local Config...");
+    serviceAccount = require(localPath);
+  }
+} catch (error) {
+  console.error("❌ CRITICAL: Could not load Firebase Service Account Key!");
+  console.error("Please check if 'serviceAccountKey.json' exists in '/etc/secrets/' (Render) or 'backend/config/' (Local).");
+  console.error(error);
+}
+
+if (!admin.apps.length && serviceAccount) {
   admin.initializeApp({
     credential: admin.credential.cert(serviceAccount)
   });
