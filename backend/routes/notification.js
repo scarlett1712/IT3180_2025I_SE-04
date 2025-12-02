@@ -1,103 +1,79 @@
 import express from "express";
 import { pool } from "../db.js";
-// 🔥 Import Helper để gửi thông báo
-import { sendMulticastNotification } from "../utils/firebaseHelper.js";
 
 const router = express.Router();
 
-// ==================================================================
-// 🚀 API: Tạo thông báo mới & Gửi Push Notification (Cho Admin)
-// ==================================================================
-router.post("/create", async (req, res) => {
-  const { title, content, type, created_by, target_user_ids, send_to_all } = req.body;
+// (Đã xóa API POST /create ở đây để dùng bên create_notification.js)
 
-  // Validate
-  if (!title || !created_by) {
-    return res.status(400).json({ error: "Thiếu tiêu đề hoặc người tạo." });
-  }
+// ==================================================================
+// 🔥 API: XÓA THÔNG BÁO
+// ==================================================================
+router.delete("/delete/:id", async (req, res) => {
+  const { id } = req.params;
+  if (!id) return res.status(400).json({ error: "Thiếu ID thông báo." });
 
   const client = await pool.connect();
   try {
     await client.query("BEGIN");
 
-    // 1️⃣ Tạo thông báo trong bảng 'notification'
-    const notiRes = await client.query(
-      `INSERT INTO notification (title, content, type, created_by, created_at, expired_date)
-       VALUES ($1, $2, $3, $4, NOW(), NOW() + INTERVAL '30 days')
-       RETURNING notification_id`,
-      [title, content, type || 'Hành chính', created_by]
-    );
-    const notificationId = notiRes.rows[0].notification_id;
+    // Xóa liên kết user_notifications trước
+    await client.query("DELETE FROM user_notifications WHERE notification_id = $1", [id]);
 
-    // 2️⃣ Xác định danh sách người nhận (User IDs)
-    let recipients = [];
-    if (send_to_all) {
-      // Lấy tất cả cư dân (trừ Admin và người tạo)
-      const allUsersRes = await client.query(`
-        SELECT u.user_id
-        FROM users u
-        JOIN userrole ur ON u.user_id = ur.user_id
-        WHERE ur.role_id != 2 -- Không gửi cho Admin khác
-      `);
-      recipients = allUsersRes.rows.map(r => r.user_id);
-    } else if (Array.isArray(target_user_ids) && target_user_ids.length > 0) {
-      recipients = target_user_ids;
-    }
+    // Xóa thông báo chính
+    const result = await client.query("DELETE FROM notification WHERE notification_id = $1 RETURNING *", [id]);
 
-    // 3️⃣ Lưu vào bảng 'user_notifications' (Để hiển thị trong App)
-    if (recipients.length > 0) {
-      // Dùng vòng lặp hoặc unnest để insert hàng loạt
-      for (const userId of recipients) {
-        await client.query(
-          `INSERT INTO user_notifications (notification_id, user_id, is_read)
-           VALUES ($1, $2, FALSE)
-           ON CONFLICT DO NOTHING`,
-          [notificationId, userId]
-        );
-      }
-
-      // 4️⃣ Gửi Push Notification qua Firebase (FCM)
-      // Lấy Token của những người nhận
-      const tokensRes = await client.query(
-        `SELECT fcm_token FROM users WHERE user_id = ANY($1) AND fcm_token IS NOT NULL`,
-        [recipients]
-      );
-      const tokens = tokensRes.rows.map(r => r.fcm_token);
-
-      if (tokens.length > 0) {
-        // Gửi thông báo (Fire-and-forget)
-        sendMulticastNotification(
-          tokens,
-          title, // Tiêu đề thông báo
-          content, // Nội dung
-          {
-             type: "notification_detail",
-             id: notificationId.toString()
-          } // Data kèm theo để mở đúng màn hình khi bấm vào
-        );
-      }
+    if (result.rowCount === 0) {
+        await client.query("ROLLBACK");
+        return res.status(404).json({ error: "Không tìm thấy thông báo để xóa." });
     }
 
     await client.query("COMMIT");
-    res.json({
-      success: true,
-      message: `Đã gửi thông báo tới ${recipients.length} cư dân.`
-    });
+    res.json({ success: true, message: "Đã xóa thông báo thành công." });
 
   } catch (err) {
     await client.query("ROLLBACK");
-    console.error("Error creating notification:", err);
-    res.status(500).json({ error: "Lỗi server khi tạo thông báo." });
+    console.error("❌ Error deleting notification:", err);
+    res.status(500).json({ error: "Lỗi server khi xóa thông báo." });
   } finally {
     client.release();
   }
 });
 
 // ==================================================================
-// 👇 CÁC ROUTE CŨ (GIỮ NGUYÊN)
+// 🔥 API: CẬP NHẬT THÔNG BÁO
+// ==================================================================
+router.put("/update/:id", async (req, res) => {
+  const { id } = req.params;
+  const { title, content, type } = req.body;
+
+  if (!id || !title) return res.status(400).json({ error: "Thiếu ID hoặc tiêu đề." });
+
+  try {
+    const result = await pool.query(
+      `UPDATE notification
+       SET title = $1, content = $2, type = $3
+       WHERE notification_id = $4
+       RETURNING *`,
+      [title, content, type, id]
+    );
+
+    if (result.rowCount === 0) {
+        return res.status(404).json({ error: "Không tìm thấy thông báo để sửa." });
+    }
+
+    res.json({ success: true, message: "Đã cập nhật thông báo.", data: result.rows[0] });
+
+  } catch (err) {
+    console.error("❌ Error updating notification:", err);
+    res.status(500).json({ error: "Lỗi server khi cập nhật thông báo." });
+  }
+});
+
+// ==================================================================
+// 👇 CÁC ROUTE GET DỮ LIỆU
 // ==================================================================
 
-// ✅ Route 1: Lấy tất cả thông báo do admin tạo
+// ✅ Route 1: Lấy tất cả thông báo do admin tạo (Cho màn hình Admin)
 router.get("/sent", async (req, res) => {
   try {
     const result = await pool.query(`
@@ -124,7 +100,7 @@ router.get("/sent", async (req, res) => {
   }
 });
 
-// Lấy thông báo theo ID
+// Lấy chi tiết thông báo theo ID
 router.get("/detail/:id", async (req, res) => {
   const { id } = req.params;
   try {
@@ -149,7 +125,7 @@ router.get("/detail/:id", async (req, res) => {
   }
 });
 
-// ✅ Route 2: Lấy tất cả thông báo của 1 user
+// ✅ Route 2: Lấy tất cả thông báo của 1 user (Cho màn hình Cư dân)
 router.get("/:userId", async (req, res) => {
   try {
     const { userId } = req.params;

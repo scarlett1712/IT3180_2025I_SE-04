@@ -28,6 +28,10 @@ public class NotificationRepository {
 
     private static final String BASE_URL = ApiConfig.BASE_URL;
 
+    // 🔥 Tăng thời gian chờ lên 30s để server Render kịp khởi động
+    private static final int CONNECT_TIMEOUT = 30000;
+    private static final int READ_TIMEOUT = 30000;
+
     private NotificationRepository() {
         executor = Executors.newSingleThreadExecutor();
         mainHandler = new Handler(Looper.getMainLooper());
@@ -65,8 +69,10 @@ public class NotificationRepository {
                 URL url = new URL(BASE_URL + "/api/notification/" + userId);
                 conn = (HttpURLConnection) url.openConnection();
                 conn.setRequestMethod("GET");
-                conn.setConnectTimeout(10_000);
-                conn.setReadTimeout(10_000);
+                // 🔥 Cập nhật timeout
+                conn.setConnectTimeout(CONNECT_TIMEOUT);
+                conn.setReadTimeout(READ_TIMEOUT);
+                conn.setUseCaches(false); // Không dùng cache để luôn có dữ liệu mới
                 conn.setRequestProperty("Accept", "application/json");
 
                 int code = conn.getResponseCode();
@@ -88,6 +94,9 @@ public class NotificationRepository {
                     mainHandler.post(() -> callback.onError("Lỗi máy chủ (" + code + ")"));
                 }
 
+            } catch (java.net.SocketTimeoutException e) {
+                Log.e(TAG, "fetchNotifications TIMEOUT", e);
+                mainHandler.post(() -> callback.onError("Kết nối quá hạn (Server đang khởi động...)"));
             } catch (Exception e) {
                 Log.e(TAG, "fetchNotifications exception", e);
                 mainHandler.post(() -> callback.onError("Không thể kết nối đến server"));
@@ -101,12 +110,14 @@ public class NotificationRepository {
         executor.execute(() -> {
             HttpURLConnection conn = null;
             try {
-                URL url = new URL(BASE_URL + "/api/notification/sent/");
+                URL url = new URL(BASE_URL + "/api/notification/sent"); // Đã bỏ dấu / cuối cùng cho chuẩn
                 Log.d(TAG, "fetchAdminNotifications -> " + url);
                 conn = (HttpURLConnection) url.openConnection();
                 conn.setRequestMethod("GET");
-                conn.setConnectTimeout(10_000);
-                conn.setReadTimeout(10_000);
+                // 🔥 Cập nhật timeout
+                conn.setConnectTimeout(CONNECT_TIMEOUT);
+                conn.setReadTimeout(READ_TIMEOUT);
+                conn.setUseCaches(false);
                 conn.setRequestProperty("Accept", "application/json");
 
                 int code = conn.getResponseCode();
@@ -149,8 +160,9 @@ public class NotificationRepository {
                 conn = (HttpURLConnection) url.openConnection();
                 conn.setRequestMethod("PUT");
                 conn.setDoOutput(true);
-                conn.setConnectTimeout(10_000);
-                conn.setReadTimeout(10_000);
+                // 🔥 Cập nhật timeout
+                conn.setConnectTimeout(CONNECT_TIMEOUT);
+                conn.setReadTimeout(READ_TIMEOUT);
                 conn.setRequestProperty("Accept", "application/json");
                 conn.setRequestProperty("Content-Type", "application/json; charset=utf-8");
 
@@ -188,8 +200,9 @@ public class NotificationRepository {
 
                 conn = (HttpURLConnection) url.openConnection();
                 conn.setRequestMethod("GET");
-                conn.setConnectTimeout(10_000);
-                conn.setReadTimeout(10_000);
+                // 🔥 Cập nhật timeout
+                conn.setConnectTimeout(CONNECT_TIMEOUT);
+                conn.setReadTimeout(READ_TIMEOUT);
                 conn.setRequestProperty("Accept", "application/json");
 
                 int code = conn.getResponseCode();
@@ -227,6 +240,71 @@ public class NotificationRepository {
 
             } catch (Exception e) {
                 Log.e(TAG, "fetchNotificationTitle exception", e);
+                mainHandler.post(() -> callback.onError("Kết nối thất bại"));
+            } finally {
+                if (conn != null) conn.disconnect();
+            }
+        });
+    }
+
+    // ===================== 🔥 HÀM XÓA THÔNG BÁO =====================
+    public void deleteNotification(long notificationId, SimpleCallback callback) {
+        executor.execute(() -> {
+            HttpURLConnection conn = null;
+            try {
+                URL url = new URL(BASE_URL + "/api/notification/delete/" + notificationId);
+                conn = (HttpURLConnection) url.openConnection();
+                conn.setRequestMethod("DELETE");
+                conn.setConnectTimeout(CONNECT_TIMEOUT);
+                conn.setReadTimeout(READ_TIMEOUT);
+
+                int code = conn.getResponseCode();
+                if (code >= 200 && code < 300) {
+                    mainHandler.post(callback::onSuccess);
+                } else {
+                    Log.e(TAG, "deleteNotification HTTP " + code);
+                    mainHandler.post(() -> callback.onError("Lỗi khi xóa thông báo: " + code));
+                }
+            } catch (Exception e) {
+                Log.e(TAG, "deleteNotification exception", e);
+                mainHandler.post(() -> callback.onError("Kết nối thất bại"));
+            } finally {
+                if (conn != null) conn.disconnect();
+            }
+        });
+    }
+
+    // ===================== 🔥 HÀM SỬA THÔNG BÁO =====================
+    public void updateNotification(long id, String title, String content, String type, SimpleCallback callback) {
+        executor.execute(() -> {
+            HttpURLConnection conn = null;
+            try {
+                URL url = new URL(BASE_URL + "/api/notification/update/" + id);
+                conn = (HttpURLConnection) url.openConnection();
+                conn.setRequestMethod("PUT");
+                conn.setDoOutput(true);
+                conn.setConnectTimeout(CONNECT_TIMEOUT);
+                conn.setReadTimeout(READ_TIMEOUT);
+                conn.setRequestProperty("Content-Type", "application/json; charset=utf-8");
+
+                JSONObject body = new JSONObject();
+                body.put("title", title);
+                body.put("content", content);
+                body.put("type", type);
+
+                try (OutputStream os = conn.getOutputStream()) {
+                    os.write(body.toString().getBytes("utf-8"));
+                }
+
+                int code = conn.getResponseCode();
+                if (code >= 200 && code < 300) {
+                    mainHandler.post(callback::onSuccess);
+                } else {
+                    Log.e(TAG, "updateNotification HTTP " + code);
+                    mainHandler.post(() -> callback.onError("Lỗi khi cập nhật thông báo: " + code));
+                }
+            } catch (Exception e) {
+                Log.e(TAG, "updateNotification exception", e);
                 mainHandler.post(() -> callback.onError("Kết nối thất bại"));
             } finally {
                 if (conn != null) conn.disconnect();

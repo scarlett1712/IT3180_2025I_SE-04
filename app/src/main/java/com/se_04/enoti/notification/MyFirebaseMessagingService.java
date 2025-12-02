@@ -33,7 +33,8 @@ import java.util.Map;
 public class MyFirebaseMessagingService extends FirebaseMessagingService {
 
     private static final String TAG = "MyFirebaseMsgService";
-    private static final String CHANNEL_ID = "ENOTI_HIGH_PRIORITY"; // 🔥 Đổi ID mới để reset setting cũ
+    // 🔥 ĐÃ ĐỔI ID: Thêm hậu tố "_V2" để tạo kênh mới với quyền ưu tiên cao nhất
+    private static final String CHANNEL_ID = "ENOTI_HIGH_PRIORITY_V2";
     private static final String CHANNEL_NAME = "Thông báo quan trọng ENoti";
 
     @Override

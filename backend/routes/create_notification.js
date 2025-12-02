@@ -1,26 +1,18 @@
 import express from "express";
 import { pool } from "../db.js";
+// 🔥 Import Helper để gửi thông báo
+import { sendMulticastNotification } from "../utils/firebaseHelper.js";
 
 const router = express.Router();
 
-/**
- * 📢 API: Tạo thông báo mới
- * Body JSON:
- * {
- *   "title": "Cúp điện khu A",
- *   "content": "Cúp điện từ 8h đến 10h sáng mai",
- *   "type": "Hệ thống",
- *   "sender_id": 1,
- *   "expired_date": "2025-11-01",
- *   "target_user_ids": [2, 3, 4]
- * }
- */
 router.post("/", async (req, res) => {
-  const { content, title, type, sender_id, expired_date, target_user_ids } = req.body;
+  // Lưu ý: App cũ gửi 'sender_id', trong DB là 'created_by'. Chúng ta sẽ map lại.
+  const { content, title, type, sender_id, expired_date, target_user_ids, send_to_all } = req.body;
 
   console.log("📩 [SEND_NOTIFICATION] Body:", req.body);
 
-  if (!content || !title || !type || !sender_id || !Array.isArray(target_user_ids)) {
+  // Validate cơ bản
+  if (!content || !title || !type || !sender_id) {
     return res.status(400).json({ message: "Thiếu thông tin bắt buộc!" });
   }
 
@@ -31,10 +23,11 @@ router.post("/", async (req, res) => {
 
     // 1️⃣ Tạo thông báo mới
     const insertNotification = `
-      INSERT INTO notification (title, content, expired_date, type, created_by)
-      VALUES ($1, $2, $3, $4, $5)
+      INSERT INTO notification (title, content, expired_date, type, created_by, created_at)
+      VALUES ($1, $2, $3, $4, $5, NOW())
       RETURNING notification_id;
     `;
+    // expired_date có thể null
     const result = await client.query(insertNotification, [
       title,
       content,
@@ -45,14 +38,57 @@ router.post("/", async (req, res) => {
 
     const notificationId = result.rows[0].notification_id;
 
-    // 2️⃣ Gán thông báo cho từng user
-    const insertUserNotification = `
-      INSERT INTO user_notifications (user_id, notification_id, is_read)
-      VALUES ($1, $2, FALSE);
-    `;
+    // 2️⃣ Xác định danh sách người nhận
+    let recipients = [];
+    if (send_to_all) {
+        // Nếu gửi tất cả: Lấy hết user_id (trừ sender_id/admin)
+        const allUsersRes = await client.query(`
+            SELECT u.user_id
+            FROM users u
+            JOIN userrole ur ON u.user_id = ur.user_id
+            WHERE ur.role_id != 2
+        `);
+        recipients = allUsersRes.rows.map(r => r.user_id);
+    } else if (Array.isArray(target_user_ids)) {
+        recipients = target_user_ids;
+    }
 
-    for (const userId of target_user_ids) {
-      await client.query(insertUserNotification, [userId, notificationId]);
+    // Loại bỏ trùng lặp
+    recipients = [...new Set(recipients)];
+
+    // 3️⃣ Gán thông báo cho từng user vào bảng user_notifications
+    if (recipients.length > 0) {
+        const insertUserNotification = `
+          INSERT INTO user_notifications (user_id, notification_id, is_read)
+          VALUES ($1, $2, FALSE)
+          ON CONFLICT DO NOTHING;
+        `;
+
+        for (const userId of recipients) {
+          await client.query(insertUserNotification, [userId, notificationId]);
+        }
+
+        // 4️⃣ 🔥 GỬI PUSH NOTIFICATION QUA FIREBASE 🔥
+        // Lấy token của danh sách người nhận
+        const tokensRes = await client.query(
+            `SELECT fcm_token FROM users WHERE user_id = ANY($1) AND fcm_token IS NOT NULL AND fcm_token != ''`,
+            [recipients]
+        );
+        const tokens = tokensRes.rows.map(r => r.fcm_token);
+
+        console.log(`📲 [SEND_NOTIFICATION] Found ${tokens.length} FCM tokens. Sending push...`);
+
+        if (tokens.length > 0) {
+            sendMulticastNotification(
+              tokens,
+              title,
+              content,
+              {
+                 type: "notification_detail",
+                 id: notificationId.toString()
+              }
+            );
+        }
     }
 
     await client.query("COMMIT");
