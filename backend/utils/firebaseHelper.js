@@ -3,7 +3,7 @@ import { createRequire } from "module";
 const require = createRequire(import.meta.url);
 
 // 🔥 Đảm bảo bạn đã tải file này từ Firebase Console
-const serviceAccount = require("../config/serviceAccountKey.json");
+const serviceAccount = require("../etc/secrets/serviceAccountKey.json");
 
 if (!admin.apps.length) {
   admin.initializeApp({
