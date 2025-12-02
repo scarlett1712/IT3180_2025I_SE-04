@@ -1,12 +1,12 @@
 import express from "express";
 import { pool } from "../db.js";
+// 🔥 Import Helper thông báo
+import { sendMulticastNotification, sendNotification } from "../utils/firebaseHelper.js";
 
 const router = express.Router();
 const query = (text, params) => pool.query(text, params);
 
 // 🛠️ 1. Cập nhật bảng profile_requests
-// 🔥 FIX: Đổi tham chiếu REFERENCES từ user_item(user_id) sang users(user_id)
-// Vì users(user_id) là Primary Key, đảm bảo tạo được khóa ngoại.
 const createTableQuery = `
   CREATE TABLE IF NOT EXISTS profile_requests (
     request_id SERIAL PRIMARY KEY,
@@ -35,7 +35,7 @@ const createTableQuery = `
   }
 })();
 
-// 📤 2. [USER] Gửi yêu cầu
+// 📤 2. [USER] Gửi yêu cầu -> Báo cho Admin
 router.post("/create", async (req, res) => {
   const {
     user_id, full_name, phone, email, gender, dob,
@@ -60,6 +60,27 @@ router.post("/create", async (req, res) => {
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
       [user_id, full_name, phone, email, gender, dob, relationship, is_head]
     );
+
+    // 🔥 GỬI THÔNG BÁO CHO ADMIN
+    // 1. Tìm token của tất cả ADMIN (role_id = 2)
+    const adminTokensRes = await query(`
+        SELECT u.fcm_token
+        FROM users u
+        JOIN userrole ur ON u.user_id = ur.user_id
+        WHERE ur.role_id = 2 AND u.fcm_token IS NOT NULL AND u.fcm_token != ''
+    `);
+
+    // 2. Lấy danh sách token
+    const adminTokens = adminTokensRes.rows.map(row => row.fcm_token);
+
+    // 3. Gửi thông báo (Fire-and-forget, không cần await để User không phải chờ)
+    if (adminTokens.length > 0) {
+        sendMulticastNotification(
+            adminTokens,
+            "📋 Yêu cầu thay đổi thông tin",
+            `Cư dân ${full_name} vừa gửi yêu cầu cập nhật hồ sơ. Vui lòng kiểm tra.`
+        );
+    }
 
     res.json({ success: true, message: "Đã gửi yêu cầu thay đổi thông tin." });
   } catch (err) {
@@ -97,7 +118,7 @@ router.get("/pending", async (req, res) => {
   }
 });
 
-// ✅ 4. [ADMIN] Duyệt/Từ chối
+// ✅ 4. [ADMIN] Duyệt/Từ chối -> Báo cho Cư dân
 router.post("/resolve", async (req, res) => {
   const { request_id, action } = req.body;
 
@@ -131,6 +152,21 @@ router.post("/resolve", async (req, res) => {
       [action === 'approve' ? 'approved' : 'rejected', request_id]);
 
     await client.query("COMMIT");
+
+    // 🔥 GỬI THÔNG BÁO CHO CƯ DÂN
+    // 1. Lấy token của người gửi yêu cầu
+    const userTokenRes = await query("SELECT fcm_token FROM users WHERE user_id = $1", [request.user_id]);
+
+    if (userTokenRes.rows.length > 0) {
+        const userToken = userTokenRes.rows[0].fcm_token;
+        if (userToken) {
+            const statusMsg = action === 'approve' ? "đã được CHẤP THUẬN ✅" : "đã bị TỪ CHỐI ❌";
+            const msg = `Yêu cầu thay đổi thông tin hồ sơ của bạn ${statusMsg}.`;
+
+            sendNotification(userToken, "Kết quả cập nhật hồ sơ", msg);
+        }
+    }
+
     res.json({ success: true, message: "Đã xử lý yêu cầu." });
 
   } catch (err) {

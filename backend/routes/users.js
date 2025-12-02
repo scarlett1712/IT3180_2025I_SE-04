@@ -22,6 +22,11 @@ const router = express.Router();
       ALTER TABLE users ADD COLUMN IF NOT EXISTS session_token VARCHAR(255);
     `);
 
+    // Thêm cột fcm_token nếu chưa có (quan trọng cho thông báo)
+    await pool.query(`
+      ALTER TABLE users ADD COLUMN IF NOT EXISTS fcm_token TEXT;
+    `);
+
     console.log("✅ Database schema verified.");
   } catch (err) {
     console.error("Error initializing database schema:", err);
@@ -35,7 +40,7 @@ router.post("/login", async (req, res) => {
   try {
     const { phone, password, is_polling, request_id, force_login } = req.body || {};
 
-    // --- CASE 1: POLLING (MÁY MỚI ĐANG CHỜ DUYỆT) ---
+    // --- CASE 1: POLLING ---
     if (is_polling) {
         if (!request_id) return res.status(400).json({ error: "Thiếu request_id" });
 
@@ -114,7 +119,6 @@ router.post("/login", async (req, res) => {
       return res.status(401).json({ error: "Sai mật khẩu." });
     }
 
-    // 🔥 Dọn dẹp request cũ quá hạn
     await pool.query("DELETE FROM login_requests WHERE user_id = $1 AND created_at < NOW() - INTERVAL '5 minutes'", [user.user_id]);
 
     // CHECK SESSION
@@ -212,15 +216,13 @@ router.post("/resolve_login", async (req, res) => {
 });
 
 /* ==========================================================
-   🚪 API: Đăng xuất (Updated)
+   🚪 API: Đăng xuất
 ========================================================== */
 router.post("/logout", async (req, res) => {
     try {
         const { user_id } = req.body;
         if (user_id) {
-            // 🔥 Xóa session token
             await pool.query("UPDATE users SET session_token = NULL WHERE user_id = $1", [user_id]);
-            // 🔥 Xóa luôn mọi yêu cầu login đang treo để tránh lỗi hiển thị khi đăng nhập lại
             await pool.query("DELETE FROM login_requests WHERE user_id = $1", [user_id]);
         }
         res.json({ success: true, message: "Đã đăng xuất." });
@@ -230,7 +232,23 @@ router.post("/logout", async (req, res) => {
 });
 
 /* ==========================================================
-   🟢 API: Tạo Admin (Giữ nguyên)
+   🔥 API: Cập nhật FCM Token (ĐÃ THÊM LẠI)
+========================================================== */
+router.post("/update_fcm_token", async (req, res) => {
+    try {
+        const { user_id, fcm_token } = req.body;
+        if (!user_id || !fcm_token) return res.status(400).json({ error: "Thiếu thông tin." });
+
+        await pool.query("UPDATE users SET fcm_token = $1 WHERE user_id = $2", [fcm_token, user_id]);
+        res.json({ success: true, message: "Đã cập nhật token thông báo." });
+    } catch (err) {
+        console.error("FCM Update Error:", err);
+        res.status(500).json({ error: "Lỗi server." });
+    }
+});
+
+/* ==========================================================
+   🟢 API: Tạo Admin
 ========================================================== */
 router.post("/create_admin", async (req, res) => {
   const client = await pool.connect();
@@ -270,7 +288,7 @@ router.post("/create_admin", async (req, res) => {
 });
 
 /* ==========================================================
-   🟠 API: Đặt lại mật khẩu (Giữ nguyên)
+   🟠 API: Đặt lại mật khẩu
 ========================================================== */
 router.post("/reset_password", async (req, res) => {
   try {

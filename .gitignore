@@ -13,3 +13,4 @@
 .externalNativeBuild
 .cxx
 local.properties
+backend/config/serviceAccountKey.json

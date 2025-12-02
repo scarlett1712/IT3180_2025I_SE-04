@@ -1,27 +1,27 @@
 package com.se_04.enoti.notification;
 
-import android.content.BroadcastReceiver;
 import android.content.Context;
-import android.content.Intent;
-import android.content.IntentFilter;
 import android.os.Bundle;
 import android.os.Handler;
+import android.os.Looper;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
-import androidx.annotation.NonNull;
-import androidx.annotation.Nullable;
-import androidx.appcompat.widget.SearchView;
 import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
 import android.widget.Spinner;
 import android.widget.TextView;
+import android.widget.Toast;
+
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
+import androidx.appcompat.widget.SearchView;
 import androidx.fragment.app.Fragment;
-import androidx.localbroadcastmanager.content.LocalBroadcastManager;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
+import com.google.android.material.snackbar.Snackbar; // 🔥 Import Snackbar
 import com.se_04.enoti.R;
 import com.se_04.enoti.account.UserItem;
 import com.se_04.enoti.utils.UserManager;
@@ -35,34 +35,29 @@ import java.util.List;
 public class NotificationFragment extends Fragment {
 
     private static final String TAG = "NotificationFragment";
+    private static final int REFRESH_INTERVAL = 3000; // 3 giây
+
     private NotificationAdapter adapter;
     private List<NotificationItem> originalList = new ArrayList<>();
     private List<NotificationItem> filteredList = new ArrayList<>();
 
     private Spinner spinnerFilterType, spinnerFilterTime;
     private SearchView searchView;
+    private TextView txtEmpty; // 🔥 View hiển thị khi danh sách trống
 
     private final NotificationRepository repository = NotificationRepository.getInstance();
+    private boolean isFirstLoad = true; // 🔥 Cờ kiểm tra lần tải đầu tiên
 
     // 🕒 Handler để refresh dữ liệu định kỳ
-    private final Handler refreshHandler = new Handler();
+    private final Handler refreshHandler = new Handler(Looper.getMainLooper());
     private final Runnable refreshRunnable = new Runnable() {
         @Override
         public void run() {
             if (isAdded()) {
                 Log.d(TAG, "⏱ Refreshing notifications every 3s...");
                 loadNotificationsFromCurrentUser();
-                refreshHandler.postDelayed(this, 3000); // gọi lại sau 3s
+                refreshHandler.postDelayed(this, REFRESH_INTERVAL); // gọi lại sau 3s
             }
-        }
-    };
-
-    // BroadcastReceiver để cập nhật khi có thông báo mới từ FCM
-    private final BroadcastReceiver newNotificationReceiver = new BroadcastReceiver() {
-        @Override
-        public void onReceive(Context context, Intent intent) {
-            Log.d(TAG, "New notification broadcast received. Reloading list...");
-            loadNotificationsFromCurrentUser();
         }
     };
 
@@ -78,6 +73,10 @@ public class NotificationFragment extends Fragment {
         searchView = view.findViewById(R.id.search_view);
         spinnerFilterType = view.findViewById(R.id.spinnerFilterType);
         spinnerFilterTime = view.findViewById(R.id.spinnerFilterTime);
+
+        // 🔥 Thử tìm TextView hiển thị thông báo trống (Bạn cần thêm vào XML nếu chưa có)
+        // Ví dụ trong XML: <TextView android:id="@+id/txtEmpty" ... android:visibility="gone"/>
+        txtEmpty = view.findViewById(R.id.txtEmpty);
 
         UserItem currentUser = UserManager.getInstance(requireContext()).getCurrentUser();
         String username = (currentUser != null) ? currentUser.getName() : "Người dùng";
@@ -97,32 +96,19 @@ public class NotificationFragment extends Fragment {
         adapter = new NotificationAdapter(filteredList, NotificationAdapter.VIEW_TYPE_NORMAL);
         recyclerView.setAdapter(adapter);
 
-        setupControls(currentUser);
+        setupControls();
 
         return view;
-    }
-
-    @Override
-    public void onStart() {
-        super.onStart();
-        LocalBroadcastManager.getInstance(requireContext()).registerReceiver(
-                newNotificationReceiver,
-                new IntentFilter(MyFirebaseMessagingService.ACTION_NEW_NOTIFICATION)
-        );
-    }
-
-    @Override
-    public void onStop() {
-        super.onStop();
-        LocalBroadcastManager.getInstance(requireContext()).unregisterReceiver(newNotificationReceiver);
     }
 
     @Override
     public void onResume() {
         super.onResume();
         Log.d(TAG, "🔁 Fragment resumed. Starting auto-refresh and reloading notifications...");
+        isFirstLoad = true; // Reset cờ để không hiện Snackbar khi vừa vào màn hình
         loadNotificationsFromCurrentUser();
-        refreshHandler.postDelayed(refreshRunnable, 3000); // bắt đầu chạy định kỳ 3s
+        refreshHandler.removeCallbacks(refreshRunnable);
+        refreshHandler.postDelayed(refreshRunnable, REFRESH_INTERVAL);
     }
 
     @Override
@@ -132,7 +118,9 @@ public class NotificationFragment extends Fragment {
         refreshHandler.removeCallbacks(refreshRunnable); // ngừng khi rời fragment
     }
 
-    private void setupControls(UserItem currentUser) {
+    private void setupControls() {
+        if (getContext() == null) return;
+
         String[] typeOptions = {"Tất cả", "Hành chính", "Kỹ thuật & bảo trì", "Tài chính", "Sự kiện & cộng đồng", "Khẩn cấp"};
         ArrayAdapter<String> typeAdapter = new ArrayAdapter<>(requireContext(),
                 android.R.layout.simple_spinner_item, typeOptions);
@@ -159,8 +147,9 @@ public class NotificationFragment extends Fragment {
     }
 
     private void loadNotificationsFromCurrentUser(){
-        if (getContext() == null) return;
-        UserItem currentUser = UserManager.getInstance(getContext()).getCurrentUser();
+        if (!isAdded() || getContext() == null) return;
+
+        UserItem currentUser = UserManager.getInstance(requireContext()).getCurrentUser();
         if (currentUser == null || currentUser.getId() == null) {
             Log.e(TAG, "⚠️ Cannot load notifications, user or user ID is null.");
             return;
@@ -179,9 +168,25 @@ public class NotificationFragment extends Fragment {
             @Override
             public void onSuccess(List<NotificationItem> items) {
                 if (isAdded()) {
+                    // 🔥 Logic kiểm tra thông báo mới
+                    int oldSize = originalList.size();
+                    int newSize = items.size();
+
                     originalList.clear();
                     originalList.addAll(items);
                     applyFiltersAndSearch();
+
+                    // Nếu số lượng tăng lên và không phải lần tải đầu -> Có tin mới
+                    if (!isFirstLoad && newSize > oldSize) {
+                        Snackbar.make(requireView(), "Bạn có thông báo mới!", Snackbar.LENGTH_SHORT)
+                                .setAction("Xem", v -> {
+                                    // Cuộn lên đầu trang
+                                    RecyclerView rv = getView().findViewById(R.id.recyclerViewNotifications);
+                                    if (rv != null) rv.smoothScrollToPosition(0);
+                                })
+                                .show();
+                    }
+                    isFirstLoad = false;
                 }
             }
 
@@ -189,8 +194,6 @@ public class NotificationFragment extends Fragment {
             public void onError(String message) {
                 if (isAdded()) {
                     Log.e(TAG, "❌ Failed to load notifications: " + message);
-                    originalList.clear();
-                    applyFiltersAndSearch();
                 }
             }
         });
@@ -208,12 +211,18 @@ public class NotificationFragment extends Fragment {
 
         filteredList.clear();
         for (NotificationItem item : originalList) {
-            boolean matchesSearch = item.getTitle().toLowerCase().contains(searchQuery)
-                    || item.getContent().toLowerCase().contains(searchQuery)
-                    || item.getSender().toLowerCase().contains(searchQuery);
+            // Null check cho các trường để tránh crash
+            String title = item.getTitle() != null ? item.getTitle().toLowerCase() : "";
+            String content = item.getContent() != null ? item.getContent().toLowerCase() : "";
+            String sender = item.getSender() != null ? item.getSender().toLowerCase() : "";
+            String type = item.getType() != null ? item.getType() : "";
+
+            boolean matchesSearch = title.contains(searchQuery)
+                    || content.contains(searchQuery)
+                    || sender.contains(searchQuery);
 
             boolean matchesType = selectedType.equals("All")
-                    || item.getType().equalsIgnoreCase(selectedType);
+                    || type.equalsIgnoreCase(selectedType);
 
             if (matchesSearch && matchesType) filteredList.add(item);
         }
@@ -225,6 +234,14 @@ public class NotificationFragment extends Fragment {
         }
 
         adapter.updateList(filteredList);
+
+        // 🔥 Xử lý hiển thị thông báo trống
+        if (txtEmpty != null) {
+            txtEmpty.setVisibility(filteredList.isEmpty() ? View.VISIBLE : View.GONE);
+            if (filteredList.isEmpty()) {
+                txtEmpty.setText(originalList.isEmpty() ? "Chưa có thông báo nào." : "Không tìm thấy kết quả.");
+            }
+        }
     }
 
     private String convertTypeToEnglish(String typeVi) {

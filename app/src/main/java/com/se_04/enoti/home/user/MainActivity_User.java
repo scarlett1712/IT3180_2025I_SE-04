@@ -1,78 +1,123 @@
-package com.se_04.enoti.home.user; // Your package name
+package com.se_04.enoti.home.user;
 
+import android.Manifest;
+import android.content.Intent;
+import android.content.pm.PackageManager;
+import android.os.Build;
 import android.os.Bundle;
-import android.util.Log; // For debugging
+import android.provider.Settings;
+import android.util.Log;
+import android.widget.Toast;
 
+import androidx.activity.result.ActivityResultLauncher;
+import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.annotation.NonNull;
+import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.app.AppCompatDelegate;
+import androidx.core.app.NotificationManagerCompat;
+import androidx.core.content.ContextCompat;
 import androidx.fragment.app.Fragment;
 import androidx.fragment.app.FragmentManager;
 import androidx.fragment.app.FragmentTransaction;
-// Removed EdgeToEdge and WindowInsetsCompat as they are not directly related to this fix
-// and might require more specific setup if you re-add them.
 
+import com.android.volley.Request;
+import com.android.volley.toolbox.JsonObjectRequest;
+import com.android.volley.toolbox.Volley;
+import com.google.android.gms.common.ConnectionResult;
+import com.google.android.gms.common.GoogleApiAvailability;
 import com.google.android.material.bottomnavigation.BottomNavigationView;
+import com.google.firebase.messaging.FirebaseMessaging;
+import com.se_04.enoti.R;
 import com.se_04.enoti.account.AccountFragment;
+import com.se_04.enoti.account.UserItem;
 import com.se_04.enoti.feedback.FeedbackFragment;
 import com.se_04.enoti.finance.FinanceFragment;
 import com.se_04.enoti.notification.NotificationFragment;
-import com.se_04.enoti.R;
+import com.se_04.enoti.utils.ApiConfig;
+import com.se_04.enoti.utils.UserManager;
+
+import org.json.JSONException;
+import org.json.JSONObject;
+
+import java.nio.charset.StandardCharsets; // Thêm import này
 
 public class MainActivity_User extends AppCompatActivity {
 
-    private static final String TAG = "MainActivity_User"; // For Logcat
+    private static final String TAG = "MainActivity_User";
     private static final String SELECTED_ITEM_ID_KEY = "selectedItemIdKey";
     private static final String ACTIVE_FRAGMENT_TAG_KEY = "activeFragmentTagKey";
 
-    // Declare your fragments. Make them class members.
+    private BottomNavigationView bottomNavigationView;
+
+    // 🔥 Khai báo các Fragment
     private HomeFragment_User homeFragmentUser;
     private NotificationFragment notificationFragment;
     private FinanceFragment financeFragment;
     private FeedbackFragment feedbackFragment;
     private AccountFragment accountFragment;
 
-    private Fragment activeFragment; // To keep track of the currently visible fragment
+    private Fragment activeFragment; // Fragment đang hiển thị
     private FragmentManager fragmentManager;
-    private int currentSelectedItemId = R.id.nav_home; // Default selected item
+    private int currentSelectedItemId = R.id.nav_home; // Item mặc định
+
+    // 🔥 Launcher xin quyền thông báo
+    private final ActivityResultLauncher<String> requestPermissionLauncher =
+            registerForActivityResult(new ActivityResultContracts.RequestPermission(), isGranted -> {
+                if (!isGranted) {
+                    Log.w(TAG, "Permission denied: POST_NOTIFICATIONS"); // Log cảnh báo
+                    Toast.makeText(this, "Bạn cần cấp quyền để nhận thông báo mới.", Toast.LENGTH_LONG).show();
+                } else {
+                    Log.d(TAG, "Permission granted: POST_NOTIFICATIONS"); // Log thành công
+                    // Sau khi cấp quyền, thử update token lại
+                    updateFcmToken();
+                }
+            });
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        Log.d(TAG, "🚀 onCreate: Starting MainActivity_User..."); // Log khởi động
+
         AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_NO);
-        // EdgeToEdge.enable(this); // You can re-enable this if needed
         setContentView(R.layout.activity_main_menu_user);
 
-        BottomNavigationView bottomNav = findViewById(R.id.bottom_navigation);
+        // 1. Kiểm tra Google Play Services (Bắt buộc cho Firebase)
+        if (checkPlayServices()) {
+            Log.d(TAG, "onCreate: Google Play Services OK");
+            // 2. Kiểm tra toàn diện quyền thông báo
+            checkAndRequestNotificationPermission();
+
+            // 3. 🔥 QUAN TRỌNG: Cập nhật FCM Token & Subscribe Topic
+            updateFcmToken();
+        } else {
+            Log.e(TAG, "onCreate: Google Play Services MISSING or ERROR");
+        }
+
+        bottomNavigationView = findViewById(R.id.bottom_navigation);
         fragmentManager = getSupportFragmentManager();
 
         if (savedInstanceState == null) {
-            // First time creation: initialize fragments and add them
             homeFragmentUser = new HomeFragment_User();
             notificationFragment = new NotificationFragment();
             financeFragment = new FinanceFragment();
             feedbackFragment = new FeedbackFragment();
             accountFragment = new AccountFragment();
 
-            // Start a transaction
             FragmentTransaction transaction = fragmentManager.beginTransaction();
 
-            // Add all fragments, hide non-default ones. Use tags to find them later.
-            // Add the default fragment last so it's "on top" if others are mistakenly shown.
             transaction.add(R.id.fragment_container, accountFragment, "account").hide(accountFragment);
             transaction.add(R.id.fragment_container, financeFragment, "finance").hide(financeFragment);
             transaction.add(R.id.fragment_container, notificationFragment, "notifications").hide(notificationFragment);
             transaction.add(R.id.fragment_container, feedbackFragment, "feedback").hide(feedbackFragment);
-            transaction.add(R.id.fragment_container, homeFragmentUser, "home"); // Default, so show it
+            transaction.add(R.id.fragment_container, homeFragmentUser, "home");
 
-            transaction.commitNow(); // Use commitNow if you immediately need to reference these fragments
+            transaction.commit();
 
-            activeFragment = homeFragmentUser; // Set initial active fragment
+            activeFragment = homeFragmentUser;
             currentSelectedItemId = R.id.nav_home;
-            Log.d(TAG, "Initial setup: HomeFragment_User set as active.");
 
         } else {
-            // Re-creation: retrieve fragments by tag and restore active state
             currentSelectedItemId = savedInstanceState.getInt(SELECTED_ITEM_ID_KEY, R.id.nav_home);
             String activeTag = savedInstanceState.getString(ACTIVE_FRAGMENT_TAG_KEY, "home");
 
@@ -82,28 +127,25 @@ public class MainActivity_User extends AppCompatActivity {
             feedbackFragment = (FeedbackFragment) fragmentManager.findFragmentByTag("feedback");
             accountFragment = (AccountFragment) fragmentManager.findFragmentByTag("account");
 
-            // Fallback if fragments are somehow null (shouldn't happen if added correctly)
             if (homeFragmentUser == null) homeFragmentUser = new HomeFragment_User();
             if (notificationFragment == null) notificationFragment = new NotificationFragment();
             if (financeFragment == null) financeFragment = new FinanceFragment();
             if (feedbackFragment == null) feedbackFragment = new FeedbackFragment();
             if (accountFragment == null) accountFragment = new AccountFragment();
 
-
             switch (activeTag) {
                 case "notifications": activeFragment = notificationFragment; break;
                 case "finance": activeFragment = financeFragment; break;
                 case "feedback": activeFragment = feedbackFragment; break;
                 case "account": activeFragment = accountFragment; break;
-                case "home": // Fallthrough to default
+                case "home":
                 default: activeFragment = homeFragmentUser; break;
             }
-            Log.d(TAG, "Restored state: Active fragment tag: " + activeTag);
         }
 
-        bottomNav.setOnItemSelectedListener(item -> {
+        bottomNavigationView.setOnItemSelectedListener(item -> {
             int itemId = item.getItemId();
-            Log.d(TAG, "BottomNav item selected: ID " + itemId + ", Title: " + item.getTitle());
+            if (itemId == currentSelectedItemId) return true;
 
             Fragment targetFragment = null;
             String targetTag = "";
@@ -111,49 +153,34 @@ public class MainActivity_User extends AppCompatActivity {
             if (itemId == R.id.nav_home) {
                 targetFragment = homeFragmentUser;
                 targetTag = "home";
-            } else if (itemId == R.id.nav_notifications) {
-                targetFragment = notificationFragment;
-                targetTag = "notifications";
             } else if (itemId == R.id.nav_finance) {
                 targetFragment = financeFragment;
                 targetTag = "finance";
-            } else if (itemId == R.id.nav_feedback) {
-                targetFragment = feedbackFragment;
-                targetTag = "feedback";
+            } else if (itemId == R.id.nav_notifications) {
+                targetFragment = notificationFragment;
+                targetTag = "notifications";
             } else if (itemId == R.id.nav_account) {
                 targetFragment = accountFragment;
                 targetTag = "account";
+            } else if (itemId == R.id.nav_feedback) {
+                targetFragment = feedbackFragment;
+                targetTag = "feedback";
             }
 
             if (targetFragment != null) {
-                if (targetFragment == activeFragment) {
-                    Log.d(TAG, "Target fragment is already active. No change.");
-                    // Optional: You could implement a "scroll to top" or refresh here if the same tab is clicked.
-                    return true; // Consume the event
-                }
-
                 FragmentTransaction transaction = fragmentManager.beginTransaction();
                 if (!targetFragment.isAdded()) {
-                    // This case should ideally not happen if all fragments are added initially
-                    // and restored correctly. It's a fallback.
-                    Log.w(TAG, "Target fragment " + targetTag + " was not added. Adding it now.");
                     transaction.add(R.id.fragment_container, targetFragment, targetTag);
                 }
                 transaction.hide(activeFragment).show(targetFragment);
-                activeFragment = targetFragment; // Update the active fragment
-                currentSelectedItemId = itemId; // Update the selected item ID
+                activeFragment = targetFragment;
+                currentSelectedItemId = itemId;
                 transaction.commit();
-                Log.d(TAG, "Switched to fragment: " + targetTag);
-            } else {
-                Log.w(TAG, "No target fragment found for itemId: " + itemId);
             }
-            return true; // Event consumed
+            return true;
         });
 
-        // Ensure the BottomNavigationView visually reflects the current state,
-        // especially after configuration changes.
-        bottomNav.setSelectedItemId(currentSelectedItemId);
-        Log.d(TAG, "Set BottomNav selected item ID to: " + currentSelectedItemId);
+        bottomNavigationView.setSelectedItemId(currentSelectedItemId);
     }
 
     @Override
@@ -162,25 +189,139 @@ public class MainActivity_User extends AppCompatActivity {
         outState.putInt(SELECTED_ITEM_ID_KEY, currentSelectedItemId);
         if (activeFragment != null && activeFragment.getTag() != null) {
             outState.putString(ACTIVE_FRAGMENT_TAG_KEY, activeFragment.getTag());
-            Log.d(TAG, "Saving instance state: SelectedItemID=" + currentSelectedItemId + ", ActiveFragmentTag=" + activeFragment.getTag());
-        } else {
-            Log.w(TAG, "Saving instance state: Active fragment or its tag is null. Saving default home tag.");
-            outState.putString(ACTIVE_FRAGMENT_TAG_KEY, "home"); // Fallback
         }
     }
 
+    // 🔥 KIỂM TRA GOOGLE PLAY SERVICES
+    private boolean checkPlayServices() {
+        GoogleApiAvailability apiAvailability = GoogleApiAvailability.getInstance();
+        int resultCode = apiAvailability.isGooglePlayServicesAvailable(this);
+        Log.d(TAG, "checkPlayServices: resultCode = " + resultCode); // Log kết quả kiểm tra
+
+        if (resultCode != ConnectionResult.SUCCESS) {
+            if (apiAvailability.isUserResolvableError(resultCode)) {
+                Log.w(TAG, "checkPlayServices: Recoverable error, showing dialog");
+                apiAvailability.getErrorDialog(this, resultCode, 9000).show();
+            } else {
+                Log.e(TAG, "checkPlayServices: Device not supported (No Firebase)");
+                Toast.makeText(this, "Thiết bị không hỗ trợ thông báo (Thiếu Google Play Services)", Toast.LENGTH_LONG).show();
+            }
+            return false;
+        }
+        return true;
+    }
+
+    // 🔥 HÀM KIỂM TRA QUYỀN MỚI
+    private void checkAndRequestNotificationPermission() {
+        // 1. Kiểm tra Android 13+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            if (ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) !=
+                    PackageManager.PERMISSION_GRANTED) {
+                Log.d(TAG, "Requesting permission: POST_NOTIFICATIONS");
+                requestPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS);
+                return;
+            } else {
+                Log.d(TAG, "Permission POST_NOTIFICATIONS already granted");
+            }
+        }
+
+        // 2. Kiểm tra xem user có tắt thông báo trong cài đặt hệ thống không
+        if (!NotificationManagerCompat.from(this).areNotificationsEnabled()) {
+            Log.w(TAG, "Notifications are disabled in system settings");
+            new AlertDialog.Builder(this)
+                    .setTitle("Thông báo đang tắt")
+                    .setMessage("Bạn cần bật thông báo cho ứng dụng để nhận tin tức mới nhất.")
+                    .setPositiveButton("Mở Cài đặt", (dialog, which) -> {
+                        Intent intent = new Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS)
+                                .putExtra(Settings.EXTRA_APP_PACKAGE, getPackageName());
+                        startActivity(intent);
+                    })
+                    .setNegativeButton("Để sau", null)
+                    .show();
+        }
+    }
+
+    // 🔥 HÀM CẬP NHẬT TOKEN (ĐÃ BẬT DEBUG TOAST)
+    private void updateFcmToken() {
+        Log.d(TAG, "updateFcmToken: Starting...");
+        // Đăng ký topic chung để test
+        FirebaseMessaging.getInstance().subscribeToTopic("all_devices");
+
+        FirebaseMessaging.getInstance().getToken()
+                .addOnCompleteListener(task -> {
+                    if (!task.isSuccessful()) {
+                        Log.w(TAG, "updateFcmToken: Fetching FCM registration token failed", task.getException());
+                        Toast.makeText(this, "Lỗi lấy Token Firebase: " + task.getException().getMessage(), Toast.LENGTH_SHORT).show();
+                        return;
+                    }
+
+                    // Lấy token mới nhất
+                    String token = task.getResult();
+                    Log.d(TAG, "updateFcmToken: Token retrieved = " + token);
+
+                    // Gửi lên server
+                    UserItem currentUser = UserManager.getInstance(this).getCurrentUser();
+                    if (currentUser != null) {
+                        Log.d(TAG, "updateFcmToken: Sending token to server for UserID: " + currentUser.getId());
+                        sendRegistrationToServer(currentUser.getId(), token);
+                    } else {
+                        Log.e(TAG, "updateFcmToken: User is null, cannot send token.");
+                    }
+                });
+    }
+
+    private void sendRegistrationToServer(String userId, String token) {
+        String url = ApiConfig.BASE_URL + "/api/users/update_fcm_token";
+        JSONObject body = new JSONObject();
+        try {
+            body.put("user_id", userId);
+            body.put("fcm_token", token);
+        } catch (JSONException e) {
+            e.printStackTrace();
+        }
+
+        Log.d(TAG, "Sending Body: " + body.toString());
+
+        JsonObjectRequest request = new JsonObjectRequest(Request.Method.POST, url, body,
+                response -> {
+                    Log.d(TAG, "sendRegistrationToServer: Token sent successfully");
+                    Toast.makeText(this, "Đã kết nối hệ thống thông báo ✅", Toast.LENGTH_SHORT).show();
+                },
+                error -> {
+                    // 🔥 DEBUG CHI TIẾT LỖI SERVER
+                    String errorMsg = "Lỗi kết nối Server";
+                    if (error.networkResponse != null && error.networkResponse.data != null) {
+                        try {
+                            String responseBody = new String(error.networkResponse.data, StandardCharsets.UTF_8);
+                            Log.e(TAG, "Server Error Body: " + responseBody);
+                            JSONObject data = new JSONObject(responseBody);
+                            errorMsg = data.optString("error", errorMsg);
+                        } catch (Exception e) {
+                            Log.e(TAG, "Error parsing error body", e);
+                        }
+                    }
+                    Log.e(TAG, "sendRegistrationToServer: Failed to update token: " + error.toString());
+                    Toast.makeText(this, "Lỗi Server: " + errorMsg, Toast.LENGTH_LONG).show();
+                }
+        );
+        Volley.newRequestQueue(this).add(request);
+    }
+
     public void switchToNotificationsTab() {
-        BottomNavigationView bottomNav = findViewById(R.id.bottom_navigation);
-        bottomNav.setSelectedItemId(R.id.nav_notifications);
+        if (bottomNavigationView != null) {
+            bottomNavigationView.setSelectedItemId(R.id.nav_notifications);
+        }
     }
 
-    public void switchToFinanceTab(){
-        BottomNavigationView bottomNav = findViewById(R.id.bottom_navigation);
-        bottomNav.setSelectedItemId(R.id.nav_finance);
+    public void switchToFinanceTab() {
+        if (bottomNavigationView != null) {
+            bottomNavigationView.setSelectedItemId(R.id.nav_finance);
+        }
     }
 
-    public void switchToFeedbackTab(){
-        BottomNavigationView bottomNav = findViewById(R.id.bottom_navigation);
-        bottomNav.setSelectedItemId(R.id.nav_feedback);
+    public void switchToFeedbackTab() {
+        if (bottomNavigationView != null) {
+            bottomNavigationView.setSelectedItemId(R.id.nav_feedback);
+        }
     }
 }
