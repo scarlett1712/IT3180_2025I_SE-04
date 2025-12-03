@@ -1,6 +1,7 @@
 package com.se_04.enoti.account;
 
 import android.app.AlertDialog;
+import android.app.ProgressDialog;
 import android.content.Context;
 import android.content.Intent;
 import android.database.Cursor;
@@ -579,10 +580,29 @@ public class AccountFragment extends Fragment {
 
     private void showLogoutConfirmation() {
         if (!isFragmentAttached()) return;
+
         new AlertDialog.Builder(requireContext())
                 .setTitle("Xác nhận đăng xuất")
                 .setMessage("Bạn có chắc chắn muốn đăng xuất không?")
-                .setPositiveButton("Đăng xuất", (dialog, which) -> UserManager.getInstance(requireContext()).logout())
+                .setPositiveButton("Đăng xuất", (dialog, which) -> {
+                    // 🔥 Hiển thị loading
+                    ProgressDialog progressDialog = new ProgressDialog(requireContext());
+                    progressDialog.setMessage("Đang đăng xuất...");
+                    progressDialog.setCancelable(false);
+                    progressDialog.show();
+
+                    // 🔥 Gọi hàm logout có callback
+                    UserManager.getInstance(requireContext()).logout(new UserManager.LogoutCallback() {
+                        @Override
+                        public void onLogoutComplete() {
+                            // Khi xong (hoặc lỗi), tắt dialog.
+                            // UserManager sẽ tự chuyển màn hình.
+                            if (progressDialog.isShowing()) {
+                                progressDialog.dismiss();
+                            }
+                        }
+                    });
+                })
                 .setNegativeButton("Hủy", (dialog, which) -> dialog.dismiss())
                 .setCancelable(false)
                 .show();

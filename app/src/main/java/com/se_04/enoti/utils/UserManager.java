@@ -5,6 +5,7 @@ import android.content.Intent;
 import android.content.SharedPreferences;
 import android.util.Log;
 
+import com.android.volley.DefaultRetryPolicy;
 import com.android.volley.Request;
 import com.android.volley.toolbox.JsonObjectRequest;
 import com.android.volley.toolbox.Volley;
@@ -23,6 +24,11 @@ public class UserManager {
     private static UserManager instance;
     private final SharedPreferences sharedPreferences;
     private final Context context;
+
+    // Interface để báo kết quả về cho Activity/Fragment
+    public interface LogoutCallback {
+        void onLogoutComplete();
+    }
 
     private UserManager(Context context) {
         this.context = context.getApplicationContext();
@@ -44,10 +50,8 @@ public class UserManager {
         return sharedPreferences.getString(KEY_AUTH_TOKEN, null);
     }
 
-    // 🔥 LOGOUT CHUẨN: Gọi Server xóa session + Xóa local
-    // Dùng khi người dùng bấm nút "Đăng xuất"
-    public void logout() {
-        // 1. Gọi API báo Server xóa Session
+    // 🔥 HÀM LOGOUT NÂNG CẤP: Chờ Server phản hồi
+    public void logout(LogoutCallback callback) {
         String url = ApiConfig.BASE_URL + "/api/users/logout";
         JSONObject body = new JSONObject();
         try {
@@ -58,24 +62,34 @@ public class UserManager {
         } catch (JSONException e) { e.printStackTrace(); }
 
         JsonObjectRequest request = new JsonObjectRequest(Request.Method.POST, url, body,
-                response -> Log.d("UserManager", "Server logout success"),
-                error -> Log.e("UserManager", "Server logout failed")
+                response -> {
+                    Log.d("UserManager", "Server logout success");
+                    performLocalLogout();
+                    if (callback != null) callback.onLogoutComplete();
+                },
+                error -> {
+                    Log.e("UserManager", "Server logout failed or timeout");
+                    // Kể cả lỗi mạng cũng phải cho logout local để người dùng không bị kẹt
+                    performLocalLogout();
+                    if (callback != null) callback.onLogoutComplete();
+                }
         );
-        Volley.newRequestQueue(context).add(request);
 
-        // 2. Xóa dữ liệu Local
-        performLocalLogout();
+        // Tăng timeout để tránh lỗi nếu server đang ngủ
+        request.setRetryPolicy(new DefaultRetryPolicy(
+                10000,
+                DefaultRetryPolicy.DEFAULT_MAX_RETRIES,
+                DefaultRetryPolicy.DEFAULT_BACKOFF_MULT));
+
+        Volley.newRequestQueue(context).add(request);
     }
 
-    // 🔥 LOGOUT LOCAL: CHỈ XÓA DỮ LIỆU TRÊN MÁY (KHÔNG GỌI SERVER)
-    // Dùng cho trường hợp:
-    // 1. Máy cũ nhường quyền cho máy mới (Máy mới cần request trên server tồn tại để login)
-    // 2. Token đã hết hạn (Server đã tự xóa session rồi)
+    // Hàm này dùng khi muốn logout ngay lập tức không cần gọi server
+    // (Ví dụ khi token hết hạn hoặc bị đá ra)
     public void logoutLocal() {
         performLocalLogout();
     }
 
-    // Hàm nội bộ thực hiện xóa dữ liệu và chuyển màn hình
     private void performLocalLogout() {
         clearUser();
 
@@ -84,8 +98,7 @@ public class UserManager {
         context.startActivity(intent);
     }
 
-    // --- Các hàm Getter/Setter giữ nguyên ---
-
+    // --- Các hàm Getter/Setter ---
     public void saveCurrentUser(UserItem user) {
         if (user == null) return;
         SharedPreferences.Editor editor = sharedPreferences.edit();

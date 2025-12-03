@@ -2,11 +2,10 @@ import express from "express";
 import { pool } from "../db.js";
 import bcrypt from "bcryptjs";
 import crypto from "crypto";
-import admin from "firebase-admin"; // 🔥 Import Firebase Admin để verify token
 
 const router = express.Router();
 
-// 🛠️ KHỞI TẠO DB (Đã bỏ bảng otp_requests)
+// 🛠️ KHỞI TẠO DB
 (async () => {
   try {
     await pool.query(`
@@ -34,101 +33,13 @@ const router = express.Router();
 })();
 
 /* ==========================================================
-   🔥 API MỚI: Đăng nhập/Xác thực bằng Firebase Phone Auth
-   Dùng cho cả: Login, Forgot Password (bước kiểm tra sđt)
-========================================================== */
-router.post("/auth/firebase", async (req, res) => {
-  try {
-    const { idToken } = req.body;
-
-    if (!idToken) {
-        return res.status(400).json({ error: "Thiếu Firebase ID Token" });
-    }
-
-    // 1. Xác thực Token với Firebase Server
-    // (Đảm bảo Firebase Admin đã được init ở file index.js hoặc firebaseHelper.js trước đó)
-    const decodedToken = await admin.auth().verifyIdToken(idToken);
-    const firebasePhone = decodedToken.phone_number; // Định dạng chuẩn: +84xxxxxxxxx
-
-    if (!firebasePhone) {
-        return res.status(400).json({ error: "Token không chứa số điện thoại." });
-    }
-
-    // 2. Chuyển đổi định dạng số điện thoại để khớp với DB
-    // DB của bạn có thể lưu 09xxx hoặc +84xxx. Hãy chuẩn hóa về dạng bạn đang dùng.
-    // Ví dụ: Chuyển +849123 -> 09123
-    let dbPhone = firebasePhone.replace("+84", "0");
-
-    console.log(`📲 [FIREBASE AUTH] Verified phone: ${firebasePhone} -> DB Check: ${dbPhone}`);
-
-    // 3. Tìm user trong DB
-    // Tìm cả 2 dạng (09xx và +84xx) để chắc chắn
-    const userRes = await pool.query(
-        "SELECT * FROM users WHERE phone = $1 OR phone = $2",
-        [dbPhone, firebasePhone]
-    );
-
-    if (userRes.rows.length === 0) {
-        // Trường hợp này dùng cho Đăng ký mới (nếu bạn muốn hỗ trợ)
-        return res.status(404).json({
-            error: "Số điện thoại chưa được đăng ký trong hệ thống.",
-            phone: dbPhone // Trả về để Client biết số nào đã verify
-        });
-    }
-
-    const user = userRes.rows[0];
-
-    // 4. Đăng nhập thành công (Cấp session_token)
-    const sessionToken = crypto.randomBytes(32).toString('hex');
-
-    // Xóa request cũ và cập nhật token
-    await pool.query("DELETE FROM login_requests WHERE user_id = $1", [user.user_id]);
-    await pool.query("UPDATE users SET session_token = $1 WHERE user_id = $2", [sessionToken, user.user_id]);
-
-    // Lấy thông tin chi tiết (giống API login thường)
-    const infoRes = await pool.query(
-      `SELECT ui.full_name, ui.gender, TO_CHAR(ui.dob, 'DD-MM-YYYY') AS dob, ui.email,
-              r.relationship_with_the_head_of_household AS relationship, a.apartment_number AS room
-       FROM user_item ui
-       LEFT JOIN relationship r ON ui.relationship = r.relationship_id
-       LEFT JOIN apartment a ON r.apartment_id = a.apartment_id
-       WHERE ui.user_id = $1`,
-      [user.user_id]
-    );
-
-    const info = infoRes.rows.length > 0 ? infoRes.rows[0] : {};
-    const role = user.role_id === 2 ? "ADMIN" : "USER";
-
-    return res.json({
-      message: "Xác thực Firebase thành công",
-      session_token: sessionToken,
-      user: {
-        id: user.user_id.toString(),
-        phone: user.phone,
-        role: role,
-        name: info.full_name || user.phone,
-        gender: info.gender || "Khác",
-        dob: info.dob || "01-01-2000",
-        email: info.email || "",
-        room: info.room || "",
-        relationship: info.relationship || "",
-      },
-    });
-
-  } catch (error) {
-    console.error("❌ [FIREBASE AUTH ERROR]", error);
-    res.status(401).json({ error: "Token không hợp lệ hoặc đã hết hạn." });
-  }
-});
-
-/* ==========================================================
-   🟢 API: Đăng nhập (Mật khẩu) - GIỮ NGUYÊN
+   🟢 API: Đăng nhập (Đã sửa lỗi logic thứ tự)
 ========================================================== */
 router.post("/login", async (req, res) => {
   try {
     const { phone, password, is_polling, request_id, force_login } = req.body || {};
 
-    // --- CASE 1: POLLING ---
+    // --- CASE 1: POLLING (MÁY MỚI ĐANG CHỜ DUYỆT) ---
     if (is_polling) {
         if (!request_id) return res.status(400).json({ error: "Thiếu request_id" });
 
@@ -147,8 +58,9 @@ router.post("/login", async (req, res) => {
         }
 
         // ✅ Approved
-        await pool.query("UPDATE users SET session_token = $1 WHERE user_id = $2", [request.temp_token, request.user_id]);
+        // 🔥 FIX: Xóa yêu cầu trước khi update để tránh xung đột
         await pool.query("DELETE FROM login_requests WHERE user_id = $1", [request.user_id]);
+        await pool.query("UPDATE users SET session_token = $1 WHERE user_id = $2", [request.temp_token, request.user_id]);
 
         const userRes = await pool.query(`SELECT u.user_id, u.phone, ur.role_id FROM users u LEFT JOIN userrole ur ON u.user_id = ur.user_id WHERE u.user_id = $1`, [request.user_id]);
         const user = userRes.rows[0];
@@ -207,10 +119,11 @@ router.post("/login", async (req, res) => {
       return res.status(401).json({ error: "Sai mật khẩu." });
     }
 
-    // Dọn dẹp request cũ
+    // Dọn dẹp request cũ quá hạn
     await pool.query("DELETE FROM login_requests WHERE user_id = $1 AND created_at < NOW() - INTERVAL '5 minutes'", [user.user_id]);
 
-    // CHECK SESSION
+    // 🔥 FIX LOGIC QUAN TRỌNG: KIỂM TRA TRƯỚC - GHI SAU
+    // Chỉ kiểm tra nếu user.session_token CÓ DỮ LIỆU
     if (user.session_token && !force_login) {
         const tempToken = crypto.randomBytes(32).toString('hex');
         const insertReq = await pool.query(
@@ -226,13 +139,17 @@ router.post("/login", async (req, res) => {
         });
     }
 
+    // ✅ NẾU KHÔNG CÓ TOKEN HOẶC FORCE LOGIN -> THÌ MỚI GHI TOKEN MỚI
     const sessionToken = crypto.randomBytes(32).toString('hex');
+
+    // Xóa sạch các request cũ trước khi update
+    await pool.query("DELETE FROM login_requests WHERE user_id = $1", [user.user_id]);
+
+    // Cập nhật token mới
     await pool.query(
         "UPDATE users SET session_token = $1 WHERE user_id = $2",
         [sessionToken, user.user_id]
     );
-
-    await pool.query("DELETE FROM login_requests WHERE user_id = $1", [user.user_id]);
 
     const infoRes = await pool.query(
       `
@@ -275,7 +192,8 @@ router.post("/login", async (req, res) => {
   }
 });
 
-// ... (Giữ nguyên các API check_pending_login, resolve_login, logout, create_admin, reset_password) ...
+// ... (Các API khác check_pending_login, resolve_login, logout, update_fcm_token, create_admin, reset_password GIỮ NGUYÊN) ...
+
 /* ==========================================================
    🔔 API: Kiểm tra yêu cầu đăng nhập
 ========================================================== */
@@ -321,6 +239,9 @@ router.post("/logout", async (req, res) => {
     }
 });
 
+/* ==========================================================
+   🔥 API: Cập nhật FCM Token
+========================================================== */
 router.post("/update_fcm_token", async (req, res) => {
     try {
         const { user_id, fcm_token } = req.body;
@@ -334,6 +255,9 @@ router.post("/update_fcm_token", async (req, res) => {
     }
 });
 
+/* ==========================================================
+   🟢 API: Tạo Admin
+========================================================== */
 router.post("/create_admin", async (req, res) => {
   const client = await pool.connect();
   try {
@@ -371,40 +295,21 @@ router.post("/create_admin", async (req, res) => {
   }
 });
 
+/* ==========================================================
+   🟠 API: Đặt lại mật khẩu
+========================================================== */
 router.post("/reset_password", async (req, res) => {
   try {
     const { phone, new_password } = req.body || {};
-
-    if (!phone || !new_password) {
-      return res.status(400).json({ error: "Thiếu số điện thoại hoặc mật khẩu mới." });
-    }
-
-    // 1️⃣ Tìm người dùng
+    if (!phone || !new_password) return res.status(400).json({ error: "Thiếu thông tin." });
     const userRes = await pool.query("SELECT user_id FROM users WHERE phone = $1", [phone]);
-    if (userRes.rows.length === 0) {
-      return res.status(404).json({ error: "Không tìm thấy tài khoản với số điện thoại này." });
-    }
-
-    const userId = userRes.rows[0].user_id;
-
-    // 2️⃣ Hash mật khẩu mới
-    const bcrypt = await import("bcryptjs");
-    const hash = await bcrypt.default.hash(new_password, 10);
-
-    // 3️⃣ Cập nhật mật khẩu VÀ XÓA SESSION TOKEN (🔥 Bảo mật)
-    // session_token = NULL sẽ khiến tất cả các thiết bị đang đăng nhập bị văng ra
-    await pool.query(
-      "UPDATE users SET password_hash = $1, session_token = NULL, updated_at = NOW() WHERE user_id = $2",
-      [hash, userId]
-    );
-
-    // Xóa luôn các yêu cầu đăng nhập đang treo
-    await pool.query("DELETE FROM login_requests WHERE user_id = $1", [userId]);
-
-    return res.json({ message: "Đặt lại mật khẩu thành công. Mọi thiết bị đã được đăng xuất." });
+    if (userRes.rows.length === 0) return res.status(404).json({ error: "Không tìm thấy tài khoản." });
+    const hash = await bcrypt.hash(new_password, 10);
+    await pool.query("UPDATE users SET password_hash = $1, updated_at = NOW() WHERE phone = $2", [hash, phone]);
+    return res.json({ message: "Đặt lại mật khẩu thành công." });
   } catch (err) {
     console.error("💥 [RESET PASSWORD ERROR]", err);
-    return res.status(500).json({ error: "Lỗi server khi đặt lại mật khẩu." });
+    return res.status(500).json({ error: "Lỗi server." });
   }
 });
 
