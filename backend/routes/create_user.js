@@ -1,221 +1,150 @@
-package com.se_04.enoti.residents;
+import express from "express";
+import { pool } from "../db.js";
+import bcrypt from "bcryptjs";
 
-import static com.se_04.enoti.utils.ValidatePhoneNumberUtil.normalizePhoneNumber;
+const router = express.Router();
 
-import android.app.DatePickerDialog;
-import android.os.Bundle;
-import android.text.TextUtils;
-import android.widget.*;
-import androidx.appcompat.app.AppCompatActivity;
-import androidx.core.content.ContextCompat;
+/**
+ * POST /api/create_user/create
+ * Tạo một cư dân mới.
+ */
+router.post("/create", async (req, res) => {
+  const {
+    phone,
+    full_name,
+    gender,
+    dob,
+    email,
+    room,
+    floor,
+    is_head,
+    relationship_name,
+    identity_card, // 🔥 Nhận thêm CCCD
+    home_town      // 🔥 Nhận thêm Quê quán
+  } = req.body;
 
-import com.android.volley.Request;
-import com.android.volley.RequestQueue;
-import com.android.volley.toolbox.JsonObjectRequest;
-import com.android.volley.toolbox.Volley;
-import com.google.android.material.appbar.MaterialToolbar;
-import com.google.android.material.button.MaterialButton;
-import com.google.android.material.textfield.TextInputEditText;
-import com.se_04.enoti.R;
-import com.se_04.enoti.utils.ApiConfig;
+  // --- ✅ 1. Validate Input ---
+  if (!phone || !full_name || !gender || !dob || !room || is_head === undefined) {
+    return res.status(400).json({ error: "Thiếu thông tin bắt buộc." });
+  }
+  if (!is_head && !relationship_name) {
+    return res.status(400).json({ error: "Phải cung cấp tên quan hệ cho thành viên." });
+  }
 
-import org.json.JSONException;
-import org.json.JSONObject;
-
-import java.text.ParseException;
-import java.text.SimpleDateFormat;
-import java.util.Calendar;
-import java.util.Locale;
-
-public class CreateResidentActivity extends AppCompatActivity {
-
-    // 🔥 Đã thêm edtIdentityCard, edtHomeTown vào danh sách biến
-    private TextInputEditText edtFullName, edtBirthDate, edtRelation, edtPhone, edtEmail, edtRoom, edtFloor, edtIdentityCard, edtHomeTown;
-    private Spinner spinnerGender;
-    private CheckBox checkboxIsHouseholder;
-    private MaterialButton btnSaveResident, btnCancel;
-    private RequestQueue requestQueue;
-
-    // ⚙️ API endpoint
-    private static final String BASE_URL = ApiConfig.BASE_URL + "/api/create_user/create";
-
-    // ⚙️ Date formatters
-    private final SimpleDateFormat displayFormat = new SimpleDateFormat("dd-MM-yyyy", Locale.getDefault());
-    private final SimpleDateFormat apiFormat = new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault());
-
-    @Override
-    protected void onCreate(Bundle savedInstanceState) {
-        super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_create_resident);
-
-        initViews();
-        requestQueue = Volley.newRequestQueue(this);
-
-        // Toolbar back
-        MaterialToolbar toolbar = findViewById(R.id.toolbar_add_resident);
-        setSupportActionBar(toolbar);
-
-        if (getSupportActionBar() != null) {
-            getSupportActionBar().setDisplayHomeAsUpEnabled(true);
-            getSupportActionBar().setDisplayShowTitleEnabled(true);
-            getSupportActionBar().setTitle("Thêm cư dân mới");
-            toolbar.setTitleTextColor(ContextCompat.getColor(this, android.R.color.white));
-        }
-
-        toolbar.setNavigationOnClickListener(v -> onBackPressed());
-
-        // Date picker
-        edtBirthDate.setOnClickListener(v -> showDatePickerDialog());
-
-        // Gender spinner
-        setupGenderSpinner();
-
-        // Checkbox chủ hộ
-        checkboxIsHouseholder.setOnCheckedChangeListener((buttonView, isChecked) -> {
-            edtRelation.setEnabled(!isChecked);
-            if (isChecked) edtRelation.setText("");
-        });
-
-        // Buttons
-        btnSaveResident.setOnClickListener(v -> createResident());
-        btnCancel.setOnClickListener(v -> finish());
+  const client = await pool.connect();
+  try {
+    // --- ✅ 2. Kiểm tra dữ liệu đã tồn tại chưa ---
+    const existingUser = await client.query("SELECT user_id FROM users WHERE phone = $1", [phone]);
+    if (existingUser.rows.length > 0) {
+      return res.status(409).json({ error: "Số điện thoại đã được đăng ký." });
     }
 
-    private void initViews() {
-        edtFullName = findViewById(R.id.edtFullName);
-        edtBirthDate = findViewById(R.id.edtBirthDate);
-        edtRelation = findViewById(R.id.edtRelation);
-        edtPhone = findViewById(R.id.edtPhone);
-        edtEmail = findViewById(R.id.edtEmail);
-        edtRoom = findViewById(R.id.edtRoom);
-        edtFloor = findViewById(R.id.edtFloor);
-        
-        // 🔥 Ánh xạ view mới (Bạn cần thêm 2 EditText này vào XML layout với đúng ID)
-        // Nếu bạn chưa thêm vào XML, hãy comment 2 dòng này lại để tránh crash
-        edtIdentityCard = findViewById(R.id.edtIdentityCard);
-        edtHomeTown = findViewById(R.id.edtHomeTown);
-        
-        spinnerGender = findViewById(R.id.spinnerGender);
-        checkboxIsHouseholder = findViewById(R.id.checkboxIsHouseholder);
-        btnSaveResident = findViewById(R.id.btnSaveResident);
-        btnCancel = findViewById(R.id.btnCancel);
+    // Bắt đầu transaction
+    await client.query("BEGIN");
+
+    // --- ✅ 3. Tạo tài khoản người dùng chung ---
+    const defaultPassword = "123456";
+    const password_hash = await bcrypt.hash(defaultPassword, 10);
+    const userRes = await client.query(
+      `INSERT INTO users (password_hash, phone, created_at)
+       VALUES ($1, $2, NOW()) RETURNING user_id`,
+      [password_hash, phone]
+    );
+    const user_id = userRes.rows[0].user_id;
+
+    // Gán quyền mặc định (ví dụ role_id = 1 là 'USER')
+    await client.query(
+      `INSERT INTO userrole (user_id, role_id) VALUES ($1, 1)`,
+      [user_id]
+    );
+
+    let apartment_id;
+    let relationship_id;
+
+    // --- ✅ 4. Phân nhánh logic dựa trên is_head ---
+    if (is_head) {
+      // --- LOGIC TẠO CHỦ HỘ VÀ CĂN HỘ MỚI ---
+
+      // Kiểm tra xem căn hộ đã tồn tại và có chủ hộ chưa
+      const existingApt = await client.query("SELECT apartment_id FROM apartment WHERE apartment_number = $1", [room]);
+      if (existingApt.rows.length > 0) {
+        await client.query("ROLLBACK");
+        return res.status(409).json({ error: `Căn hộ ${room} đã tồn tại.` });
+      }
+
+      // a. Tạo căn hộ mới
+      const aptRes = await client.query(
+        `INSERT INTO apartment (building_id, apartment_number, floor, status)
+         VALUES (1, $1, $2, 'Occupied') RETURNING apartment_id`,
+        [room, floor]
+      );
+      apartment_id = aptRes.rows[0].apartment_id;
+
+      // b. Tạo relationship cho chủ hộ
+      const relRes = await client.query(
+        `INSERT INTO relationship (apartment_id, is_head_of_household, relationship_with_the_head_of_household)
+         VALUES ($1, TRUE, 'Bản thân') RETURNING relationship_id`,
+        [apartment_id]
+      );
+      relationship_id = relRes.rows[0].relationship_id;
+
+    } else {
+      // --- LOGIC THÊM THÀNH VIÊN VÀO CĂN HỘ ĐÃ CÓ ---
+
+      // a. Tìm căn hộ đã tồn tại
+      const existingApt = await client.query("SELECT apartment_id FROM apartment WHERE apartment_number = $1", [room]);
+      if (existingApt.rows.length === 0) {
+        await client.query("ROLLBACK");
+        return res.status(404).json({ error: `Căn hộ ${room} không tồn tại.` });
+      }
+      apartment_id = existingApt.rows[0].apartment_id;
+
+      // b. Tạo relationship cho thành viên mới
+      const relRes = await client.query(
+        `INSERT INTO relationship (apartment_id, is_head_of_household, relationship_with_the_head_of_household)
+         VALUES ($1, FALSE, $2) RETURNING relationship_id`,
+        [apartment_id, relationship_name]
+      );
+      relationship_id = relRes.rows[0].relationship_id;
     }
 
-    private void setupGenderSpinner() {
-        String[] genders = {"Nam", "Nữ", "Khác"};
-        ArrayAdapter<String> adapter = new ArrayAdapter<>(this, android.R.layout.simple_spinner_item, genders);
-        adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
-        spinnerGender.setAdapter(adapter);
+    // --- ✅ 5. Tạo user_item (Cập nhật thêm identity_card, home_town) ---
+    // 🔥 Đã thêm 2 cột mới vào câu lệnh INSERT
+    await client.query(
+      `INSERT INTO user_item (user_id, full_name, gender, dob, relationship, is_living, email, identity_card, home_town)
+       VALUES ($1, $2, $3, $4, $5, TRUE, $6, $7, $8)`,
+      [
+          user_id,
+          full_name,
+          gender,
+          dob,
+          relationship_id,
+          email,
+          identity_card || null, // Nếu không có thì để null
+          home_town || null      // Nếu không có thì để null
+      ]
+    );
+
+    // Kết thúc transaction
+    await client.query("COMMIT");
+
+    res.status(201).json({
+      message: `✅ Tạo cư dân "${full_name}" thành công!`,
+      user_id,
+      apartment_id,
+      default_password: defaultPassword,
+    });
+
+  } catch (error) {
+    await client.query("ROLLBACK");
+    console.error("❌ Lỗi khi tạo cư dân:", error);
+    if (error.code === '23505') {
+        return res.status(409).json({ error: 'Dữ liệu bị trùng lặp (SĐT hoặc Email). Vui lòng kiểm tra lại.' });
     }
+    res.status(500).json({ error: "Đã xảy ra lỗi phía server." });
+  } finally {
+    client.release();
+  }
+});
 
-    private void showDatePickerDialog() {
-        final Calendar calendar = Calendar.getInstance();
-        int year = calendar.get(Calendar.YEAR);
-        int month = calendar.get(Calendar.MONTH);
-        int day = calendar.get(Calendar.DAY_OF_MONTH);
-
-        DatePickerDialog datePicker = new DatePickerDialog(this,
-                (view, y, m, d) -> {
-                    // Hiển thị dạng dd-MM-yyyy
-                    String formatted = String.format(Locale.getDefault(), "%02d-%02d-%04d", d, m + 1, y);
-                    edtBirthDate.setText(formatted);
-                },
-                year, month, day);
-        datePicker.show();
-    }
-
-    private void createResident() {
-        String fullName = edtFullName.getText().toString().trim();
-        String birthDateDisplay = edtBirthDate.getText().toString().trim();
-        String gender = spinnerGender.getSelectedItem().toString();
-        String floorInput = edtFloor.getText().toString().trim();
-        String roomInput = edtRoom.getText().toString().trim();
-        boolean isHead = checkboxIsHouseholder.isChecked();
-        String relation;
-        if (isHead) relation = "Bản thân";
-        else relation =  edtRelation.getText().toString().trim();
-        String phoneBeforeNormalized = edtPhone.getText().toString().trim();
-        String phone = normalizePhoneNumber(phoneBeforeNormalized);
-        String email = edtEmail.getText().toString().trim();
-        
-        // 🔥 Lấy dữ liệu mới (Kiểm tra null để tránh lỗi nếu view chưa được khởi tạo)
-        String identityCard = edtIdentityCard != null ? edtIdentityCard.getText().toString().trim() : "";
-        String homeTown = edtHomeTown != null ? edtHomeTown.getText().toString().trim() : "";
-
-        if (TextUtils.isEmpty(fullName) || TextUtils.isEmpty(birthDateDisplay) || TextUtils.isEmpty(phone)) {
-            Toast.makeText(this, "Vui lòng nhập đầy đủ thông tin bắt buộc!", Toast.LENGTH_SHORT).show();
-            return;
-        }
-
-        if (!isHead && TextUtils.isEmpty(relation)) {
-            Toast.makeText(this, "Vui lòng nhập quan hệ với chủ hộ!", Toast.LENGTH_SHORT).show();
-            return;
-        }
-
-        // Chuyển định dạng ngày dd-MM-yyyy -> yyyy-MM-dd
-        String birthDateApi;
-        try {
-            birthDateApi = apiFormat.format(displayFormat.parse(birthDateDisplay));
-        } catch (ParseException e) {
-            Toast.makeText(this, "Định dạng ngày sinh không hợp lệ!", Toast.LENGTH_SHORT).show();
-            return;
-        }
-
-        // 🧹 Lọc số từ input phòng và tầng
-        String floor = floorInput.replaceAll("\\D", "");  // chỉ lấy số
-        String room = roomInput.replaceAll("\\D", "");    // chỉ lấy số
-
-        if (floor.isEmpty() || room.isEmpty()) {
-            Toast.makeText(this, "Vui lòng nhập tầng và phòng hợp lệ (chứa số)!", Toast.LENGTH_SHORT).show();
-            return;
-        }
-
-        try {
-            JSONObject body = new JSONObject();
-            body.put("phone", phone);
-            body.put("full_name", fullName);
-            body.put("gender", gender);
-            body.put("dob", birthDateApi);  // yyyy-MM-dd
-            body.put("email", email);
-            body.put("room", room);
-            body.put("floor", floor);
-            body.put("is_head", isHead);
-            body.put("relationship_name", relation);
-            
-            // 🔥 Gửi thêm 2 trường mới lên server
-            body.put("identity_card", identityCard);
-            body.put("home_town", homeTown);
-
-            JsonObjectRequest request = new JsonObjectRequest(
-                    Request.Method.POST,
-                    BASE_URL,
-                    body,
-                    response -> {
-                        // 🔥 FIX: Bỏ việc parse response phức tạp. Chỉ cần báo thành công.
-                        // Server trả về message thành công là đủ.
-                        Toast.makeText(this, "Tạo cư dân thành công!", Toast.LENGTH_LONG).show();
-                        setResult(RESULT_OK);
-                        finish();
-                    },
-                    error -> {
-                        String message = (error.getMessage() != null) ? error.getMessage() : "Không thể kết nối máy chủ.";
-                        
-                        // Thử đọc lỗi từ server nếu có
-                        if (error.networkResponse != null && error.networkResponse.data != null) {
-                            try {
-                                String errorBody = new String(error.networkResponse.data, "UTF-8");
-                                JSONObject errorObj = new JSONObject(errorBody);
-                                message = errorObj.optString("error", message);
-                            } catch (Exception e) {}
-                        }
-                        
-                        Toast.makeText(this, "Lỗi: " + message, Toast.LENGTH_LONG).show();
-                    }
-            );
-
-            requestQueue.add(request);
-        } catch (JSONException e) {
-            Toast.makeText(this, "Lỗi khi xử lý dữ liệu gửi đi!", Toast.LENGTH_SHORT).show();
-        }
-    }
-}
+export default router;
