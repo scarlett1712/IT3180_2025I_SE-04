@@ -29,7 +29,8 @@ import java.util.Locale;
 
 public class CreateResidentActivity extends AppCompatActivity {
 
-    private TextInputEditText edtFullName, edtBirthDate, edtRelation, edtPhone, edtEmail, edtRoom, edtFloor;
+    // 🔥 Đã thêm edtIdentityCard, edtHomeTown vào danh sách biến
+    private TextInputEditText edtFullName, edtBirthDate, edtRelation, edtPhone, edtEmail, edtRoom, edtFloor, edtIdentityCard, edtHomeTown;
     private Spinner spinnerGender;
     private CheckBox checkboxIsHouseholder;
     private MaterialButton btnSaveResident, btnCancel;
@@ -88,6 +89,11 @@ public class CreateResidentActivity extends AppCompatActivity {
         edtEmail = findViewById(R.id.edtEmail);
         edtRoom = findViewById(R.id.edtRoom);
         edtFloor = findViewById(R.id.edtFloor);
+
+        // 🔥 Ánh xạ view mới (Bạn cần đảm bảo ID này tồn tại trong layout XML)
+        edtIdentityCard = findViewById(R.id.edtIdentityCard);
+        edtHomeTown = findViewById(R.id.edtHomeTown);
+
         spinnerGender = findViewById(R.id.spinnerGender);
         checkboxIsHouseholder = findViewById(R.id.checkboxIsHouseholder);
         btnSaveResident = findViewById(R.id.btnSaveResident);
@@ -131,6 +137,10 @@ public class CreateResidentActivity extends AppCompatActivity {
         String phone = normalizePhoneNumber(phoneBeforeNormalized);
         String email = edtEmail.getText().toString().trim();
 
+        // 🔥 Lấy dữ liệu mới (Kiểm tra null để tránh lỗi nếu view chưa được khởi tạo)
+        String identityCard = edtIdentityCard != null ? edtIdentityCard.getText().toString().trim() : "";
+        String homeTown = edtHomeTown != null ? edtHomeTown.getText().toString().trim() : "";
+
         if (TextUtils.isEmpty(fullName) || TextUtils.isEmpty(birthDateDisplay) || TextUtils.isEmpty(phone)) {
             Toast.makeText(this, "Vui lòng nhập đầy đủ thông tin bắt buộc!", Toast.LENGTH_SHORT).show();
             return;
@@ -170,6 +180,10 @@ public class CreateResidentActivity extends AppCompatActivity {
             body.put("floor", floor);
             body.put("is_head", isHead);
             body.put("relationship_name", relation);
+
+            // 🔥 Gửi thêm 2 trường mới lên server
+            body.put("identity_card", identityCard);
+            body.put("home_town", homeTown);
 
             JsonObjectRequest request = new JsonObjectRequest(
                     Request.Method.POST,

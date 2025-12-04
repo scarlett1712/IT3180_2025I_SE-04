@@ -1,4 +1,3 @@
-//user_item.js
 import express from "express";
 import { pool } from "../db.js";
 
@@ -8,7 +7,8 @@ const router = express.Router();
 router.get("/", async (req, res) => {
   try {
     const result = await pool.query(
-      `SELECT ui.*, u.phone
+      `SELECT ui.*, u.phone,
+              TO_CHAR(ui.dob, 'DD-MM-YYYY') AS dob_fmt -- Format ngày sinh đẹp
        FROM user_item ui
        JOIN users u ON ui.user_id = u.user_id
        ORDER BY ui.user_item_id`
@@ -20,18 +20,21 @@ router.get("/", async (req, res) => {
   }
 });
 
-/* 🧠 Thêm cư dân */
+/* 🧠 Thêm cư dân (Updated) */
 router.post("/", async (req, res) => {
-  const { user_id, full_name, gender, dob, family_id, relationship, email, is_living } = req.body;
+  const { 
+    user_id, full_name, gender, dob, family_id, relationship, email, is_living,
+    identity_card, home_town // 🔥 Nhận thêm 2 trường này
+  } = req.body;
 
   if (!user_id)
     return res.status(400).json({ error: "Thiếu user_id" });
 
   try {
     await pool.query(
-      `INSERT INTO user_item (user_id, full_name, gender, dob, family_id, relationship, email, is_living)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
-      [user_id, full_name, gender, dob, family_id, relationship, email, is_living]
+      `INSERT INTO user_item (user_id, full_name, gender, dob, family_id, relationship, email, is_living, identity_card, home_town)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+      [user_id, full_name, gender, dob, family_id, relationship, email, is_living, identity_card, home_town]
     );
     res.status(201).json({ message: "Thêm cư dân thành công" });
   } catch (err) {

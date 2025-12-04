@@ -206,7 +206,9 @@ public class CreateNotificationActivity extends AppCompatActivity {
                         obj.optString("relationship_with_the_head_of_household"),
                         obj.optString("family_id"),
                         obj.optBoolean("is_living"),
-                        obj.optString("apartment_number")
+                        obj.optString("apartment_number"),
+                        obj.optString("identity_card", ""),
+                        obj.optString("home_town", "")
                 ));
             }
 

@@ -107,7 +107,7 @@ public class AccountFragment extends Fragment {
         if (currentUser == null) {
             currentUser = new UserItem(
                     "U01", "F01", "a.nguyenvan@example.com", "Nguyễn Văn A",
-                    "12/03/1950", Gender.MALE, "Chủ hộ", 0, Role.USER, "0987654321"
+                    "12/03/1950", Gender.MALE, "Chủ hộ", 0, Role.USER, "0987654321", "000000000000", "Hà Nội"
             );
             userManager.saveCurrentUser(currentUser);
         }

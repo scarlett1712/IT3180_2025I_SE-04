@@ -35,6 +35,8 @@ import java.util.Locale;
 public class EditProfileActivity extends AppCompatActivity {
 
     private TextInputEditText edtFullName, edtPhone, edtEmail, edtDob;
+    // 🔥 Thêm 2 trường mới
+    private TextInputEditText edtIdentityCard, edtHomeTown;
     private TextInputEditText edtRoom, edtFloor, edtRelation;
     private CheckBox checkboxIsHouseholder;
     private AutoCompleteTextView edtGender;
@@ -42,7 +44,6 @@ public class EditProfileActivity extends AppCompatActivity {
     private UserItem currentUser;
     private Toolbar toolbar;
 
-    // Định dạng ngày: Hiển thị (dd-MM-yyyy) và API (yyyy-MM-dd)
     private final SimpleDateFormat displayDateFormat = new SimpleDateFormat("dd-MM-yyyy", Locale.getDefault());
     private final SimpleDateFormat apiDateFormat = new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault());
 
@@ -51,7 +52,6 @@ public class EditProfileActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_edit_profile);
 
-        // 🔥 FIX: Tắt tính năng tự động sửa lỗi ngày tháng để tránh ra năm 0007
         apiDateFormat.setLenient(false);
         displayDateFormat.setLenient(false);
 
@@ -67,7 +67,6 @@ public class EditProfileActivity extends AppCompatActivity {
         setupGenderDropdown();
         setupDatePicker();
 
-        // Xử lý Checkbox chủ hộ
         checkboxIsHouseholder.setOnCheckedChangeListener((buttonView, isChecked) -> {
             edtRelation.setEnabled(!isChecked);
             if (isChecked) {
@@ -77,7 +76,6 @@ public class EditProfileActivity extends AppCompatActivity {
             }
         });
 
-        // Load thông tin hiện tại
         currentUser = UserManager.getInstance(this).getCurrentUser();
         if (currentUser != null) {
             loadUserData();
@@ -93,13 +91,16 @@ public class EditProfileActivity extends AppCompatActivity {
         edtGender = findViewById(R.id.edtGender);
         edtDob = findViewById(R.id.edtDob);
 
+        // 🔥 Ánh xạ view mới (Bạn cần đảm bảo ID này có trong XML)
+        edtIdentityCard = findViewById(R.id.edtIdentityCard);
+        edtHomeTown = findViewById(R.id.edtHomeTown);
+
         edtRoom = findViewById(R.id.edtRoom);
         edtFloor = findViewById(R.id.edtFloor);
         edtRelation = findViewById(R.id.edtRelation);
         checkboxIsHouseholder = findViewById(R.id.checkboxIsHouseholder);
         btnSubmit = findViewById(R.id.btnSubmit);
 
-        // 🔥 FIX: Không cho phép sửa Phòng và Tầng (Read-only)
         edtRoom.setEnabled(false);
         edtFloor.setEnabled(false);
     }
@@ -146,43 +147,38 @@ public class EditProfileActivity extends AppCompatActivity {
     }
 
     private void loadUserData() {
-        // 1. Thông tin cơ bản
         edtFullName.setText(currentUser.getName());
         edtPhone.setText(currentUser.getPhone());
         edtEmail.setText(currentUser.getEmail());
 
-        // 2. Giới tính (Xử lý Enum -> String)
+        // 🔥 Load CCCD & Quê quán
+        edtIdentityCard.setText(currentUser.getIdentityCard());
+        edtHomeTown.setText(currentUser.getHomeTown());
+
         if (currentUser.getGender() != null) {
             String genderString = getGenderString(currentUser.getGender());
             edtGender.setText(genderString, false);
         }
 
-        // 3. Ngày sinh (Xử lý thông minh format API vs Display)
         if (currentUser.getDob() != null && !currentUser.getDob().isEmpty()) {
             try {
-                // Thử parse theo format API trước (yyyy-MM-dd)
                 Date date = apiDateFormat.parse(currentUser.getDob());
                 if (date != null) {
                     edtDob.setText(displayDateFormat.format(date));
                 } else {
-                    // Nếu không phải format API, thử hiển thị trực tiếp
                     edtDob.setText(currentUser.getDob());
                 }
             } catch (ParseException e) {
-                // Nếu lỗi, thử hiển thị trực tiếp (có thể nó đã là dd-MM-yyyy)
                 edtDob.setText(currentUser.getDob());
             }
         }
 
-        // 4. Phòng & Tầng (Tự động tính)
-        // Lưu ý: getRoom() trả về Object/Int, cần convert sang String an toàn
         String currentRoom = String.valueOf(currentUser.getRoom());
         if (currentRoom != null && !currentRoom.isEmpty() && !"null".equals(currentRoom)) {
             edtRoom.setText(currentRoom);
             edtFloor.setText(calculateFloorFromRoom(currentRoom));
         }
 
-        // 5. Quan hệ & Chủ hộ
         if (currentUser.getRelationship() != null) {
             edtRelation.setText(currentUser.getRelationship());
             boolean isHead = "Bản thân".equalsIgnoreCase(currentUser.getRelationship()) ||
@@ -192,10 +188,6 @@ public class EditProfileActivity extends AppCompatActivity {
         }
     }
 
-    /**
-     * 🔥 Logic tính tầng: Số phòng bỏ đi 2 chữ số cuối
-     * Ví dụ: 1204 -> 12, 501 -> 5
-     */
     private String calculateFloorFromRoom(String room) {
         if (room == null || room.length() <= 2) return "";
         return room.substring(0, room.length() - 2);
@@ -207,9 +199,10 @@ public class EditProfileActivity extends AppCompatActivity {
         String email = edtEmail.getText().toString().trim();
         String gender = edtGender.getText().toString().trim();
         String dobDisplay = edtDob.getText().toString().trim();
+        // 🔥 Lấy giá trị mới
+        String identityCard = edtIdentityCard.getText().toString().trim();
+        String homeTown = edtHomeTown.getText().toString().trim();
 
-        // Lấy thông tin phòng/tầng (dù không sửa được nhưng cần thiết để kiểm tra logic)
-        // Lưu ý: Không cần gửi lên server nếu server không cho phép update
         boolean isHead = checkboxIsHouseholder.isChecked();
         String relation = isHead ? "Bản thân" : edtRelation.getText().toString().trim();
 
@@ -222,7 +215,6 @@ public class EditProfileActivity extends AppCompatActivity {
             return;
         }
 
-        // Convert ngày hiển thị (dd-MM-yyyy) -> API (yyyy-MM-dd)
         String dobApi = null;
         try {
             Date date = displayDateFormat.parse(dobDisplay);
@@ -242,7 +234,9 @@ public class EditProfileActivity extends AppCompatActivity {
             body.put("dob", dobApi);
             body.put("relationship", relation);
             body.put("is_head", isHead);
-            // Không gửi room & floor vì người dùng không được phép sửa
+            // 🔥 Gửi thêm 2 trường mới
+            body.put("identity_card", identityCard);
+            body.put("home_town", homeTown);
         } catch (JSONException e) {
             e.printStackTrace();
         }
@@ -278,19 +272,15 @@ public class EditProfileActivity extends AppCompatActivity {
         return super.onOptionsItemSelected(item);
     }
 
-    // Helper chuyển đổi Enum Gender sang String tiếng Việt
     private String getGenderString(Gender gender) {
         if (gender == null) {
             return "";
         }
         switch (gender) {
-            case MALE:
-                return "Nam";
-            case FEMALE:
-                return "Nữ";
+            case MALE: return "Nam";
+            case FEMALE: return "Nữ";
             case OTHER:
-            default:
-                return "Khác";
+            default: return "Khác";
         }
     }
 }

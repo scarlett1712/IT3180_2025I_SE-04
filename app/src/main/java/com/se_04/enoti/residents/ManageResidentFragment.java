@@ -172,6 +172,8 @@ public class ManageResidentFragment extends Fragment {
             fullList.clear();
             for (int i = 0; i < response.length(); i++) {
                 JSONObject obj = response.getJSONObject(i);
+
+                // 🔥 Cập nhật Constructor với 2 trường mới
                 fullList.add(new ResidentItem(
                         obj.optInt("user_item_id"),
                         obj.optInt("user_id"),
@@ -183,7 +185,9 @@ public class ManageResidentFragment extends Fragment {
                         obj.optString("relationship_with_the_head_of_household"),
                         obj.optString("family_id"),
                         obj.optBoolean("is_living"),
-                        obj.optString("apartment_number")
+                        obj.optString("apartment_number"),
+                        obj.optString("identity_card", ""), // 🔥 Lấy CCCD
+                        obj.optString("home_town", "")      // 🔥 Lấy Quê quán
                 ));
             }
 

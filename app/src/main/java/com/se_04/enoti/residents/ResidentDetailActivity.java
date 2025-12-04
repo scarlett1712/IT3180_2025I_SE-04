@@ -10,7 +10,6 @@ import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
 import android.widget.Button;
-import android.widget.CheckBox;
 import android.widget.EditText;
 import android.widget.ImageView;
 import android.widget.TextView;
@@ -22,7 +21,6 @@ import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.content.ContextCompat;
 
 import com.android.volley.Request;
-import com.android.volley.RequestQueue;
 import com.android.volley.toolbox.JsonObjectRequest;
 import com.android.volley.toolbox.Volley;
 import com.google.android.material.appbar.MaterialToolbar;
@@ -38,12 +36,14 @@ public class ResidentDetailActivity extends AppCompatActivity {
 
     private TextView txtName, txtGender, txtDob, txtEmail, txtPhone,
             txtRelationship, txtLiving, txtRoom;
+    // 🔥 Thêm 2 TextView mới (Bạn nhớ thêm vào layout activity_resident_detail.xml)
+    private TextView txtIdentityCard, txtHomeTown;
+
     private ImageView imgResident;
 
     private int userId;
     private boolean isLiving;
 
-    // API URLs
     private static final String API_UPDATE = ApiConfig.BASE_URL + "/api/residents/update/";
     private static final String API_DELETE = ApiConfig.BASE_URL + "/api/residents/delete/";
     private static final String API_STATUS = ApiConfig.BASE_URL + "/api/residents/status/";
@@ -73,9 +73,13 @@ public class ResidentDetailActivity extends AppCompatActivity {
         txtRelationship = findViewById(R.id.txtResidentRelationship);
         txtLiving = findViewById(R.id.txtResidentLiving);
         txtRoom = findViewById(R.id.txtRoom);
+
+        // 🔥 Tìm view mới (Cần thêm vào XML trước)
+        txtIdentityCard = findViewById(R.id.txtResidentIdentity);
+        txtHomeTown = findViewById(R.id.txtResidentHomeTown);
+
         imgResident = findViewById(R.id.imgResident);
 
-        // Lấy dữ liệu từ Intent
         Bundle bundle = getIntent().getExtras();
         if (bundle != null) {
             userId = bundle.getInt("user_id", -1);
@@ -94,12 +98,21 @@ public class ResidentDetailActivity extends AppCompatActivity {
         txtRelationship.setText(bundle.getString("relationship", ""));
         txtRoom.setText(bundle.getString("room", ""));
 
+        // 🔥 Hiển thị 2 trường mới
+        String identity = bundle.getString("identity_card", "");
+        if (txtIdentityCard != null) txtIdentityCard.setText(identity.isEmpty() ? "Chưa cập nhật" : identity);
+
+        String homeTown = bundle.getString("home_town", "");
+        if (txtHomeTown != null) txtHomeTown.setText(homeTown.isEmpty() ? "Chưa cập nhật" : homeTown);
+
         isLiving = bundle.getBoolean("is_living", true);
         txtLiving.setText(isLiving ? "Đang sinh sống" : "Đã rời đi");
         txtLiving.setTextColor(isLiving ?
                 ContextCompat.getColor(this, android.R.color.holo_green_dark) :
                 ContextCompat.getColor(this, android.R.color.holo_red_dark));
     }
+
+    // ... (Giữ nguyên các phần Menu, Delete, Status, Avatar ...)
 
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
@@ -133,7 +146,6 @@ public class ResidentDetailActivity extends AppCompatActivity {
         View dialogView = inflater.inflate(R.layout.dialog_edit_resident, null);
         builder.setView(dialogView);
 
-        // Ánh xạ các trường trong Dialog
         EditText edtName = dialogView.findViewById(R.id.edtEditName);
         EditText edtPhone = dialogView.findViewById(R.id.edtEditPhone);
         EditText edtEmail = dialogView.findViewById(R.id.edtEditEmail);
@@ -143,20 +155,15 @@ public class ResidentDetailActivity extends AppCompatActivity {
         EditText edtHomeTown = dialogView.findViewById(R.id.edtEditHomeTown);
         Button btnSave = dialogView.findViewById(R.id.btnSaveEdit);
 
-        // Fill dữ liệu hiện tại vào Dialog
         edtName.setText(txtName.getText());
         edtPhone.setText(txtPhone.getText());
         edtEmail.setText(txtEmail.getText());
         edtGender.setText(txtGender.getText());
-        // Lưu ý: Ngày sinh đang hiển thị dạng DD-MM-YYYY, nhưng có thể cần convert nếu muốn gửi YYYY-MM-DD
         edtDob.setText(txtDob.getText());
 
-        // CCCD và Quê quán nếu chưa có trên UI chính thì để trống hoặc lấy từ Intent nếu có
-        Bundle bundle = getIntent().getExtras();
-        if (bundle != null) {
-            edtIdentity.setText(bundle.getString("identity_card", ""));
-            edtHomeTown.setText(bundle.getString("home_town", ""));
-        }
+        // 🔥 Pre-fill dữ liệu mới
+        if (txtIdentityCard != null) edtIdentity.setText(txtIdentityCard.getText());
+        if (txtHomeTown != null) edtHomeTown.setText(txtHomeTown.getText());
 
         AlertDialog dialog = builder.create();
 
@@ -183,11 +190,8 @@ public class ResidentDetailActivity extends AppCompatActivity {
             body.put("phone", phone);
             body.put("email", email);
             body.put("gender", gender);
-
-            // Convert Date nếu cần thiết (Backend thường nhận YYYY-MM-DD)
-            // Ở đây gửi nguyên chuỗi, backend cần xử lý hoặc user nhập đúng format
             body.put("dob", dob);
-
+            // 🔥 Gửi dữ liệu mới lên
             body.put("identity_card", identity);
             body.put("home_town", homeTown);
         } catch (JSONException e) { e.printStackTrace(); }
@@ -195,13 +199,14 @@ public class ResidentDetailActivity extends AppCompatActivity {
         JsonObjectRequest request = new JsonObjectRequest(Request.Method.PUT, API_UPDATE + userId, body,
                 response -> {
                     Toast.makeText(this, "Cập nhật thành công!", Toast.LENGTH_SHORT).show();
-
-                    // Cập nhật UI ngay lập tức
                     txtName.setText(name);
                     txtPhone.setText(phone);
                     txtEmail.setText(email);
                     txtGender.setText(gender);
                     txtDob.setText(dob);
+                    // 🔥 Cập nhật UI sau khi sửa
+                    if (txtIdentityCard != null) txtIdentityCard.setText(identity);
+                    if (txtHomeTown != null) txtHomeTown.setText(homeTown);
 
                     dialog.dismiss();
                     setResult(RESULT_OK);

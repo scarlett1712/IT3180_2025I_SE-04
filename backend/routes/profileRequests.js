@@ -6,7 +6,7 @@ import { sendMulticastNotification, sendNotification } from "../utils/firebaseHe
 const router = express.Router();
 const query = (text, params) => pool.query(text, params);
 
-// 🛠️ 1. Cập nhật bảng profile_requests
+// 🛠️ 1. KHỞI TẠO DATABASE
 const createTableQuery = `
   CREATE TABLE IF NOT EXISTS profile_requests (
     request_id SERIAL PRIMARY KEY,
@@ -16,10 +16,14 @@ const createTableQuery = `
     new_email VARCHAR(255),
     new_gender VARCHAR(50),
     new_dob DATE,
+    new_identity_card VARCHAR(50),
+    new_home_town VARCHAR(255),
     new_room VARCHAR(50),
     new_floor VARCHAR(50),
     new_relationship VARCHAR(100),
     new_is_head BOOLEAN,
+    new_family_id VARCHAR(50),
+    new_is_living BOOLEAN,
     status VARCHAR(20) DEFAULT 'pending',
     created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE
@@ -29,17 +33,32 @@ const createTableQuery = `
 (async () => {
   try {
     await query(createTableQuery);
-    console.log("✅ Table 'profile_requests' ready.");
+
+    // Cập nhật các cột cần thiết (nếu thiếu)
+    await query(`ALTER TABLE profile_requests ADD COLUMN IF NOT EXISTS new_identity_card VARCHAR(50);`);
+    await query(`ALTER TABLE profile_requests ADD COLUMN IF NOT EXISTS new_home_town VARCHAR(255);`);
+    await query(`ALTER TABLE profile_requests ADD COLUMN IF NOT EXISTS new_is_living BOOLEAN;`);
+    // Vẫn giữ cột new_family_id trong DB để tránh lỗi query cũ, nhưng logic API sẽ không dùng nó để update
+
+    // Cập nhật bảng chính user_item
+    await query(`ALTER TABLE user_item ADD COLUMN IF NOT EXISTS identity_card VARCHAR(50);`);
+    await query(`ALTER TABLE user_item ADD COLUMN IF NOT EXISTS home_town VARCHAR(255);`);
+    await query(`ALTER TABLE user_item ADD COLUMN IF NOT EXISTS is_living BOOLEAN DEFAULT TRUE;`);
+
+    console.log("✅ Database schema verified.");
   } catch (err) {
-    console.error("Error creating profile_requests table", err);
+    console.error("Error initializing profile requests schema:", err);
   }
 })();
 
-// 📤 2. [USER] Gửi yêu cầu -> Báo cho Admin
+// 📤 2. [USER] Gửi yêu cầu
 router.post("/create", async (req, res) => {
   const {
     user_id, full_name, phone, email, gender, dob,
-    relationship, is_head
+    identity_card, home_town,
+    relationship, is_head,
+    is_living
+    // 🔥 ĐÃ BỎ family_id ở đây (Không nhận từ client)
   } = req.body;
 
   if (!user_id) return res.status(400).json({ error: "Thiếu user_id" });
@@ -56,13 +75,12 @@ router.post("/create", async (req, res) => {
 
     await query(
       `INSERT INTO profile_requests
-       (user_id, new_full_name, new_phone, new_email, new_gender, new_dob, new_relationship, new_is_head)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
-      [user_id, full_name, phone, email, gender, dob, relationship, is_head]
+       (user_id, new_full_name, new_phone, new_email, new_gender, new_dob, new_identity_card, new_home_town, new_relationship, new_is_head, new_is_living)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
+      [user_id, full_name, phone, email, gender, dob, identity_card, home_town, relationship, is_head, is_living]
     );
 
-    // 🔥 GỬI THÔNG BÁO CHO ADMIN
-    // 1. Tìm token của tất cả ADMIN (role_id = 2)
+    // Gửi thông báo cho Admin
     const adminTokensRes = await query(`
         SELECT u.fcm_token
         FROM users u
@@ -70,15 +88,12 @@ router.post("/create", async (req, res) => {
         WHERE ur.role_id = 2 AND u.fcm_token IS NOT NULL AND u.fcm_token != ''
     `);
 
-    // 2. Lấy danh sách token
     const adminTokens = adminTokensRes.rows.map(row => row.fcm_token);
-
-    // 3. Gửi thông báo (Fire-and-forget, không cần await để User không phải chờ)
     if (adminTokens.length > 0) {
         sendMulticastNotification(
             adminTokens,
             "📋 Yêu cầu thay đổi thông tin",
-            `Cư dân ${full_name} vừa gửi yêu cầu cập nhật hồ sơ. Vui lòng kiểm tra.`
+            `Cư dân ${full_name} vừa gửi yêu cầu cập nhật hồ sơ.`
         );
     }
 
@@ -99,6 +114,9 @@ router.get("/pending", async (req, res) => {
              ui.email as current_email,
              ui.gender as current_gender,
              TO_CHAR(ui.dob, 'YYYY-MM-DD') as current_dob,
+             ui.identity_card as current_identity_card,
+             ui.home_town as current_home_town,
+             ui.is_living as current_is_living,
              a.apartment_number as current_room,
              r.relationship_with_the_head_of_household as current_relationship
 
@@ -118,7 +136,7 @@ router.get("/pending", async (req, res) => {
   }
 });
 
-// ✅ 4. [ADMIN] Duyệt/Từ chối -> Báo cho Cư dân
+// ✅ 4. [ADMIN] Duyệt/Từ chối
 router.post("/resolve", async (req, res) => {
   const { request_id, action } = req.body;
 
@@ -133,14 +151,30 @@ router.post("/resolve", async (req, res) => {
     const request = reqResult.rows[0];
 
     if (action === 'approve') {
+      // Cập nhật user_item (Bao gồm identity_card, home_town, is_living)
+      // 🔥 ĐÃ BỎ family_id khỏi câu lệnh UPDATE
       await client.query(
         `UPDATE user_item
          SET full_name = COALESCE($1, full_name),
              email = COALESCE($2, email),
              gender = COALESCE($3, gender),
-             dob = COALESCE($4, dob)
-         WHERE user_id = $5`,
-        [request.new_full_name, request.new_email, request.new_gender, request.new_dob, request.user_id]
+             dob = COALESCE($4, dob),
+             identity_card = COALESCE($5, identity_card),
+             home_town = COALESCE($6, home_town),
+             is_living = COALESCE($7, is_living),
+             relationship = COALESCE($8, relationship)
+         WHERE user_id = $9`,
+        [
+            request.new_full_name,
+            request.new_email,
+            request.new_gender,
+            request.new_dob,
+            request.new_identity_card,
+            request.new_home_town,
+            request.new_is_living,
+            request.new_relationship,
+            request.user_id
+        ]
       );
 
       if (request.new_phone) {
@@ -153,17 +187,13 @@ router.post("/resolve", async (req, res) => {
 
     await client.query("COMMIT");
 
-    // 🔥 GỬI THÔNG BÁO CHO CƯ DÂN
-    // 1. Lấy token của người gửi yêu cầu
+    // Gửi thông báo kết quả cho cư dân
     const userTokenRes = await query("SELECT fcm_token FROM users WHERE user_id = $1", [request.user_id]);
-
     if (userTokenRes.rows.length > 0) {
         const userToken = userTokenRes.rows[0].fcm_token;
         if (userToken) {
             const statusMsg = action === 'approve' ? "đã được CHẤP THUẬN ✅" : "đã bị TỪ CHỐI ❌";
-            const msg = `Yêu cầu thay đổi thông tin hồ sơ của bạn ${statusMsg}.`;
-
-            sendNotification(userToken, "Kết quả cập nhật hồ sơ", msg);
+            sendNotification(userToken, "🔔 Kết quả cập nhật hồ sơ", `Yêu cầu thay đổi thông tin của bạn ${statusMsg}.`);
         }
     }
 

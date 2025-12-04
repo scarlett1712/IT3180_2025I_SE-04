@@ -17,6 +17,8 @@ router.get("/", async (req, res) => {
         u.phone,
         TO_CHAR(ui.dob, 'DD-MM-YYYY') AS dob,
         ui.gender,
+        ui.identity_card, -- 🔥 THÊM: CCCD
+        ui.home_town,     -- 🔥 THÊM: Quê quán
         ur.role_id,
         r.relationship_id,
         r.apartment_id,
@@ -56,23 +58,21 @@ router.put("/update/:userId", async (req, res) => {
   try {
     await client.query("BEGIN");
 
-    // 1. Cập nhật bảng user_item (Thông tin chi tiết)
-    // Sử dụng COALESCE để giữ nguyên giá trị cũ nếu không gửi dữ liệu mới
+    // 1. Cập nhật bảng user_item (Thông tin chi tiết bao gồm CCCD, Quê quán)
     await client.query(
       `UPDATE user_item
        SET full_name = COALESCE($1, full_name),
            gender = COALESCE($2, gender),
            dob = COALESCE($3, dob),
            email = COALESCE($4, email),
-           identity_card = COALESCE($5, identity_card),
-           home_town = COALESCE($6, home_town)
+           identity_card = COALESCE($5, identity_card), -- Cập nhật CCCD
+           home_town = COALESCE($6, home_town)          -- Cập nhật Quê quán
        WHERE user_id = $7`,
       [full_name, gender, dob, email, identity_card, home_town, userId]
     );
 
     // 2. Cập nhật số điện thoại trong bảng users (nếu có thay đổi)
     if (phone) {
-      // Kiểm tra trùng số điện thoại trước
       const checkPhone = await client.query(
           "SELECT user_id FROM users WHERE phone = $1 AND user_id != $2",
           [phone, userId]
@@ -116,8 +116,7 @@ router.delete("/delete/:userId", async (req, res) => {
         return res.status(403).json({ error: "Không thể xóa tài khoản Quản trị viên." });
     }
 
-    // 2. Thực hiện xóa từ bảng users
-    // (Do ràng buộc Khóa ngoại ON DELETE CASCADE, nó sẽ tự động xóa trong user_item, login_requests, v.v.)
+    // 2. Thực hiện xóa từ bảng users (ON DELETE CASCADE sẽ lo phần còn lại)
     const result = await query("DELETE FROM users WHERE user_id = $1 RETURNING user_id", [userId]);
 
     if (result.rowCount === 0) {
@@ -133,11 +132,11 @@ router.delete("/delete/:userId", async (req, res) => {
 });
 
 // ==================================================================
-// 👻 API: Ẩn/Hiện cư dân (Cập nhật trạng thái Đang ở / Đã đi)
+// 👻 API: Ẩn/Hiện cư dân
 // ==================================================================
 router.put("/status/:userId", async (req, res) => {
   const { userId } = req.params;
-  const { is_living } = req.body; // true = Đang ở, false = Đã rời đi (Ẩn)
+  const { is_living } = req.body;
 
   if (is_living === undefined) {
       return res.status(400).json({ error: "Thiếu trạng thái is_living" });

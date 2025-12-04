@@ -97,6 +97,20 @@
                     style="@style/ResidentValue" />
 
                 <TextView
+                    android:text="Số CCCD/CMND:"
+                    style="@style/ResidentLabel" />
+                <TextView
+                    android:id="@+id/txtResidentIdentity"
+                    style="@style/ResidentValue" />
+
+                <TextView
+                    android:text="Quê quán:"
+                    style="@style/ResidentLabel" />
+                <TextView
+                    android:id="@+id/txtResidentHomeTown"
+                    style="@style/ResidentValue" />
+
+                <TextView
                     android:text="Quan hệ với chủ hộ:"
                     style="@style/ResidentLabel" />
                 <TextView

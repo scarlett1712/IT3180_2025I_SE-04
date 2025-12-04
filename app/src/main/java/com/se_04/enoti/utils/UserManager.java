@@ -139,7 +139,9 @@ public class UserManager {
                 sharedPreferences.getString("relationship_with_the_head_of_household", ""),
                 sharedPreferences.getInt("apartment_number", 0),
                 role,
-                sharedPreferences.getString("phone", "")
+                sharedPreferences.getString("phone", ""),
+                sharedPreferences.getString("identity_card", ""), // 🔥 Thêm
+                sharedPreferences.getString("home_town", "")      // 🔥 Thêm
         );
     }
 
