@@ -146,9 +146,7 @@ public class ManageResidentFragment extends Fragment {
         });
 
         btnExportExcel.setOnClickListener(v -> {
-
             exportResidentsToXLS(filteredList);
-
         });
 
         btnAddResident.setOnClickListener(v -> {
@@ -173,7 +171,8 @@ public class ManageResidentFragment extends Fragment {
             for (int i = 0; i < response.length(); i++) {
                 JSONObject obj = response.getJSONObject(i);
 
-                // 🔥 Cập nhật Constructor với 2 trường mới
+                // 🔥 FIX: Sử dụng đúng Constructor mới của ResidentItem
+                // Thêm identity_card và home_town (dùng optString để tránh lỗi nếu null)
                 fullList.add(new ResidentItem(
                         obj.optInt("user_item_id"),
                         obj.optInt("user_id"),
@@ -186,8 +185,8 @@ public class ManageResidentFragment extends Fragment {
                         obj.optString("family_id"),
                         obj.optBoolean("is_living"),
                         obj.optString("apartment_number"),
-                        obj.optString("identity_card", ""), // 🔥 Lấy CCCD
-                        obj.optString("home_town", "")      // 🔥 Lấy Quê quán
+                        obj.optString("identity_card", ""), // 🔥 CCCD (Mặc định rỗng)
+                        obj.optString("home_town", "")      // 🔥 Quê quán (Mặc định rỗng)
                 ));
             }
 
@@ -206,6 +205,8 @@ public class ManageResidentFragment extends Fragment {
 
         } catch (Exception e) {
             e.printStackTrace();
+            // Toast giúp debug nếu parse lỗi
+            // Toast.makeText(getContext(), "Lỗi xử lý dữ liệu: " + e.getMessage(), Toast.LENGTH_SHORT).show();
         }
     }
 
@@ -254,9 +255,12 @@ public class ManageResidentFragment extends Fragment {
 
     private void applyFilters() {
         String searchQuery = searchView.getQuery().toString().toLowerCase(Locale.ROOT);
-        String selectedFloor = spinnerFilterFloor.getSelectedItem().toString();
-        String selectedRoom = spinnerFilterRoom.isEnabled()
-                ? spinnerFilterRoom.getSelectedItem().toString() : "Tất cả phòng";
+        Object selectedFloorObj = spinnerFilterFloor.getSelectedItem();
+        Object selectedRoomObj = spinnerFilterRoom.getSelectedItem();
+
+        String selectedFloor = (selectedFloorObj != null) ? selectedFloorObj.toString() : "Tất cả tầng";
+        String selectedRoom = (selectedRoomObj != null && spinnerFilterRoom.isEnabled())
+                ? selectedRoomObj.toString() : "Tất cả phòng";
 
         filteredList.clear();
 
@@ -272,19 +276,17 @@ public class ManageResidentFragment extends Fragment {
 
     private void exportResidentsToXLS(List<ResidentItem> residents) {
         try {
-            // 🔹 Bước 1: Tạo workbook
             org.apache.poi.hssf.usermodel.HSSFWorkbook workbook = new org.apache.poi.hssf.usermodel.HSSFWorkbook();
             org.apache.poi.ss.usermodel.Sheet sheet = workbook.createSheet("Cư dân");
 
-            // 🔹 Bước 2: Tạo header
-            String[] headers = {"Họ tên", "Giới tính", "Ngày sinh", "Điện thoại", "Email", "Phòng", "Chủ hộ", "Quan hệ với chủ hộ"};
+            // Thêm cột CCCD và Quê quán vào Excel
+            String[] headers = {"Họ tên", "Giới tính", "Ngày sinh", "Điện thoại", "Email", "Phòng", "Chủ hộ", "Quan hệ", "CCCD", "Quê quán"};
             org.apache.poi.ss.usermodel.Row headerRow = sheet.createRow(0);
             for (int i = 0; i < headers.length; i++) {
                 org.apache.poi.ss.usermodel.Cell cell = headerRow.createCell(i);
                 cell.setCellValue(headers[i]);
             }
 
-            // 🔹 Bước 3: Tạo map <mã hộ gia đình, tên chủ hộ>
             java.util.Map<String, String> headMap = new java.util.HashMap<>();
             for (ResidentItem r : fullList) {
                 if ("Bản thân".equalsIgnoreCase(r.getRelationship())) {
@@ -292,7 +294,6 @@ public class ManageResidentFragment extends Fragment {
                 }
             }
 
-            // 🔹 Bước 4: Ghi dữ liệu cư dân
             int rowNum = 1;
             for (ResidentItem r : residents) {
                 org.apache.poi.ss.usermodel.Row row = sheet.createRow(rowNum++);
@@ -305,21 +306,21 @@ public class ManageResidentFragment extends Fragment {
                 row.createCell(3).setCellValue(r.getPhone());
                 row.createCell(4).setCellValue(r.getEmail());
                 row.createCell(5).setCellValue(r.getRoom());
-                row.createCell(6).setCellValue(headName); // 👈 Cột "Chủ hộ"
+                row.createCell(6).setCellValue(headName);
                 row.createCell(7).setCellValue(r.getRelationship());
+                // 🔥 Xuất thêm 2 cột mới
+                row.createCell(8).setCellValue(r.getIdentityCard());
+                row.createCell(9).setCellValue(r.getHomeTown());
             }
 
-            // 🔹 Bước 5: Đặt độ rộng cột thủ công (đơn vị là 1/256 ký tự)
             for (int i = 0; i < headers.length; i++) {
                 sheet.setColumnWidth(i, 6000);
             }
 
-            // 🔹 Bước 6: Tạo tên file
             String fileName = "DanhSachCuDan_" +
                     new java.text.SimpleDateFormat("ddMMyyyy_HHmm", java.util.Locale.getDefault()).format(new java.util.Date()) +
                     ".xls";
 
-            // 🔹 Bước 7: Lưu file vào thư mục Enoti/Downloads
             android.content.ContentValues values = new android.content.ContentValues();
             values.put(android.provider.MediaStore.Downloads.DISPLAY_NAME, fileName);
             values.put(android.provider.MediaStore.Downloads.MIME_TYPE, "application/vnd.ms-excel");
@@ -337,7 +338,6 @@ public class ManageResidentFragment extends Fragment {
                 uri = android.net.Uri.fromFile(file);
             }
 
-            // 🔹 Bước 8: Ghi dữ liệu ra OutputStream
             if (uri != null) {
                 java.io.OutputStream outputStream = resolver.openOutputStream(uri);
                 workbook.write(outputStream);
@@ -353,7 +353,6 @@ public class ManageResidentFragment extends Fragment {
             android.widget.Toast.makeText(requireContext(), "Lỗi khi xuất file Excel!", android.widget.Toast.LENGTH_SHORT).show();
         }
     }
-
 
     @Override
     public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions,

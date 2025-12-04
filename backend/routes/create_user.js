@@ -7,6 +7,8 @@ const router = express.Router();
 /**
  * POST /api/create_user/create
  * Tạo một cư dân mới.
+ * - Nếu is_head = true: Tạo một chủ hộ và một căn hộ mới.
+ * - Nếu is_head = false: Thêm một thành viên vào một căn hộ đã tồn tại.
  */
 router.post("/create", async (req, res) => {
   const {
@@ -15,10 +17,10 @@ router.post("/create", async (req, res) => {
     gender,
     dob,
     email,
-    room,
+    room, // Tên căn hộ, ví dụ "A101"
     floor,
     is_head,
-    relationship_name,
+    relationship_name, // Bắt buộc nếu is_head = false
     identity_card, // 🔥 Nhận thêm CCCD
     home_town      // 🔥 Nhận thêm Quê quán
   } = req.body;
@@ -68,7 +70,7 @@ router.post("/create", async (req, res) => {
       // Kiểm tra xem căn hộ đã tồn tại và có chủ hộ chưa
       const existingApt = await client.query("SELECT apartment_id FROM apartment WHERE apartment_number = $1", [room]);
       if (existingApt.rows.length > 0) {
-        await client.query("ROLLBACK");
+        await client.query("ROLLBACK"); // Hoàn tác việc tạo user
         return res.status(409).json({ error: `Căn hộ ${room} đã tồn tại.` });
       }
 
@@ -80,7 +82,7 @@ router.post("/create", async (req, res) => {
       );
       apartment_id = aptRes.rows[0].apartment_id;
 
-      // b. Tạo relationship cho chủ hộ
+      // b. Tạo relationship cho chủ hộ (quan hệ là NULL)
       const relRes = await client.query(
         `INSERT INTO relationship (apartment_id, is_head_of_household, relationship_with_the_head_of_household)
          VALUES ($1, TRUE, 'Bản thân') RETURNING relationship_id`,
@@ -108,8 +110,8 @@ router.post("/create", async (req, res) => {
       relationship_id = relRes.rows[0].relationship_id;
     }
 
-    // --- ✅ 5. Tạo user_item (Cập nhật thêm identity_card, home_town) ---
-    // 🔥 Đã thêm 2 cột mới vào câu lệnh INSERT
+    // --- ✅ 5. Tạo user_item (thông tin chi tiết của người dùng) ---
+    // 🔥 Cập nhật câu lệnh INSERT để thêm identity_card và home_town
     await client.query(
       `INSERT INTO user_item (user_id, full_name, gender, dob, relationship, is_living, email, identity_card, home_town)
        VALUES ($1, $2, $3, $4, $5, TRUE, $6, $7, $8)`,
@@ -138,8 +140,9 @@ router.post("/create", async (req, res) => {
   } catch (error) {
     await client.query("ROLLBACK");
     console.error("❌ Lỗi khi tạo cư dân:", error);
-    if (error.code === '23505') {
-        return res.status(409).json({ error: 'Dữ liệu bị trùng lặp (SĐT hoặc Email). Vui lòng kiểm tra lại.' });
+    // Trả về lỗi cụ thể hơn nếu có thể
+    if (error.code === '23505') { // Lỗi unique_violation
+        return res.status(409).json({ error: 'Dữ liệu bị trùng lặp. Vui lòng kiểm tra lại.' });
     }
     res.status(500).json({ error: "Đã xảy ra lỗi phía server." });
   } finally {
