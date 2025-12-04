@@ -312,4 +312,14 @@ router.put("/user/update-status", async (req, res) => {
   }
 });
 
+router.post("/trigger-reminder", async (req, res) => {
+    try {
+        // Gọi hàm logic nhắc nợ ngay lập tức
+        await manualCheck();
+        res.json({ message: "Đã kích hoạt quét nhắc nợ." });
+    } catch (err) {
+        res.status(500).json({ error: "Lỗi khi chạy nhắc nợ." });
+    }
+});
+
 export default router;

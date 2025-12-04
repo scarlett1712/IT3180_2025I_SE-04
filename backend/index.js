@@ -18,6 +18,8 @@ import financeRoutes from "./routes/finance.js"; // Đã bỏ import { createFin
 import invoiceRoute from "./routes/invoice.js";
 import profileRequestRoutes from "./routes/profileRequests.js"; // 🔥 Sửa tên file thành số nhiều (Requests)
 
+import { startScheduler } from "./cron/scheduler.js";
+
 dotenv.config();
 
 const app = express();
@@ -83,4 +85,5 @@ app.post("/api/debug", (req, res) => {
 app.listen(PORT, () => {
   console.log(`🚀 Server started on port ${PORT}`);
   console.log(`📍 Health check: http://localhost:${PORT}/`);
+  startScheduler();
 });
