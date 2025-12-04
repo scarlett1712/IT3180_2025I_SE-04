@@ -54,7 +54,7 @@ public class ResidentAdapter extends RecyclerView.Adapter<ResidentAdapter.ViewHo
         holder.txtResidentName.setText(resident.getName());
         holder.txtResidentInfo.setText(resident.getRoom());
 
-        // 🔥 LOAD ẢNH AVATAR
+        // LOAD ẢNH AVATAR
         loadResidentAvatar(holder.imgResident, String.valueOf(resident.getUserId()), resident.getGender());
 
         boolean isSelected = selectedResidents.contains(resident);
@@ -72,6 +72,11 @@ public class ResidentAdapter extends RecyclerView.Adapter<ResidentAdapter.ViewHo
                 intent.putExtra("room", resident.getRoom());
                 intent.putExtra("is_living", resident.isLiving());
                 intent.putExtra("user_id", resident.getUserId());
+
+                // 🔥 Truyền thêm dữ liệu mới sang màn hình chi tiết
+                intent.putExtra("identity_card", resident.getIdentityCard());
+                intent.putExtra("home_town", resident.getHomeTown());
+
                 v.getContext().startActivity(intent);
             });
         } else if (mode == MODE_SELECT_FOR_NOTIFICATION) {
@@ -123,7 +128,7 @@ public class ResidentAdapter extends RecyclerView.Adapter<ResidentAdapter.ViewHo
         notifyDataSetChanged();
     }
 
-    // ✅ SỬA PHẦN NÀY: HÀM DÙNG BOOL CHO "CHỌN TẤT CẢ" VÀ "BỎ CHỌN"
+    // HÀM DÙNG BOOL CHO "CHỌN TẤT CẢ" VÀ "BỎ CHỌN"
     public void selectAllResidents(boolean selectAll) {
         if (mode == MODE_SELECT_FOR_NOTIFICATION) {
             selectedResidents.clear();
