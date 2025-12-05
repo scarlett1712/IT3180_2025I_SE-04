@@ -55,7 +55,7 @@ public class ApproveRequestsActivity extends AppCompatActivity {
         setSupportActionBar(toolbar);
         if (getSupportActionBar() != null) {
             getSupportActionBar().setDisplayHomeAsUpEnabled(true);
-            getSupportActionBar().setTitle("Đổi mật khẩu"); // FIX: Correct title
+            getSupportActionBar().setTitle("Yêu cầu chỉnh sửa"); // FIX: Correct title
         }
 
         fetchPendingRequests();
