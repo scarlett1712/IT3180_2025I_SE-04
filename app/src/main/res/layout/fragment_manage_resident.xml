@@ -124,4 +124,17 @@
         android:layout_gravity="bottom|end"
         app:layout_anchorGravity="bottom|end" />
 
+    <com.google.android.material.floatingactionbutton.ExtendedFloatingActionButton
+        android:id="@+id/btnApproveRequests"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom|center_horizontal"
+        android:layout_marginBottom="24dp"
+        android:text="Duyệt hồ sơ (0)"
+        android:textColor="@android:color/white"
+        app:backgroundTint="#FF9800"
+        app:icon="@drawable/ic_edit"
+        app:iconTint="@android:color/white"
+        android:visibility="gone"/>
+
 </androidx.coordinatorlayout.widget.CoordinatorLayout>

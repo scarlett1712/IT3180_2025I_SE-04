@@ -73,7 +73,8 @@ public class ResidentAdapter extends RecyclerView.Adapter<ResidentAdapter.ViewHo
                 intent.putExtra("is_living", resident.isLiving());
                 intent.putExtra("user_id", resident.getUserId());
 
-                // 🔥 Truyền thêm dữ liệu mới sang màn hình chi tiết
+                // 🔥 Truyền thêm 2 trường mới sang màn hình chi tiết
+                // (ResidentItem đã có getter getIdentityCard() và getHomeTown())
                 intent.putExtra("identity_card", resident.getIdentityCard());
                 intent.putExtra("home_town", resident.getHomeTown());
 

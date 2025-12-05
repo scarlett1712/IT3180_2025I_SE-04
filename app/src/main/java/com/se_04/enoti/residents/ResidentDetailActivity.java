@@ -36,7 +36,7 @@ public class ResidentDetailActivity extends AppCompatActivity {
 
     private TextView txtName, txtGender, txtDob, txtEmail, txtPhone,
             txtRelationship, txtLiving, txtRoom;
-    // 🔥 Thêm 2 TextView mới (Bạn nhớ thêm vào layout activity_resident_detail.xml)
+    // 🔥 Thêm TextView cho CCCD và Quê quán (Đảm bảo bạn đã thêm TextView tương ứng vào XML layout)
     private TextView txtIdentityCard, txtHomeTown;
 
     private ImageView imgResident;
@@ -73,12 +73,12 @@ public class ResidentDetailActivity extends AppCompatActivity {
         txtRelationship = findViewById(R.id.txtResidentRelationship);
         txtLiving = findViewById(R.id.txtResidentLiving);
         txtRoom = findViewById(R.id.txtRoom);
+        imgResident = findViewById(R.id.imgResident);
 
-        // 🔥 Tìm view mới (Cần thêm vào XML trước)
+        // 🔥 Tìm view mới (Hãy chắc chắn XML đã có 2 TextView này với ID đúng)
+        // Nếu chưa có trong layout XML, ứng dụng sẽ không crash nhưng sẽ không hiển thị gì.
         txtIdentityCard = findViewById(R.id.txtResidentIdentity);
         txtHomeTown = findViewById(R.id.txtResidentHomeTown);
-
-        imgResident = findViewById(R.id.imgResident);
 
         Bundle bundle = getIntent().getExtras();
         if (bundle != null) {
@@ -98,7 +98,7 @@ public class ResidentDetailActivity extends AppCompatActivity {
         txtRelationship.setText(bundle.getString("relationship", ""));
         txtRoom.setText(bundle.getString("room", ""));
 
-        // 🔥 Hiển thị 2 trường mới
+        // 🔥 Hiển thị CCCD và Quê quán
         String identity = bundle.getString("identity_card", "");
         if (txtIdentityCard != null) txtIdentityCard.setText(identity.isEmpty() ? "Chưa cập nhật" : identity);
 
@@ -111,8 +111,6 @@ public class ResidentDetailActivity extends AppCompatActivity {
                 ContextCompat.getColor(this, android.R.color.holo_green_dark) :
                 ContextCompat.getColor(this, android.R.color.holo_red_dark));
     }
-
-    // ... (Giữ nguyên các phần Menu, Delete, Status, Avatar ...)
 
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
@@ -151,19 +149,27 @@ public class ResidentDetailActivity extends AppCompatActivity {
         EditText edtEmail = dialogView.findViewById(R.id.edtEditEmail);
         EditText edtGender = dialogView.findViewById(R.id.edtEditGender);
         EditText edtDob = dialogView.findViewById(R.id.edtEditDob);
+
+        // 🔥 Ánh xạ các trường mới trong Dialog
         EditText edtIdentity = dialogView.findViewById(R.id.edtEditIdentityCard);
         EditText edtHomeTown = dialogView.findViewById(R.id.edtEditHomeTown);
+
         Button btnSave = dialogView.findViewById(R.id.btnSaveEdit);
 
+        // Fill dữ liệu hiện tại
         edtName.setText(txtName.getText());
         edtPhone.setText(txtPhone.getText());
         edtEmail.setText(txtEmail.getText());
         edtGender.setText(txtGender.getText());
         edtDob.setText(txtDob.getText());
 
-        // 🔥 Pre-fill dữ liệu mới
-        if (txtIdentityCard != null) edtIdentity.setText(txtIdentityCard.getText());
-        if (txtHomeTown != null) edtHomeTown.setText(txtHomeTown.getText());
+        // 🔥 Fill dữ liệu mới (lấy từ TextView nếu đã hiển thị, hoặc từ Intent nếu chưa)
+        if (txtIdentityCard != null && !txtIdentityCard.getText().toString().equals("Chưa cập nhật")) {
+            edtIdentity.setText(txtIdentityCard.getText());
+        }
+        if (txtHomeTown != null && !txtHomeTown.getText().toString().equals("Chưa cập nhật")) {
+            edtHomeTown.setText(txtHomeTown.getText());
+        }
 
         AlertDialog dialog = builder.create();
 
@@ -174,8 +180,8 @@ public class ResidentDetailActivity extends AppCompatActivity {
                     edtEmail.getText().toString().trim(),
                     edtGender.getText().toString().trim(),
                     edtDob.getText().toString().trim(),
-                    edtIdentity.getText().toString().trim(),
-                    edtHomeTown.getText().toString().trim(),
+                    edtIdentity != null ? edtIdentity.getText().toString().trim() : "",
+                    edtHomeTown != null ? edtHomeTown.getText().toString().trim() : "",
                     dialog
             );
         });
@@ -191,7 +197,7 @@ public class ResidentDetailActivity extends AppCompatActivity {
             body.put("email", email);
             body.put("gender", gender);
             body.put("dob", dob);
-            // 🔥 Gửi dữ liệu mới lên
+            // 🔥 Gửi thêm 2 trường mới
             body.put("identity_card", identity);
             body.put("home_town", homeTown);
         } catch (JSONException e) { e.printStackTrace(); }
@@ -199,12 +205,13 @@ public class ResidentDetailActivity extends AppCompatActivity {
         JsonObjectRequest request = new JsonObjectRequest(Request.Method.PUT, API_UPDATE + userId, body,
                 response -> {
                     Toast.makeText(this, "Cập nhật thành công!", Toast.LENGTH_SHORT).show();
+
+                    // Cập nhật UI
                     txtName.setText(name);
                     txtPhone.setText(phone);
                     txtEmail.setText(email);
                     txtGender.setText(gender);
                     txtDob.setText(dob);
-                    // 🔥 Cập nhật UI sau khi sửa
                     if (txtIdentityCard != null) txtIdentityCard.setText(identity);
                     if (txtHomeTown != null) txtHomeTown.setText(homeTown);
 
@@ -225,6 +232,9 @@ public class ResidentDetailActivity extends AppCompatActivity {
         );
         Volley.newRequestQueue(this).add(request);
     }
+
+    // ... (Các hàm showDeleteConfirmDialog, deleteResident, toggleResidentStatus, loadResidentAvatar, setDefaultAvatar, getAvatarFile GIỮ NGUYÊN)
+    // Tôi giữ nguyên phần còn lại để đảm bảo logic xóa và ẩn hiện vẫn hoạt động như cũ.
 
     private void showDeleteConfirmDialog() {
         new AlertDialog.Builder(this)

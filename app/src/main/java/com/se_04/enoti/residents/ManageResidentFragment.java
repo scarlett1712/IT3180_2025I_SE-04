@@ -33,9 +33,11 @@ import com.android.volley.Request;
 import com.android.volley.RequestQueue;
 import com.android.volley.toolbox.JsonArrayRequest;
 import com.android.volley.toolbox.Volley;
+import com.google.android.material.floatingactionbutton.ExtendedFloatingActionButton; // 🔥 Import mới
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
 import com.se_04.enoti.R;
 import com.se_04.enoti.account.UserItem;
+import com.se_04.enoti.account.admin.ApproveRequestsActivity; // 🔥 Import Activity Duyệt (đã tạo trước đó)
 import com.se_04.enoti.utils.ApiConfig;
 import com.se_04.enoti.utils.UserManager;
 
@@ -65,6 +67,9 @@ public class ManageResidentFragment extends Fragment {
     private Spinner spinnerFilterFloor, spinnerFilterRoom;
     private FloatingActionButton btnExportExcel, btnAddResident;
 
+    // 🔥 Khai báo nút Duyệt hồ sơ
+    private ExtendedFloatingActionButton btnApproveRequests;
+
     private ResidentAdapter adapter;
     private List<ResidentItem> fullList;
     private List<ResidentItem> filteredList;
@@ -77,6 +82,8 @@ public class ManageResidentFragment extends Fragment {
 
     // ⚙️ API endpoint
     private static final String API_URL = ApiConfig.BASE_URL + "/api/residents";
+    // 🔥 API lấy danh sách yêu cầu (để đếm số lượng)
+    private static final String API_PENDING_REQUESTS = ApiConfig.BASE_URL + "/api/profile-requests/pending";
 
     @Nullable
     @Override
@@ -94,6 +101,9 @@ public class ManageResidentFragment extends Fragment {
         recyclerViewResidents = view.findViewById(R.id.recyclerViewResidents);
         btnExportExcel = view.findViewById(R.id.btnExportExcel);
         btnAddResident = view.findViewById(R.id.btnAddResident);
+
+        // 🔥 Ánh xạ nút duyệt (Đảm bảo trong XML đã có ExtendedFloatingActionButton id là btnApproveRequests)
+        btnApproveRequests = view.findViewById(R.id.btnApproveRequests);
 
         // Hiển thị lời chào
         UserItem currentUser = UserManager.getInstance(requireContext()).getCurrentUser();
@@ -122,6 +132,13 @@ public class ManageResidentFragment extends Fragment {
         fetchResidentsFromAPI();
 
         return view;
+    }
+
+    // 🔥 Kiểm tra số lượng yêu cầu mỗi khi màn hình hiện lên (Resume)
+    @Override
+    public void onResume() {
+        super.onResume();
+        checkPendingRequests();
     }
 
     private void setupListeners() {
@@ -153,13 +170,47 @@ public class ManageResidentFragment extends Fragment {
             Intent intent = new Intent(requireContext(), CreateResidentActivity.class);
             startActivityForResult(intent, 101);
         });
+
+        // 🔥 Sự kiện click nút Duyệt: Mở màn hình ApproveRequestsActivity
+        if (btnApproveRequests != null) {
+            btnApproveRequests.setOnClickListener(v -> {
+                Intent intent = new Intent(requireContext(), ApproveRequestsActivity.class);
+                startActivity(intent);
+            });
+        }
+    }
+
+    // 🔥 Hàm gọi API đếm số lượng yêu cầu chờ duyệt
+    private void checkPendingRequests() {
+        if (getContext() == null) return;
+        RequestQueue queue = Volley.newRequestQueue(requireContext());
+        JsonArrayRequest request = new JsonArrayRequest(
+                Request.Method.GET, API_PENDING_REQUESTS, null,
+                response -> {
+                    int count = response.length();
+                    if (btnApproveRequests != null) {
+                        if (count > 0) {
+                            btnApproveRequests.setVisibility(View.VISIBLE);
+                            btnApproveRequests.setText("Duyệt hồ sơ (" + count + ")");
+                        } else {
+                            // Ẩn nút nếu không có yêu cầu nào
+                            btnApproveRequests.setVisibility(View.GONE);
+                        }
+                    }
+                },
+                error -> {
+                    // Nếu lỗi mạng hoặc server, ẩn nút đi cho gọn
+                    if (btnApproveRequests != null) btnApproveRequests.setVisibility(View.GONE);
+                }
+        );
+        queue.add(request);
     }
 
     private void fetchResidentsFromAPI() {
         RequestQueue queue = Volley.newRequestQueue(requireContext());
         JsonArrayRequest request = new JsonArrayRequest(
                 Request.Method.GET, API_URL, null,
-                response -> parseResidents(response),
+                this::parseResidents,
                 error -> Toast.makeText(getContext(), "Lỗi kết nối", Toast.LENGTH_SHORT).show()
         );
         queue.add(request);
@@ -171,8 +222,7 @@ public class ManageResidentFragment extends Fragment {
             for (int i = 0; i < response.length(); i++) {
                 JSONObject obj = response.getJSONObject(i);
 
-                // 🔥 FIX: Sử dụng đúng Constructor mới của ResidentItem
-                // Thêm identity_card và home_town (dùng optString để tránh lỗi nếu null)
+                // Sử dụng constructor đầy đủ (đã có CCCD và Quê quán)
                 fullList.add(new ResidentItem(
                         obj.optInt("user_item_id"),
                         obj.optInt("user_id"),
@@ -185,12 +235,11 @@ public class ManageResidentFragment extends Fragment {
                         obj.optString("family_id"),
                         obj.optBoolean("is_living"),
                         obj.optString("apartment_number"),
-                        obj.optString("identity_card", ""), // 🔥 CCCD (Mặc định rỗng)
-                        obj.optString("home_town", "")      // 🔥 Quê quán (Mặc định rỗng)
+                        obj.optString("identity_card", ""),
+                        obj.optString("home_town", "")
                 ));
             }
 
-            // Sắp xếp cư dân
             Collections.sort(fullList, (a, b) -> {
                 int roomA = extractRoomNumber(a.getRoom());
                 int roomB = extractRoomNumber(b.getRoom());
@@ -205,8 +254,6 @@ public class ManageResidentFragment extends Fragment {
 
         } catch (Exception e) {
             e.printStackTrace();
-            // Toast giúp debug nếu parse lỗi
-            // Toast.makeText(getContext(), "Lỗi xử lý dữ liệu: " + e.getMessage(), Toast.LENGTH_SHORT).show();
         }
     }
 
@@ -279,7 +326,6 @@ public class ManageResidentFragment extends Fragment {
             org.apache.poi.hssf.usermodel.HSSFWorkbook workbook = new org.apache.poi.hssf.usermodel.HSSFWorkbook();
             org.apache.poi.ss.usermodel.Sheet sheet = workbook.createSheet("Cư dân");
 
-            // Thêm cột CCCD và Quê quán vào Excel
             String[] headers = {"Họ tên", "Giới tính", "Ngày sinh", "Điện thoại", "Email", "Phòng", "Chủ hộ", "Quan hệ", "CCCD", "Quê quán"};
             org.apache.poi.ss.usermodel.Row headerRow = sheet.createRow(0);
             for (int i = 0; i < headers.length; i++) {
@@ -297,7 +343,6 @@ public class ManageResidentFragment extends Fragment {
             int rowNum = 1;
             for (ResidentItem r : residents) {
                 org.apache.poi.ss.usermodel.Row row = sheet.createRow(rowNum++);
-
                 String headName = headMap.getOrDefault(r.getFamilyId(), "Chưa xác định");
 
                 row.createCell(0).setCellValue(r.getName());
@@ -308,7 +353,6 @@ public class ManageResidentFragment extends Fragment {
                 row.createCell(5).setCellValue(r.getRoom());
                 row.createCell(6).setCellValue(headName);
                 row.createCell(7).setCellValue(r.getRelationship());
-                // 🔥 Xuất thêm 2 cột mới
                 row.createCell(8).setCellValue(r.getIdentityCard());
                 row.createCell(9).setCellValue(r.getHomeTown());
             }

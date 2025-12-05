@@ -18,12 +18,10 @@ public class ResidentItem {
     private String identityCard;
     private String homeTown;
 
-    /**
-     * Constructor đầy đủ (Đã cập nhật)
-     */
+    // Constructor đầy đủ (cho Admin quản lý)
     public ResidentItem(int id, int userId, String name, String gender, String dob, String email, String phone,
                         String relationship, String familyId, boolean isLiving, String room,
-                        String identityCard, String homeTown) { // 🔥 Thêm tham số vào constructor
+                        String identityCard, String homeTown) { // 🔥 Thêm tham số vào đây
         this.id = id;
         this.userId = userId;
         this.name = name;
@@ -39,9 +37,7 @@ public class ResidentItem {
         this.homeTown = homeTown;
     }
 
-    /**
-     * Constructor rút gọn (Giữ nguyên để tránh lỗi ở các chỗ chưa cần update)
-     */
+    // Constructor rút gọn (cho màn hình Tạo khoản thu)
     public ResidentItem(int userId, String name, String room) {
         this.userId = userId;
         this.name = name;
@@ -70,10 +66,8 @@ public class ResidentItem {
     public String getRelationship() { return relationship; }
     public String getFamilyId() { return familyId; }
     public boolean isLiving() { return isLiving; }
-
-    // 🔥 Getters mới
-    public String getIdentityCard() { return identityCard; }
-    public String getHomeTown() { return homeTown; }
+    public String getIdentityCard() { return identityCard; } // Getter mới
+    public String getHomeTown() { return homeTown; }         // Getter mới
 
     public String getFloor() {
         if (room != null && room.length() > 1) {
