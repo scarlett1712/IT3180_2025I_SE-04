@@ -2,6 +2,8 @@ import express from "express";
 import { pool } from "../db.js";
 import bcrypt from "bcryptjs";
 import crypto from "crypto";
+import admin from "firebase-admin";
+import "../utils/firebaseHelper.js";
 
 const router = express.Router();
 
@@ -256,10 +258,112 @@ router.post("/reset_password", async (req, res) => {
   }
 });
 
-// API Auth Firebase (Nếu có dùng)
+/* ==========================================================
+   🟢 API Auth Firebase (Đã thêm mới)
+========================================================== */
 router.post("/auth/firebase", async (req, res) => {
-    // ... (Giữ nguyên logic nếu bạn đã có, hoặc thêm vào nếu cần)
-    res.status(501).json({error: "Chưa implement"});
+    try {
+        const { idToken, fcm_token } = req.body;
+
+        if (!idToken) return res.status(400).json({ error: "Thiếu ID Token." });
+
+        // 1. Xác thực ID Token qua Firebase Admin
+        const decodedToken = await admin.auth().verifyIdToken(idToken);
+
+        // 2. Lấy số điện thoại từ token
+        let phoneNumber = decodedToken.phone_number;
+
+        if (!phoneNumber) {
+            return res.status(400).json({ error: "Tài khoản Google/Firebase này không gắn với SĐT." });
+        }
+
+        // 3. Chuẩn hóa SĐT: Firebase trả về +84..., ta cần chuyển về 0...
+        // Ví dụ: +84912345678 -> 0912345678
+        if (phoneNumber.startsWith('+84')) {
+            phoneNumber = '0' + phoneNumber.slice(3);
+        }
+
+        console.log(`🔥 Firebase Login Attempt: ${phoneNumber}`);
+
+        // 4. Tìm user trong DB theo số điện thoại
+        const userRes = await pool.query(
+            `SELECT u.user_id, u.phone, ur.role_id
+             FROM users u
+             LEFT JOIN userrole ur ON u.user_id = ur.user_id
+             WHERE u.phone = $1`,
+            [phoneNumber]
+        );
+
+        if (userRes.rows.length === 0) {
+            return res.status(404).json({ error: "Số điện thoại này chưa được đăng ký trong hệ thống." });
+        }
+
+        const user = userRes.rows[0];
+        const role = (user.role_id == 2) ? "ADMIN" : "USER";
+
+        // 5. Tạo session token mới
+        const sessionToken = crypto.randomBytes(32).toString('hex');
+
+        // 6. Cập nhật DB: Session token & FCM token (nếu có)
+        if (fcm_token) {
+            await pool.query(
+                "UPDATE users SET session_token = $1, fcm_token = $2 WHERE user_id = $3",
+                [sessionToken, fcm_token, user.user_id]
+            );
+        } else {
+            await pool.query(
+                "UPDATE users SET session_token = $1 WHERE user_id = $2",
+                [sessionToken, user.user_id]
+            );
+        }
+
+        // Dọn dẹp các yêu cầu login treo cũ
+        await pool.query("DELETE FROM login_requests WHERE user_id = $1", [user.user_id]);
+
+        // 7. Lấy thông tin chi tiết (Giữ nguyên logic query từ API /login)
+        const infoRes = await pool.query(
+            `SELECT ui.full_name, ui.gender, TO_CHAR(ui.dob, 'DD-MM-YYYY') AS dob, ui.email,
+                    ui.identity_card, ui.home_town,
+                    r.relationship_with_the_head_of_household AS relationship, a.apartment_number AS room
+             FROM user_item ui
+             LEFT JOIN relationship r ON ui.relationship = r.relationship_id
+             LEFT JOIN apartment a ON r.apartment_id = a.apartment_id
+             WHERE ui.user_id = $1`,
+            [user.user_id]
+        );
+
+        const info = infoRes.rows.length > 0 ? infoRes.rows[0] : {};
+
+        // 8. Trả về response (Cấu trúc JSON giống hệt API login thường)
+        return res.json({
+            message: "Đăng nhập Firebase thành công",
+            session_token: sessionToken,
+            user: {
+                id: user.user_id.toString(),
+                phone: user.phone,
+                role: role,
+                name: info.full_name || user.phone,
+                gender: info.gender || "Khác",
+                dob: info.dob || "01-01-2000",
+                email: info.email || "",
+                identity_card: info.identity_card || "",
+                home_town: info.home_town || "",
+                room: info.room || "",
+                relationship: info.relationship || "",
+            }
+        });
+
+    } catch (err) {
+        console.error("💥 [FIREBASE AUTH ERROR]", err);
+        // Xử lý các lỗi cụ thể của Firebase
+        if (err.code === 'auth/argument-error') {
+            return res.status(401).json({ error: "Token không hợp lệ." });
+        }
+        if (err.code === 'auth/id-token-expired') {
+            return res.status(401).json({ error: "Token đã hết hạn." });
+        }
+        res.status(500).json({ error: "Lỗi xác thực Firebase." });
+    }
 });
 
 export default router;
