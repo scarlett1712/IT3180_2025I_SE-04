@@ -258,16 +258,18 @@ router.post("/reset_password", async (req, res) => {
   }
 });
 
+/* ==========================================================
+   🟢 API Auth Firebase (Đã cập nhật đầy đủ)
+========================================================== */
 router.post("/auth/firebase", async (req, res) => {
   try {
-    const { idToken } = req.body;
+    const { idToken, fcm_token } = req.body;
 
     if (!idToken) {
         return res.status(400).json({ error: "Thiếu Firebase ID Token" });
     }
 
     // 1. Xác thực Token với Firebase Server
-    // (Đảm bảo Firebase Admin đã được init ở file index.js hoặc firebaseHelper.js trước đó)
     const decodedToken = await admin.auth().verifyIdToken(idToken);
     const firebasePhone = decodedToken.phone_number; // Định dạng chuẩn: +84xxxxxxxxx
 
@@ -275,25 +277,23 @@ router.post("/auth/firebase", async (req, res) => {
         return res.status(400).json({ error: "Token không chứa số điện thoại." });
     }
 
-    // 2. Chuyển đổi định dạng số điện thoại để khớp với DB
-    // DB của bạn có thể lưu 09xxx hoặc +84xxx. Hãy chuẩn hóa về dạng bạn đang dùng.
-    // Ví dụ: Chuyển +849123 -> 09123
+    // 2. Chuyển đổi định dạng số điện thoại
     let dbPhone = firebasePhone.replace("+84", "0");
-
     console.log(`📲 [FIREBASE AUTH] Verified phone: ${firebasePhone} -> DB Check: ${dbPhone}`);
 
-    // 3. Tìm user trong DB
-    // Tìm cả 2 dạng (09xx và +84xx) để chắc chắn
+    // 3. Tìm user trong DB (JOIN với userrole để lấy role_id)
     const userRes = await pool.query(
-        "SELECT * FROM users WHERE phone = $1 OR phone = $2",
+        `SELECT u.user_id, u.phone, ur.role_id
+         FROM users u
+         LEFT JOIN userrole ur ON u.user_id = ur.user_id
+         WHERE u.phone = $1 OR u.phone = $2`,
         [dbPhone, firebasePhone]
     );
 
     if (userRes.rows.length === 0) {
-        // Trường hợp này dùng cho Đăng ký mới (nếu bạn muốn hỗ trợ)
         return res.status(404).json({
             error: "Số điện thoại chưa được đăng ký trong hệ thống.",
-            phone: dbPhone // Trả về để Client biết số nào đã verify
+            phone: dbPhone
         });
     }
 
@@ -302,13 +302,26 @@ router.post("/auth/firebase", async (req, res) => {
     // 4. Đăng nhập thành công (Cấp session_token)
     const sessionToken = crypto.randomBytes(32).toString('hex');
 
-    // Xóa request cũ và cập nhật token
+    // Xóa request cũ
     await pool.query("DELETE FROM login_requests WHERE user_id = $1", [user.user_id]);
-    await pool.query("UPDATE users SET session_token = $1 WHERE user_id = $2", [sessionToken, user.user_id]);
 
-    // Lấy thông tin chi tiết (giống API login thường)
+    // Cập nhật session_token và fcm_token (nếu có)
+    if (fcm_token) {
+        await pool.query(
+            "UPDATE users SET session_token = $1, fcm_token = $2 WHERE user_id = $3",
+            [sessionToken, fcm_token, user.user_id]
+        );
+    } else {
+        await pool.query(
+            "UPDATE users SET session_token = $1 WHERE user_id = $2",
+            [sessionToken, user.user_id]
+        );
+    }
+
+    // 5. Lấy thông tin chi tiết (Bổ sung identity_card và home_town)
     const infoRes = await pool.query(
       `SELECT ui.full_name, ui.gender, TO_CHAR(ui.dob, 'DD-MM-YYYY') AS dob, ui.email,
+              ui.identity_card, ui.home_town, -- 🔥 Đã bổ sung
               r.relationship_with_the_head_of_household AS relationship, a.apartment_number AS room
        FROM user_item ui
        LEFT JOIN relationship r ON ui.relationship = r.relationship_id
@@ -320,6 +333,7 @@ router.post("/auth/firebase", async (req, res) => {
     const info = infoRes.rows.length > 0 ? infoRes.rows[0] : {};
     const role = user.role_id === 2 ? "ADMIN" : "USER";
 
+    // 6. Trả về response đầy đủ
     return res.json({
       message: "Xác thực Firebase thành công",
       session_token: sessionToken,
@@ -331,6 +345,8 @@ router.post("/auth/firebase", async (req, res) => {
         gender: info.gender || "Khác",
         dob: info.dob || "01-01-2000",
         email: info.email || "",
+        identity_card: info.identity_card || "", // 🔥 Trả về Client
+        home_town: info.home_town || "",         // 🔥 Trả về Client
         room: info.room || "",
         relationship: info.relationship || "",
       },
