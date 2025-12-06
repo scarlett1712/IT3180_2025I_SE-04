@@ -86,5 +86,6 @@
     <string name="notification_detail">Chi tiết thông báo</string>
     <string name="status_paid">Đã thanh toán</string>
     <string name="see_invoice_detail">Xem chi tiết hóa đơn</string>
+    <string name="manage_asset">Thiết bị và bảo trì</string>
 
 </resources>

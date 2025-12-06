@@ -11,6 +11,7 @@ import android.view.View;
 import android.widget.*;
 import android.content.Intent;
 
+import androidx.core.content.ContextCompat;
 import androidx.localbroadcastmanager.content.LocalBroadcastManager;
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
@@ -74,6 +75,7 @@ public class CreateNotificationActivity extends AppCompatActivity {
             getSupportActionBar().setDisplayHomeAsUpEnabled(true);
             getSupportActionBar().setDisplayShowTitleEnabled(true);
             getSupportActionBar().setTitle("Tạo thông báo");
+            toolbar.setTitleTextColor(ContextCompat.getColor(this, android.R.color.white));
         }
 
         toolbar.setNavigationOnClickListener(v -> onBackPressed());

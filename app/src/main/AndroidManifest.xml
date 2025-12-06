@@ -66,7 +66,10 @@
         <activity android:name=".notification.admin.NotificationDetailActivity_Admin" />
         <activity android:name=".finance.PayActivity" />
         <activity android:name=".account.EditProfileActivity"/>
-        <activity android:name=".account.admin.ApproveRequestsActivity" />
+        <activity android:name=".account.admin.ApproveRequestsActivity"/>
+        <activity android:name=".maintenance.admin.CreateMaintenanceActivity" />
+        <activity android:name=".maintenance.admin.MaintenanceActivity" />
+        <activity android:name=".maintenance.admin.AddAssetActivity" />
         <activity android:name=".finance.FinanceDetailActivity"
             android:launchMode="singleTop"
             android:exported="true"

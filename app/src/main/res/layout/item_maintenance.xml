@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.cardview.widget.CardView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_margin="8dp"
+    app:cardCornerRadius="8dp"
+    app:cardElevation="4dp">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="16dp">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal">
+
+            <TextView
+                android:id="@+id/txtAssetName"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="Máy phát điện"
+                android:textSize="18sp"
+                android:textStyle="bold"
+                android:textColor="#000000"/>
+
+            <TextView
+                android:id="@+id/txtStatus"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Pending"
+                android:paddingHorizontal="8dp"
+                android:paddingVertical="4dp"
+                android:background="#FF9800"
+                android:textColor="#FFFFFF"
+                android:textSize="12sp"
+                android:textStyle="bold"/>
+        </LinearLayout>
+
+        <TextView
+            android:id="@+id/txtDate"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="2025-12-01"
+            android:layout_marginTop="4dp"
+            android:textColor="#666666"/>
+
+        <TextView
+            android:id="@+id/txtLocation"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Vị trí: Tầng hầm B1"
+            android:layout_marginTop="4dp"/>
+
+        <TextView
+            android:id="@+id/txtStaff"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Kỹ thuật viên: Nguyễn Văn A"
+            android:layout_marginTop="4dp"
+            android:textStyle="italic"/>
+
+        <TextView
+            android:id="@+id/txtDescription"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Mô tả: Kiểm tra định kỳ"
+            android:layout_marginTop="8dp"
+            android:maxLines="2"
+            android:ellipsize="end"/>
+
+    </LinearLayout>
+</androidx.cardview.widget.CardView>

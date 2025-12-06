@@ -17,6 +17,7 @@ import feedbackReplyRoutes from "./routes/feedbackReply.js";
 import financeRoutes from "./routes/finance.js"; // Đã bỏ import { createFinanceTables } nếu không dùng ở đây
 import invoiceRoute from "./routes/invoice.js";
 import profileRequestRoutes from "./routes/profileRequests.js"; // 🔥 Sửa tên file thành số nhiều (Requests)
+import maintenanceRoutes from "./routes/maintenance.js";
 
 import { startScheduler } from "./cron/scheduler.js";
 
@@ -55,12 +56,12 @@ app.use("/api/notification", notificationRoutes);
 app.use("/api/create_notification", createNotificationRoutes);
 app.use("/api/changepassword", changePasswordRoutes);
 app.use("/api/create_user", createUserRoutes);
-// Lưu ý: Bạn đang dùng /api/feedback cho 2 route khác nhau, cẩn thận trùng lặp
 app.use("/api/feedback", feedbackRoutes);
 app.use("/api/feedback", feedbackReplyRoutes); // Nên đổi path khác nếu feedbackRoutes đã chiếm dụng
 app.use("/api/finance", financeRoutes);
 app.use("/api/invoice", invoiceRoute);
 app.use("/api/profile-requests", profileRequestRoutes);
+app.use("/api/maintenance", maintenanceRoutes);
 
 // ✅ Health check
 app.get("/", (req, res) => {
