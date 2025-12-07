@@ -5,181 +5,197 @@
     android:layout_height="match_parent"
     android:background="@color/white">
 
-    <androidx.core.widget.NestedScrollView
-        android:id="@+id/scrollView_manage_finance"
+    <androidx.swiperefreshlayout.widget.SwipeRefreshLayout
+        android:id="@+id/swipeRefreshLayout"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:fillViewport="true">
+        app:layout_behavior="@string/appbar_scrolling_view_behavior">
 
-        <LinearLayout
+        <androidx.core.widget.NestedScrollView
+            android:id="@+id/scrollView_manage_finance"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="vertical"
-            android:padding="16dp">
-
-            <TextView
-                android:id="@+id/txtWelcome"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="Xin chào Admin!"
-                android:textSize="24sp"
-                android:textColor="@android:color/black"
-                android:layout_marginTop="40dp"
-                android:layout_marginBottom="4dp" />
-
-            <TextView
-                android:id="@+id/txtGreeting"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="Chúc bạn một ngày tốt lành"
-                android:textSize="18sp"
-                android:textColor="@android:color/darker_gray"
-                android:layout_marginBottom="20dp" />
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="Thống kê Tài chính"
-                android:textStyle="bold"
-                android:textSize="20sp"
-                android:layout_marginBottom="12dp"
-                android:textColor="@color/black"/>
+            android:layout_height="match_parent"
+            android:fillViewport="true">
 
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:orientation="horizontal"
-                android:layout_marginBottom="8dp"
-                android:gravity="center_vertical">
+                android:orientation="vertical"
+                android:padding="16dp">
 
                 <TextView
-                    android:layout_width="0dp"
-                    android:layout_height="match_parent"
-                    android:layout_weight="0.6"
-                    android:text="Xem thống kê của:"
-                    android:textSize="16sp"
-                    android:textColor="@color/black"
-                    android:paddingVertical="8dp"
-                    android:paddingHorizontal="8dp"/>
+                    android:id="@+id/txtWelcome"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Xin chào Admin!"
+                    android:textSize="24sp"
+                    android:textColor="@android:color/black"
+                    android:layout_marginTop="40dp"
+                    android:layout_marginBottom="4dp" />
 
-                <Spinner
-                    android:id="@+id/spinner_month"
-                    android:layout_width="0dp"
-                    android:layout_height="40dp"
-                    android:layout_weight="0.4"
-                    android:background="@drawable/spinner_background"
-                    android:paddingHorizontal="8dp"
-                    android:entries="@array/month_options" />
-            </LinearLayout>
+                <TextView
+                    android:id="@+id/txtGreeting"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Chúc bạn một ngày tốt lành"
+                    android:textSize="18sp"
+                    android:textColor="@android:color/darker_gray"
+                    android:layout_marginBottom="20dp" />
 
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="horizontal"
-                android:layout_marginBottom="16dp">
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Thống kê Tài chính"
+                    android:textStyle="bold"
+                    android:textSize="20sp"
+                    android:layout_marginBottom="12dp"
+                    android:textColor="@color/black"/>
 
                 <LinearLayout
-                    android:layout_width="0dp"
+                    android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:orientation="vertical"
-                    android:background="#E8F5E9"
-                    android:padding="12dp"
-                    android:layout_marginEnd="8dp">
+                    android:orientation="horizontal"
+                    android:layout_marginBottom="8dp"
+                    android:gravity="center_vertical">
+
                     <TextView
-                        android:text="Tổng Thu"
-                        android:textColor="#388E3C"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"/>
-                    <TextView
-                        android:id="@+id/txtTotalRevenue"
-                        android:text="Loading..."
+                        android:layout_width="0dp"
+                        android:layout_height="match_parent"
+                        android:layout_weight="0.6"
+                        android:text="Xem thống kê của:"
                         android:textSize="16sp"
-                        android:textStyle="bold"
-                        android:textColor="#388E3C"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"/>
+                        android:textColor="@color/black"
+                        android:paddingVertical="8dp"
+                        android:paddingHorizontal="8dp"/>
+
+                    <Spinner
+                        android:id="@+id/spinner_month"
+                        android:layout_width="0dp"
+                        android:layout_height="40dp"
+                        android:layout_weight="0.35"
+                        android:background="@drawable/spinner_background"
+                        android:paddingHorizontal="8dp"
+                        android:entries="@array/month_options" />
+
+                    <Spinner
+                        android:id="@+id/spinner_year"
+                        android:layout_width="0dp"
+                        android:layout_height="40dp"
+                        android:layout_weight="0.35"
+                        android:layout_marginStart="8dp"
+                        android:background="@drawable/spinner_background" />
                 </LinearLayout>
 
                 <LinearLayout
-                    android:layout_width="0dp"
+                    android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:orientation="vertical"
-                    android:background="#FFEBEE"
-                    android:padding="12dp"
-                    android:layout_marginStart="8dp">
-                    <TextView
-                        android:text="Tổng Chi"
-                        android:textColor="#D32F2F"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"/>
-                    <TextView
-                        android:id="@+id/txtTotalExpense"
-                        android:text="Loading..."
-                        android:textSize="16sp"
-                        android:textStyle="bold"
-                        android:textColor="#D32F2F"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"/>
+                    android:orientation="horizontal"
+                    android:layout_marginBottom="16dp">
+
+                    <LinearLayout
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:orientation="vertical"
+                        android:background="#E8F5E9"
+                        android:padding="12dp"
+                        android:layout_marginEnd="8dp">
+                        <TextView
+                            android:text="Tổng Thu"
+                            android:textColor="#388E3C"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"/>
+                        <TextView
+                            android:id="@+id/txtTotalRevenue"
+                            android:text="Loading..."
+                            android:textSize="16sp"
+                            android:textStyle="bold"
+                            android:textColor="#388E3C"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"/>
+                    </LinearLayout>
+
+                    <LinearLayout
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:orientation="vertical"
+                        android:background="#FFEBEE"
+                        android:padding="12dp"
+                        android:layout_marginStart="8dp">
+                        <TextView
+                            android:text="Tổng Chi"
+                            android:textColor="#D32F2F"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"/>
+                        <TextView
+                            android:id="@+id/txtTotalExpense"
+                            android:text="Loading..."
+                            android:textSize="16sp"
+                            android:textStyle="bold"
+                            android:textColor="#D32F2F"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"/>
+                    </LinearLayout>
                 </LinearLayout>
-            </LinearLayout>
 
-            <com.github.mikephil.charting.charts.BarChart
-                android:id="@+id/barChart"
-                android:layout_width="match_parent"
-                android:layout_height="250dp"
-                android:layout_marginBottom="24dp"/>
+                <com.github.mikephil.charting.charts.BarChart
+                    android:id="@+id/barChart"
+                    android:layout_width="match_parent"
+                    android:layout_height="250dp"
+                    android:layout_marginBottom="24dp"/>
 
-            <View
-                android:layout_width="match_parent"
-                android:layout_height="1dp"
-                android:background="#EEEEEE"
-                android:layout_marginBottom="20dp"/>
+                <View
+                    android:layout_width="match_parent"
+                    android:layout_height="1dp"
+                    android:background="#EEEEEE"
+                    android:layout_marginBottom="20dp"/>
 
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="Danh sách Khoản thu/chi"
-                android:textStyle="bold"
-                android:textSize="20sp"
-                android:layout_marginBottom="12dp"
-                android:textColor="@color/black"/>
-
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="horizontal"
-                android:layout_marginBottom="8dp"
-                android:gravity="center_vertical">
-
-                <androidx.appcompat.widget.SearchView
-                    android:id="@+id/search_view"
-                    android:layout_width="0dp"
+                <TextView
+                    android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_weight="0.7"
-                    app:queryHint="Tìm kiếm..."
-                    app:iconifiedByDefault="false"
-                    android:background="@drawable/search_view_background" />
+                    android:text="Danh sách Khoản thu/chi"
+                    android:textStyle="bold"
+                    android:textSize="20sp"
+                    android:layout_marginBottom="12dp"
+                    android:textColor="@color/black"/>
 
-                <Spinner
-                    android:id="@+id/spinner_filter"
-                    android:layout_width="0dp"
-                    android:layout_height="match_parent"
-                    android:layout_weight="0.3"
-                    android:layout_marginStart="8dp"
-                    android:background="@drawable/spinner_background"
-                    android:textColor="@color/black"
-                    android:entries="@array/finance_filter_options" />
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:layout_marginBottom="8dp"
+                    android:gravity="center_vertical">
+
+                    <androidx.appcompat.widget.SearchView
+                        android:id="@+id/search_view"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="0.7"
+                        app:queryHint="Tìm kiếm..."
+                        app:iconifiedByDefault="false"
+                        android:background="@drawable/search_view_background" />
+
+                    <Spinner
+                        android:id="@+id/spinner_filter"
+                        android:layout_width="0dp"
+                        android:layout_height="match_parent"
+                        android:layout_weight="0.3"
+                        android:layout_marginStart="8dp"
+                        android:background="@drawable/spinner_background"
+                        android:textColor="@color/black"
+                        android:entries="@array/finance_filter_options" />
+                </LinearLayout>
+
+                <androidx.recyclerview.widget.RecyclerView
+                    android:id="@+id/recyclerViewManageFinance"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:nestedScrollingEnabled="false"
+                    android:paddingBottom="80dp"/>
             </LinearLayout>
-
-            <androidx.recyclerview.widget.RecyclerView
-                android:id="@+id/recyclerViewManageFinance"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:nestedScrollingEnabled="false"
-                android:paddingBottom="80dp"/> </LinearLayout>
-    </androidx.core.widget.NestedScrollView>
+        </androidx.core.widget.NestedScrollView>
+    </androidx.swiperefreshlayout.widget.SwipeRefreshLayout>
 
     <com.google.android.material.floatingactionbutton.FloatingActionButton
         android:id="@+id/btnAddReceipt"

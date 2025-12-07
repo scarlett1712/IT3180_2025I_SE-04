@@ -159,7 +159,7 @@ public class LogInActivity extends AppCompatActivity {
         builder.setNegativeButton("Hủy", (dialog, which) -> stopPolling());
 
         // Nút Force Login (Ban đầu ẩn, sẽ hiện sau 30s)
-        builder.setNeutralButton("Tôi bị mất máy cũ", (dialog, which) -> {
+        builder.setNeutralButton("Tôi bị mất/hỏng thiết bị cũ", (dialog, which) -> {
             stopPolling();
             // Chuyển sang EnterOTPActivity với cờ FORCE_LOGIN
             Intent intent = new Intent(LogInActivity.this, EnterOTPActivity.class);

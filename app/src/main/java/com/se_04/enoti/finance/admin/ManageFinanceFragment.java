@@ -1,25 +1,31 @@
 package com.se_04.enoti.finance.admin;
 
+import android.app.Activity;
 import android.content.Intent;
 import android.graphics.Color;
 import android.os.Bundle;
-import android.os.Handler;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.AdapterView;
+import android.widget.ArrayAdapter;
 import android.widget.Spinner;
 import android.widget.TextView;
+import android.widget.Toast;
 
+import androidx.activity.result.ActivityResultLauncher;
+import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.appcompat.widget.SearchView;
 import androidx.fragment.app.Fragment;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
+import androidx.swiperefreshlayout.widget.SwipeRefreshLayout;
 
 import com.android.volley.Request;
+import com.android.volley.toolbox.JsonArrayRequest;
 import com.android.volley.toolbox.JsonObjectRequest;
 import com.android.volley.toolbox.Volley;
 import com.github.mikephil.charting.charts.BarChart;
@@ -38,6 +44,7 @@ import com.se_04.enoti.utils.ApiConfig;
 import com.se_04.enoti.utils.UserManager;
 
 import org.json.JSONException;
+import org.json.JSONObject;
 
 import java.text.NumberFormat;
 import java.util.ArrayList;
@@ -49,30 +56,34 @@ import java.util.Locale;
 public class ManageFinanceFragment extends Fragment {
 
     // --- UI Components ---
+    private SwipeRefreshLayout swipeRefreshLayout;
     private TextView txtRevenue, txtExpense;
     private BarChart barChart;
     private SearchView searchView;
-    private Spinner spinnerFilterType; // Lọc trạng thái (Tất cả, Đã đóng...)
-    private Spinner spinnerMonth;      // Lọc tháng cho CHART
+    private Spinner spinnerFilterType; // Lọc trạng thái cho DANH SÁCH
+    private Spinner spinnerMonth;      // Lọc tháng cho BIỂU ĐỒ
+    private Spinner spinnerYear;       // Lọc năm cho BIỂU ĐỒ
     private FloatingActionButton btnAdd;
     private RecyclerView recyclerView;
 
     // --- Data & Logic ---
     private FinanceAdapter adapter;
     private final List<FinanceItem> allFinances = new ArrayList<>(); // Danh sách gốc
-    private final Handler refreshHandler = new Handler();
-    private int selectedMonth = 0; // 0 = Tất cả năm, 1-12 = Tháng cụ thể
 
-    private final Runnable refreshRunnable = new Runnable() {
-        @Override
-        public void run() {
-            if (isAdded()) {
-                loadFinanceList();   // Tải danh sách
-                loadFinancialStats(); // Tải số liệu biểu đồ
-                refreshHandler.postDelayed(this, 10000); // 10s refresh 1 lần
+    // Biến lưu trạng thái lọc thời gian (Mặc định: Tất cả tháng, Năm hiện tại)
+    private int selectedMonth = 0;
+    private int selectedYear = Calendar.getInstance().get(Calendar.YEAR);
+
+    // Launcher để nhận kết quả khi tạo khoản thu mới xong -> Tự động reload
+    private final ActivityResultLauncher<Intent> addFinanceLauncher = registerForActivityResult(
+            new ActivityResultContracts.StartActivityForResult(),
+            result -> {
+                if (result.getResultCode() == Activity.RESULT_OK) {
+                    loadAllData(); // Reload lại dữ liệu
+                    Toast.makeText(getContext(), "Đã cập nhật dữ liệu mới", Toast.LENGTH_SHORT).show();
+                }
             }
-        }
-    };
+    );
 
     @Nullable
     @Override
@@ -83,12 +94,17 @@ public class ManageFinanceFragment extends Fragment {
         setupWelcome(view);
         setupChart();
         setupRecyclerView();
-        setupListeners();
+        setupTimeFilters(); // Cài đặt Spinner Tháng/Năm
+        setupOtherListeners(); // Cài đặt Search, Filter Type, FAB
+
+        // Tải dữ liệu lần đầu
+        loadAllData();
 
         return view;
     }
 
     private void initViews(View view) {
+        swipeRefreshLayout = view.findViewById(R.id.swipeRefreshLayout);
         txtRevenue = view.findViewById(R.id.txtTotalRevenue);
         txtExpense = view.findViewById(R.id.txtTotalExpense);
         barChart = view.findViewById(R.id.barChart);
@@ -96,8 +112,15 @@ public class ManageFinanceFragment extends Fragment {
         searchView = view.findViewById(R.id.search_view);
         spinnerFilterType = view.findViewById(R.id.spinner_filter);
         spinnerMonth = view.findViewById(R.id.spinner_month);
+        spinnerYear = view.findViewById(R.id.spinner_year);
         btnAdd = view.findViewById(R.id.btnAddReceipt);
         recyclerView = view.findViewById(R.id.recyclerViewManageFinance);
+
+        // Cấu hình SwipeRefresh
+        if (swipeRefreshLayout != null) {
+            swipeRefreshLayout.setColorSchemeResources(R.color.purple_primary, android.R.color.holo_green_light);
+            swipeRefreshLayout.setOnRefreshListener(this::loadAllData);
+        }
     }
 
     private void setupWelcome(View view) {
@@ -134,14 +157,51 @@ public class ManageFinanceFragment extends Fragment {
         recyclerView.setAdapter(adapter);
     }
 
-    private void setupListeners() {
-        // 1. Nút thêm
-        btnAdd.setOnClickListener(v -> {
-            Intent intent = new Intent(getActivity(), CreateFinanceActivity.class);
-            startActivity(intent);
+    private void setupTimeFilters() {
+        // 1. Cấu hình Spinner Năm (Động: hiện tại +/- 2 năm)
+        List<String> years = new ArrayList<>();
+        int currentYear = Calendar.getInstance().get(Calendar.YEAR);
+        for (int i = currentYear - 2; i <= currentYear + 2; i++) {
+            years.add(String.valueOf(i));
+        }
+        ArrayAdapter<String> adapterYear = new ArrayAdapter<>(requireContext(), android.R.layout.simple_spinner_item, years);
+        adapterYear.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+        spinnerYear.setAdapter(adapterYear);
+
+        // Chọn năm hiện tại (vị trí index 2 trong list 5 năm)
+        spinnerYear.setSelection(2);
+        selectedYear = currentYear;
+
+        // 2. Sự kiện chọn THÁNG -> Chỉ reload Chart
+        spinnerMonth.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
+            @Override
+            public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
+                selectedMonth = position; // 0: Tất cả, 1-12: Tháng
+                loadFinancialStats(); // 🔥 Chỉ gọi API thống kê
+            }
+            @Override public void onNothingSelected(AdapterView<?> parent) {}
         });
 
-        // 2. Tìm kiếm
+        // 3. Sự kiện chọn NĂM -> Chỉ reload Chart
+        spinnerYear.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
+            @Override
+            public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
+                String yearStr = parent.getItemAtPosition(position).toString();
+                selectedYear = Integer.parseInt(yearStr);
+                loadFinancialStats(); // 🔥 Chỉ gọi API thống kê
+            }
+            @Override public void onNothingSelected(AdapterView<?> parent) {}
+        });
+    }
+
+    private void setupOtherListeners() {
+        // 1. Nút thêm (Dùng Launcher)
+        btnAdd.setOnClickListener(v -> {
+            Intent intent = new Intent(getActivity(), CreateFinanceActivity.class);
+            addFinanceLauncher.launch(intent);
+        });
+
+        // 2. Tìm kiếm (Lọc List)
         searchView.setOnQueryTextListener(new SearchView.OnQueryTextListener() {
             @Override
             public boolean onQueryTextSubmit(String query) { adapter.getFilter().filter(query); return false; }
@@ -149,7 +209,7 @@ public class ManageFinanceFragment extends Fragment {
             public boolean onQueryTextChange(String newText) { adapter.getFilter().filter(newText); return false; }
         });
 
-        // 3. Spinner Loại (Trạng thái) -> Lọc danh sách
+        // 3. Spinner Loại (Lọc List)
         spinnerFilterType.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
             @Override
             public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
@@ -158,23 +218,16 @@ public class ManageFinanceFragment extends Fragment {
             }
             @Override public void onNothingSelected(AdapterView<?> parent) {}
         });
-
-        // 4. 🔥 Spinner Tháng -> CHỈ CẬP NHẬT BIỂU ĐỒ (Không lọc danh sách)
-        spinnerMonth.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
-            @Override
-            public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
-                selectedMonth = position; // 0: Tất cả, 1-12: Tháng
-
-                // Chỉ gọi hàm load stats cho biểu đồ
-                loadFinancialStats();
-
-                // ❌ ĐÃ BỎ: filterListByMonth(); -> Danh sách không bị ảnh hưởng
-            }
-            @Override public void onNothingSelected(AdapterView<?> parent) {}
-        });
     }
 
-    // --- API 1: Tải danh sách (Hiển thị tất cả) ---
+    // --- MAIN LOADER ---
+    private void loadAllData() {
+        if (swipeRefreshLayout != null) swipeRefreshLayout.setRefreshing(true);
+        loadFinanceList();   // Tải danh sách (toàn bộ)
+        loadFinancialStats(); // Tải biểu đồ (theo bộ lọc)
+    }
+
+    // --- API 1: Tải danh sách (Admin xem tất cả) ---
     private void loadFinanceList() {
         FinanceRepository.getInstance().fetchAdminFinances(requireContext(),
                 new FinanceRepository.FinanceCallback() {
@@ -182,7 +235,7 @@ public class ManageFinanceFragment extends Fragment {
                     public void onSuccess(List<FinanceItem> finances) {
                         if (!isAdded()) return;
 
-                        // Lọc trùng & Lưu vào danh sách gốc
+                        // Lọc trùng ID
                         allFinances.clear();
                         HashSet<Integer> seenIds = new HashSet<>();
                         for (FinanceItem item : finances) {
@@ -191,36 +244,40 @@ public class ManageFinanceFragment extends Fragment {
                                 allFinances.add(item);
                             }
                         }
-                        // Sắp xếp mới nhất lên đầu
+                        // Sắp xếp ID giảm dần (Mới nhất lên đầu)
                         allFinances.sort((f1, f2) -> f2.getId() - f1.getId());
 
-                        // 🔥 CẬP NHẬT TRỰC TIẾP TOÀN BỘ DANH SÁCH (Không lọc theo tháng nữa)
+                        // Cập nhật Adapter
                         if (adapter != null) {
                             adapter.updateList(allFinances);
 
-                            // Re-apply filter trạng thái (nếu đang chọn filter type khác "Tất cả")
+                            // Re-apply filter loại nếu đang chọn
                             if (spinnerFilterType != null && spinnerFilterType.getSelectedItem() != null) {
                                 adapter.filterByType(spinnerFilterType.getSelectedItem().toString());
                             }
                         }
+
+                        if (swipeRefreshLayout != null) swipeRefreshLayout.setRefreshing(false);
                     }
 
                     @Override
                     public void onError(String message) {
-                        // Log.e("ManageFinance", "Load list error: " + message);
+                        if (swipeRefreshLayout != null) swipeRefreshLayout.setRefreshing(false);
+                        // Log.e("ManageFinance", "List Error: " + message);
                     }
                 });
     }
 
-    // --- API 2: Tải thống kê biểu đồ (Có lọc theo tháng) ---
+    // --- API 2: Tải thống kê biểu đồ (Theo Tháng/Năm) ---
     private void loadFinancialStats() {
-        // URL chuẩn (không có 's' ở finance)
+        // URL chuẩn
         String url = ApiConfig.BASE_URL + "/api/finance/statistics";
 
-        // Thêm tham số tháng/năm nếu chọn tháng cụ thể
+        // Luôn gửi kèm năm
+        url += "?year=" + selectedYear;
+        // Nếu chọn tháng cụ thể (khác 0) thì gửi kèm tháng
         if (selectedMonth > 0) {
-            int year = Calendar.getInstance().get(Calendar.YEAR);
-            url += "?month=" + selectedMonth + "&year=" + year;
+            url += "&month=" + selectedMonth;
         }
 
         JsonObjectRequest request = new JsonObjectRequest(Request.Method.GET, url, null,
@@ -261,19 +318,5 @@ public class ManageFinanceFragment extends Fragment {
         barChart.setData(data);
         barChart.animateY(800);
         barChart.invalidate();
-    }
-
-    @Override
-    public void onResume() {
-        super.onResume();
-        loadFinanceList();
-        loadFinancialStats();
-        refreshHandler.postDelayed(refreshRunnable, 10000);
-    }
-
-    @Override
-    public void onPause() {
-        super.onPause();
-        refreshHandler.removeCallbacks(refreshRunnable);
     }
 }
