@@ -34,6 +34,7 @@ import com.se_04.enoti.account.AccountFragment;
 import com.se_04.enoti.account.UserItem;
 import com.se_04.enoti.feedback.FeedbackFragment;
 import com.se_04.enoti.finance.FinanceFragment;
+import com.se_04.enoti.maintenance.user.UserAssetFragment;
 import com.se_04.enoti.notification.NotificationFragment;
 import com.se_04.enoti.utils.ApiConfig;
 import com.se_04.enoti.utils.UserManager;
@@ -59,6 +60,7 @@ public class MainActivity_User extends AppCompatActivity {
     private NotificationFragment notificationFragment;
     private FinanceFragment financeFragment;
     private FeedbackFragment feedbackFragment;
+    private UserAssetFragment assetFragment;
     private AccountFragment accountFragment;
 
     private Fragment activeFragment; // Fragment đang hiển thị
@@ -106,6 +108,7 @@ public class MainActivity_User extends AppCompatActivity {
             notificationFragment = new NotificationFragment();
             financeFragment = new FinanceFragment();
             feedbackFragment = new FeedbackFragment();
+            assetFragment = new UserAssetFragment();
             accountFragment = new AccountFragment();
 
             FragmentTransaction transaction = fragmentManager.beginTransaction();
@@ -114,6 +117,7 @@ public class MainActivity_User extends AppCompatActivity {
             transaction.add(R.id.fragment_container, financeFragment, "finance").hide(financeFragment);
             transaction.add(R.id.fragment_container, notificationFragment, "notifications").hide(notificationFragment);
             transaction.add(R.id.fragment_container, feedbackFragment, "feedback").hide(feedbackFragment);
+            transaction.add(R.id.fragment_container, assetFragment, "asset").hide(assetFragment);
             transaction.add(R.id.fragment_container, homeFragmentUser, "home");
 
             transaction.commit();
@@ -129,18 +133,21 @@ public class MainActivity_User extends AppCompatActivity {
             notificationFragment = (NotificationFragment) fragmentManager.findFragmentByTag("notifications");
             financeFragment = (FinanceFragment) fragmentManager.findFragmentByTag("finance");
             feedbackFragment = (FeedbackFragment) fragmentManager.findFragmentByTag("feedback");
+            assetFragment = (UserAssetFragment) fragmentManager.findFragmentByTag("asset");
             accountFragment = (AccountFragment) fragmentManager.findFragmentByTag("account");
 
             if (homeFragmentUser == null) homeFragmentUser = new HomeFragment_User();
             if (notificationFragment == null) notificationFragment = new NotificationFragment();
             if (financeFragment == null) financeFragment = new FinanceFragment();
             if (feedbackFragment == null) feedbackFragment = new FeedbackFragment();
+            if (assetFragment == null) assetFragment = new UserAssetFragment();
             if (accountFragment == null) accountFragment = new AccountFragment();
 
             switch (activeTag) {
                 case "notifications": activeFragment = notificationFragment; break;
                 case "finance": activeFragment = financeFragment; break;
                 case "feedback": activeFragment = feedbackFragment; break;
+                case "asset": activeFragment = assetFragment; break;
                 case "account": activeFragment = accountFragment; break;
                 case "home":
                 default: activeFragment = homeFragmentUser; break;
@@ -163,6 +170,9 @@ public class MainActivity_User extends AppCompatActivity {
             } else if (itemId == R.id.nav_notifications) {
                 targetFragment = notificationFragment;
                 targetTag = "notifications";
+            } else if (itemId == R.id.nav_asset) {
+                targetFragment = assetFragment;
+                targetTag = "asset";
             } else if (itemId == R.id.nav_account) {
                 targetFragment = accountFragment;
                 targetTag = "account";
@@ -325,6 +335,12 @@ public class MainActivity_User extends AppCompatActivity {
     public void switchToFeedbackTab() {
         if (bottomNavigationView != null) {
             bottomNavigationView.setSelectedItemId(R.id.nav_feedback);
+        }
+    }
+
+    public void switchToAssetTab() {
+        if (bottomNavigationView != null) {
+            bottomNavigationView.setSelectedItemId(R.id.nav_asset);
         }
     }
 }

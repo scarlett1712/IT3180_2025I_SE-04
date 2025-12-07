@@ -215,6 +215,13 @@ public class HomeFragment_User extends Fragment {
                 ((MainActivity_User) getActivity()).switchToFeedbackTab();
             }
         });
+
+        view.findViewById(R.id.layoutAsset).setOnClickListener(v -> {
+            if (getActivity() instanceof MainActivity_User) {
+                ((MainActivity_User) getActivity()).switchToAssetTab();
+            }
+        });
+
         view.findViewById(R.id.layoutSettings).setOnClickListener(v ->
                 Snackbar.make(v, "Chức năng cài đặt đang phát triển.", Snackbar.LENGTH_SHORT).show()
         );

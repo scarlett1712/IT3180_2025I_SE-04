@@ -138,6 +138,9 @@ public class CreateMaintenanceActivity extends AppCompatActivity {
         int selectedAssetId = assetIds.get(spinnerAssets.getSelectedItemPosition());
         int selectedStaffId = staffIds.get(spinnerStaff.getSelectedItemPosition());
 
+        btnCreate.setEnabled(false);
+        btnCreate.setText("Đang xử lý...");
+
         JSONObject body = new JSONObject();
         try {
             body.put("asset_id", selectedAssetId);

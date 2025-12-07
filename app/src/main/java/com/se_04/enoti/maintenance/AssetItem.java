@@ -1,8 +1,9 @@
 package com.se_04.enoti.maintenance;
 
 import org.json.JSONObject;
+import java.io.Serializable; // 🔥 Thêm cái này để truyền dữ liệu giữa các Activity
 
-public class AssetItem {
+public class AssetItem implements Serializable {
     private int id;
     private String name;
     private String location;
@@ -17,7 +18,11 @@ public class AssetItem {
         this.purchaseDate = obj.optString("purchase_date");
     }
 
+    // 🔥 ĐÂY LÀ HÀM BẠN ĐANG THIẾU
+    public int getId() { return id; }
+
     public String getName() { return name; }
     public String getLocation() { return location; }
     public String getStatus() { return status; }
+    public String getPurchaseDate() { return purchaseDate; }
 }

@@ -153,4 +153,73 @@ router.get("/staff-list", async (req, res) => {
   }
 });
 
+// 7. [USER & ADMIN] Lấy chi tiết thiết bị & Lịch sử
+router.get("/asset/:asset_id/details", async (req, res) => {
+  const { asset_id } = req.params;
+  const { user_id, role } = req.query; // Thêm tham số role
+
+  try {
+    // 1. Lấy thông tin thiết bị
+    const assetRes = await pool.query("SELECT * FROM asset WHERE asset_id = $1", [asset_id]);
+    if (assetRes.rows.length === 0) return res.status(404).json({ error: "Không tìm thấy thiết bị" });
+    const assetInfo = assetRes.rows[0];
+
+    let historyQuery = "";
+    let queryParams = [];
+
+    if (role === 'admin') {
+      // 🔥 ADMIN: Chỉ lấy Lịch sử bảo trì (Maintenance Schedule)
+      historyQuery = `
+        SELECT
+          schedule_id as id,
+          'Maintenance' as type,
+          status,
+          description,
+          TO_CHAR(scheduled_date, 'YYYY-MM-DD') as date
+        FROM maintenanceschedule
+        WHERE asset_id = $1
+        ORDER BY scheduled_date DESC
+      `;
+      queryParams = [asset_id];
+
+    } else {
+      // 🔥 USER: Lấy Lịch sử bảo trì + Báo cáo của chính họ
+      historyQuery = `
+        SELECT
+          schedule_id as id,
+          'Maintenance' as type,
+          status,
+          description,
+          TO_CHAR(scheduled_date, 'YYYY-MM-DD') as date
+        FROM maintenanceschedule
+        WHERE asset_id = $1
+
+        UNION ALL
+
+        SELECT
+          report_id as id,
+          'MyReport' as type,
+          status,
+          description,
+          TO_CHAR(created_at, 'YYYY-MM-DD') as date
+        FROM incident_reports
+        WHERE asset_id = $1 AND user_id = $2
+
+        ORDER BY date DESC
+      `;
+      queryParams = [asset_id, user_id];
+    }
+
+    const historyRes = await pool.query(historyQuery, queryParams);
+
+    res.json({
+        asset: assetInfo,
+        history: historyRes.rows
+    });
+
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Lỗi lấy chi tiết" });
+  }
+});
 export default router;
