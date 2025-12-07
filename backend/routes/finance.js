@@ -323,10 +323,23 @@ router.post("/trigger-reminder", async (req, res) => {
     }
 });
 
-// 🔥 API MỚI: Thống kê Thu (Bắt buộc + Tự nguyện) vs Chi
+// API: Thống kê Thu/Chi (Có lọc theo Tháng/Năm)
 router.get("/statistics", async (req, res) => {
   try {
-    const result = await pool.query(`
+    const { month, year } = req.query; // Nhận tham số từ Android
+
+    let dateCondition = "";
+    let params = [];
+
+    // Nếu có chọn tháng (month 1-12)
+    if (month && year) {
+        // Lọc theo created_at hoặc due_date tùy nghiệp vụ của bạn
+        // Ở đây tôi lọc theo due_date (hạn thu/chi)
+        dateCondition = `WHERE EXTRACT(MONTH FROM due_date) = $1 AND EXTRACT(YEAR FROM due_date) = $2`;
+        params = [month, year];
+    }
+
+    const query = `
       SELECT
         SUM(CASE
             WHEN type IN ('bat_buoc', 'tu_nguyen') THEN amount
@@ -339,11 +352,12 @@ router.get("/statistics", async (req, res) => {
         END) as total_expense
 
       FROM finances
-    `);
+      ${dateCondition}
+    `;
 
+    const result = await pool.query(query, params);
     const stats = result.rows[0];
 
-    // Trả về JSON chuẩn để Android không cần sửa code
     res.json({
         revenue: parseFloat(stats.total_revenue || 0),
         expense: parseFloat(stats.total_expense || 0)
