@@ -121,6 +121,12 @@ public class UserAssetFragment extends Fragment {
                 }
         );
 
+        request.setRetryPolicy(new com.android.volley.DefaultRetryPolicy(
+                10000, // Thời gian chờ: 30 giây
+                0,     // Số lần thử lại: 0 (Để 0 để tránh gửi chồng request)
+                com.android.volley.DefaultRetryPolicy.DEFAULT_BACKOFF_MULT
+        ));
+
         Volley.newRequestQueue(requireContext()).add(request);
     }
 }
