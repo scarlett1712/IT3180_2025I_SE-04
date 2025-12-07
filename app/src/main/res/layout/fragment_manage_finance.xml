@@ -1,55 +1,123 @@
 <?xml version="1.0" encoding="utf-8"?>
 <androidx.coordinatorlayout.widget.CoordinatorLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
-    xmlns:tools="http://schemas.android.com/tools"
-    android:id="@+id/manageFinanceRoot"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@color/white"
-    tools:context=".finance.admin.ManageFinanceFragment">
+    android:background="@color/white">
 
-    <ScrollView
+    <androidx.core.widget.NestedScrollView
         android:id="@+id/scrollView_manage_finance"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:fillViewport="true">
 
-        <!-- Nội dung chính (cuộn được) -->
         <LinearLayout
             android:layout_width="match_parent"
-            android:layout_height="match_parent"
+            android:layout_height="wrap_content"
             android:orientation="vertical"
             android:padding="16dp">
 
-            <!-- Phần chào -->
             <TextView
                 android:id="@+id/txtWelcome"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="@string/welcome"
+                android:text="Xin chào Admin!"
                 android:textSize="24sp"
                 android:textColor="@android:color/black"
-                android:layout_marginTop="60dp"
+                android:layout_marginTop="40dp"
                 android:layout_marginBottom="4dp" />
 
             <TextView
                 android:id="@+id/txtGreeting"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="@string/greeting"
-                android:textSize="20sp"
+                android:text="Chúc bạn một ngày tốt lành"
+                android:textSize="18sp"
                 android:textColor="@android:color/darker_gray"
                 android:layout_marginBottom="20dp" />
 
-            <!-- Tiêu đề -->
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="@string/manage_finance"
+                android:text="Thống kê Tài chính"
                 android:textStyle="bold"
-                android:textSize="24sp"
-                android:layout_marginBottom="8dp"
-                android:textColor="@android:color/black"/>
+                android:textSize="20sp"
+                android:layout_marginBottom="12dp"
+                android:textColor="@color/black"/>
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:layout_marginBottom="16dp">
+
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:orientation="vertical"
+                    android:background="#E8F5E9"
+                    android:padding="12dp"
+                    android:layout_marginEnd="8dp">
+                    <TextView
+                        android:text="Tổng Thu"
+                        android:textColor="#388E3C"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"/>
+                    <TextView
+                        android:id="@+id/txtTotalRevenue"
+                        android:text="Loading..."
+                        android:textSize="16sp"
+                        android:textStyle="bold"
+                        android:textColor="#388E3C"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"/>
+                </LinearLayout>
+
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:orientation="vertical"
+                    android:background="#FFEBEE"
+                    android:padding="12dp"
+                    android:layout_marginStart="8dp">
+                    <TextView
+                        android:text="Tổng Chi"
+                        android:textColor="#D32F2F"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"/>
+                    <TextView
+                        android:id="@+id/txtTotalExpense"
+                        android:text="Loading..."
+                        android:textSize="16sp"
+                        android:textStyle="bold"
+                        android:textColor="#D32F2F"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"/>
+                </LinearLayout>
+            </LinearLayout>
+
+            <com.github.mikephil.charting.charts.BarChart
+                android:id="@+id/barChart"
+                android:layout_width="match_parent"
+                android:layout_height="250dp"
+                android:layout_marginBottom="24dp"/>
+
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="1dp"
+                android:background="#EEEEEE"
+                android:layout_marginBottom="20dp"/>
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Danh sách Khoản thu/chi"
+                android:textStyle="bold"
+                android:textSize="20sp"
+                android:layout_marginBottom="12dp"
+                android:textColor="@color/black"/>
 
             <LinearLayout
                 android:layout_width="match_parent"
@@ -63,7 +131,7 @@
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_weight="0.7"
-                    app:queryHint="@string/search_title"
+                    app:queryHint="Tìm kiếm..."
                     app:iconifiedByDefault="false"
                     android:background="@drawable/search_view_background" />
 
@@ -78,30 +146,23 @@
                     android:entries="@array/finance_filter_options" />
             </LinearLayout>
 
-            <!-- Danh sách khoản thu -->
             <androidx.recyclerview.widget.RecyclerView
                 android:id="@+id/recyclerViewManageFinance"
                 android:layout_width="match_parent"
-                android:layout_height="0dp"
-                android:layout_weight="1"
-                android:scrollbars="vertical" />
+                android:layout_height="wrap_content"
+                android:nestedScrollingEnabled="false"
+                android:paddingBottom="80dp"/> </LinearLayout>
+    </androidx.core.widget.NestedScrollView>
 
-        </LinearLayout>
-    </ScrollView>
-
-    <!-- Nút thêm khoản thu (nổi cố định ở góc dưới bên phải) -->
     <com.google.android.material.floatingactionbutton.FloatingActionButton
         android:id="@+id/btnAddReceipt"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_margin="20dp"
-        android:contentDescription="Thêm khoản thu"
         android:src="@drawable/ic_add"
         app:layout_anchorGravity="bottom|end"
         app:backgroundTint="@color/purple_primary"
         app:tint="@android:color/white"
-        app:elevation="6dp"
-        app:fabSize="normal"
         android:layout_gravity="bottom|end" />
 
 </androidx.coordinatorlayout.widget.CoordinatorLayout>

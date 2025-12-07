@@ -102,7 +102,7 @@ public class ManageAssetFragment extends Fragment {
             Calendar calendar = Calendar.getInstance();
             int hour = calendar.get(Calendar.HOUR_OF_DAY);
             String timeOfDay = (hour >= 5 && hour < 11) ? "sáng" : (hour >= 11 && hour < 14) ? "trưa" : (hour >= 14 && hour < 18) ? "chiều" : "tối";
-            txtGreeting.setText("Chúc bạn một buổi " + timeOfDay + " vui vẻ!");
+            txtGreeting.setText("Chúc bạn buổi " + timeOfDay + " tốt lành!");
         }
     }
 

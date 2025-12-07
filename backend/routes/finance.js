@@ -72,6 +72,7 @@ router.get("/user/:userId", async (req, res) => {
       FROM finances f
       JOIN user_finances uf ON f.id = uf.finance_id
       WHERE uf.user_id = $1
+        AND f.type != 'chi_phi'
       ORDER BY f.due_date ASC NULLS LAST;
     `,
       [userId]
@@ -320,6 +321,38 @@ router.post("/trigger-reminder", async (req, res) => {
     } catch (err) {
         res.status(500).json({ error: "Lỗi khi chạy nhắc nợ." });
     }
+});
+
+// 🔥 API MỚI: Thống kê Thu (Bắt buộc + Tự nguyện) vs Chi
+router.get("/statistics", async (req, res) => {
+  try {
+    const result = await pool.query(`
+      SELECT
+        SUM(CASE
+            WHEN type IN ('bat_buoc', 'tu_nguyen') THEN amount
+            ELSE 0
+        END) as total_revenue,
+
+        SUM(CASE
+            WHEN type = 'chi_phi' THEN amount
+            ELSE 0
+        END) as total_expense
+
+      FROM finances
+    `);
+
+    const stats = result.rows[0];
+
+    // Trả về JSON chuẩn để Android không cần sửa code
+    res.json({
+        revenue: parseFloat(stats.total_revenue || 0),
+        expense: parseFloat(stats.total_expense || 0)
+    });
+
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Lỗi thống kê tài chính" });
+  }
 });
 
 export default router;

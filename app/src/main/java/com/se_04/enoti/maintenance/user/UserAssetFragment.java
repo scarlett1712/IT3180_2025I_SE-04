@@ -30,6 +30,7 @@ import org.json.JSONException;
 import org.json.JSONObject;
 
 import java.util.ArrayList;
+import java.util.Calendar;
 import java.util.List;
 
 public class UserAssetFragment extends Fragment {
@@ -60,9 +61,18 @@ public class UserAssetFragment extends Fragment {
 
     private void setupWelcomeViews(View view) {
         TextView txtWelcome = view.findViewById(R.id.txtWelcome);
+        TextView txtGreeting = view.findViewById(R.id.txtGreeting);
+
         UserItem currentUser = UserManager.getInstance(requireContext()).getCurrentUser();
         String username = (currentUser != null) ? currentUser.getName() : "Cư dân";
         txtWelcome.setText("Xin chào " + username + "!");
+
+        if (txtGreeting != null) {
+            Calendar calendar = Calendar.getInstance();
+            int hour = calendar.get(Calendar.HOUR_OF_DAY);
+            String timeOfDay = (hour >= 5 && hour < 11) ? "sáng" : (hour >= 11 && hour < 14) ? "trưa" : (hour >= 14 && hour < 18) ? "chiều" : "tối";
+            txtGreeting.setText("Chúc bạn buổi " + timeOfDay + " tốt lành!");
+        }
     }
 
     private void setupRecyclerView(View view) {
