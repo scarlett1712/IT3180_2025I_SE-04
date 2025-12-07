@@ -323,48 +323,52 @@ router.post("/trigger-reminder", async (req, res) => {
     }
 });
 
-// API: Thống kê Thu/Chi (Có lọc theo Tháng/Năm)
+// API THỐNG KÊ
+// Revenue: Từ bảng INVOICE (dựa trên paytime)
+// Expense: Từ bảng FINANCES (type = chi_phi)
 router.get("/statistics", async (req, res) => {
   try {
-    const { month, year } = req.query; // Nhận tham số từ Android
+    // 1. Nhận tham số từ Android (month: 1-12 hoặc 0, year: ví dụ 2024)
+    const { month, year } = req.query;
 
-    let dateCondition = "";
-    let params = [];
+    // Chuyển đổi tham số để dùng trong SQL (null nếu không chọn)
+    const selectedMonth = (month && month !== '0') ? parseInt(month) : null;
+    const selectedYear = year ? parseInt(year) : null;
 
-    // Nếu có chọn tháng (month 1-12)
-    if (month && year) {
-        // Lọc theo created_at hoặc due_date tùy nghiệp vụ của bạn
-        // Ở đây tôi lọc theo due_date (hạn thu/chi)
-        dateCondition = `WHERE EXTRACT(MONTH FROM due_date) = $1 AND EXTRACT(YEAR FROM due_date) = $2`;
-        params = [month, year];
-    }
-
-    const query = `
-      SELECT
-        SUM(CASE
-            WHEN type IN ('bat_buoc', 'tu_nguyen') THEN amount
-            ELSE 0
-        END) as total_revenue,
-
-        SUM(CASE
-            WHEN type = 'chi_phi' THEN amount
-            ELSE 0
-        END) as total_expense
-
-      FROM finances
-      ${dateCondition}
+    // --- QUERY 1: TÍNH TỔNG THU (Từ bảng INVOICE) ---
+    // Logic: Cộng tổng amount của các hóa đơn đã thanh toán
+    const revenueQuery = `
+      SELECT COALESCE(SUM(amount), 0) as total_revenue
+      FROM invoice
+      WHERE
+        ($1::int IS NULL OR EXTRACT(MONTH FROM paytime) = $1)
+        AND ($2::int IS NULL OR EXTRACT(YEAR FROM paytime) = $2)
     `;
 
-    const result = await pool.query(query, params);
-    const stats = result.rows[0];
+    const revenueResult = await pool.query(revenueQuery, [selectedMonth, selectedYear]);
+    const totalRevenue = parseFloat(revenueResult.rows[0].total_revenue);
 
+    // --- QUERY 2: TÍNH TỔNG CHI (Từ bảng FINANCES) ---
+    // Logic: Cộng tổng các khoản chi phí
+    const expenseQuery = `
+      SELECT COALESCE(SUM(amount), 0) as total_expense
+      FROM finances
+      WHERE type = 'chi_phi'
+        AND ($1::int IS NULL OR EXTRACT(MONTH FROM due_date) = $1)
+        AND ($2::int IS NULL OR EXTRACT(YEAR FROM due_date) = $2)
+    `;
+
+    const expenseResult = await pool.query(expenseQuery, [selectedMonth, selectedYear]);
+    const totalExpense = parseFloat(expenseResult.rows[0].total_expense);
+
+    // --- TRẢ VỀ KẾT QUẢ ---
     res.json({
-        revenue: parseFloat(stats.total_revenue || 0),
-        expense: parseFloat(stats.total_expense || 0)
+        revenue: totalRevenue,
+        expense: totalExpense
     });
 
   } catch (err) {
-    console.error(err);
+    console.error("Lỗi thống kê:", err);
     res.status(500).json({ error: "Lỗi thống kê tài chính" });
   }
 });
