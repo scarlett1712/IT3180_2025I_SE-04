@@ -373,4 +373,155 @@ router.get("/statistics", async (req, res) => {
   }
 });
 
+// [ADMIN] Tạo hóa đơn Điện/Nước HÀNG LOẠT (Bulk Create)
+router.post("/create-utility-bulk", async (req, res) => {
+  const { data, type, month, year } = req.body;
+  // data: [{ room: '101', old_index: 100, new_index: 150 }, { room: '102', ... }]
+
+  if (!data || !Array.isArray(data) || data.length === 0) {
+      return res.status(400).json({ error: "Dữ liệu không hợp lệ" });
+  }
+
+  const client = await pool.connect();
+  let successCount = 0;
+  let errors = [];
+
+  try {
+    await client.query("BEGIN");
+
+    // 1. Lấy bảng giá (Lấy 1 lần dùng chung)
+    const ratesRes = await client.query(
+        "SELECT * FROM utility_rates WHERE type = $1 ORDER BY min_usage ASC",
+        [type]
+    );
+    const rates = ratesRes.rows;
+    const typeName = type === 'electricity' ? "Tiền điện" : "Tiền nước";
+
+    // 2. Duyệt qua từng phòng gửi lên
+    for (const item of data) {
+        const { room, old_index, new_index } = item;
+
+        // Bỏ qua nếu dữ liệu dòng này sai
+        if (!room || new_index <= old_index) {
+            errors.push(`Phòng ${room}: Số liệu sai`);
+            continue;
+        }
+
+        const usage = new_index - old_index;
+
+        // Tính tiền bậc thang
+        let totalCost = 0;
+        let remainingUsage = usage;
+        for (const tier of rates) {
+            if (remainingUsage <= 0) break;
+            const tierRange = tier.max_usage ? (tier.max_usage - tier.min_usage + 1) : Infinity;
+            const usageInThisTier = Math.min(remainingUsage, tierRange);
+            totalCost += usageInThisTier * parseFloat(tier.price);
+            remainingUsage -= usageInThisTier;
+        }
+
+        // Tìm cư dân trong phòng
+        const userRes = await client.query(`
+            SELECT ui.user_id FROM user_item ui
+            JOIN relationship r ON ui.relationship = r.relationship_id
+            JOIN apartment a ON r.apartment_id = a.apartment_id
+            WHERE a.apartment_number = $1
+        `, [room]);
+
+        if (userRes.rows.length === 0) {
+            errors.push(`Phòng ${room}: Không có cư dân`);
+            continue;
+        }
+
+        // Tạo khoản thu
+        const title = `${typeName} T${month}/${year} - P${room}`;
+        const content = `Cũ: ${old_index} | Mới: ${new_index} | Dùng: ${usage}`;
+
+        const financeRes = await client.query(
+            `INSERT INTO finances (title, content, amount, type, due_date, created_by)
+             VALUES ($1, $2, $3, 'bat_buoc', NOW() + INTERVAL '10 days', 1)
+             RETURNING id`,
+             [title, content, totalCost]
+        );
+        const financeId = financeRes.rows[0].id;
+
+        // Gán cho user
+        for (const u of userRes.rows) {
+            await client.query(
+                "INSERT INTO user_finances (user_id, finance_id, status) VALUES ($1, $2, 'chua_thanh_toan') ON CONFLICT DO NOTHING",
+                [u.user_id, financeId]
+            );
+        }
+        successCount++;
+    }
+
+    await client.query("COMMIT");
+
+    res.json({
+        success: true,
+        message: `Đã tạo ${successCount} hóa đơn.`,
+        errors: errors // Trả về danh sách lỗi (nếu có) để Admin biết
+    });
+
+  } catch (err) {
+    await client.query("ROLLBACK");
+    console.error(err);
+    res.status(500).json({ error: "Lỗi xử lý hàng loạt" });
+  } finally {
+    client.release();
+  }
+});
+
+// ⚙️ [ADMIN] Cập nhật Bảng giá Điện/Nước
+router.post("/update-rates", async (req, res) => {
+  const { type, tiers } = req.body;
+  // type: 'electricity' hoặc 'water'
+  // tiers: [{ tier_name: "Bậc 1", min: 0, max: 50, price: 1700 }, ...]
+
+  if (!type || !tiers || !Array.isArray(tiers)) {
+      return res.status(400).json({ error: "Dữ liệu không hợp lệ" });
+  }
+
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+
+    // 1. Xóa giá cũ của loại này
+    await client.query("DELETE FROM utility_rates WHERE type = $1", [type]);
+
+    // 2. Thêm giá mới
+    for (const tier of tiers) {
+        await client.query(
+            `INSERT INTO utility_rates (type, tier_name, min_usage, max_usage, price)
+             VALUES ($1, $2, $3, $4, $5)`,
+            [type, tier.tier_name, tier.min, tier.max, tier.price]
+        );
+    }
+
+    await client.query("COMMIT");
+    res.json({ success: true, message: "Đã cập nhật bảng giá thành công!" });
+
+  } catch (err) {
+    await client.query("ROLLBACK");
+    console.error(err);
+    res.status(500).json({ error: "Lỗi cập nhật bảng giá" });
+  } finally {
+    client.release();
+  }
+});
+
+// ⚙️ [ADMIN] Lấy bảng giá (để hiển thị lên form sửa)
+router.get("/utility-rates", async (req, res) => {
+    const { type } = req.query;
+    try {
+        const result = await pool.query(
+            "SELECT * FROM utility_rates WHERE type = $1 ORDER BY min_usage ASC",
+            [type]
+        );
+        res.json(result.rows);
+    } catch (err) {
+        res.status(500).json({ error: "Lỗi lấy dữ liệu" });
+    }
+});
+
 export default router;

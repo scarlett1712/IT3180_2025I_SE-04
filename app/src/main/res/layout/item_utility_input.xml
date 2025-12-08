@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="horizontal"
+    android:padding="8dp"
+    android:gravity="center_vertical"
+    android:weightSum="3">
+
+    <TextView
+        android:id="@+id/txtRoomNumber"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="0.6"
+        android:text="P101"
+        android:textStyle="bold"
+        android:textSize="16sp"/>
+
+    <EditText
+        android:id="@+id/edtOld"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1.2"
+        android:hint="Cũ"
+        android:inputType="number"
+        android:layout_marginEnd="4dp"/>
+
+    <EditText
+        android:id="@+id/edtNew"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1.2"
+        android:hint="Mới"
+        android:inputType="number"/>
+</LinearLayout>

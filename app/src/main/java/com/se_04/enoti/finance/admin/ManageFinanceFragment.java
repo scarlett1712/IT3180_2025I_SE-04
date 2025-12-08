@@ -25,7 +25,6 @@ import androidx.recyclerview.widget.RecyclerView;
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout;
 
 import com.android.volley.Request;
-import com.android.volley.toolbox.JsonArrayRequest;
 import com.android.volley.toolbox.JsonObjectRequest;
 import com.android.volley.toolbox.Volley;
 import com.github.mikephil.charting.charts.BarChart;
@@ -34,7 +33,8 @@ import com.github.mikephil.charting.data.BarData;
 import com.github.mikephil.charting.data.BarDataSet;
 import com.github.mikephil.charting.data.BarEntry;
 import com.github.mikephil.charting.formatter.IndexAxisValueFormatter;
-import com.google.android.material.floatingactionbutton.FloatingActionButton;
+import com.google.android.material.floatingactionbutton.ExtendedFloatingActionButton;
+
 import com.se_04.enoti.R;
 import com.se_04.enoti.account.UserItem;
 import com.se_04.enoti.finance.FinanceAdapter;
@@ -44,7 +44,6 @@ import com.se_04.enoti.utils.ApiConfig;
 import com.se_04.enoti.utils.UserManager;
 
 import org.json.JSONException;
-import org.json.JSONObject;
 
 import java.text.NumberFormat;
 import java.util.ArrayList;
@@ -63,7 +62,7 @@ public class ManageFinanceFragment extends Fragment {
     private Spinner spinnerFilterType; // Lọc trạng thái cho DANH SÁCH
     private Spinner spinnerMonth;      // Lọc tháng cho BIỂU ĐỒ
     private Spinner spinnerYear;       // Lọc năm cho BIỂU ĐỒ
-    private FloatingActionButton btnAdd;
+    private ExtendedFloatingActionButton btnUtility, btnAdd;
     private RecyclerView recyclerView;
 
     // --- Data & Logic ---
@@ -114,6 +113,7 @@ public class ManageFinanceFragment extends Fragment {
         spinnerMonth = view.findViewById(R.id.spinner_month);
         spinnerYear = view.findViewById(R.id.spinner_year);
         btnAdd = view.findViewById(R.id.btnAddReceipt);
+        btnUtility = view.findViewById(R.id.btnUtility);
         recyclerView = view.findViewById(R.id.recyclerViewManageFinance);
 
         // Cấu hình SwipeRefresh
@@ -199,6 +199,11 @@ public class ManageFinanceFragment extends Fragment {
         btnAdd.setOnClickListener(v -> {
             Intent intent = new Intent(getActivity(), CreateFinanceActivity.class);
             addFinanceLauncher.launch(intent);
+        });
+
+        btnUtility.setOnClickListener(v -> {
+            Intent intent = new Intent(getActivity(), BulkUtilityBillActivity.class);
+            addFinanceLauncher.launch(intent); // Dùng chung Launcher để reload khi xong
         });
 
         // 2. Tìm kiếm (Lọc List)

@@ -72,6 +72,8 @@
         <activity android:name=".maintenance.admin.AddAssetActivity" />
         <activity android:name=".maintenance.user.ReportIssueActivity" />
         <activity android:name=".maintenance.user.AssetDetailActivity" />
+        <activity android:name=".finance.admin.BulkUtilityBillActivity" />
+        <activity android:name=".finance.admin.ConfigRatesActivity" />
         <activity android:name=".finance.FinanceDetailActivity"
             android:launchMode="singleTop"
             android:exported="true"
