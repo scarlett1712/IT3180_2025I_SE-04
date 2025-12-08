@@ -1,7 +1,7 @@
 import cron from "node-cron";
 import { pool } from "../db.js";
-import { sendNotification } from "../utils/firebaseHelper.js"; // Helper gửi 1 người
-import { sendNotificationToUsers } from "../fcm.js"; // Helper gửi nhiều người (nếu có) hoặc dùng lại sendNotification
+// ✅ SỬA: Chỉ import từ firebaseHelper, bỏ fcm.js
+import { sendNotification } from "../utils/firebaseHelper.js";
 
 /**
  * ==================================================================
@@ -9,8 +9,6 @@ import { sendNotificationToUsers } from "../fcm.js"; // Helper gửi nhiều ng�
  * ==================================================================
  */
 const checkScheduledNotifications = async () => {
-    // console.log(`[CRON] Checking for pending scheduled notifications...`); // Bỏ comment nếu muốn log chi tiết
-
     const client = await pool.connect();
     try {
         // Tìm thông báo PENDING đã đến giờ gửi
@@ -37,16 +35,12 @@ const checkScheduledNotifications = async () => {
                 const tokens = usersResult.rows.map(row => row.fcm_token).filter(t => t);
 
                 if (tokens.length > 0) {
-                    // Gửi thông báo (Dùng hàm gửi nhiều người nếu có, hoặc loop gửi từng người)
-                    // Ở đây giả định dùng sendNotificationToUsers từ fcm.js
-                    // Nếu chưa có fcm.js, bạn có thể loop sendNotification
-
-                    // Cách 1: Gửi 1 lần (nếu fcm.js hỗ trợ multicast)
-                    // await sendNotificationToUsers(tokens, { title: notification.title, content: notification.content });
-
-                    // Cách 2: Loop gửi từng người (An toàn nhất với firebaseHelper hiện tại)
+                    // ✅ SỬA: Dùng vòng lặp gửi từng người qua firebaseHelper
+                    // (Thay vì dùng sendNotificationToUsers của fcm.js không tồn tại)
                     for (const token of tokens) {
-                        sendNotification(token, notification.title, notification.content);
+                        // Lưu ý: sendNotification của bạn nhận tham số (token, title, body, data)
+                        // Bạn có thể thêm object data nếu cần, ví dụ { type: notification.type }
+                        sendNotification(token, notification.title, notification.content, { type: notification.type || "general" });
                     }
 
                     // Cập nhật trạng thái SENT
