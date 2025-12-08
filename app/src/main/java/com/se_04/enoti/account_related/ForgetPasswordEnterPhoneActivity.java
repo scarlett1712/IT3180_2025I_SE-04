@@ -7,6 +7,7 @@ import android.os.Bundle;
 import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
+import android.widget.TextView;
 
 import static com.se_04.enoti.utils.ValidatePhoneNumberUtil.isValidVietnamesePhoneNumber;
 import static com.se_04.enoti.utils.ValidatePhoneNumberUtil.normalizePhoneNumber;
@@ -25,6 +26,7 @@ public class ForgetPasswordEnterPhoneActivity extends AppCompatActivity {
 
         editTextPhone = findViewById(R.id.enterPhoneNumberForget);
         buttonGetOTP = findViewById(R.id.buttonGetOTPForget);
+        TextView textBackToLogin = findViewById(R.id.textBackToLogin);
 
         buttonGetOTP.setOnClickListener(new View.OnClickListener(){
 
@@ -43,6 +45,10 @@ public class ForgetPasswordEnterPhoneActivity extends AppCompatActivity {
                 intent.putExtra(EnterOTPActivity.EXTRA_PREVIOUS_ACTIVITY, EnterOTPActivity.FROM_FORGOT_PASSWORD);
                 startActivity(intent);
             }
+        });
+
+        textBackToLogin.setOnClickListener(v -> {
+            finish();
         });
 
     }

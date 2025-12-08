@@ -1,12 +1,15 @@
 package com.se_04.enoti.account;
 
 import android.app.AlertDialog;
+import android.app.Dialog; // 🔥 Import Dialog
 import android.app.ProgressDialog;
 import android.content.Context;
 import android.content.Intent;
 import android.database.Cursor;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
+import android.graphics.Color; // 🔥 Import Color
+import android.graphics.drawable.ColorDrawable; // 🔥 Import ColorDrawable
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.Environment;
@@ -17,6 +20,7 @@ import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.Window; // 🔥 Import Window
 import android.widget.Button;
 import android.widget.ImageView;
 import android.widget.TextView;
@@ -200,25 +204,47 @@ public class AccountFragment extends Fragment {
         Volley.newRequestQueue(requireContext()).add(request);
     }
 
-    // 🔥 HIỆN DIALOG CẢNH BÁO BẢO MẬT
+    // 🔥 HÀM MỚI: HIỂN THỊ CUSTOM DIALOG CẢNH BÁO BẢO MẬT
     private void showLoginRequestDialog(int requestId) {
         if (!isFragmentAttached()) return;
 
         isDialogShowing = true; // Chặn polling hiện thêm dialog
 
-        new AlertDialog.Builder(requireContext())
-                .setTitle("⚠️ Cảnh báo bảo mật")
-                .setMessage("Có một thiết bị khác đang cố gắng đăng nhập vào tài khoản của bạn.\n\nBạn có muốn cho phép không?")
-                .setPositiveButton("Cho phép", (dialog, which) -> {
-                    resolveLoginRequest(requestId, "approved");
-                    isDialogShowing = false;
-                })
-                .setNegativeButton("Từ chối", (dialog, which) -> {
-                    resolveLoginRequest(requestId, "rejected");
-                    isDialogShowing = false;
-                })
-                .setCancelable(false)
-                .show();
+        Dialog dialog = new Dialog(requireContext());
+        dialog.requestWindowFeature(Window.FEATURE_NO_TITLE);
+        dialog.setContentView(R.layout.dialog_security_alert); // Layout custom mới
+        dialog.setCancelable(false); // Bắt buộc phải chọn
+
+        // Làm nền trong suốt để thấy bo góc
+        if (dialog.getWindow() != null) {
+            dialog.getWindow().setBackgroundDrawable(new ColorDrawable(Color.TRANSPARENT));
+        }
+
+        // Ánh xạ nút trong layout custom
+        // Lưu ý: ID nút phải khớp với file dialog_security_alert.xml
+        // (btnDeny và btnAllow là AppCompatButton trong XML)
+        Button btnDeny = dialog.findViewById(R.id.btnDeny);
+        Button btnAllow = dialog.findViewById(R.id.btnAllow);
+
+        // Sự kiện Từ chối
+        if (btnDeny != null) {
+            btnDeny.setOnClickListener(v -> {
+                resolveLoginRequest(requestId, "rejected");
+                dialog.dismiss();
+                isDialogShowing = false;
+            });
+        }
+
+        // Sự kiện Cho phép
+        if (btnAllow != null) {
+            btnAllow.setOnClickListener(v -> {
+                resolveLoginRequest(requestId, "approved");
+                dialog.dismiss();
+                isDialogShowing = false;
+            });
+        }
+
+        dialog.show();
     }
 
     // 🔥 GỬI QUYẾT ĐỊNH LÊN SERVER

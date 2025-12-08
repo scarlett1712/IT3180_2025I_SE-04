@@ -1,122 +1,153 @@
 <?xml version="1.0" encoding="utf-8"?>
-<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<androidx.constraintlayout.widget.ConstraintLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:id="@+id/main"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
+    android:background="@android:color/white"
     tools:context=".home.user.MainActivity_User">
 
+    <View
+        android:id="@+id/topBackground"
+        android:layout_width="match_parent"
+        android:layout_height="250dp"
+        android:background="@drawable/bg_header_wave"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent" />
 
     <TextView
         android:id="@+id/textViewVerifyOTP"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginTop="160dp"
         android:text="@string/verify_otp_text"
         android:textSize="34sp"
         android:textStyle="bold"
-        app:layout_constraintEnd_toEndOf="parent"
+        android:textColor="#000000"
+        android:layout_marginTop="32dp"
+        app:layout_constraintTop_toBottomOf="@+id/topBackground"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent" />
+        app:layout_constraintEnd_toEndOf="parent" />
 
     <TextView
         android:id="@+id/textViewOTPSentToPhoneNumber"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginTop="24dp"
+        android:layout_marginTop="16dp"
         android:text="@string/otp_sent_message"
-        android:textSize="20sp"
+        android:textSize="16sp"
+        android:textColor="#555555"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@+id/textViewVerifyOTP" />
+
+    <TextView
+        android:id="@+id/textViewPhoneNumber"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:text="+84 912 345 678"
+        android:textSize="20sp"
+        android:textStyle="bold"
+        android:textColor="#000000"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/textViewOTPSentToPhoneNumber" />
 
     <com.chaos.view.PinView
         android:id="@+id/pinviewEnterOTP"
         style="@style/PinWidget.PinView"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_gravity="center"
-        android:layout_marginTop="36dp"
+        android:layout_marginTop="32dp"
         android:cursorVisible="true"
-        android:gravity="center"
         android:inputType="number"
-        android:itemBackground="@color/white"
-        app:hideLineWhenFilled="false"
+        android:textSize="18sp"
+        android:textStyle="bold"
+        android:textColor="#000000"
         app:itemCount="6"
         app:itemHeight="50dp"
-        app:itemRadius="10dp"
         app:itemWidth="50dp"
+        app:itemRadius="8dp"
+        app:itemSpacing="4dp"
+        app:lineColor="#8A9FFD"
+        app:lineWidth="2dp"
+        app:viewType="rectangle"
         app:layout_constraintLeft_toLeftOf="parent"
         app:layout_constraintRight_toRightOf="parent"
         app:layout_constraintTop_toBottomOf="@+id/textViewPhoneNumber" />
-
     <ProgressBar
         android:id="@+id/progressBar"
-        android:layout_width="match_parent"
-        android:layout_height="20dp"
-        android:layout_marginTop="5dp"
-        android:layout_gravity="center"
-        app:layout_constraintLeft_toLeftOf="parent"
-        app:layout_constraintRight_toRightOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/pinviewEnterOTP"/>
-
-
-    <TextView
-        android:id="@+id/textViewOTPNotReceived"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="20dp"
-        android:text="@string/otp_not_received_message"
-        android:textSize="20sp"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/textViewOTPNotMatch" />
-
-    <TextView
-        android:id="@+id/textViewResendOTP"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_marginTop="16dp"
-        android:text="@string/resend_otp_text"
-        android:textSize="20sp"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/textViewOTPNotReceived" />
-
-    <Button
-        android:id="@+id/buttonConfirm"
-        android:layout_width="wrap_content"
-        android:layout_height="60dp"
-        android:layout_marginTop="24dp"
-        android:text="@string/confirm_everything"
-        android:textSize="24sp"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/textViewResendOTP" />
+        android:visibility="invisible"
+        android:indeterminateTint="#6C7BFA"
+        app:layout_constraintLeft_toLeftOf="parent"
+        app:layout_constraintRight_toRightOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/pinviewEnterOTP"/>
 
     <TextView
         android:id="@+id/textViewOTPNotMatch"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginTop="5dp"
+        android:layout_marginTop="8dp"
         android:text="@string/otp_not_matched_message"
-        android:textColor="#FF0000"
-        android:textSize="20sp"
+        android:textColor="#D32F2F"
+        android:textSize="14sp"
         android:visibility="invisible"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@+id/progressBar" />
 
-    <TextView
-        android:id="@+id/textViewPhoneNumber"
+    <androidx.appcompat.widget.AppCompatButton
+        android:id="@+id/buttonConfirm"
+        android:layout_width="0dp"
+        android:layout_height="60dp"
+        android:layout_marginTop="24dp"
+        android:layout_marginHorizontal="32dp"
+        android:background="@drawable/bg_button_gradient"
+        android:text="@string/confirm_everything"
+        android:textAllCaps="false"
+        android:textColor="#FFFFFF"
+        android:textSize="20sp"
+        android:textStyle="bold"
+        app:layout_constraintTop_toBottomOf="@+id/textViewOTPNotMatch"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent" />
+
+    <LinearLayout
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginTop="20dp"
-        android:text="@string/phone_number"
-        android:textSize="28sp"
-        android:textStyle="bold"
-        app:layout_constraintEnd_toEndOf="parent"
+        android:orientation="horizontal"
+        android:layout_marginTop="24dp"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/textViewOTPSentToPhoneNumber" />
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/buttonConfirm">
+
+        <TextView
+            android:id="@+id/textViewOTPNotReceived"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/otp_not_received_message"
+            android:textSize="16sp"
+            android:textColor="#555555" />
+
+        <TextView
+            android:id="@+id/textViewResendOTP"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/resend_otp_text"
+            android:textSize="16sp"
+            android:textStyle="bold"
+            android:textColor="#6C7BFA"
+            android:layout_marginStart="8dp"
+            android:padding="8dp"
+            android:background="?attr/selectableItemBackground"
+            android:clickable="true"
+            android:focusable="true"/>
+    </LinearLayout>
+
 </androidx.constraintlayout.widget.ConstraintLayout>

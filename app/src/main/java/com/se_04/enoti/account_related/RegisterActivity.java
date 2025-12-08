@@ -4,9 +4,11 @@ import android.app.DatePickerDialog;
 import android.content.Intent;
 import android.os.Bundle;
 import android.text.TextUtils;
+import android.view.View;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.Spinner;
+import android.widget.TextView; // 🔥 Import thêm TextView
 import android.widget.Toast;
 
 import androidx.annotation.Nullable;
@@ -18,23 +20,34 @@ import com.se_04.enoti.R;
 import java.util.Calendar;
 import java.util.Locale;
 
+// Import các hàm validate có sẵn của bạn
 import static com.se_04.enoti.utils.ValidatePhoneNumberUtil.isValidVietnamesePhoneNumber;
 import static com.se_04.enoti.utils.ValidatePhoneNumberUtil.normalizePhoneNumber;
 
 public class RegisterActivity extends AppCompatActivity {
 
+    // Khai báo view
     private TextInputEditText edtFullName, edtDob, edtPhoneNumber, edtPassword, edtConfirmPassword, edtAdminKey;
     private Spinner spnGender;
     private Button btnRegister;
+    private TextView textBackToLogin; // 🔥 Biến mới cho nút "Đã có tài khoản?"
 
+    // Key xác thực admin (Hardcode hoặc lấy từ config)
     private static final String ADMIN_SECRET_KEY = "ENOTI_ADMIN_2024";
 
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        // Lưu ý: Đảm bảo tên layout trùng với file XML bạn vừa tạo (ví dụ: activity_register_admin)
         setContentView(R.layout.activity_register);
 
-        // Ánh xạ view
+        initViews();
+        setupDatePicker();
+        setupGenderSpinner();
+        setupListeners();
+    }
+
+    private void initViews() {
         edtFullName = findViewById(R.id.edtFullName);
         edtDob = findViewById(R.id.edtDob);
         edtPhoneNumber = findViewById(R.id.edtPhoneNumber);
@@ -44,10 +57,8 @@ public class RegisterActivity extends AppCompatActivity {
         spnGender = findViewById(R.id.spnGender);
         btnRegister = findViewById(R.id.btnRegister);
 
-        setupDatePicker();
-        setupGenderSpinner();
-
-        btnRegister.setOnClickListener(v -> handleRegistration());
+        // 🔥 Ánh xạ text view mới
+        textBackToLogin = findViewById(R.id.textBackToLogin);
     }
 
     private void setupDatePicker() {
@@ -70,34 +81,40 @@ public class RegisterActivity extends AppCompatActivity {
         spnGender.setAdapter(adapter);
     }
 
-    private void handleRegistration() {
-        String fullName = edtFullName.getText().toString().trim();
-        String dob = edtDob.getText().toString().trim();
-        String phone = edtPhoneNumber.getText().toString().trim();
-        String password = edtPassword.getText().toString().trim();
-        String confirmPassword = edtConfirmPassword.getText().toString().trim();
-        String adminKey = edtAdminKey.getText().toString().trim();
+    private void setupListeners() {
+        // Sự kiện nút Đăng ký
+        btnRegister.setOnClickListener(v -> handleRegistration());
 
-        // ✅ Lấy giới tính từ Spinner
+        // 🔥 Sự kiện nút "Đã có tài khoản? Đăng nhập"
+        textBackToLogin.setOnClickListener(v -> {
+            // Chuyển về màn hình LoginActivity
+            Intent intent = new Intent(RegisterActivity.this, LogInActivity.class);
+            // Xóa stack cũ để tránh người dùng ấn Back lại quay về màn đăng ký
+            intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_NEW_TASK);
+            startActivity(intent);
+            finish();
+        });
+    }
+
+    private void handleRegistration() {
+        // 1. Lấy dữ liệu
+        String fullName = edtFullName.getText() != null ? edtFullName.getText().toString().trim() : "";
+        String dob = edtDob.getText() != null ? edtDob.getText().toString().trim() : "";
+        String phone = edtPhoneNumber.getText() != null ? edtPhoneNumber.getText().toString().trim() : "";
+        String password = edtPassword.getText() != null ? edtPassword.getText().toString().trim() : "";
+        String confirmPassword = edtConfirmPassword.getText() != null ? edtConfirmPassword.getText().toString().trim() : "";
+        String adminKey = edtAdminKey.getText() != null ? edtAdminKey.getText().toString().trim() : "";
+
         String genderDisplay = spnGender.getSelectedItem() != null
                 ? spnGender.getSelectedItem().toString()
                 : "";
 
-        // Map sang Enum backend: MALE, FEMALE, OTHER
-        String gender = "";
-        switch (genderDisplay) {
-            case "Nam":
-                gender = "MALE";
-                break;
-            case "Nữ":
-                gender = "FEMALE";
-                break;
-            case "Khác":
-                gender = "OTHER";
-                break;
-        }
+        // Map gender sang Enum backend
+        String gender = "OTHER";
+        if ("Nam".equals(genderDisplay)) gender = "MALE";
+        else if ("Nữ".equals(genderDisplay)) gender = "FEMALE";
 
-        // === 1. Kiểm tra trống ===
+        // 2. Kiểm tra dữ liệu (Validate)
         if (TextUtils.isEmpty(fullName) || TextUtils.isEmpty(dob)
                 || TextUtils.isEmpty(genderDisplay) || TextUtils.isEmpty(phone)
                 || TextUtils.isEmpty(password) || TextUtils.isEmpty(confirmPassword)
@@ -106,18 +123,12 @@ public class RegisterActivity extends AppCompatActivity {
             return;
         }
 
-        // === 2. Kiểm tra số điện thoại ===
         if (!isValidVietnamesePhoneNumber(phone)) {
-            Toast.makeText(this,
-                    "Số điện thoại không hợp lệ. Vui lòng nhập số Việt Nam (bắt đầu bằng 0 hoặc +84).",
-                    Toast.LENGTH_LONG).show();
+            Toast.makeText(this, "Số điện thoại không hợp lệ. Vui lòng nhập số Việt Nam.", Toast.LENGTH_LONG).show();
             return;
         }
-
-        // Chuẩn hóa số điện thoại sang dạng +84...
         String normalizedPhone = normalizePhoneNumber(phone);
 
-        // === 3. Kiểm tra mật khẩu ===
         if (password.length() < 6) {
             Toast.makeText(this, "Mật khẩu phải có ít nhất 6 ký tự.", Toast.LENGTH_SHORT).show();
             return;
@@ -128,21 +139,24 @@ public class RegisterActivity extends AppCompatActivity {
             return;
         }
 
-        // === 4. Kiểm tra mã xác thực quản trị ===
+        // Kiểm tra mã BQT
         if (!ADMIN_SECRET_KEY.equals(adminKey)) {
             Toast.makeText(this, "Mã xác thực Ban Quản Trị không chính xác.", Toast.LENGTH_SHORT).show();
             return;
         }
 
-        // === 5. Nếu hợp lệ, chuyển sang OTP ===
+        // 3. Chuyển sang màn hình nhập OTP
         Intent intent = new Intent(this, EnterOTPActivity.class);
         intent.putExtra("phone", normalizedPhone);
         intent.putExtra("password", password);
         intent.putExtra("fullName", fullName);
         intent.putExtra("dob", dob);
-        intent.putExtra("gender", gender); // 👈 Truyền mã enum cho backend
+        intent.putExtra("gender", gender);
         intent.putExtra("is_admin_registration", true);
+
+        // Gửi cờ báo hiệu đây là luồng đăng ký
         intent.putExtra(EnterOTPActivity.EXTRA_PREVIOUS_ACTIVITY, EnterOTPActivity.FROM_REGISTER_PHONE);
+
         startActivity(intent);
     }
 }
