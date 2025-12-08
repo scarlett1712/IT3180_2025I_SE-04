@@ -16,6 +16,12 @@
         android:title="@string/finance" />
 
     <item
+        android:id="@+id/nav_asset"
+        android:icon="@drawable/ic_asset"
+        android:title="@string/asset" />
+
+
+    <item
         android:id="@+id/nav_feedback"
         android:icon="@drawable/ic_feedback_light"
         android:title="@string/feedback_report" />

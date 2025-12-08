@@ -3,104 +3,132 @@ package com.se_04.enoti.notification;
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
 import android.app.PendingIntent;
+import android.content.Context;
 import android.content.Intent;
+import android.graphics.BitmapFactory;
+import android.graphics.Color;
 import android.media.RingtoneManager;
 import android.net.Uri;
 import android.os.Build;
 import android.util.Log;
 
+import androidx.annotation.NonNull;
 import androidx.core.app.NotificationCompat;
-import androidx.localbroadcastmanager.content.LocalBroadcastManager;
 
+import com.android.volley.Request;
+import com.android.volley.toolbox.JsonObjectRequest;
+import com.android.volley.toolbox.Volley;
 import com.google.firebase.messaging.FirebaseMessagingService;
 import com.google.firebase.messaging.RemoteMessage;
 import com.se_04.enoti.R;
-import com.se_04.enoti.home.user.MainActivity_User;
+import com.se_04.enoti.account.UserItem;
+import com.se_04.enoti.account_related.SplashActivity;
+import com.se_04.enoti.utils.ApiConfig;
+import com.se_04.enoti.utils.UserManager;
+
+import org.json.JSONObject;
 
 import java.util.Map;
 
 public class MyFirebaseMessagingService extends FirebaseMessagingService {
 
     private static final String TAG = "MyFirebaseMsgService";
-    // Define a public action string for the broadcast
-    public static final String ACTION_NEW_NOTIFICATION = "com.se_04.enoti.NEW_NOTIFICATION";
+    // 🔥 ĐÃ ĐỔI ID: Thêm hậu tố "_V2" để tạo kênh mới với quyền ưu tiên cao nhất
+    private static final String CHANNEL_ID = "ENOTI_HIGH_PRIORITY_V2";
+    private static final String CHANNEL_NAME = "Thông báo quan trọng ENoti";
 
     @Override
-    public void onMessageReceived(RemoteMessage remoteMessage) {
-        if (remoteMessage.getData().size() > 0) {
-            Map<String, String> data = remoteMessage.getData();
-            Log.d(TAG, "Message data payload: " + data);
+    public void onMessageReceived(@NonNull RemoteMessage remoteMessage) {
+        Log.d(TAG, "From: " + remoteMessage.getFrom());
 
+        // Ưu tiên xử lý Notification Payload (từ Console)
+        if (remoteMessage.getNotification() != null) {
+            String title = remoteMessage.getNotification().getTitle();
+            String body = remoteMessage.getNotification().getBody();
+            sendNotification(title, body);
+        }
+        // Xử lý Data Payload (từ Backend API)
+        else if (remoteMessage.getData().size() > 0) {
+            Map<String, String> data = remoteMessage.getData();
             String title = data.get("title");
             String body = data.get("body");
-            String notificationId = data.get("notification_id");
 
-            if (title == null || body == null) return;
-
-            // Show the notification on the status bar
-            showNotification(title, body, notificationId);
-
-            // Send a local broadcast to notify active fragments
-            sendNewNotificationBroadcast();
-
-        } else if (remoteMessage.getNotification() != null) {
-            Log.d(TAG, "Message Notification Body: " + remoteMessage.getNotification().getBody());
-            showNotification(
-                remoteMessage.getNotification().getTitle(),
-                remoteMessage.getNotification().getBody(),
-                null
-            );
-            sendNewNotificationBroadcast();
+            if (title != null && body != null) {
+                sendNotification(title, body);
+            }
         }
     }
 
-    private void showNotification(String title, String message, String notificationId) {
-        // ... (existing code for showing notification is fine)
-        Intent intent;
-        if (notificationId != null && !notificationId.isEmpty()) {
-            intent = new Intent(this, NotificationDetailActivity.class);
-            try {
-                long id = Long.parseLong(notificationId);
-                intent.putExtra("notification_id", id);
-            } catch (NumberFormatException e) {
-                intent = new Intent(this, MainActivity_User.class);
-            }
-        } else {
-            intent = new Intent(this, MainActivity_User.class);
+    @Override
+    public void onNewToken(@NonNull String token) {
+        Log.d(TAG, "Refreshed token: " + token);
+        getSharedPreferences("FCM_PREF", MODE_PRIVATE).edit().putString("fcm_token", token).apply();
+        UserItem currentUser = UserManager.getInstance(getApplicationContext()).getCurrentUser();
+        if (currentUser != null) {
+            sendRegistrationToServer(currentUser.getId(), token);
         }
+    }
 
+    private void sendRegistrationToServer(String userId, String token) {
+        String url = ApiConfig.BASE_URL + "/api/users/update_fcm_token";
+        JSONObject body = new JSONObject();
+        try {
+            body.put("user_id", userId);
+            body.put("fcm_token", token);
+        } catch (Exception e) { e.printStackTrace(); }
+
+        JsonObjectRequest request = new JsonObjectRequest(Request.Method.POST, url, body,
+                response -> Log.d(TAG, "Token updated on server"),
+                error -> Log.e(TAG, "Failed to update token: " + error.toString())
+        );
+        Volley.newRequestQueue(getApplicationContext()).add(request);
+    }
+
+    private void sendNotification(String title, String messageBody) {
+        Intent intent = new Intent(this, SplashActivity.class);
         intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP);
 
-        PendingIntent pendingIntent = PendingIntent.getActivity(this, 0, intent,
-                PendingIntent.FLAG_ONE_SHOT | PendingIntent.FLAG_IMMUTABLE);
+        int flags = PendingIntent.FLAG_ONE_SHOT;
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            flags |= PendingIntent.FLAG_IMMUTABLE;
+        }
+        PendingIntent pendingIntent = PendingIntent.getActivity(this, 0, intent, flags);
 
-        String channelId = "enoti_channel";
         Uri defaultSoundUri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION);
 
+        // 🔥 CẤU HÌNH HEADS-UP NOTIFICATION (POPUP)
         NotificationCompat.Builder notificationBuilder =
-                new NotificationCompat.Builder(this, channelId)
-                        .setSmallIcon(R.drawable.ic_notification_light)
+                new NotificationCompat.Builder(this, CHANNEL_ID)
+                        .setSmallIcon(R.mipmap.enoti)
+                        .setLargeIcon(BitmapFactory.decodeResource(getResources(), R.mipmap.enoti))
                         .setContentTitle(title)
-                        .setContentText(message)
+                        .setContentText(messageBody)
                         .setAutoCancel(true)
                         .setSound(defaultSoundUri)
-                        .setPriority(NotificationCompat.PRIORITY_HIGH)
+                        .setDefaults(NotificationCompat.DEFAULT_ALL) // Rung + Âm thanh + Đèn
+                        .setPriority(NotificationCompat.PRIORITY_MAX) // 🔥 Mức cao nhất để hiện popup
+                        .setVisibility(NotificationCompat.VISIBILITY_PUBLIC) // Hiện trên màn hình khóa
                         .setContentIntent(pendingIntent);
 
-        NotificationManager notificationManager = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
+        NotificationManager notificationManager =
+                (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
 
+        // 🔥 TẠO CHANNEL VỚI IMPORTANCE_HIGH
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            NotificationChannel channel = new NotificationChannel(channelId, "eNoti Notifications", NotificationManager.IMPORTANCE_HIGH);
+            NotificationChannel channel = new NotificationChannel(CHANNEL_ID,
+                    CHANNEL_NAME,
+                    NotificationManager.IMPORTANCE_HIGH); // 🔥 Quan trọng: HIGH mới hiện popup
+
+            channel.setDescription("Thông báo khẩn cấp từ ENoti");
+            channel.enableLights(true);
+            channel.setLightColor(Color.RED);
+            channel.enableVibration(true);
+            channel.setVibrationPattern(new long[]{100, 200, 300, 400, 500});
+            channel.setLockscreenVisibility(NotificationCompat.VISIBILITY_PUBLIC);
+
             notificationManager.createNotificationChannel(channel);
         }
 
-        int uniqueId = (notificationId != null) ? notificationId.hashCode() : (int) System.currentTimeMillis();
-        notificationManager.notify(uniqueId, notificationBuilder.build());
-    }
-
-    private void sendNewNotificationBroadcast() {
-        Intent intent = new Intent(ACTION_NEW_NOTIFICATION);
-        LocalBroadcastManager.getInstance(this).sendBroadcast(intent);
-        Log.d(TAG, "New notification broadcast sent.");
+        notificationManager.notify((int) System.currentTimeMillis(), notificationBuilder.build());
     }
 }

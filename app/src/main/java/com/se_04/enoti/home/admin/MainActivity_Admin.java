@@ -15,6 +15,7 @@ import androidx.fragment.app.FragmentTransaction;
 import com.google.android.material.bottomnavigation.BottomNavigationView;
 import com.se_04.enoti.account.AccountFragment;
 import com.se_04.enoti.finance.admin.ManageFinanceFragment;
+import com.se_04.enoti.maintenance.admin.ManageAssetFragment;
 import com.se_04.enoti.notification.admin.CreateNotificationActivity;
 import com.se_04.enoti.R;
 import com.se_04.enoti.notification.admin.ManageNotificationFragment;
@@ -32,6 +33,8 @@ public class MainActivity_Admin extends AppCompatActivity {
     private ManageNotificationFragment manageNotificationFragment;
     private ManageFinanceFragment manageFinanceFragment;
     private AccountFragment accountFragment;
+
+    private ManageAssetFragment manageAssetFragment;
 
     private Fragment activeFragment; // To keep track of the currently visible fragment
     private FragmentManager fragmentManager;
@@ -53,6 +56,7 @@ public class MainActivity_Admin extends AppCompatActivity {
             manageResidentFragment = new ManageResidentFragment();
             manageNotificationFragment = new ManageNotificationFragment();
             manageFinanceFragment = new ManageFinanceFragment();
+            manageAssetFragment = new ManageAssetFragment();
             accountFragment = new AccountFragment();
 
             // Start a transaction
@@ -64,6 +68,7 @@ public class MainActivity_Admin extends AppCompatActivity {
             transaction.add(R.id.fragment_container, manageFinanceFragment, "managefinance").hide(manageFinanceFragment);
             transaction.add(R.id.fragment_container, manageNotificationFragment, "managenotifications").hide(manageNotificationFragment);
             transaction.add(R.id.fragment_container, manageResidentFragment, "manageresidents").hide(manageResidentFragment);
+            transaction.add(R.id.fragment_container, manageAssetFragment, "manageasset").hide(manageAssetFragment);
             transaction.add(R.id.fragment_container, homeFragmentAdmin, "home"); // Default, so show it
 
             transaction.commitNow(); // Use commitNow if you immediately need to reference these fragments
@@ -81,6 +86,7 @@ public class MainActivity_Admin extends AppCompatActivity {
             manageResidentFragment = (ManageResidentFragment) fragmentManager.findFragmentByTag("manageresidents");
             manageNotificationFragment = (ManageNotificationFragment) fragmentManager.findFragmentByTag("managenotifications");
             manageFinanceFragment = (ManageFinanceFragment) fragmentManager.findFragmentByTag("managefinance");
+            manageAssetFragment = (ManageAssetFragment) fragmentManager.findFragmentByTag("manageasset");
             accountFragment = (AccountFragment) fragmentManager.findFragmentByTag("account");
 
             // Fallback if fragments are somehow null (shouldn't happen if added correctly)
@@ -88,6 +94,7 @@ public class MainActivity_Admin extends AppCompatActivity {
             if (manageResidentFragment == null) manageResidentFragment = new ManageResidentFragment();
             if (manageNotificationFragment == null) manageNotificationFragment = new ManageNotificationFragment();
             if (manageFinanceFragment == null) manageFinanceFragment = new ManageFinanceFragment();
+            if (manageAssetFragment == null) manageAssetFragment = new ManageAssetFragment();
             if (accountFragment == null) accountFragment = new AccountFragment();
 
 
@@ -95,6 +102,7 @@ public class MainActivity_Admin extends AppCompatActivity {
                 case "manageresidents": activeFragment = manageResidentFragment; break;
                 case "managenotifications": activeFragment = manageNotificationFragment; break;
                 case "managefinance": activeFragment = manageFinanceFragment; break;
+                case "manageasset": activeFragment = manageAssetFragment; break;
                 case "account": activeFragment = accountFragment; break;
                 case "home": // Fallthrough to default
                 default: activeFragment = homeFragmentAdmin; break;
@@ -121,6 +129,9 @@ public class MainActivity_Admin extends AppCompatActivity {
             } else if (itemId == R.id.nav_manage_finance) {
                 targetFragment = manageFinanceFragment;
                 targetTag = "managefinance";
+            } else if (itemId == R.id.nav_manage_asset){
+                targetFragment = manageAssetFragment;
+                targetTag = "manageasset";
             } else if (itemId == R.id.nav_account) {
                 targetFragment = accountFragment;
                 targetTag = "account";
@@ -184,4 +195,10 @@ public class MainActivity_Admin extends AppCompatActivity {
         BottomNavigationView bottomNav = findViewById(R.id.bottom_navigation);
         bottomNav.setSelectedItemId(R.id.nav_manage_finance);
     }
+
+    public void switchToManageAssetTab() {
+        BottomNavigationView bottomNav = findViewById(R.id.bottom_navigation);
+        bottomNav.setSelectedItemId(R.id.nav_manage_asset);
+    }
+
 }

@@ -21,6 +21,8 @@ router.post("/create", async (req, res) => {
     floor,
     is_head,
     relationship_name, // Bắt buộc nếu is_head = false
+    identity_card, // 🔥 Nhận thêm CCCD
+    home_town      // 🔥 Nhận thêm Quê quán
   } = req.body;
 
   // --- ✅ 1. Validate Input ---
@@ -109,10 +111,20 @@ router.post("/create", async (req, res) => {
     }
 
     // --- ✅ 5. Tạo user_item (thông tin chi tiết của người dùng) ---
+    // 🔥 Cập nhật câu lệnh INSERT để thêm identity_card và home_town
     await client.query(
-      `INSERT INTO user_item (user_id, full_name, gender, dob, relationship, is_living, email)
-       VALUES ($1, $2, $3, $4, $5, TRUE, $6)`,
-      [user_id, full_name, gender, dob, relationship_id, email]
+      `INSERT INTO user_item (user_id, full_name, gender, dob, relationship, is_living, email, identity_card, home_town)
+       VALUES ($1, $2, $3, $4, $5, TRUE, $6, $7, $8)`,
+      [
+          user_id,
+          full_name,
+          gender,
+          dob,
+          relationship_id,
+          email,
+          identity_card || null, // Nếu không có thì để null
+          home_town || null      // Nếu không có thì để null
+      ]
     );
 
     // Kết thúc transaction

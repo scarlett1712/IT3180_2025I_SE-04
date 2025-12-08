@@ -1,7 +1,9 @@
 package com.se_04.enoti.notification.admin;
 
+import android.content.Intent;
 import android.os.Bundle;
 import android.util.Log;
+import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
 import android.widget.LinearLayout;
@@ -9,18 +11,21 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.annotation.Nullable;
+import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.localbroadcastmanager.content.LocalBroadcastManager;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.android.volley.Request;
 import com.android.volley.RequestQueue;
 import com.android.volley.toolbox.JsonArrayRequest;
+import com.android.volley.toolbox.JsonObjectRequest;
 import com.android.volley.toolbox.Volley;
 import com.google.android.material.appbar.MaterialToolbar;
 import com.se_04.enoti.R;
-import com.se_04.enoti.feedback.admin.FeedbackItem_Admin;
 import com.se_04.enoti.feedback.admin.FeedbackAdapter_Admin;
+import com.se_04.enoti.feedback.admin.FeedbackItem_Admin;
 import com.se_04.enoti.utils.ApiConfig;
 
 import org.json.JSONArray;
@@ -30,10 +35,6 @@ import org.json.JSONObject;
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- * ✅ Màn hình chi tiết thông báo cho ADMIN
- * Hiển thị thông tin thông báo + danh sách feedback mà cư dân gửi về
- */
 public class NotificationDetailActivity_Admin extends AppCompatActivity {
 
     private TextView txtTitle, txtDate, txtSender, txtContent, txtFeedbackCount;
@@ -42,7 +43,12 @@ public class NotificationDetailActivity_Admin extends AppCompatActivity {
     private FeedbackAdapter_Admin adapter;
     private final List<FeedbackItem_Admin> feedbackList = new ArrayList<>();
     private RequestQueue requestQueue;
-    private int notificationId;
+
+    // Biến lưu dữ liệu hiện tại để dùng cho chức năng Edit/Delete
+    private long currentNotificationId;
+    private String currentTitle;
+    private String currentContent;
+    private String currentType;
 
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
@@ -55,7 +61,6 @@ public class NotificationDetailActivity_Admin extends AppCompatActivity {
         if (getSupportActionBar() != null) {
             getSupportActionBar().setDisplayHomeAsUpEnabled(true);
             getSupportActionBar().setTitle("Chi tiết thông báo");
-            toolbar.setTitleTextColor(getResources().getColor(android.R.color.white, getTheme()));
         }
 
         // --- Khởi tạo view ---
@@ -74,22 +79,24 @@ public class NotificationDetailActivity_Admin extends AppCompatActivity {
         requestQueue = Volley.newRequestQueue(this);
 
         // --- Nhận dữ liệu từ Intent ---
-        long notificationId = getIntent().getLongExtra("notification_id", -1);
-        String title = getIntent().getStringExtra("title");
-        String content = getIntent().getStringExtra("content");
+        currentNotificationId = getIntent().getLongExtra("notification_id", -1);
+        currentTitle = getIntent().getStringExtra("title");
+        currentContent = getIntent().getStringExtra("content");
+        currentType = getIntent().getStringExtra("type");
         String sender = getIntent().getStringExtra("sender");
         String expiredDate = getIntent().getStringExtra("expired_date");
 
-        txtTitle.setText(title != null ? title : "Không rõ tiêu đề");
-        txtContent.setText(content != null ? content : "(Không có nội dung)");
+        // Set dữ liệu lên View
+        txtTitle.setText(currentTitle != null ? currentTitle : "Không rõ tiêu đề");
+        txtContent.setText(currentContent != null ? currentContent : "(Không có nội dung)");
         txtSender.setText(getString(R.string.notification_sender, sender != null ? sender : "Ban quản lý"));
         txtDate.setText("Hạn phản hồi: " + (expiredDate != null ? expiredDate : "Không rõ"));
 
         // --- Gọi API feedback ---
-        if (notificationId != -1) {
-            fetchFeedbackList((int) notificationId); // nếu backend cần int
+        if (currentNotificationId != -1) {
+            fetchFeedbackList((int) currentNotificationId);
         } else {
-            Toast.makeText(this, "Thiếu notification_id", Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, "Lỗi: Không tìm thấy ID thông báo", Toast.LENGTH_SHORT).show();
             finish();
         }
     }
@@ -99,7 +106,6 @@ public class NotificationDetailActivity_Admin extends AppCompatActivity {
      */
     private void fetchFeedbackList(int notificationId) {
         String url = ApiConfig.BASE_URL + "/api/feedback/notification/" + notificationId;
-        Log.d("AdminNotifDetail", "Fetching feedbacks: " + url);
 
         JsonArrayRequest request = new JsonArrayRequest(Request.Method.GET, url, null,
                 response -> {
@@ -117,15 +123,15 @@ public class NotificationDetailActivity_Admin extends AppCompatActivity {
                 },
                 error -> {
                     Log.e("AdminNotifDetail", "Error fetching feedbacks", error);
-                    Toast.makeText(this, "Không thể tải danh sách phản hồi", Toast.LENGTH_SHORT).show();
+                    // Không hiện toast lỗi nếu chỉ là không có feedback (404)
+                    if (error.networkResponse != null && error.networkResponse.statusCode != 404) {
+                        Toast.makeText(this, "Lỗi tải phản hồi", Toast.LENGTH_SHORT).show();
+                    }
                 });
 
         requestQueue.add(request);
     }
 
-    /**
-     * 🔹 Parse JSON response thành danh sách FeedbackItem_Admin
-     */
     private void parseFeedbackList(JSONArray response) {
         for (int i = 0; i < response.length(); i++) {
             try {
@@ -137,17 +143,76 @@ public class NotificationDetailActivity_Admin extends AppCompatActivity {
                 item.setSender(obj.optString("full_name", "Cư dân"));
                 feedbackList.add(item);
             } catch (JSONException e) {
-                Log.e("AdminNotifDetail", "JSON parse error", e);
+                e.printStackTrace();
             }
         }
     }
 
+    // 🔥 1. TẠO MENU (Sửa / Xóa)
+    @Override
+    public boolean onCreateOptionsMenu(Menu menu) {
+        getMenuInflater().inflate(R.menu.menu_notification_admin, menu);
+        return true;
+    }
+
+    // 🔥 2. XỬ LÝ SỰ KIỆN MENU
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
-        if (item.getItemId() == android.R.id.home) {
+        int id = item.getItemId();
+
+        if (id == android.R.id.home) {
             finish();
             return true;
+        } else if (id == R.id.action_edit) {
+            openEditScreen(); // Mở màn hình sửa
+            return true;
+        } else if (id == R.id.action_delete) {
+            confirmDelete(); // Xác nhận xóa
+            return true;
         }
+
         return super.onOptionsItemSelected(item);
+    }
+
+    // --- LOGIC XÓA ---
+    private void confirmDelete() {
+        new AlertDialog.Builder(this)
+                .setTitle("Xác nhận xóa")
+                .setMessage("Bạn có chắc chắn muốn xóa thông báo này không? Mọi dữ liệu liên quan sẽ bị mất.")
+                .setPositiveButton("Xóa", (dialog, which) -> deleteNotification())
+                .setNegativeButton("Hủy", null)
+                .show();
+    }
+
+    private void deleteNotification() {
+        String url = ApiConfig.BASE_URL + "/api/notification/delete/" + currentNotificationId;
+
+        JsonObjectRequest request = new JsonObjectRequest(Request.Method.DELETE, url, null,
+                response -> {
+                    Toast.makeText(this, "Đã xóa thông báo thành công!", Toast.LENGTH_SHORT).show();
+                    // Gửi broadcast để refresh list ở màn hình trước
+                    Intent intent = new Intent(CreateNotificationActivity.ACTION_NOTIFICATION_CREATED);
+                    LocalBroadcastManager.getInstance(this).sendBroadcast(intent);
+                    finish(); // Đóng màn hình
+                },
+                error -> {
+                    Toast.makeText(this, "Lỗi khi xóa thông báo", Toast.LENGTH_SHORT).show();
+                    Log.e("DeleteNotif", "Error: " + error.toString());
+                }
+        );
+        requestQueue.add(request);
+    }
+
+    // --- LOGIC SỬA ---
+    private void openEditScreen() {
+        Intent intent = new Intent(this, CreateNotificationActivity.class);
+        intent.putExtra("IS_EDIT_MODE", true); // Cờ hiệu chế độ sửa
+        intent.putExtra("notification_id", currentNotificationId);
+        intent.putExtra("title", currentTitle);
+        intent.putExtra("content", currentContent);
+        intent.putExtra("type", currentType);
+
+        startActivity(intent);
+        finish(); // Đóng màn hình này để khi Lưu xong sẽ quay về danh sách
     }
 }

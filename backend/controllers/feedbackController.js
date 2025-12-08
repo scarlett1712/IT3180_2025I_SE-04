@@ -1,9 +1,12 @@
 import { pool } from "../db.js";
+// 🔥 Import helper gửi thông báo
+import { sendNotification } from "../utils/firebaseHelper.js";
 
-// 🟢 Người dùng gửi feedback
+// 🟢 Người dùng gửi feedback -> Báo cho Admin
 export const createFeedback = async (req, res) => {
   const { notification_id, user_id, content, file_url } = req.body;
   try {
+    // 1. Insert Feedback
     const result = await pool.query(
       `INSERT INTO feedback (notification_id, user_id, content, file_url, status)
        VALUES ($1, $2, $3, $4, 'sent')
@@ -17,6 +20,28 @@ export const createFeedback = async (req, res) => {
          TO_CHAR(created_at, 'DD-MM-YYYY HH24:MI') AS created_at`,
       [notification_id, user_id, content, file_url]
     );
+
+    // 2. 🔥 GỬI THÔNG BÁO CHO TOÀN BỘ ADMIN
+    // Tìm tất cả user có role_id = 2 (Admin) và có fcm_token
+    const adminRes = await pool.query(`
+        SELECT u.fcm_token
+        FROM users u
+        JOIN userrole ur ON u.user_id = ur.user_id
+        WHERE ur.role_id = 2 AND u.fcm_token IS NOT NULL
+    `);
+
+    // Gửi loop cho tất cả admin
+    for (const row of adminRes.rows) {
+        if (row.fcm_token) {
+            sendNotification(
+                row.fcm_token,
+                "📩 Góp ý mới từ cư dân",
+                `Nội dung: "${content}". Vui lòng kiểm tra.`,
+                { type: "feedback", id: result.rows[0].feedback_id.toString() }
+            );
+        }
+    }
+
     res.status(201).json(result.rows[0]);
   } catch (err) {
     console.error("💥 Error creating feedback:", err);

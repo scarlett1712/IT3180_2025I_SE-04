@@ -15,8 +15,13 @@ public class UserItem {
     private final int room;
     private final Role role;
     private final String phone;
+    // 🔥 Thêm 2 trường mới
+    private final String identityCard;
+    private final String homeTown;
 
-    public UserItem(String id, @Nullable String familyId, String email, String name, String dob, Gender gender, String relationship, int room, Role role, String phone) {
+    public UserItem(String id, @Nullable String familyId, String email, String name, String dob,
+                    Gender gender, String relationship, int room, Role role, String phone,
+                    String identityCard, String homeTown) { // 🔥 Cập nhật Constructor
         this.id = id;
         this.familyId = familyId;
         this.email = email;
@@ -27,15 +32,10 @@ public class UserItem {
         this.room = room;
         this.role = role;
         this.phone = phone;
+        this.identityCard = identityCard;
+        this.homeTown = homeTown;
     }
 
-    /**
-     * [FIX] Creates a UserItem object from a JSON object received from the login API.
-     * This method centralizes parsing logic and resolves the "cannot find symbol" error.
-     * @param userJson The JSONObject for the "user" key.
-     * @return A new UserItem instance.
-     * @throws Exception if parsing fails.
-     */
     public static UserItem fromJson(JSONObject userJson) throws Exception {
         String id = userJson.getString("id");
         String phone = userJson.getString("phone");
@@ -46,6 +46,9 @@ public class UserItem {
         String roomStr = userJson.optString("room", "0");
         String relationship = userJson.optString("relationship", "Thành viên");
         String email = userJson.optString("email", "");
+        // 🔥 Parse thêm 2 trường mới
+        String identityCard = userJson.optString("identity_card", "");
+        String homeTown = userJson.optString("home_town", "");
 
         // --- Xử lý Role ---
         Role role;
@@ -55,19 +58,13 @@ public class UserItem {
             role = Role.USER; // default
         }
 
-        // --- Xử lý Gender (chuyển từ "Nam"/"Nữ"/"Khác" sang enum) ---
+        // --- Xử lý Gender ---
         Gender gender;
         switch (genderStr.trim().toLowerCase()) {
-            case "nam":
-                gender = Gender.MALE;
-                break;
+            case "nam": gender = Gender.MALE; break;
             case "nữ":
-            case "nu":
-                gender = Gender.FEMALE;
-                break;
-            default:
-                gender = Gender.OTHER;
-                break;
+            case "nu": gender = Gender.FEMALE; break;
+            default: gender = Gender.OTHER; break;
         }
 
         // --- Xử lý room ---
@@ -78,7 +75,7 @@ public class UserItem {
             room = 0;
         }
 
-        return new UserItem(id, null, email, name, dob, gender, relationship, room, role, phone);
+        return new UserItem(id, null, email, name, dob, gender, relationship, room, role, phone, identityCard, homeTown);
     }
 
     // --- Getters ---
@@ -92,4 +89,6 @@ public class UserItem {
     public int getRoom() { return room; }
     public Role getRole() { return role; }
     public String getPhone() { return phone; }
+    public String getIdentityCard() { return identityCard; } // 🔥 Getter mới
+    public String getHomeTown() { return homeTown; }         // 🔥 Getter mới
 }

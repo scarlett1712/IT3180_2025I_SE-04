@@ -1,9 +1,7 @@
 package com.se_04.enoti.home.user;
 
-import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
-import android.content.IntentFilter;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
@@ -19,7 +17,6 @@ import android.widget.Toast;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.fragment.app.Fragment;
-import androidx.localbroadcastmanager.content.LocalBroadcastManager;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.PagerSnapHelper;
 import androidx.recyclerview.widget.RecyclerView;
@@ -28,7 +25,6 @@ import androidx.recyclerview.widget.SnapHelper;
 import com.google.android.material.snackbar.Snackbar;
 import com.se_04.enoti.R;
 import com.se_04.enoti.account.UserItem;
-import com.se_04.enoti.notification.MyFirebaseMessagingService;
 import com.se_04.enoti.notification.NotificationAdapter;
 import com.se_04.enoti.notification.NotificationItem;
 import com.se_04.enoti.notification.NotificationRepository;
@@ -42,7 +38,7 @@ public class HomeFragment_User extends Fragment {
 
     private static final String TAG = "HomeFragment_User";
     private static final int MAX_HIGHLIGHTED_NOTIFICATIONS = 6;
-    private static final int REFRESH_INTERVAL = 3000; // 3 giây
+    private static final int REFRESH_INTERVAL = 3000; // Tự động làm mới mỗi 3 giây
 
     private NotificationAdapter adapter;
     private RecyclerView recyclerView;
@@ -50,23 +46,16 @@ public class HomeFragment_User extends Fragment {
     private LinearLayoutManager layoutManager;
     private SnapHelper snapHelper;
 
+    // Handler để chạy auto-refresh
     private final Handler handler = new Handler(Looper.getMainLooper());
     private final Runnable refreshRunnable = new Runnable() {
         @Override
         public void run() {
             if (isAdded()) {
                 loadHighlightedNotifications();
+                // Lặp lại sau mỗi khoảng thời gian
                 handler.postDelayed(this, REFRESH_INTERVAL);
             }
-        }
-    };
-
-    // Nhận broadcast từ Firebase khi có thông báo mới
-    private final BroadcastReceiver newNotificationReceiver = new BroadcastReceiver() {
-        @Override
-        public void onReceive(Context context, Intent intent) {
-            Log.d(TAG, "📩 New notification broadcast received. Reloading notifications...");
-            loadHighlightedNotifications();
         }
     };
 
@@ -82,22 +71,21 @@ public class HomeFragment_User extends Fragment {
         return view;
     }
 
+    // 🔥 LIFECYCLE: Bắt đầu refresh khi màn hình hiện
     @Override
-    public void onStart() {
-        super.onStart();
-        // Đăng ký nhận broadcast khi có thông báo mới
-        LocalBroadcastManager.getInstance(requireContext()).registerReceiver(
-                newNotificationReceiver,
-                new IntentFilter(MyFirebaseMessagingService.ACTION_NEW_NOTIFICATION)
-        );
+    public void onResume() {
+        super.onResume();
+        Log.d(TAG, "▶️ HomeFragment_User resumed — starting auto-refresh");
+        loadHighlightedNotifications();
+        handler.removeCallbacks(refreshRunnable); // Xóa callback cũ để tránh chồng chéo
+        handler.postDelayed(refreshRunnable, REFRESH_INTERVAL);
     }
 
+    // 🔥 LIFECYCLE: Dừng refresh khi màn hình ẩn
     @Override
-    public void onStop() {
-        super.onStop();
-        // Ngừng nhận broadcast để tránh rò rỉ bộ nhớ
-        LocalBroadcastManager.getInstance(requireContext()).unregisterReceiver(newNotificationReceiver);
-        handler.removeCallbacks(refreshRunnable); // Ngừng cập nhật khi fragment bị ẩn
+    public void onPause() {
+        super.onPause();
+        handler.removeCallbacks(refreshRunnable);
     }
 
     private void setupWelcomeViews(View view) {
@@ -107,7 +95,7 @@ public class HomeFragment_User extends Fragment {
         UserItem currentUser = UserManager.getInstance(requireContext()).getCurrentUser();
         String username = (currentUser != null && currentUser.getName() != null)
                 ? currentUser.getName()
-                : "Gia đình City";
+                : "Cư dân";
 
         txtWelcome.setText(getString(R.string.welcome, username));
 
@@ -133,6 +121,9 @@ public class HomeFragment_User extends Fragment {
     }
 
     private void loadHighlightedNotifications() {
+        // Kiểm tra context để tránh crash khi fragment chưa gắn vào activity
+        if (!isAdded() || getContext() == null) return;
+
         UserItem currentUser = UserManager.getInstance(requireContext()).getCurrentUser();
         if (currentUser == null || currentUser.getId() == null) {
             Log.e(TAG, "❌ Cannot load notifications: user or user ID is null.");
@@ -151,8 +142,10 @@ public class HomeFragment_User extends Fragment {
             @Override
             public void onSuccess(List<NotificationItem> items) {
                 if (isAdded() && items != null) {
+                    // Lấy tối đa 6 thông báo mới nhất để hiển thị nổi bật
                     int listSize = Math.min(items.size(), MAX_HIGHLIGHTED_NOTIFICATIONS);
                     List<NotificationItem> limitedList = items.subList(0, listSize);
+
                     adapter.updateList(limitedList);
                     setupIndicator(limitedList.size());
                 }
@@ -161,8 +154,8 @@ public class HomeFragment_User extends Fragment {
             @Override
             public void onError(String message) {
                 if (isAdded()) {
+                    // Log lỗi âm thầm thay vì hiện Toast liên tục (vì đang chạy polling)
                     Log.e(TAG, "⚠️ Failed to fetch notifications: " + message);
-                    Toast.makeText(getContext(), "Lỗi tải thông báo: " + message, Toast.LENGTH_SHORT).show();
                 }
             }
         });
@@ -195,7 +188,10 @@ public class HomeFragment_User extends Fragment {
                     if (centerView != null) {
                         int pos = layoutManager.getPosition(centerView);
                         for (int i = 0; i < itemCount; i++) {
-                            dots[i].setImageResource(i == pos ? R.drawable.indicator_active : R.drawable.indicator_inactive);
+                            if (i < indicatorLayout.getChildCount()) {
+                                ImageView dot = (ImageView) indicatorLayout.getChildAt(i);
+                                dot.setImageResource(i == pos ? R.drawable.indicator_active : R.drawable.indicator_inactive);
+                            }
                         }
                     }
                 }
@@ -219,20 +215,19 @@ public class HomeFragment_User extends Fragment {
                 ((MainActivity_User) getActivity()).switchToFeedbackTab();
             }
         });
+
+        view.findViewById(R.id.layoutAsset).setOnClickListener(v -> {
+            if (getActivity() instanceof MainActivity_User) {
+                ((MainActivity_User) getActivity()).switchToAssetTab();
+            }
+        });
+
         view.findViewById(R.id.layoutSettings).setOnClickListener(v ->
-                Snackbar.make(v, "Chức năng sẽ được cập nhật trong thời gian tới.", Snackbar.LENGTH_LONG).show()
+                Snackbar.make(v, "Chức năng cài đặt đang phát triển.", Snackbar.LENGTH_SHORT).show()
         );
 
         view.findViewById(R.id.layoutSupport).setOnClickListener(v ->
-                Snackbar.make(v, "Chức năng sẽ được cập nhật trong thời gian tới.", Snackbar.LENGTH_LONG).show()
+                Snackbar.make(v, "Chức năng hỗ trợ đang phát triển.", Snackbar.LENGTH_SHORT).show()
         );
-    }
-
-    @Override
-    public void onResume() {
-        super.onResume();
-        Log.d(TAG, "▶️ HomeFragment_User resumed — starting auto-refresh every 3s");
-        loadHighlightedNotifications();
-        handler.postDelayed(refreshRunnable, REFRESH_INTERVAL); // Bắt đầu lặp 3s/lần
     }
 }

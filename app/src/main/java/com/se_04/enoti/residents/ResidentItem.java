@@ -1,11 +1,11 @@
 package com.se_04.enoti.residents;
 
 public class ResidentItem {
-    private int id; // Corresponds to user_item_id in some contexts
+    private int id;
     private final int userId;
     private final String name;
     private final String room;
-    // Other fields can be kept for other parts of the app if needed
+
     private String gender;
     private String dob;
     private String email;
@@ -14,10 +14,14 @@ public class ResidentItem {
     private String familyId;
     private boolean isLiving;
 
-    /**
-     * Full constructor for detailed views
-     */
-    public ResidentItem(int id, int userId, String name, String gender, String dob, String email, String phone, String relationship, String familyId, boolean isLiving, String room) {
+    // 🔥 Thêm 2 trường mới
+    private String identityCard;
+    private String homeTown;
+
+    // Constructor đầy đủ (cho Admin quản lý)
+    public ResidentItem(int id, int userId, String name, String gender, String dob, String email, String phone,
+                        String relationship, String familyId, boolean isLiving, String room,
+                        String identityCard, String homeTown) { // 🔥 Thêm tham số vào đây
         this.id = id;
         this.userId = userId;
         this.name = name;
@@ -29,17 +33,15 @@ public class ResidentItem {
         this.familyId = familyId;
         this.isLiving = isLiving;
         this.room = room;
+        this.identityCard = identityCard;
+        this.homeTown = homeTown;
     }
 
-    /**
-     * A simpler constructor, specifically for the resident selection list in CreateFinanceActivity.
-     * It only populates fields that are actually needed for that screen.
-     */
+    // Constructor rút gọn (cho màn hình Tạo khoản thu)
     public ResidentItem(int userId, String name, String room) {
         this.userId = userId;
         this.name = name;
         this.room = room;
-        // Set default values for other fields to prevent null pointer exceptions
         this.id = 0;
         this.gender = "";
         this.dob = "";
@@ -48,6 +50,8 @@ public class ResidentItem {
         this.relationship = "";
         this.familyId = "";
         this.isLiving = true;
+        this.identityCard = "";
+        this.homeTown = "";
     }
 
     // --- Getters ---
@@ -62,6 +66,8 @@ public class ResidentItem {
     public String getRelationship() { return relationship; }
     public String getFamilyId() { return familyId; }
     public boolean isLiving() { return isLiving; }
+    public String getIdentityCard() { return identityCard; } // Getter mới
+    public String getHomeTown() { return homeTown; }         // Getter mới
 
     public String getFloor() {
         if (room != null && room.length() > 1) {

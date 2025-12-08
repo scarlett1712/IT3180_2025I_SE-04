@@ -13,7 +13,6 @@ import com.android.volley.RequestQueue;
 import com.android.volley.toolbox.JsonObjectRequest;
 import com.android.volley.toolbox.Volley;
 import com.se_04.enoti.R;
-import com.se_04.enoti.account_related.LogInActivity;
 import com.se_04.enoti.utils.ApiConfig;
 
 import org.json.JSONException;
@@ -85,9 +84,11 @@ public class CreateNewPasswordActivity extends AppCompatActivity {
         RequestQueue queue = Volley.newRequestQueue(this);
         JsonObjectRequest request = new JsonObjectRequest(Request.Method.POST, API_RESET_PASSWORD_URL, body,
                 response -> {
-                    Toast.makeText(this, "Cập nhật mật khẩu thành công!", Toast.LENGTH_LONG).show();
+                    Toast.makeText(this, "Cập nhật mật khẩu thành công! Vui lòng đăng nhập lại.", Toast.LENGTH_LONG).show();
+
+                    // Chuyển về màn hình đăng nhập và xóa hết các màn hình trước đó
                     Intent intent = new Intent(this, LogInActivity.class);
-                    intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_NEW_TASK);
+                    intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
                     startActivity(intent);
                     finish();
                 },

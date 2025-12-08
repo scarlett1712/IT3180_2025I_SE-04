@@ -19,6 +19,8 @@ import com.google.android.material.snackbar.Snackbar;
 import com.se_04.enoti.account.UserItem;
 import com.se_04.enoti.finance.admin.CreateFinanceActivity;
 import com.se_04.enoti.home.user.MainActivity_User;
+import com.se_04.enoti.maintenance.admin.MaintenanceActivity;
+import com.se_04.enoti.maintenance.admin.ManageAssetFragment;
 import com.se_04.enoti.notification.NotificationAdapter;
 import com.se_04.enoti.notification.NotificationItem;
 import com.se_04.enoti.utils.UserManager;
@@ -68,6 +70,12 @@ public class HomeFragment_Admin extends Fragment {
             startActivity(intent);
         });
 
+        LinearLayout layoutMaintenance = view.findViewById(R.id.layoutMaintenance);
+        layoutMaintenance.setOnClickListener(v -> {
+            Intent intent = new Intent(getActivity(), ManageAssetFragment.class);
+            startActivity(intent);
+        });
+
         setupQuickNav(view);
 
         return view;
@@ -90,9 +98,11 @@ public class HomeFragment_Admin extends Fragment {
             }
         });
 
-        view.findViewById(R.id.layoutMaintenance).setOnClickListener(v ->
-                Snackbar.make(v, "Chức năng sẽ được cập nhật trong thời gian tới.", Snackbar.LENGTH_LONG).show()
-        );
+        view.findViewById(R.id.layoutMaintenance).setOnClickListener(v -> {
+            if (getActivity() instanceof MainActivity_Admin) {
+                ((MainActivity_Admin) getActivity()).switchToManageAssetTab();
+            }
+        });
 
         view.findViewById(R.id.layoutSettings).setOnClickListener(v ->
                 Snackbar.make(v, "Chức năng sẽ được cập nhật trong thời gian tới.", Snackbar.LENGTH_LONG).show()

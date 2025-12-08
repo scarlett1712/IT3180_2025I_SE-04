@@ -101,6 +101,18 @@
                 android:text="Cư dân từ"
                 android:textSize="16sp"
                 android:textColor="#333333"/>
+
+            <Button
+                android:id="@+id/btnChangeInformation"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:text="@string/changeInformation"
+                android:textSize="18sp"
+                android:backgroundTint="?attr/colorPrimary"
+                android:textColor="@android:color/white"
+                app:layout_constraintBottom_toBottomOf="parent" />
+
         </LinearLayout>
     </androidx.cardview.widget.CardView>
 

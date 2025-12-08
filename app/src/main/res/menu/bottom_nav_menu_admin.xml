@@ -21,6 +21,12 @@
         android:title="@string/manage_finance" />
 
     <item
+        android:id="@+id/nav_manage_asset"
+        android:icon="@drawable/ic_asset"
+        android:title="@string/manage_asset" />
+
+
+    <item
         android:id="@+id/nav_account"
         android:icon="@drawable/ic_account"
         android:title="@string/user_account" />

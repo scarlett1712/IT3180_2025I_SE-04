@@ -80,6 +80,17 @@
                 android:background="@drawable/spinner_background" />
         </LinearLayout>
 
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Null"
+            android:textSize="14sp"
+            android:textColor="@android:color/darker_gray"
+            android:layout_marginBottom="12dp"
+            android:id="@+id/txtEmpty"
+            android:visibility="gone"/>
+
+
         <!-- Danh sách thông báo -->
         <androidx.recyclerview.widget.RecyclerView
             android:id="@+id/recyclerViewNotifications"

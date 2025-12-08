@@ -1,6 +1,8 @@
-import pool from "../db.js";
+import { pool } from "../db.js"; // Đã sửa lại import { pool } cho đồng bộ
+// 🔥 Import helper gửi thông báo
+import { sendNotification } from "../utils/firebaseHelper.js";
 
-// 🔵 Admin gửi phản hồi
+// 🔵 Admin gửi phản hồi -> Báo cho User
 export const replyToFeedback = async (req, res) => {
   const { feedback_id } = req.params;
   const { admin_id, reply_content, content } = req.body; // nhận cả 2 key
@@ -33,6 +35,24 @@ export const replyToFeedback = async (req, res) => {
       `,
       [feedback_id]
     );
+
+    // 3️⃣ 🔥 GỬI THÔNG BÁO CHO USER (Người tạo Feedback)
+    // Lấy fcm_token của user dựa vào feedback_id
+    const userRes = await pool.query(`
+        SELECT u.fcm_token
+        FROM feedback f
+        JOIN users u ON f.user_id = u.user_id
+        WHERE f.feedback_id = $1
+    `, [feedback_id]);
+
+    if (userRes.rows.length > 0 && userRes.rows[0].fcm_token) {
+        sendNotification(
+            userRes.rows[0].fcm_token,
+            "💬 Admin đã trả lời góp ý",
+            `Ban quản lý vừa trả lời góp ý của bạn: "${finalContent}"`,
+            { type: "feedback_reply", id: feedback_id.toString() }
+        );
+    }
 
     await pool.query("COMMIT");
 
