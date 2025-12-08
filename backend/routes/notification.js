@@ -40,7 +40,7 @@ router.delete("/delete/:id", async (req, res) => {
 });
 
 // ==================================================================
-// 🔥 API: CẬP NHẬT THÔNG BÁO
+// 🔥 API: CẬP NHẬT THÔNG BÁO (Sửa & Gửi lại)
 // ==================================================================
 router.put("/update/:id", async (req, res) => {
   const { id } = req.params;
@@ -48,24 +48,48 @@ router.put("/update/:id", async (req, res) => {
 
   if (!id || !title) return res.status(400).json({ error: "Thiếu ID hoặc tiêu đề." });
 
+  const client = await pool.connect();
+
   try {
-    const result = await pool.query(
+    await client.query("BEGIN");
+
+    // 1. Cập nhật thông báo và set lại created_at = NOW() để nó nổi lên đầu danh sách
+    const result = await client.query(
       `UPDATE notification
-       SET title = $1, content = $2, type = $3
+       SET title = $1, content = $2, type = $3, created_at = NOW()
        WHERE notification_id = $4
        RETURNING *`,
       [title, content, type, id]
     );
 
     if (result.rowCount === 0) {
+        await client.query("ROLLBACK");
         return res.status(404).json({ error: "Không tìm thấy thông báo để sửa." });
     }
 
-    res.json({ success: true, message: "Đã cập nhật thông báo.", data: result.rows[0] });
+    // 2. 🔥 QUAN TRỌNG: Reset trạng thái "Đã đọc" thành "Chưa đọc" cho tất cả user
+    // Để cư dân thấy lại thông báo này như mới
+    await client.query(
+      `UPDATE user_notifications
+       SET is_read = FALSE
+       WHERE notification_id = $1`,
+      [id]
+    );
+
+    await client.query("COMMIT");
+
+    res.json({
+        success: true,
+        message: "Đã cập nhật và gửi lại thông báo cho cư dân.",
+        data: result.rows[0]
+    });
 
   } catch (err) {
+    await client.query("ROLLBACK");
     console.error("❌ Error updating notification:", err);
     res.status(500).json({ error: "Lỗi server khi cập nhật thông báo." });
+  } finally {
+    client.release();
   }
 });
 
