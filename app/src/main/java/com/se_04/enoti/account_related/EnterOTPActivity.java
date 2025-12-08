@@ -218,6 +218,7 @@ public class EnterOTPActivity extends AppCompatActivity {
             setLoading(false);
             Intent createPasswordIntent = new Intent(this, CreateNewPasswordActivity.class);
             createPasswordIntent.putExtra("idToken", idToken);
+            createPasswordIntent.putExtra("phone", mPhoneNumber); // <--- QUAN TRỌNG: Gửi số điện thoại sang
             startActivity(createPasswordIntent);
             finish();
 
