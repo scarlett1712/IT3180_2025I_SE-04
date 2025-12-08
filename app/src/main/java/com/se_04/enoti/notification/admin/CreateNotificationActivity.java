@@ -134,6 +134,14 @@ public class CreateNotificationActivity extends AppCompatActivity {
     }
 
     private void sendNow() {
+        sendNotification(null);
+    }
+
+    private void sendLater(Date scheduledTime) {
+        sendNotification(scheduledTime);
+    }
+
+    private void sendNotification(Date scheduledTime) {
         if (selectedResidents.isEmpty()) {
             Toast.makeText(this, "Không chọn cư dân nào — sẽ gửi cho tất cả cư dân!", Toast.LENGTH_SHORT).show();
             selectedResidents = new HashSet<>(allResidents);
@@ -160,7 +168,13 @@ public class CreateNotificationActivity extends AppCompatActivity {
             return;
         }
 
-        sendNotificationToServer(title, content, type, expiredDate);
+        String formattedScheduledTime = null;
+        if (scheduledTime != null) {
+            SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault());
+            formattedScheduledTime = sdf.format(scheduledTime);
+        }
+
+        sendNotificationToServer(title, content, type, expiredDate, formattedScheduledTime);
     }
 
     private String convertTypeToEnglish(String typeVi) {
@@ -313,7 +327,7 @@ public class CreateNotificationActivity extends AppCompatActivity {
         }
     }
 
-    private void sendNotificationToServer(String title, String content, String type, String expiredDate) {
+    private void sendNotificationToServer(String title, String content, String type, String expiredDate, @Nullable String scheduledTime) {
         try {
             JSONArray userIds = new JSONArray();
             for (ResidentItem r : selectedResidents) userIds.put(r.getUserId());
@@ -328,6 +342,10 @@ public class CreateNotificationActivity extends AppCompatActivity {
             body.put("sender_id", senderId);
             body.put("expired_date", expiredDate.isEmpty() ? JSONObject.NULL : expiredDate);
             body.put("target_user_ids", userIds);
+
+            if (scheduledTime != null) {
+                body.put("scheduled_time", scheduledTime);
+            }
 
             RequestQueue queue = Volley.newRequestQueue(this);
             JsonObjectRequest request = new JsonObjectRequest(Request.Method.POST, NOTIFICATION_API_URL, body,
@@ -353,28 +371,34 @@ public class CreateNotificationActivity extends AppCompatActivity {
 
         TextView txtSendTime = sheetView.findViewById(R.id.txtSendTime);
         Button btnConfirmSend = sheetView.findViewById(R.id.btnConfirmSend);
+        Button btnSelectDate = sheetView.findViewById(R.id.btnSelectDate);
+        Button btnSelectTime = sheetView.findViewById(R.id.btnSelectTime);
 
         Calendar calendar = Calendar.getInstance();
         SimpleDateFormat sdf = new SimpleDateFormat("dd/MM/yyyy HH:mm:ss", Locale.getDefault());
         txtSendTime.setText(sdf.format(calendar.getTime()));
 
+        btnSelectDate.setOnClickListener(v -> {
+            DatePickerDialog datePickerDialog = new DatePickerDialog(this, (view, year, month, dayOfMonth) -> {
+                calendar.set(Calendar.YEAR, year);
+                calendar.set(Calendar.MONTH, month);
+                calendar.set(Calendar.DAY_OF_MONTH, dayOfMonth);
+                txtSendTime.setText(sdf.format(calendar.getTime()));
+            }, calendar.get(Calendar.YEAR), calendar.get(Calendar.MONTH), calendar.get(Calendar.DAY_OF_MONTH));
+            datePickerDialog.show();
+        });
+
+        btnSelectTime.setOnClickListener(v -> {
+            TimePickerDialog timePickerDialog = new TimePickerDialog(this, (view, hourOfDay, minute) -> {
+                calendar.set(Calendar.HOUR_OF_DAY, hourOfDay);
+                calendar.set(Calendar.MINUTE, minute);
+                txtSendTime.setText(sdf.format(calendar.getTime()));
+            }, calendar.get(Calendar.HOUR_OF_DAY), calendar.get(Calendar.MINUTE), true);
+            timePickerDialog.show();
+        });
+
         btnConfirmSend.setOnClickListener(v -> {
-            if (selectedResidents.isEmpty()) {
-                Toast.makeText(this, "Không chọn cư dân nào — gửi cho tất cả cư dân!", Toast.LENGTH_SHORT).show();
-                selectedResidents = new HashSet<>(allResidents);
-            }
-
-            String title = edtNotificationTitle.getText().toString().trim();
-            String content = edtNotificationContent.getText().toString().trim();
-            String expiredDate = edtExpirationDate.getText().toString().trim();
-            String type = spinnerNotificationType.getSelectedItem().toString();
-
-            if (title.isEmpty() || content.isEmpty()) {
-                Toast.makeText(this, "Vui lòng nhập tiêu đề và nội dung!", Toast.LENGTH_SHORT).show();
-                return;
-            }
-
-            sendNotificationToServer(title, content, type, expiredDate);
+            sendLater(calendar.getTime());
             bottomSheet.dismiss();
         });
 
