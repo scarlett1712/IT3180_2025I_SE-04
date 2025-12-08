@@ -4,7 +4,7 @@ import { sendNotification } from "../utils/firebaseHelper.js";
 
 const router = express.Router();
 
-// 1. [USER] Tạo báo cáo sự cố (Insert vào incident_reports)
+// 1. [USER] Tạo báo cáo sự cố (Insert + Notify Admin)
 router.post("/create", async (req, res) => {
   const { user_id, asset_id, description } = req.body;
 
@@ -13,15 +13,33 @@ router.post("/create", async (req, res) => {
   }
 
   try {
-    // Insert dữ liệu mới
+    // 1. Insert dữ liệu mới
     await pool.query(
       `INSERT INTO incident_reports (user_id, asset_id, description, status)
        VALUES ($1, $2, $3, 'Pending')`,
       [user_id, asset_id, description]
     );
 
-    // (Optional) Thông báo cho Admin biết có báo cáo mới
-    // ... logic gửi thông báo cho admin ...
+    // 2. 🔥 GỬI THÔNG BÁO CHO ADMIN
+    // Tìm tất cả user có role_id = 2 (Admin) và có fcm_token
+    const adminRes = await pool.query(`
+        SELECT u.fcm_token
+        FROM users u
+        JOIN userrole ur ON u.user_id = ur.user_id
+        WHERE ur.role_id = 2 AND u.fcm_token IS NOT NULL
+    `);
+
+    // Gửi loop cho tất cả admin
+    for (const row of adminRes.rows) {
+        if (row.fcm_token) {
+            sendNotification(
+                row.fcm_token,
+                "Báo cáo sự cố mới",
+                `Có một báo cáo sự cố mới từ cư dân: "${description}". Vui lòng kiểm tra.`,
+                { type: "report" }
+            );
+        }
+    }
 
     res.json({ success: true, message: "Gửi báo cáo thành công! Ban quản lý sẽ sớm kiểm tra." });
   } catch (err) {

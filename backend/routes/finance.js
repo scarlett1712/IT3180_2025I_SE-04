@@ -1,5 +1,7 @@
 import express from "express";
 import { pool } from "../db.js";
+// 🔥 Import helper để gửi thông báo
+import { sendNotification } from "../utils/firebaseHelper.js";
 
 const router = express.Router();
 
@@ -29,6 +31,19 @@ export const createFinanceTables = async () => {
         finance_id INTEGER NOT NULL REFERENCES finances(id) ON DELETE CASCADE,
         status VARCHAR(50) DEFAULT 'chua_thanh_toan',
         UNIQUE(user_id, finance_id)
+      );
+    `);
+
+    // Bảng giá điện nước (Giữ nguyên)
+    await query(`
+      CREATE TABLE IF NOT EXISTS utility_rates (
+        rate_id serial PRIMARY KEY,
+        type character varying(20) NOT NULL,
+        tier_name character varying(100),
+        min_usage integer DEFAULT 0,
+        max_usage integer,
+        price numeric(10, 2) NOT NULL,
+        updated_at timestamp without time zone DEFAULT now()
       );
     `);
 
@@ -84,7 +99,7 @@ router.get("/user/:userId", async (req, res) => {
   }
 });
 
-// 🧾 [ADMIN] Tạo khoản thu theo phòng
+// 🧾 [ADMIN] Tạo khoản thu theo phòng (CÓ GỬI THÔNG BÁO)
 router.post("/create", async (req, res) => {
   const { title, content, amount, due_date, target_rooms, type, created_by } = req.body;
 
@@ -101,7 +116,7 @@ router.post("/create", async (req, res) => {
   try {
     await client.query("BEGIN");
 
-    // 🧾 Lưu admin tạo khoản thu
+    // 🧾 1. Tạo khoản thu
     const financeResult = await client.query(
       `
       INSERT INTO finances (title, content, amount, due_date, type, created_by)
@@ -113,10 +128,11 @@ router.post("/create", async (req, res) => {
 
     const newFinanceId = financeResult.rows[0].id;
 
-    // 🧍‍♂️ Lấy danh sách cư dân thuộc các phòng được chọn
+    // 🧍‍♂️ 2. Lấy danh sách cư dân & TOKEN
     const userQuery = `
-      SELECT ui.user_id
+      SELECT ui.user_id, u.fcm_token
       FROM user_item ui
+      JOIN users u ON ui.user_id = u.user_id
       LEFT JOIN relationship r ON ui.relationship = r.relationship_id
       LEFT JOIN apartment a ON r.apartment_id = a.apartment_id
       WHERE a.apartment_number = ANY($1)
@@ -130,21 +146,31 @@ router.post("/create", async (req, res) => {
         .json({ error: "Không tìm thấy cư dân thuộc các phòng được chọn." });
     }
 
-    // 🧾 Gán khoản thu cho từng cư dân
+    // 🧾 3. Gán khoản thu & Gửi thông báo
     const insertUserFinance = `
       INSERT INTO user_finances (user_id, finance_id)
       VALUES ($1, $2)
       ON CONFLICT (user_id, finance_id) DO NOTHING
     `;
 
-    for (const { user_id } of userResult.rows) {
-      await client.query(insertUserFinance, [user_id, newFinanceId]);
+    for (const row of userResult.rows) {
+      await client.query(insertUserFinance, [row.user_id, newFinanceId]);
+
+      // 🔥 Gửi thông báo
+      if (row.fcm_token) {
+          sendNotification(
+              row.fcm_token,
+              "🔔 Thông báo phí mới",
+              `Bạn có khoản thu mới: "${title}". Vui lòng kiểm tra và thanh toán.`,
+              { type: "finance", id: newFinanceId.toString() }
+          );
+      }
     }
 
     await client.query("COMMIT");
     res.status(201).json({
       success: true,
-      message: "Tạo khoản thu thành công.",
+      message: "Tạo khoản thu thành công và đã gửi thông báo.",
       finance_id: newFinanceId,
       assigned_users: userResult.rows.length,
     });
@@ -169,8 +195,8 @@ router.get("/admin", async (req, res) => {
         f.type,
         TO_CHAR(f.due_date, 'DD-MM-YYYY') AS due_date,
         TO_CHAR(f.created_at, 'DD-MM-YYYY HH24:MI') AS created_at,
-        COUNT(DISTINCT a.apartment_number) AS total_rooms,
-        COUNT(DISTINCT CASE WHEN uf.status = 'da_thanh_toan' THEN a.apartment_number END) AS paid_rooms
+        COUNT(DISTINCT a.apartment_number) FILTER (WHERE f.type != 'chi_phi') AS total_rooms,
+        COUNT(DISTINCT CASE WHEN uf.status = 'da_thanh_toan' THEN a.apartment_number END) FILTER (WHERE f.type != 'chi_phi') AS paid_rooms
       FROM finances f
       LEFT JOIN user_finances uf ON f.id = uf.finance_id
       LEFT JOIN user_item ui ON uf.user_id = ui.user_id
@@ -328,15 +354,11 @@ router.post("/trigger-reminder", async (req, res) => {
 // Expense: Từ bảng FINANCES (type = chi_phi)
 router.get("/statistics", async (req, res) => {
   try {
-    // 1. Nhận tham số từ Android (month: 1-12 hoặc 0, year: ví dụ 2024)
     const { month, year } = req.query;
-
-    // Chuyển đổi tham số để dùng trong SQL (null nếu không chọn)
     const selectedMonth = (month && month !== '0') ? parseInt(month) : null;
     const selectedYear = year ? parseInt(year) : null;
 
     // --- QUERY 1: TÍNH TỔNG THU (Từ bảng INVOICE) ---
-    // Logic: Cộng tổng amount của các hóa đơn đã thanh toán
     const revenueQuery = `
       SELECT COALESCE(SUM(amount), 0) as total_revenue
       FROM invoice
@@ -349,7 +371,6 @@ router.get("/statistics", async (req, res) => {
     const totalRevenue = parseFloat(revenueResult.rows[0].total_revenue);
 
     // --- QUERY 2: TÍNH TỔNG CHI (Từ bảng FINANCES) ---
-    // Logic: Cộng tổng các khoản chi phí
     const expenseQuery = `
       SELECT COALESCE(SUM(amount), 0) as total_expense
       FROM finances
@@ -361,7 +382,6 @@ router.get("/statistics", async (req, res) => {
     const expenseResult = await pool.query(expenseQuery, [selectedMonth, selectedYear]);
     const totalExpense = parseFloat(expenseResult.rows[0].total_expense);
 
-    // --- TRẢ VỀ KẾT QUẢ ---
     res.json({
         revenue: totalRevenue,
         expense: totalExpense
@@ -373,7 +393,7 @@ router.get("/statistics", async (req, res) => {
   }
 });
 
-// [ADMIN] Tạo hóa đơn Điện/Nước HÀNG LOẠT (Bulk Create)
+// [ADMIN] Tạo hóa đơn Điện/Nước HÀNG LOẠT (Bulk Create) (CÓ GỬI THÔNG BÁO)
 router.post("/create-utility-bulk", async (req, res) => {
   const { data, type, month, year } = req.body;
   // data: [{ room: '101', old_index: 100, new_index: 150 }, { room: '102', ... }]
@@ -420,9 +440,11 @@ router.post("/create-utility-bulk", async (req, res) => {
             remainingUsage -= usageInThisTier;
         }
 
-        // Tìm cư dân trong phòng
+        // Tìm cư dân & TOKEN trong phòng
         const userRes = await client.query(`
-            SELECT ui.user_id FROM user_item ui
+            SELECT ui.user_id, u.fcm_token
+            FROM user_item ui
+            JOIN users u ON ui.user_id = u.user_id
             JOIN relationship r ON ui.relationship = r.relationship_id
             JOIN apartment a ON r.apartment_id = a.apartment_id
             WHERE a.apartment_number = $1
@@ -445,12 +467,22 @@ router.post("/create-utility-bulk", async (req, res) => {
         );
         const financeId = financeRes.rows[0].id;
 
-        // Gán cho user
+        // Gán cho user & Gửi thông báo
         for (const u of userRes.rows) {
             await client.query(
                 "INSERT INTO user_finances (user_id, finance_id, status) VALUES ($1, $2, 'chua_thanh_toan') ON CONFLICT DO NOTHING",
                 [u.user_id, financeId]
             );
+
+            // 🔥 Gửi thông báo
+            if (u.fcm_token) {
+                sendNotification(
+                    u.fcm_token,
+                    `📝 Hóa đơn ${typeName} T${month}`,
+                    `Phòng ${room} đã có hóa đơn ${typeName}. Số tiền: ${totalCost.toLocaleString()} VNĐ.`,
+                    { type: "finance", id: financeId.toString() }
+                );
+            }
         }
         successCount++;
     }
@@ -459,8 +491,8 @@ router.post("/create-utility-bulk", async (req, res) => {
 
     res.json({
         success: true,
-        message: `Đã tạo ${successCount} hóa đơn.`,
-        errors: errors // Trả về danh sách lỗi (nếu có) để Admin biết
+        message: `Đã tạo ${successCount} hóa đơn và gửi thông báo.`,
+        errors: errors
     });
 
   } catch (err) {
