@@ -17,7 +17,7 @@ router.post("/create", async (req, res) => {
   try {
     await client.query("BEGIN");
 
-    // 1. Insert dữ liệu mới (Thêm created_at cho chắc chắn)
+    // 1. Insert dữ liệu mới
     await client.query(
       `INSERT INTO incident_reports (user_id, asset_id, description, status, created_at)
        VALUES ($1, $2, $3, 'Pending', NOW())`,
@@ -32,7 +32,7 @@ router.post("/create", async (req, res) => {
 
     await client.query("COMMIT");
 
-    // 3. Gửi thông báo cho Admin (Chạy ngầm, không await để phản hồi nhanh)
+    // 3. Gửi thông báo cho Admin
     (async () => {
         try {
             const adminRes = await pool.query(`
@@ -43,7 +43,6 @@ router.post("/create", async (req, res) => {
             `);
             for (const row of adminRes.rows) {
                 if (row.fcm_token) {
-                    // Thêm tham số type để admin biết đây là báo cáo
                     sendNotification(row.fcm_token, "⚠️ Sự cố mới", description, { type: "report" })
                         .catch(e => console.error("Lỗi gửi push lẻ:", e.message));
                 }
@@ -88,10 +87,9 @@ router.get("/all", async (req, res) => {
   }
 });
 
-// 3. [ADMIN] Cập nhật trạng thái & Phản hồi (🔥 ĐÃ FIX LỖI 500)
+// 3. [ADMIN] Cập nhật trạng thái & Phản hồi (🔥 ĐÃ FIX LỖI SQL 42P08)
 router.post("/update-status", async (req, res) => {
   const { report_id, status, admin_note } = req.body;
-  // status: 'Processing', 'Completed', 'Rejected'
 
   if (!report_id || !status) {
       return res.status(400).json({ error: "Thiếu thông tin report_id hoặc status" });
@@ -101,20 +99,20 @@ router.post("/update-status", async (req, res) => {
   try {
     await client.query("BEGIN");
 
-    // 1. Cập nhật Database
-    // Sử dụng chuỗi rỗng nếu admin_note là null để tránh lỗi
     const safeNote = admin_note || "";
 
+    // 🔥 SỬA TẠI ĐÂY: Thêm ::text vào sau $1 trong CASE WHEN
+    // (CASE WHEN $1::text = 'Completed' ...)
     await client.query(
         `UPDATE incident_reports
          SET status = $1,
              admin_note = $2,
-             resolved_at = (CASE WHEN $1='Completed' THEN NOW() ELSE resolved_at END)
+             resolved_at = (CASE WHEN $1::text = 'Completed' THEN NOW() ELSE resolved_at END)
          WHERE report_id = $3`,
         [status, safeNote, report_id]
     );
 
-    // 2. 🔥 LOGIC GỬI THÔNG BÁO AN TOÀN (Bọc trong try-catch riêng)
+    // 2. Gửi thông báo an toàn
     try {
         const userRes = await client.query(
             `SELECT u.fcm_token
@@ -133,14 +131,10 @@ router.post("/update-status", async (req, res) => {
             else if (status === 'Rejected') body = `Phản ánh bị từ chối. Lý do: ${safeNote}`;
 
             if (body) {
-                // 🔥 Thêm object { type: "report_update" } vào tham số thứ 4
-                // Điều này giúp tránh lỗi nếu helper mong đợi tham số này
                 await sendNotification(userRes.rows[0].fcm_token, title, body, { type: "report_update" });
             }
         }
     } catch (notifyError) {
-        // Chỉ in lỗi ra console server để debug, KHÔNG throw lỗi làm crash request
-        // Transaction vẫn sẽ COMMIT thành công dù gửi thông báo thất bại
         console.error("⚠️ Lỗi gửi thông báo (Nhưng DB đã update):", notifyError.message);
     }
 
