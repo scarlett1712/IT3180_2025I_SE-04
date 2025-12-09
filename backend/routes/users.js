@@ -47,7 +47,7 @@ router.get("/profile/:user_id", verifySession, async (req, res) => {
 
     const result = await pool.query(`
       SELECT
-        u.user_id, u.phone, u.email,
+        u.user_id, u.phone, ui.email,
         ui.full_name,
         TO_CHAR(ui.dob, 'YYYY-MM-DD') as dob,
         ui.gender,
