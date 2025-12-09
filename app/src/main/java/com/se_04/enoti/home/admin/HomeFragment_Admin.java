@@ -104,10 +104,6 @@ public class HomeFragment_Admin extends Fragment {
             }
         });
 
-        view.findViewById(R.id.layoutSettings).setOnClickListener(v ->
-                Snackbar.make(v, "Chức năng sẽ được cập nhật trong thời gian tới.", Snackbar.LENGTH_LONG).show()
-        );
-
         view.findViewById(R.id.layoutSupport).setOnClickListener(v ->
                 Snackbar.make(v, "Chức năng sẽ được cập nhật trong thời gian tới.", Snackbar.LENGTH_LONG).show()
         );

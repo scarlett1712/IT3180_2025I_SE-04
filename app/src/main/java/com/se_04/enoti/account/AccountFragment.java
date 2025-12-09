@@ -20,6 +20,7 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.view.Window;
 import android.widget.Button;
+import android.widget.ImageButton;
 import android.widget.ImageView;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -61,6 +62,7 @@ public class AccountFragment extends Fragment {
 
     private ImageView imgAvatar;
     private TextView txtFullName, txtApartment, email, phoneNumber, relationship, startDate;
+    private ImageButton btnSettings;
     private Button btnChangeInformtion, btnChangePassword, btnSignOut;
 
     private static final int REQUEST_IMAGE_CAPTURE = 1;
@@ -99,6 +101,7 @@ public class AccountFragment extends Fragment {
         btnChangeInformtion = view.findViewById(R.id.btnChangeInformation);
         btnChangePassword = view.findViewById(R.id.btnChangePassword);
         btnSignOut = view.findViewById(R.id.btnSignOut);
+        btnSettings = view.findViewById(R.id.btnSettings);
 
         // Lấy thông tin user
         UserManager userManager = UserManager.getInstance(requireContext());
@@ -136,6 +139,11 @@ public class AccountFragment extends Fragment {
 
         btnSignOut.setOnClickListener(v -> {
             if (!isFragmentDestroyed) showLogoutConfirmation();
+        });
+
+        btnSettings.setOnClickListener(v -> {
+            Intent intent = new Intent(requireContext(), com.se_04.enoti.settings.SettingsActivity.class);
+            startActivity(intent);
         });
 
         return view;
@@ -279,22 +287,21 @@ public class AccountFragment extends Fragment {
         if (!isFragmentAttached() || user == null) return;
 
         txtFullName.setText(user.getName());
-        email.setText("Email: " + user.getEmail());
-        phoneNumber.setText("Số điện thoại: " + user.getPhone());
-        startDate.setText("Ngày sinh: " + user.getDob());
+        email.setText(user.getEmail());
+        phoneNumber.setText(user.getPhone());
+        startDate.setText(user.getDob());
 
         loadAvatarFromLocal(user.getId());
 
         if (user.getRole() == Role.ADMIN) {
             txtApartment.setText("Quản trị viên");
             // Admin không cần hiện quan hệ gia đình, có thể ẩn hoặc set text khác
-            relationship.setVisibility(View.GONE);
+            relationship.setText("Quản trị viên");
         } else {
-            // Fix lỗi crash khi set int cho TextView: chuyển thành String
             txtApartment.setText("Căn hộ: " + user.getRoom());
             txtApartment.setVisibility(View.VISIBLE);
 
-            relationship.setText("Quan hệ: " + user.getRelationship());
+            relationship.setText(user.getRelationship());
             relationship.setVisibility(View.VISIBLE);
         }
     }
