@@ -1,42 +1,46 @@
 <?xml version="1.0" encoding="utf-8"?>
-<resources>
+<resources xmlns:tools="http://schemas.android.com/tools">
 
-    <!--
-        Đây là style mà AndroidManifest.xml đang tìm kiếm,
-        nó định nghĩa giao diện chung cho toàn bộ ứng dụng của bạn.
-    -->
-    <style name="Theme.ENoti" parent="Theme.Material3.DayNight.NoActionBar">
-        <!--
-            Tùy chỉnh theme của bạn tại đây.
-            Ví dụ: Thay đổi màu sắc chính của ứng dụng.
-            Bạn cần định nghĩa các màu này trong file `res/values/colors.xml`.
-        -->
-        <!-- <item name="colorPrimary">@color/purple_500</item> -->
+    <style name="Theme.ENoti" parent="Theme.MaterialComponents.DayNight.NoActionBar">
+
+        <item name="colorPrimary">@color/brand_start</item>
+        <item name="colorOnPrimary">@color/white</item>
+        <item name="colorSecondary">@color/brand_start</item>
+
+        <item name="android:statusBarColor">@color/brand_start</item>
+        <item name="android:windowLightStatusBar">false</item>
+
+        <item name="toolbarStyle">@style/GradientToolbarStyle</item>
     </style>
 
-    <!--
-        ✅ ĐÃ THÊM CÁC STYLE CÒN THIẾU CHO fragment_settings.xml
-        Đây chỉ là các định nghĩa cơ bản. Bạn có thể tùy chỉnh các thuộc tính
-        như kích thước chữ, màu sắc, lề, v.v. để phù hợp với thiết kế của bạn.
-    -->
+    <style name="GradientToolbarStyle" parent="Widget.MaterialComponents.Toolbar.Primary">
+        <item name="android:background">@drawable/bg_toolbar_gradient</item>
+        <item name="titleTextColor">@android:color/white</item>
+        <item name="navigationIconTint">@android:color/white</item>
+    </style>
 
-    <!-- Style cho mỗi mục trong cài đặt (ví dụ: một hàng chứa icon và text) -->
+    <style name="TransparentAppBarLayout" parent="">
+        <!-- Ghi đè màu surface (bề mặt) của component thành trong suốt -->
+        <item name="colorSurface">@android:color/transparent</item>
+    </style>
+
     <style name="SettingItem">
         <item name="android:layout_width">match_parent</item>
         <item name="android:layout_height">wrap_content</item>
         <item name="android:orientation">horizontal</item>
         <item name="android:padding">16dp</item>
         <item name="android:gravity">center_vertical</item>
+        <item name="android:background">?attr/selectableItemBackground</item>
+        <item name="android:clickable">true</item>
+        <item name="android:focusable">true</item>
     </style>
 
-    <!-- Style cho icon trong mỗi mục cài đặt -->
     <style name="SettingIcon">
         <item name="android:layout_width">24dp</item>
         <item name="android:layout_height">24dp</item>
         <item name="android:layout_marginEnd">16dp</item>
-    </style>
+        <item name="tint">@color/brand_start</item> </style>
 
-    <!-- Style cho văn bản trong mỗi mục cài đặt -->
     <style name="SettingText">
         <item name="android:layout_width">0dp</item>
         <item name="android:layout_height">wrap_content</item>

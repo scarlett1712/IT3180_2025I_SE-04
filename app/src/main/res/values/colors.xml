@@ -12,4 +12,5 @@
     <color name="teal_200">#008080</color>
     <color name="purple_primary">#6750a4</color>
     <color name="dark_gray">#A9A9A9</color>
+    <color name="brand_start">#8A9FFD</color>
 </resources>

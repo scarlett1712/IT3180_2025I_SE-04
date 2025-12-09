@@ -3,14 +3,19 @@ package com.se_04.enoti.account_related;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 
+import android.app.Dialog; // 🔥 Import Dialog
+import android.graphics.Color;
+import android.graphics.drawable.ColorDrawable;
 import android.content.Intent;
 import android.os.Bundle;
-import android.os.CountDownTimer; // 🔥 Import CountDownTimer
+import android.os.CountDownTimer;
 import android.os.Handler;
 import android.os.Looper;
 import android.view.View;
+import android.view.Window;
 import android.widget.Button;
 import android.widget.EditText;
+import android.widget.ProgressBar;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -43,8 +48,8 @@ public class LogInActivity extends AppCompatActivity {
     private Runnable pollingRunnable;
     private boolean isPolling = false;
 
-    // Dialog chờ duyệt
-    private AlertDialog waitingDialog;
+    // 🔥 Thay đổi loại Dialog
+    private Dialog customWaitingDialog;
     private CountDownTimer countDownTimer;
 
     @Override
@@ -86,7 +91,7 @@ public class LogInActivity extends AppCompatActivity {
             return;
         }
 
-        showLoadingDialog(); // Hiện loading ban đầu
+        showLoadingDialog();
 
         JSONObject requestBody = new JSONObject();
         try {
@@ -100,29 +105,30 @@ public class LogInActivity extends AppCompatActivity {
                 Request.Method.POST, API_LOGIN_URL, requestBody,
                 response -> {
                     try {
-                        // 🔥 1. TRƯỜNG HỢP CẦN DUYỆT (MÁY CŨ ĐANG ONLINE)
+                        // 1. TRƯỜNG HỢP CẦN DUYỆT
                         if (response.has("require_approval") && response.getBoolean("require_approval")) {
                             int requestId = response.getInt("request_id");
 
-                            // Chuyển sang giao diện chờ đếm ngược
-                            showWaitingForApprovalDialog(requestId, normalizedPhone);
+                            // Ẩn loading cũ đi
+                            if (customWaitingDialog != null) customWaitingDialog.dismiss();
 
-                            // Bắt đầu Polling kiểm tra máy cũ
+                            // Hiện Dialog đẹp
+                            showWaitingForApprovalDialog(requestId, normalizedPhone);
                             startPolling(requestId);
                             return;
                         }
 
-                        // 🔥 2. ĐĂNG NHẬP THÀNH CÔNG NGAY
-                        if (waitingDialog != null) waitingDialog.dismiss();
+                        // 2. ĐĂNG NHẬP THÀNH CÔNG
+                        if (customWaitingDialog != null) customWaitingDialog.dismiss();
                         processLoginSuccess(response);
 
                     } catch (Exception e) {
-                        if (waitingDialog != null) waitingDialog.dismiss();
+                        if (customWaitingDialog != null) customWaitingDialog.dismiss();
                         Toast.makeText(this, "Lỗi xử lý: " + e.getMessage(), Toast.LENGTH_LONG).show();
                     }
                 },
                 error -> {
-                    if (waitingDialog != null) waitingDialog.dismiss();
+                    if (customWaitingDialog != null) customWaitingDialog.dismiss();
                     handleLoginError(error);
                 }
         ) {
@@ -137,59 +143,68 @@ public class LogInActivity extends AppCompatActivity {
         queue.add(jsonObjectRequest);
     }
 
+    // Hàm hiện loading đơn giản
     private void showLoadingDialog() {
-        AlertDialog.Builder builder = new AlertDialog.Builder(this);
-        builder.setTitle("Đang đăng nhập");
-        builder.setMessage("Vui lòng đợi...");
-        builder.setCancelable(false);
-        waitingDialog = builder.create();
-        waitingDialog.show();
+        // Bạn có thể dùng ProgressBar hoặc Dialog đơn giản ở đây
     }
 
-    // 🔥 HIỂN THỊ DIALOG CHỜ DUYỆT + ĐẾM NGƯỢC
+    // 🔥 HÀM MỚI: HIỂN THỊ DIALOG CHỜ DUYỆT (CUSTOM UI)
     private void showWaitingForApprovalDialog(int requestId, String phone) {
-        if (waitingDialog != null && waitingDialog.isShowing()) waitingDialog.dismiss();
+        if (customWaitingDialog != null && customWaitingDialog.isShowing()) customWaitingDialog.dismiss();
 
-        AlertDialog.Builder builder = new AlertDialog.Builder(this);
-        builder.setTitle("Xác thực thiết bị");
-        builder.setMessage("Tài khoản đang đăng nhập nơi khác.\nVui lòng mở thiết bị cũ và bấm 'Cho phép'.\n\nChờ phản hồi: 30s");
-        builder.setCancelable(false);
+        customWaitingDialog = new Dialog(this);
+        customWaitingDialog.requestWindowFeature(Window.FEATURE_NO_TITLE);
+        customWaitingDialog.setContentView(R.layout.dialog_waiting_approval); // Layout mới
+        customWaitingDialog.setCancelable(false);
 
-        // Nút Hủy
-        builder.setNegativeButton("Hủy", (dialog, which) -> stopPolling());
+        // Làm nền trong suốt để thấy bo góc
+        if (customWaitingDialog.getWindow() != null) {
+            customWaitingDialog.getWindow().setBackgroundDrawable(new ColorDrawable(Color.TRANSPARENT));
+        }
 
-        // Nút Force Login (Ban đầu ẩn, sẽ hiện sau 30s)
-        builder.setNeutralButton("Tôi bị mất/hỏng thiết bị cũ", (dialog, which) -> {
+        // Ánh xạ View
+        TextView tvMessage = customWaitingDialog.findViewById(R.id.tvMessage);
+        TextView tvTimer = customWaitingDialog.findViewById(R.id.tvTimer);
+        ProgressBar progressBar = customWaitingDialog.findViewById(R.id.progressBarWaiting);
+        Button btnCancel = customWaitingDialog.findViewById(R.id.btnCancel);
+        Button btnLostDevice = customWaitingDialog.findViewById(R.id.btnLostDevice);
+
+        // 1. Xử lý nút Hủy
+        btnCancel.setOnClickListener(v -> {
             stopPolling();
-            // Chuyển sang EnterOTPActivity với cờ FORCE_LOGIN
+            customWaitingDialog.dismiss();
+        });
+
+        // 2. Xử lý nút Mất máy (Force Login)
+        btnLostDevice.setOnClickListener(v -> {
+            stopPolling();
+            customWaitingDialog.dismiss();
             Intent intent = new Intent(LogInActivity.this, EnterOTPActivity.class);
             intent.putExtra(EnterOTPActivity.EXTRA_PREVIOUS_ACTIVITY, EnterOTPActivity.FROM_FORCE_LOGIN);
             intent.putExtra("phone", phone);
             startActivity(intent);
         });
 
-        waitingDialog = builder.create();
-        waitingDialog.show();
+        customWaitingDialog.show();
 
-        // Ẩn nút "Mất máy" lúc đầu
-        Button btnLost = waitingDialog.getButton(AlertDialog.BUTTON_NEUTRAL);
-        if (btnLost != null) btnLost.setVisibility(View.GONE);
-
-        // 🔥 Đếm ngược 30 giây
+        // 3. Đếm ngược 30s
         countDownTimer = new CountDownTimer(30000, 1000) {
             @Override
             public void onTick(long millisUntilFinished) {
-                if (waitingDialog != null && waitingDialog.isShowing()) {
-                    waitingDialog.setMessage("Tài khoản đang đăng nhập nơi khác.\nVui lòng mở thiết bị cũ và bấm 'Cho phép'.\n\nChờ phản hồi: " + (millisUntilFinished / 1000) + "s");
+                if (customWaitingDialog != null && customWaitingDialog.isShowing()) {
+                    tvTimer.setText("Chờ phản hồi: " + (millisUntilFinished / 1000) + "s");
                 }
             }
 
             @Override
             public void onFinish() {
-                if (waitingDialog != null && waitingDialog.isShowing()) {
-                    waitingDialog.setMessage("Không nhận được phản hồi.\nBạn có thể dùng mã OTP để đăng nhập.");
-                    // Hiện nút "Mất máy"
-                    if (btnLost != null) btnLost.setVisibility(View.VISIBLE);
+                if (customWaitingDialog != null && customWaitingDialog.isShowing()) {
+                    tvTimer.setText("Không có phản hồi!");
+                    tvMessage.setText("Không nhận được phản hồi từ thiết bị cũ.\nBạn có thể đăng nhập bằng mã OTP.");
+                    progressBar.setVisibility(View.GONE);
+
+                    // Hiện nút Mất máy
+                    btnLostDevice.setVisibility(View.VISIBLE);
                 }
             }
         }.start();
@@ -229,15 +244,15 @@ public class LogInActivity extends AppCompatActivity {
                     String status = response.optString("status");
                     if ("approved".equals(status)) {
                         stopPolling();
-                        if (waitingDialog != null) waitingDialog.dismiss();
+                        if (customWaitingDialog != null) customWaitingDialog.dismiss();
                         processLoginSuccess(response);
                     } else if ("rejected".equals(status)) {
                         stopPolling();
-                        if (waitingDialog != null) waitingDialog.dismiss();
+                        if (customWaitingDialog != null) customWaitingDialog.dismiss();
                         Toast.makeText(this, "Yêu cầu đăng nhập bị từ chối.", Toast.LENGTH_LONG).show();
                     }
                 },
-                error -> { /* Log error silently */ }
+                error -> { }
         );
         Volley.newRequestQueue(this).add(request);
     }
@@ -282,5 +297,6 @@ public class LogInActivity extends AppCompatActivity {
     protected void onDestroy() {
         super.onDestroy();
         stopPolling();
+        if (customWaitingDialog != null) customWaitingDialog.dismiss();
     }
 }
