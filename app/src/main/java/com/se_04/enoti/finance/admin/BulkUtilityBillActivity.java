@@ -17,6 +17,7 @@ import com.android.volley.toolbox.JsonObjectRequest;
 import com.android.volley.toolbox.Volley;
 import com.se_04.enoti.R;
 import com.se_04.enoti.utils.ApiConfig;
+import com.se_04.enoti.utils.BaseActivity;
 
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -26,7 +27,7 @@ import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.List;
 
-public class BulkUtilityBillActivity extends AppCompatActivity {
+public class BulkUtilityBillActivity extends BaseActivity {
 
     private RecyclerView recyclerView;
     private BulkUtilityAdapter adapter;

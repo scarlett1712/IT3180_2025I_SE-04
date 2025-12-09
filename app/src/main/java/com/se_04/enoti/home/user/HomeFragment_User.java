@@ -222,10 +222,6 @@ public class HomeFragment_User extends Fragment {
             }
         });
 
-        view.findViewById(R.id.layoutSettings).setOnClickListener(v ->
-                Snackbar.make(v, "Chức năng cài đặt đang phát triển.", Snackbar.LENGTH_SHORT).show()
-        );
-
         view.findViewById(R.id.layoutSupport).setOnClickListener(v ->
                 Snackbar.make(v, "Chức năng hỗ trợ đang phát triển.", Snackbar.LENGTH_SHORT).show()
         );

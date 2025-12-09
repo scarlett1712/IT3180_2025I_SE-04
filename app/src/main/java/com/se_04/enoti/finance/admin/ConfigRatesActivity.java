@@ -13,13 +13,15 @@ import com.android.volley.toolbox.JsonObjectRequest;
 import com.android.volley.toolbox.Volley;
 import com.se_04.enoti.R;
 import com.se_04.enoti.utils.ApiConfig;
+import com.se_04.enoti.utils.BaseActivity;
+
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 import java.util.ArrayList;
 import java.util.List;
 
-public class ConfigRatesActivity extends AppCompatActivity {
+public class ConfigRatesActivity extends BaseActivity {
 
     private RecyclerView recyclerView;
     private ConfigRateAdapter adapter;

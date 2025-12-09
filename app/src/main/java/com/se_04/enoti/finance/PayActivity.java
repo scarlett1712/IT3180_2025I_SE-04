@@ -16,12 +16,13 @@ import androidx.core.content.ContextCompat;
 
 import com.google.android.material.appbar.MaterialToolbar;
 import com.se_04.enoti.R;
+import com.se_04.enoti.utils.BaseActivity;
 
 import org.json.JSONObject;
 
 import java.text.DecimalFormat;
 
-public class PayActivity extends AppCompatActivity {
+public class PayActivity extends BaseActivity {
 
     private LinearLayout layoutMandatoryPrice;
     private LinearLayout layoutVoluntaryInput;

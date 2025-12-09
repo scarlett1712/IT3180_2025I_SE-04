@@ -4,7 +4,7 @@ import { sendNotification } from "../utils/firebaseHelper.js";
 
 const router = express.Router();
 
-// 1. [USER] Tạo báo cáo sự cố -> Cập nhật thiết bị thành 'Broken'
+// 1. [USER] Tạo báo cáo sự cố
 router.post("/create", async (req, res) => {
   const { user_id, asset_id, description } = req.body;
 
@@ -12,18 +12,18 @@ router.post("/create", async (req, res) => {
       return res.status(400).json({ error: "Thiếu thông tin báo cáo." });
   }
 
-  const client = await pool.connect(); // 🔥 Dùng Client để chạy Transaction
+  const client = await pool.connect();
   try {
     await client.query("BEGIN");
 
-    // 1. Insert báo cáo (Trạng thái mặc định là Pending)
+    // Insert báo cáo
     await client.query(
-      `INSERT INTO incident_reports (user_id, asset_id, description, status)
-       VALUES ($1, $2, $3, 'Pending')`,
+      `INSERT INTO incident_reports (user_id, asset_id, description, status, created_at)
+       VALUES ($1, $2, $3, 'Pending', NOW())`,
       [user_id, asset_id, description]
     );
 
-    // 2. 🔥 TỰ ĐỘNG CẬP NHẬT THIẾT BỊ SANG 'Broken' (Hỏng/Chờ sửa)
+    // Update thiết bị -> Broken
     await client.query(
       `UPDATE asset SET status = 'Broken' WHERE asset_id = $1`,
       [asset_id]
@@ -31,26 +31,25 @@ router.post("/create", async (req, res) => {
 
     await client.query("COMMIT");
 
-    // 3. Gửi thông báo cho Admin (Sau khi commit thành công)
-    const adminRes = await pool.query(`
-        SELECT u.fcm_token
-        FROM users u
-        JOIN userrole ur ON u.user_id = ur.user_id
-        WHERE ur.role_id = 2 AND u.fcm_token IS NOT NULL
-    `);
+    // Gửi thông báo cho Admin (Chạy ngầm)
+    (async () => {
+        try {
+            const adminRes = await pool.query(`
+                SELECT u.fcm_token
+                FROM users u
+                JOIN userrole ur ON u.user_id = ur.user_id
+                WHERE ur.role_id = 2 AND u.fcm_token IS NOT NULL
+            `);
+            for (const row of adminRes.rows) {
+                if (row.fcm_token) {
+                    sendNotification(row.fcm_token, "⚠️ Sự cố mới", description, { type: "report" })
+                        .catch(e => console.error("Lỗi push lẻ:", e.message));
+                }
+            }
+        } catch (e) { console.error("Lỗi gửi admin:", e); }
+    })();
 
-    for (const row of adminRes.rows) {
-        if (row.fcm_token) {
-            sendNotification(
-                row.fcm_token,
-                "⚠️ Báo cáo sự cố mới",
-                `Cư dân báo hỏng thiết bị #${asset_id}: "${description}"`,
-                { type: "report", assetId: asset_id.toString() }
-            );
-        }
-    }
-
-    res.json({ success: true, message: "Gửi báo cáo thành công! Trạng thái thiết bị đã được cập nhật." });
+    res.json({ success: true, message: "Gửi báo cáo thành công!" });
 
   } catch (err) {
     await client.query("ROLLBACK");
@@ -61,7 +60,7 @@ router.post("/create", async (req, res) => {
   }
 });
 
-// 2. [ADMIN] Lấy danh sách báo cáo (Join để lấy tên người báo & tên thiết bị)
+// 2. [ADMIN] Lấy danh sách báo cáo
 router.get("/all", async (req, res) => {
   try {
     const result = await pool.query(`
@@ -69,66 +68,88 @@ router.get("/all", async (req, res) => {
              r.description,
              r.status,
              r.admin_note,
-             TO_CHAR(r.created_at, 'YYYY-MM-DD HH24:MI') as created_at,
-
-             -- Thông tin người báo
+             TO_CHAR(r.created_at, 'DD/MM/YYYY HH24:MI') as created_at,
              ui.full_name as reporter_name,
              u.phone as reporter_phone,
-
-             -- Thông tin thiết bị
              a.asset_name,
              a.location
-
       FROM incident_reports r
       JOIN users u ON r.user_id = u.user_id
       JOIN user_item ui ON r.user_id = ui.user_id
       LEFT JOIN asset a ON r.asset_id = a.asset_id
-
       ORDER BY r.created_at DESC
     `);
-
     res.json(result.rows);
   } catch (err) {
     console.error(err);
-    res.status(500).json({ error: "Lỗi tải danh sách báo cáo" });
+    res.status(500).json({ error: "Lỗi tải danh sách" });
   }
 });
 
-// 3. [ADMIN] Cập nhật trạng thái & Phản hồi
+// 3. [ADMIN] Cập nhật trạng thái & Phản hồi (🔥 ĐÃ SỬA LỖI SQL)
 router.post("/update-status", async (req, res) => {
   const { report_id, status, admin_note } = req.body;
-  // status: 'Processing', 'Completed', 'Rejected'
 
+  if (!report_id || !status) {
+      return res.status(400).json({ error: "Thiếu thông tin." });
+  }
+
+  const client = await pool.connect();
   try {
-    // Cập nhật trạng thái và ghi chú
-    await pool.query(
+    await client.query("BEGIN");
+
+    const safeNote = admin_note || "";
+
+    // 🔥 KỸ THUẬT QUAN TRỌNG:
+    // Dùng $1 để SET giá trị (Postgres tự hiểu kiểu dữ liệu cột status)
+    // Dùng $3 để so sánh chuỗi (Postgres hiểu là Text)
+    // Mảng tham số: [status, safeNote, status, report_id]
+
+    await client.query(
         `UPDATE incident_reports
-         SET status = $1, admin_note = $2, resolved_at = (CASE WHEN $1='Completed' THEN NOW() ELSE resolved_at END)
-         WHERE report_id = $3`,
-        [status, admin_note || "", report_id]
+         SET status = $1,
+             admin_note = $2,
+             resolved_at = (CASE WHEN $3 = 'Completed' THEN NOW() ELSE resolved_at END)
+         WHERE report_id = $4`,
+        [status, safeNote, status, report_id]
     );
 
-    // Gửi thông báo push cho người dân
-    const userRes = await pool.query(
-        "SELECT u.fcm_token FROM incident_reports r JOIN users u ON r.user_id = u.user_id WHERE r.report_id = $1",
-        [report_id]
-    );
+    // Gửi thông báo (An toàn, không làm crash nếu lỗi mạng)
+    try {
+        const userRes = await client.query(
+            `SELECT u.fcm_token
+             FROM incident_reports r
+             JOIN users u ON r.user_id = u.user_id
+             WHERE r.report_id = $1`,
+            [report_id]
+        );
 
-    if(userRes.rows.length > 0 && userRes.rows[0].fcm_token) {
-        let title = "🔔 Cập nhật phản ánh";
-        let body = "";
+        if(userRes.rows.length > 0 && userRes.rows[0].fcm_token) {
+            let title = "🔔 Cập nhật phản ánh";
+            let body = "";
 
-        if (status === 'Processing') body = "Ban quản lý đã tiếp nhận và đang xử lý phản ánh của bạn.";
-        else if (status === 'Completed') body = "Sự cố bạn báo cáo đã được xử lý xong. Cảm ơn bạn!";
-        else if (status === 'Rejected') body = `Phản ánh của bạn bị từ chối. Lý do: ${admin_note}`;
+            if (status === 'Processing') body = "Ban quản lý đang xử lý phản ánh của bạn.";
+            else if (status === 'Completed') body = "Sự cố bạn báo cáo đã được xử lý xong.";
+            else if (status === 'Rejected') body = `Phản ánh bị từ chối. Lý do: ${safeNote}`;
 
-        if (body) sendNotification(userRes.rows[0].fcm_token, title, body);
+            if (body) {
+                // Thêm { type: "report_update" } để tránh lỗi thiếu data
+                await sendNotification(userRes.rows[0].fcm_token, title, body, { type: "report_update" });
+            }
+        }
+    } catch (notifyError) {
+        console.error("⚠️ Lỗi gửi thông báo (Nhưng DB đã update):", notifyError.message);
     }
 
-    res.json({ success: true, message: "Đã cập nhật trạng thái báo cáo." });
+    await client.query("COMMIT");
+    res.json({ success: true, message: "Đã cập nhật trạng thái thành công." });
+
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: "Lỗi cập nhật" });
+    await client.query("ROLLBACK");
+    console.error("❌ Update Status Error:", err);
+    res.status(500).json({ error: "Lỗi server: " + err.message });
+  } finally {
+    client.release();
   }
 });
 

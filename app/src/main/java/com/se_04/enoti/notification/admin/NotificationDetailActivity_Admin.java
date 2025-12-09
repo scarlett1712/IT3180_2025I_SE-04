@@ -27,6 +27,7 @@ import com.se_04.enoti.R;
 import com.se_04.enoti.feedback.admin.FeedbackAdapter_Admin;
 import com.se_04.enoti.feedback.admin.FeedbackItem_Admin;
 import com.se_04.enoti.utils.ApiConfig;
+import com.se_04.enoti.utils.BaseActivity;
 
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -35,7 +36,7 @@ import org.json.JSONObject;
 import java.util.ArrayList;
 import java.util.List;
 
-public class NotificationDetailActivity_Admin extends AppCompatActivity {
+public class NotificationDetailActivity_Admin extends BaseActivity {
 
     private TextView txtTitle, txtDate, txtSender, txtContent, txtFeedbackCount;
     private RecyclerView recyclerFeedback;

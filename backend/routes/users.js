@@ -4,10 +4,12 @@ import bcrypt from "bcryptjs";
 import crypto from "crypto";
 import admin from "firebase-admin";
 import "../utils/firebaseHelper.js";
+// 🔥 IMPORT MIDDLEWARE
+import { verifySession } from "../middleware/authMiddleware.js";
 
 const router = express.Router();
 
-// 🛠️ KHỞI TẠO DB
+// 🛠️ 1. TỰ ĐỘNG KHỞI TẠO DB
 (async () => {
   try {
     await pool.query(`
@@ -19,34 +21,74 @@ const router = express.Router();
         created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
       );
     `);
-
     await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS session_token VARCHAR(255);`);
     await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS fcm_token TEXT;`);
-
-    // Đảm bảo bảng user_item có cột mới
     await pool.query(`ALTER TABLE user_item ADD COLUMN IF NOT EXISTS identity_card VARCHAR(50);`);
     await pool.query(`ALTER TABLE user_item ADD COLUMN IF NOT EXISTS home_town VARCHAR(255);`);
-
-    console.log("✅ Database schema verified.");
+    await pool.query(`ALTER TABLE user_item ADD COLUMN IF NOT EXISTS is_living BOOLEAN DEFAULT TRUE;`);
+    console.log("✅ Database schema verified (Users).");
   } catch (err) {
     console.error("Error initializing database schema:", err);
   }
 })();
 
 /* ==========================================================
-   🟢 API: Đăng nhập (Mật khẩu)
+   🔍 API MỚI: Lấy thông tin chi tiết (BẢO MẬT BẰNG MIDDLEWARE)
+========================================================== */
+// 🔥 Thêm verifySession vào đây
+router.get("/profile/:user_id", verifySession, async (req, res) => {
+  try {
+    const { user_id } = req.params;
+
+    // (Tùy chọn) Kiểm tra xem user đang request có đúng là chủ tài khoản không
+    // if (req.currentUser.id != user_id && req.currentUser.role !== 'ADMIN') {
+    //    return res.status(403).json({ error: "Không có quyền xem thông tin người khác" });
+    // }
+
+    const result = await pool.query(`
+      SELECT
+        u.user_id, u.phone, ui.email,
+        ui.full_name,
+        TO_CHAR(ui.dob, 'YYYY-MM-DD') as dob,
+        ui.gender,
+        ui.identity_card,
+        ui.home_town,
+        ui.relationship,
+        ur.role_id,
+        a.apartment_number as room,
+        r.relationship_with_the_head_of_household as relationship_name,
+        r.is_head_of_household as is_head
+      FROM users u
+      JOIN user_item ui ON u.user_id = ui.user_id
+      LEFT JOIN userrole ur ON u.user_id = ur.user_id
+      LEFT JOIN relationship r ON ui.relationship = r.relationship_id
+      LEFT JOIN apartment a ON r.apartment_id = a.apartment_id
+      WHERE u.user_id = $1
+    `, [user_id]);
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: "Không tìm thấy user" });
+    }
+
+    res.json({ success: true, user: result.rows[0] });
+
+  } catch (err) {
+    console.error("Get Profile Error:", err);
+    res.status(500).json({ error: "Lỗi server" });
+  }
+});
+
+/* ==========================================================
+   🟢 API: Đăng nhập (Mật khẩu) - KHÔNG CẦN MIDDLEWARE
 ========================================================== */
 router.post("/login", async (req, res) => {
   try {
     const { phone, password, is_polling, request_id, force_login } = req.body || {};
 
-    // --- CASE 1: POLLING (Kiểm tra trạng thái phê duyệt) ---
     if (is_polling) {
         if (!request_id) return res.status(400).json({ error: "Thiếu request_id" });
-
         const reqRes = await pool.query("SELECT * FROM login_requests WHERE id = $1", [request_id]);
         if (reqRes.rows.length === 0) return res.status(404).json({ error: "Yêu cầu không tồn tại hoặc đã hết hạn" });
-
         const request = reqRes.rows[0];
 
         if (request.status === 'pending') return res.json({ status: 'pending' });
@@ -55,11 +97,9 @@ router.post("/login", async (req, res) => {
             return res.status(403).json({ error: "Đăng nhập bị từ chối bởi thiết bị chính." });
         }
 
-        // Approved
         await pool.query("UPDATE users SET session_token = $1 WHERE user_id = $2", [request.temp_token, request.user_id]);
         await pool.query("DELETE FROM login_requests WHERE user_id = $1", [request.user_id]);
 
-        // Lấy thông tin chi tiết User để trả về
         const userRes = await pool.query(`SELECT u.user_id, u.phone, ur.role_id FROM users u LEFT JOIN userrole ur ON u.user_id = ur.user_id WHERE u.user_id = $1`, [request.user_id]);
         const user = userRes.rows[0];
         const role = (user.role_id == 2) ? "ADMIN" : "USER";
@@ -71,8 +111,7 @@ router.post("/login", async (req, res) => {
            FROM user_item ui
            LEFT JOIN relationship r ON ui.relationship = r.relationship_id
            LEFT JOIN apartment a ON r.apartment_id = a.apartment_id
-           WHERE ui.user_id = $1`,
-          [user.user_id]
+           WHERE ui.user_id = $1`, [user.user_id]
         );
         const info = infoRes.rows.length > 0 ? infoRes.rows[0] : {};
 
@@ -96,15 +135,13 @@ router.post("/login", async (req, res) => {
         });
     }
 
-    // --- CASE 2: NORMAL LOGIN (Đăng nhập lần đầu) ---
     if (!phone || !password) return res.status(400).json({ error: "Thiếu thông tin." });
 
     const userRes = await pool.query(
       `SELECT u.user_id, u.phone, u.password_hash, ur.role_id, u.session_token
        FROM users u
        LEFT JOIN userrole ur ON u.user_id = ur.user_id
-       WHERE u.phone = $1`,
-      [phone]
+       WHERE u.phone = $1`, [phone]
     );
 
     if (userRes.rows.length === 0) return res.status(404).json({ error: "Số điện thoại không tồn tại." });
@@ -115,10 +152,8 @@ router.post("/login", async (req, res) => {
     const match = await bcrypt.compare(password, user.password_hash);
     if (!match) return res.status(401).json({ error: "Sai mật khẩu." });
 
-    // Dọn dẹp request cũ
     await pool.query("DELETE FROM login_requests WHERE user_id = $1 AND created_at < NOW() - INTERVAL '5 minutes'", [user.user_id]);
 
-    // CHECK SESSION (Nếu đã đăng nhập nơi khác)
     if (user.session_token && !force_login) {
         const tempToken = crypto.randomBytes(32).toString('hex');
         const insertReq = await pool.query(
@@ -133,7 +168,6 @@ router.post("/login", async (req, res) => {
         });
     }
 
-    // Tạo token mới -> Đá thiết bị cũ
     const sessionToken = crypto.randomBytes(32).toString('hex');
     await pool.query("UPDATE users SET session_token = $1 WHERE user_id = $2", [sessionToken, user.user_id]);
     await pool.query("DELETE FROM login_requests WHERE user_id = $1", [user.user_id]);
@@ -145,8 +179,7 @@ router.post("/login", async (req, res) => {
        FROM user_item ui
        LEFT JOIN relationship r ON ui.relationship = r.relationship_id
        LEFT JOIN apartment a ON r.apartment_id = a.apartment_id
-       WHERE ui.user_id = $1`,
-      [user.user_id]
+       WHERE ui.user_id = $1`, [user.user_id]
     );
 
     const info = infoRes.rows.length > 0 ? infoRes.rows[0] : {};
@@ -175,58 +208,38 @@ router.post("/login", async (req, res) => {
 });
 
 /* ==========================================================
-   🟢 API: Auth Firebase (Đã sửa lỗi trùng session)
+   🟢 API: Auth Firebase (OTP Login) - KHÔNG CẦN MIDDLEWARE
 ========================================================== */
 router.post("/auth/firebase", async (req, res) => {
   try {
-    const { idToken, fcm_token, force_login } = req.body; // 🔥 Nhận thêm force_login
+    const { idToken, fcm_token, force_login } = req.body;
+    if (!idToken) return res.status(400).json({ error: "Thiếu Firebase ID Token" });
 
-    if (!idToken) {
-        return res.status(400).json({ error: "Thiếu Firebase ID Token" });
-    }
-
-    // 1. Xác thực Token với Firebase Server
     const decodedToken = await admin.auth().verifyIdToken(idToken);
-    const firebasePhone = decodedToken.phone_number; // Format: +84xxxxxxxxx
+    const firebasePhone = decodedToken.phone_number;
+    if (!firebasePhone) return res.status(400).json({ error: "Token không chứa số điện thoại." });
 
-    if (!firebasePhone) {
-        return res.status(400).json({ error: "Token không chứa số điện thoại." });
-    }
-
-    // 2. Chuyển đổi định dạng số điện thoại
     let dbPhone = firebasePhone.replace("+84", "0");
-    console.log(`📲 [FIREBASE AUTH] Verified phone: ${firebasePhone} -> DB Check: ${dbPhone}`);
 
-    // 3. Tìm user trong DB
     const userRes = await pool.query(
         `SELECT u.user_id, u.phone, ur.role_id, u.session_token
          FROM users u
          LEFT JOIN userrole ur ON u.user_id = ur.user_id
-         WHERE u.phone = $1 OR u.phone = $2`,
-        [dbPhone, firebasePhone]
+         WHERE u.phone = $1 OR u.phone = $2`, [dbPhone, firebasePhone]
     );
 
     if (userRes.rows.length === 0) {
-        return res.status(404).json({
-            error: "Số điện thoại chưa được đăng ký trong hệ thống.",
-            phone: dbPhone
-        });
+        return res.status(404).json({ error: "Số điện thoại chưa được đăng ký.", phone: dbPhone });
     }
 
     const user = userRes.rows[0];
 
-    // 🔥 4. KIỂM TRA SESSION (LOGIC MỚI THÊM)
-    // Nếu user đang có session (đang online máy khác) VÀ không phải force_login
     if (user.session_token && !force_login) {
         const tempToken = crypto.randomBytes(32).toString('hex');
-
-        // Tạo yêu cầu login request
         const insertReq = await pool.query(
             "INSERT INTO login_requests (user_id, temp_token) VALUES ($1, $2) RETURNING id",
             [user.user_id, tempToken]
         );
-
-        // Trả về yêu cầu phê duyệt cho App Android
         return res.json({
             require_approval: true,
             request_id: insertReq.rows[0].id,
@@ -235,26 +248,15 @@ router.post("/auth/firebase", async (req, res) => {
         });
     }
 
-    // 5. Đăng nhập thành công (Cấp session_token MỚI -> Đá máy cũ)
     const sessionToken = crypto.randomBytes(32).toString('hex');
-
-    // Xóa request cũ
     await pool.query("DELETE FROM login_requests WHERE user_id = $1", [user.user_id]);
 
-    // Cập nhật session_token và fcm_token
     if (fcm_token) {
-        await pool.query(
-            "UPDATE users SET session_token = $1, fcm_token = $2 WHERE user_id = $3",
-            [sessionToken, fcm_token, user.user_id]
-        );
+        await pool.query("UPDATE users SET session_token = $1, fcm_token = $2 WHERE user_id = $3", [sessionToken, fcm_token, user.user_id]);
     } else {
-        await pool.query(
-            "UPDATE users SET session_token = $1 WHERE user_id = $2",
-            [sessionToken, user.user_id]
-        );
+        await pool.query("UPDATE users SET session_token = $1 WHERE user_id = $2", [sessionToken, user.user_id]);
     }
 
-    // 6. Lấy thông tin chi tiết
     const infoRes = await pool.query(
       `SELECT ui.full_name, ui.gender, TO_CHAR(ui.dob, 'DD-MM-YYYY') AS dob, ui.email,
               ui.identity_card, ui.home_town,
@@ -262,14 +264,12 @@ router.post("/auth/firebase", async (req, res) => {
        FROM user_item ui
        LEFT JOIN relationship r ON ui.relationship = r.relationship_id
        LEFT JOIN apartment a ON r.apartment_id = a.apartment_id
-       WHERE ui.user_id = $1`,
-      [user.user_id]
+       WHERE ui.user_id = $1`, [user.user_id]
     );
 
     const info = infoRes.rows.length > 0 ? infoRes.rows[0] : {};
     const role = user.role_id === 2 ? "ADMIN" : "USER";
 
-    // 7. Trả về response thành công
     return res.json({
       message: "Xác thực Firebase thành công",
       session_token: sessionToken,
@@ -295,8 +295,71 @@ router.post("/auth/firebase", async (req, res) => {
 });
 
 /* ==========================================================
-   Các API phụ trợ (Giữ nguyên)
+   🟢 API: Đăng ký Admin - KHÔNG CẦN MIDDLEWARE
 ========================================================== */
+router.post("/create_admin", async (req, res) => {
+  const client = await pool.connect();
+  try {
+    const { phone, password, full_name, gender, dob, email, identity_card, home_town } = req.body || {};
+
+    if (!phone || !password || !full_name) return res.status(400).json({ error: "Thiếu thông tin bắt buộc." });
+
+    await client.query("BEGIN");
+
+    const exists = await client.query("SELECT 1 FROM users WHERE phone = $1", [phone]);
+    if (exists.rows.length > 0) {
+      await client.query("ROLLBACK");
+      return res.status(400).json({ error: "Số điện thoại đã tồn tại." });
+    }
+
+    const passwordHash = await bcrypt.hash(password, 10);
+    const insertUser = await client.query(
+        `INSERT INTO users (password_hash, phone, created_at, updated_at) VALUES ($1, $2, NOW(), NOW()) RETURNING user_id`,
+        [passwordHash, phone]
+    );
+    const user_id = insertUser.rows[0].user_id;
+
+    await client.query(
+      `INSERT INTO user_item (user_id, full_name, gender, dob, email, identity_card, home_town, is_living)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, TRUE)`,
+      [user_id, full_name, gender || "Khác", dob || null, email || null, identity_card || null, home_town || null]
+    );
+
+    await client.query(`INSERT INTO userrole (user_id, role_id) VALUES ($1, 2)`, [user_id]);
+
+    await client.query("COMMIT");
+    return res.json({ message: "✅ Tạo tài khoản Ban Quản Trị thành công!", user_id, phone });
+
+  } catch (err) {
+    await client.query("ROLLBACK");
+    console.error("💥 [CREATE ADMIN ERROR]", err);
+    return res.status(500).json({ error: "Lỗi server khi tạo tài khoản admin." });
+  } finally { client.release(); }
+});
+
+/* ==========================================================
+   Các API phụ trợ (Logout, Reset Pass...)
+========================================================== */
+
+router.post("/reset_password", async (req, res) => {
+  try {
+    const { phone, new_password } = req.body || {};
+    if (!phone || !new_password) return res.status(400).json({ error: "Thiếu thông tin." });
+    const userRes = await pool.query("SELECT user_id FROM users WHERE phone = $1", [phone]);
+    if (userRes.rows.length === 0) return res.status(404).json({ error: "Không tìm thấy tài khoản." });
+
+    const hash = await bcrypt.hash(new_password, 10);
+    await pool.query("UPDATE users SET password_hash = $1, updated_at = NOW() WHERE phone = $2", [hash, phone]);
+
+    await pool.query("UPDATE users SET session_token = NULL WHERE user_id = $1", [userRes.rows[0].user_id]);
+    await pool.query("DELETE FROM login_requests WHERE user_id = $1", [userRes.rows[0].user_id]);
+
+    return res.json({ message: "Đặt lại mật khẩu thành công." });
+  } catch (err) {
+    console.error("💥 [RESET PASSWORD ERROR]", err);
+    return res.status(500).json({ error: "Lỗi server." });
+  }
+});
 
 router.get("/check_pending_login/:userId", async (req, res) => {
     try {
@@ -314,71 +377,42 @@ router.post("/resolve_login", async (req, res) => {
     } catch (err) { res.status(500).json({ error: "Lỗi server" }); }
 });
 
-router.post("/logout", async (req, res) => {
+// 🔥 SỬA LẠI API LOGOUT ĐỂ CHẶN THÔNG BÁO RÁC
+router.post("/logout", verifySession, async (req, res) => {
     try {
         const { user_id } = req.body;
-        if (user_id) {
-            await pool.query("UPDATE users SET session_token = NULL WHERE user_id = $1", [user_id]);
-            await pool.query("DELETE FROM login_requests WHERE user_id = $1", [user_id]);
+        // Ưu tiên lấy ID từ token (an toàn hơn), nếu không có thì lấy từ body
+        const targetId = req.currentUser ? req.currentUser.id : user_id;
+
+        if (targetId) {
+            // 🔥 CẬP NHẬT: Xóa cả session_token VÀ fcm_token
+            await pool.query(
+                `UPDATE users
+                 SET session_token = NULL,
+                     fcm_token = NULL
+                 WHERE user_id = $1`,
+                [targetId]
+            );
+
+            await pool.query("DELETE FROM login_requests WHERE user_id = $1", [targetId]);
         }
-        res.json({ success: true, message: "Đã đăng xuất." });
-    } catch (err) { res.status(500).json({ error: "Lỗi server" }); }
+        res.json({ success: true, message: "Đã đăng xuất và hủy nhận thông báo." });
+    } catch (err) {
+        console.error("Logout Error:", err);
+        res.status(500).json({ error: "Lỗi server." });
+    }
 });
 
-router.post("/update_fcm_token", async (req, res) => {
+// 🔥 Thêm verifySession vào Update FCM
+router.post("/update_fcm_token", verifySession, async (req, res) => {
     try {
-        const { user_id, fcm_token } = req.body;
-        if (!user_id || !fcm_token) return res.status(400).json({ error: "Thiếu thông tin." });
+        const { fcm_token } = req.body;
+        const user_id = req.currentUser.id; // Lấy từ token, an toàn hơn
+
+        if (!fcm_token) return res.status(400).json({ error: "Thiếu thông tin." });
         await pool.query("UPDATE users SET fcm_token = $1 WHERE user_id = $2", [fcm_token, user_id]);
         res.json({ success: true, message: "Đã cập nhật token thông báo." });
     } catch (err) { console.error("FCM Update Error:", err); res.status(500).json({ error: "Lỗi server." }); }
-});
-
-router.post("/create_admin", async (req, res) => {
-  const client = await pool.connect();
-  try {
-    const { phone, password, full_name, gender, dob, email } = req.body || {};
-    if (!phone || !password || !full_name) return res.status(400).json({ error: "Thiếu thông tin bắt buộc." });
-
-    await client.query("BEGIN");
-    const exists = await client.query("SELECT 1 FROM users WHERE phone = $1", [phone]);
-    if (exists.rows.length > 0) {
-      await client.query("ROLLBACK");
-      return res.status(400).json({ error: "Số điện thoại đã tồn tại." });
-    }
-    const passwordHash = await bcrypt.hash(password, 10);
-    const insertUser = await client.query(`INSERT INTO users (password_hash, phone, created_at, updated_at) VALUES ($1, $2, NOW(), NOW()) RETURNING user_id`, [passwordHash, phone]);
-    const user_id = insertUser.rows[0].user_id;
-    await client.query(
-      `INSERT INTO user_item (user_id, full_name, gender, dob, email, is_living)
-       VALUES ($1, $2, $3, $4, $5, TRUE)`,
-      [user_id, full_name, gender || "Khác", dob || null, email || null]
-    );
-    await client.query(`INSERT INTO userrole (user_id, role_id) VALUES ($1, 2)`, [user_id]);
-    await client.query("COMMIT");
-    return res.json({ message: "✅ Tạo tài khoản Ban Quản Trị thành công!", user_id, phone });
-  } catch (err) {
-    await client.query("ROLLBACK");
-    console.error("💥 [CREATE ADMIN ERROR]", err);
-    return res.status(500).json({ error: "Lỗi server khi tạo tài khoản admin." });
-  } finally { client.release(); }
-});
-
-router.post("/reset_password", async (req, res) => {
-  try {
-    const { phone, new_password } = req.body || {};
-    if (!phone || !new_password) return res.status(400).json({ error: "Thiếu thông tin." });
-    const userRes = await pool.query("SELECT user_id FROM users WHERE phone = $1", [phone]);
-    if (userRes.rows.length === 0) return res.status(404).json({ error: "Không tìm thấy tài khoản." });
-    const hash = await bcrypt.hash(new_password, 10);
-    await pool.query("UPDATE users SET password_hash = $1, updated_at = NOW() WHERE phone = $2", [hash, phone]);
-    await pool.query("UPDATE users SET session_token = NULL WHERE user_id = $1", [userRes.rows[0].user_id]);
-    await pool.query("DELETE FROM login_requests WHERE user_id = $1", [userRes.rows[0].user_id]);
-    return res.json({ message: "Đặt lại mật khẩu thành công." });
-  } catch (err) {
-    console.error("💥 [RESET PASSWORD ERROR]", err);
-    return res.status(500).json({ error: "Lỗi server." });
-  }
 });
 
 export default router;

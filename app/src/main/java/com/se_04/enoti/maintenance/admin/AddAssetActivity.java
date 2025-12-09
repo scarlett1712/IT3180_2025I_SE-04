@@ -13,11 +13,12 @@ import com.android.volley.toolbox.Volley;
 import com.google.android.material.textfield.TextInputEditText;
 import com.se_04.enoti.R;
 import com.se_04.enoti.utils.ApiConfig;
+import com.se_04.enoti.utils.BaseActivity;
 
 import org.json.JSONException;
 import org.json.JSONObject;
 
-public class AddAssetActivity extends AppCompatActivity {
+public class AddAssetActivity extends BaseActivity {
 
     private TextInputEditText edtName, edtLocation, edtDate;
     private Button btnAdd;

@@ -22,6 +22,7 @@ import com.android.volley.toolbox.Volley;
 import com.google.android.material.appbar.MaterialToolbar;
 import com.se_04.enoti.R;
 import com.se_04.enoti.utils.ApiConfig;
+import com.se_04.enoti.utils.BaseActivity;
 import com.se_04.enoti.utils.UserManager;
 
 import org.json.JSONException;
@@ -32,7 +33,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-public class FinanceDetailActivity_Admin extends AppCompatActivity {
+public class FinanceDetailActivity_Admin extends BaseActivity {
 
     private TextView txtFinanceTitle, txtFinanceDeadline;
     private LinearLayout layoutRoomCheckboxes;

@@ -12,9 +12,10 @@ import com.google.android.material.appbar.MaterialToolbar;
 import com.google.android.material.button.MaterialButton;
 import com.se_04.enoti.R;
 import com.se_04.enoti.feedback.FeedbackActivity;
+import com.se_04.enoti.utils.BaseActivity;
 import com.se_04.enoti.utils.UserManager;
 
-public class NotificationDetailActivity extends AppCompatActivity {
+public class NotificationDetailActivity extends BaseActivity {
 
     private final NotificationRepository repository = NotificationRepository.getInstance();
 

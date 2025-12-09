@@ -13,8 +13,9 @@ import static com.se_04.enoti.utils.ValidatePhoneNumberUtil.isValidVietnamesePho
 import static com.se_04.enoti.utils.ValidatePhoneNumberUtil.normalizePhoneNumber;
 
 import com.se_04.enoti.R;
+import com.se_04.enoti.utils.BaseActivity;
 
-public class ForgetPasswordEnterPhoneActivity extends AppCompatActivity {
+public class ForgetPasswordEnterPhoneActivity extends BaseActivity {
 
     EditText editTextPhone;
     Button buttonGetOTP;

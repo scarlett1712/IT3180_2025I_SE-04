@@ -1,27 +1,26 @@
 package com.se_04.enoti.account;
 
 import android.app.AlertDialog;
-import android.app.Dialog; // 🔥 Import Dialog
+import android.app.Dialog;
 import android.app.ProgressDialog;
-import android.content.Context;
 import android.content.Intent;
 import android.database.Cursor;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
-import android.graphics.Color; // 🔥 Import Color
-import android.graphics.drawable.ColorDrawable; // 🔥 Import ColorDrawable
+import android.graphics.Color;
+import android.graphics.drawable.ColorDrawable;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.Environment;
 import android.os.Handler;
 import android.os.Looper;
 import android.provider.MediaStore;
-import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
-import android.view.Window; // 🔥 Import Window
+import android.view.Window;
 import android.widget.Button;
+import android.widget.ImageButton;
 import android.widget.ImageView;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -36,13 +35,12 @@ import com.android.volley.NetworkResponse;
 import com.android.volley.Request;
 import com.android.volley.RequestQueue;
 import com.android.volley.Response;
-import com.android.volley.VolleyError;
+import com.android.volley.VolleyError; // Import VolleyError
 import com.android.volley.toolbox.HttpHeaderParser;
 import com.android.volley.toolbox.JsonArrayRequest;
 import com.android.volley.toolbox.JsonObjectRequest;
 import com.android.volley.toolbox.Volley;
 import com.se_04.enoti.R;
-import com.se_04.enoti.account_related.LogInActivity;
 import com.se_04.enoti.utils.ApiConfig;
 import com.se_04.enoti.utils.UserManager;
 
@@ -64,6 +62,7 @@ public class AccountFragment extends Fragment {
 
     private ImageView imgAvatar;
     private TextView txtFullName, txtApartment, email, phoneNumber, relationship, startDate;
+    private ImageButton btnSettings;
     private Button btnChangeInformtion, btnChangePassword, btnSignOut;
 
     private static final int REQUEST_IMAGE_CAPTURE = 1;
@@ -73,16 +72,15 @@ public class AccountFragment extends Fragment {
     // URL API
     private static final String UPLOAD_AVATAR_URL = ApiConfig.BASE_URL + "/api/avatar/upload";
     private static final String GET_AVATAR_URL = ApiConfig.BASE_URL + "/api/avatar/user/";
-    // 🔥 URL cho bảo mật
     private static final String CHECK_LOGIN_REQUEST_URL = ApiConfig.BASE_URL + "/api/users/check_pending_login/";
     private static final String RESOLVE_LOGIN_REQUEST_URL = ApiConfig.BASE_URL + "/api/users/resolve_login";
 
     private boolean isFragmentDestroyed = false;
 
-    // 🔥 Polling Variables
+    // Polling Variables
     private Handler pollingHandler;
     private Runnable pollingRunnable;
-    private boolean isDialogShowing = false; // Tránh hiện nhiều dialog cùng lúc
+    private boolean isDialogShowing = false;
 
     @Nullable
     @Override
@@ -103,12 +101,16 @@ public class AccountFragment extends Fragment {
         btnChangeInformtion = view.findViewById(R.id.btnChangeInformation);
         btnChangePassword = view.findViewById(R.id.btnChangePassword);
         btnSignOut = view.findViewById(R.id.btnSignOut);
+        btnSettings = view.findViewById(R.id.btnSettings);
 
         // Lấy thông tin user
         UserManager userManager = UserManager.getInstance(requireContext());
         UserItem currentUser = userManager.getCurrentUser();
 
+        // Nếu chưa có user (lần đầu hoặc lỗi), tạo user mặc định (Cần thận trọng với logic này trên thực tế)
         if (currentUser == null) {
+            // Logic tạo user mặc định này nên xem xét lại, tốt nhất là chuyển về màn hình login nếu null
+            // Nhưng tôi sẽ giữ nguyên theo code cũ của bạn để tránh lỗi logic hiện tại
             currentUser = new UserItem(
                     "U01", "F01", "a.nguyenvan@example.com", "Nguyễn Văn A",
                     "12/03/1950", Gender.MALE, "Chủ hộ", 0, Role.USER, "0987654321", "000000000000", "Hà Nội"
@@ -139,17 +141,26 @@ public class AccountFragment extends Fragment {
             if (!isFragmentDestroyed) showLogoutConfirmation();
         });
 
+        btnSettings.setOnClickListener(v -> {
+            Intent intent = new Intent(requireContext(), com.se_04.enoti.settings.SettingsActivity.class);
+            startActivity(intent);
+        });
+
         return view;
     }
 
-    // 🔥 BẮT ĐẦU POLLING KHI MÀN HÌNH HIỆN
     @Override
     public void onResume() {
         super.onResume();
         startPolling();
+
+        // Refresh lại dữ liệu user khi quay lại màn hình này (ví dụ sau khi edit)
+        UserItem user = UserManager.getInstance(requireContext()).getCurrentUser();
+        if (user != null) {
+            bindUserData(user);
+        }
     }
 
-    // 🔥 DỪNG POLLING KHI RỜI MÀN HÌNH
     @Override
     public void onPause() {
         super.onPause();
@@ -163,7 +174,6 @@ public class AccountFragment extends Fragment {
             @Override
             public void run() {
                 checkLoginRequests();
-                // Lặp lại sau 5 giây
                 if (!isFragmentDestroyed) pollingHandler.postDelayed(this, 5000);
             }
         };
@@ -176,7 +186,6 @@ public class AccountFragment extends Fragment {
         }
     }
 
-    // 🔥 HÀM GỌI API KIỂM TRA
     private void checkLoginRequests() {
         if (!isFragmentAttached() || isDialogShowing) return;
 
@@ -189,7 +198,6 @@ public class AccountFragment extends Fragment {
                 response -> {
                     if (response.length() > 0) {
                         try {
-                            // Có yêu cầu mới!
                             JSONObject req = response.getJSONObject(0);
                             int reqId = req.getInt("id");
                             showLoginRequestDialog(reqId);
@@ -198,35 +206,35 @@ public class AccountFragment extends Fragment {
                         }
                     }
                 },
-                error -> { /* Log lỗi âm thầm, không làm phiền user */ }
+                error -> {
+                    // 🔥 SỬA TẠI ĐÂY:
+                    // Khi polling gặp lỗi 401 (Token hết hạn/bị đá), phải gọi Logout ngay
+                    if (getContext() != null) {
+                        UserManager.getInstance(requireContext()).checkAndForceLogout(error);
+                    }
+                }
         );
 
         Volley.newRequestQueue(requireContext()).add(request);
     }
 
-    // 🔥 HÀM MỚI: HIỂN THỊ CUSTOM DIALOG CẢNH BÁO BẢO MẬT
     private void showLoginRequestDialog(int requestId) {
         if (!isFragmentAttached()) return;
 
-        isDialogShowing = true; // Chặn polling hiện thêm dialog
+        isDialogShowing = true;
 
         Dialog dialog = new Dialog(requireContext());
         dialog.requestWindowFeature(Window.FEATURE_NO_TITLE);
-        dialog.setContentView(R.layout.dialog_security_alert); // Layout custom mới
-        dialog.setCancelable(false); // Bắt buộc phải chọn
+        dialog.setContentView(R.layout.dialog_security_alert);
+        dialog.setCancelable(false);
 
-        // Làm nền trong suốt để thấy bo góc
         if (dialog.getWindow() != null) {
             dialog.getWindow().setBackgroundDrawable(new ColorDrawable(Color.TRANSPARENT));
         }
 
-        // Ánh xạ nút trong layout custom
-        // Lưu ý: ID nút phải khớp với file dialog_security_alert.xml
-        // (btnDeny và btnAllow là AppCompatButton trong XML)
         Button btnDeny = dialog.findViewById(R.id.btnDeny);
         Button btnAllow = dialog.findViewById(R.id.btnAllow);
 
-        // Sự kiện Từ chối
         if (btnDeny != null) {
             btnDeny.setOnClickListener(v -> {
                 resolveLoginRequest(requestId, "rejected");
@@ -235,7 +243,6 @@ public class AccountFragment extends Fragment {
             });
         }
 
-        // Sự kiện Cho phép
         if (btnAllow != null) {
             btnAllow.setOnClickListener(v -> {
                 resolveLoginRequest(requestId, "approved");
@@ -247,7 +254,6 @@ public class AccountFragment extends Fragment {
         dialog.show();
     }
 
-    // 🔥 GỬI QUYẾT ĐỊNH LÊN SERVER
     private void resolveLoginRequest(int requestId, String action) {
         JSONObject body = new JSONObject();
         try {
@@ -258,15 +264,16 @@ public class AccountFragment extends Fragment {
         JsonObjectRequest request = new JsonObjectRequest(Request.Method.POST, RESOLVE_LOGIN_REQUEST_URL, body,
                 response -> {
                     if (action.equals("approved")) {
-                        Toast.makeText(requireContext(), "Đã cho phép...", Toast.LENGTH_LONG).show();
-                        UserManager.getInstance(requireContext()).logoutLocal();
+                        Toast.makeText(requireContext(), "Đã cho phép thiết bị khác đăng nhập.", Toast.LENGTH_LONG).show();
+                        // Khi approve, thiết bị này sẽ bị logout
+                        UserManager.getInstance(requireContext()).forceLogout();
                     } else {
                         Toast.makeText(requireContext(), "Đã chặn đăng nhập lạ.", Toast.LENGTH_SHORT).show();
                     }
                 },
                 error -> {
                     Toast.makeText(requireContext(), "Lỗi kết nối", Toast.LENGTH_SHORT).show();
-                    isDialogShowing = false; // Reset cờ nếu lỗi
+                    isDialogShowing = false;
                 }
         );
         Volley.newRequestQueue(requireContext()).add(request);
@@ -277,30 +284,29 @@ public class AccountFragment extends Fragment {
     }
 
     private void bindUserData(UserItem user) {
-        if (!isFragmentAttached()) return;
+        if (!isFragmentAttached() || user == null) return;
 
         txtFullName.setText(user.getName());
         email.setText(user.getEmail());
         phoneNumber.setText(user.getPhone());
-        relationship.setText(user.getRelationship());
         startDate.setText(user.getDob());
 
         loadAvatarFromLocal(user.getId());
 
         if (user.getRole() == Role.ADMIN) {
             txtApartment.setText("Quản trị viên");
-            relationship.setVisibility(View.VISIBLE);
+            // Admin không cần hiện quan hệ gia đình, có thể ẩn hoặc set text khác
             relationship.setText("Quản trị viên");
         } else {
-            txtApartment.setText(String.valueOf(user.getRoom()));
+            txtApartment.setText("Căn hộ: " + user.getRoom());
             txtApartment.setVisibility(View.VISIBLE);
+
+            relationship.setText(user.getRelationship());
             relationship.setVisibility(View.VISIBLE);
         }
     }
 
-    // ------------------------------------------------------------------------
-    // 🔥 CÁC PHƯƠNG THỨC XỬ LÝ ẢNH (CAMERA, GALLERY, UPLOAD)
-    // ------------------------------------------------------------------------
+    // --- CÁC PHƯƠNG THỨC XỬ LÝ ẢNH (GIỮ NGUYÊN) ---
 
     private void loadAvatarFromServer(String userId) {
         if (!isFragmentAttached()) return;
@@ -605,6 +611,7 @@ public class AccountFragment extends Fragment {
         return new File(avatarDir, userId + ".jpg");
     }
 
+    // 🔥 LOGOUT ĐƯỢC CẬP NHẬT ĐỂ SỬ DỤNG USERMANAGER MỚI
     private void showLogoutConfirmation() {
         if (!isFragmentAttached()) return;
 
@@ -612,21 +619,20 @@ public class AccountFragment extends Fragment {
                 .setTitle("Xác nhận đăng xuất")
                 .setMessage("Bạn có chắc chắn muốn đăng xuất không?")
                 .setPositiveButton("Đăng xuất", (dialog, which) -> {
-                    // 🔥 Hiển thị loading
+                    // Hiển thị loading
                     ProgressDialog progressDialog = new ProgressDialog(requireContext());
                     progressDialog.setMessage("Đang đăng xuất...");
                     progressDialog.setCancelable(false);
                     progressDialog.show();
 
-                    // 🔥 Gọi hàm logout có callback
+                    // Gọi hàm logout của UserManager (đã cập nhật)
                     UserManager.getInstance(requireContext()).logout(new UserManager.LogoutCallback() {
                         @Override
                         public void onLogoutComplete() {
-                            // Khi xong (hoặc lỗi), tắt dialog.
-                            // UserManager sẽ tự chuyển màn hình.
                             if (progressDialog.isShowing()) {
                                 progressDialog.dismiss();
                             }
+                            // UserManager sẽ tự động chuyển màn hình Login
                         }
                     });
                 })
@@ -639,7 +645,7 @@ public class AccountFragment extends Fragment {
     public void onDestroyView() {
         super.onDestroyView();
         isFragmentDestroyed = true;
-        stopPolling(); // 🔥 Dừng polling khi destroy view
+        stopPolling();
     }
 
     @Override
@@ -648,6 +654,7 @@ public class AccountFragment extends Fragment {
         isFragmentDestroyed = true;
     }
 
+    // Inner class cho Upload ảnh
     public class VolleyMultipartRequest extends Request<NetworkResponse> {
         private final Response.Listener<NetworkResponse> mListener;
         private final Response.ErrorListener mErrorListener;

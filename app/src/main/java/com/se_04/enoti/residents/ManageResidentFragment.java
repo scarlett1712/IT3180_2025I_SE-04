@@ -39,6 +39,8 @@ import com.se_04.enoti.R;
 import com.se_04.enoti.account.UserItem;
 import com.se_04.enoti.account.admin.ApproveRequestsActivity; // 🔥 Import Activity Duyệt (đã tạo trước đó)
 import com.se_04.enoti.utils.ApiConfig;
+import com.se_04.enoti.utils.BaseActivity;
+import com.se_04.enoti.utils.DataCacheManager;
 import com.se_04.enoti.utils.UserManager;
 
 import org.apache.poi.ss.usermodel.Cell;
@@ -66,7 +68,7 @@ public class ManageResidentFragment extends Fragment {
     private SearchView searchView;
     private Spinner spinnerFilterFloor, spinnerFilterRoom;
     private FloatingActionButton btnExportExcel, btnAddResident;
-
+    private static final String CACHE_FILE_RESIDENTS = "cache_residents.json";
     // 🔥 Khai báo nút Duyệt hồ sơ
     private ExtendedFloatingActionButton btnApproveRequests;
 
@@ -206,14 +208,40 @@ public class ManageResidentFragment extends Fragment {
         queue.add(request);
     }
 
+    // SỬA HÀM fetchResidentsFromAPI
     private void fetchResidentsFromAPI() {
+        // 1. Load từ Cache trước
+        loadFromCache();
+
+        // 2. Gọi mạng
         RequestQueue queue = Volley.newRequestQueue(requireContext());
         JsonArrayRequest request = new JsonArrayRequest(
                 Request.Method.GET, API_URL, null,
-                this::parseResidents,
-                error -> Toast.makeText(getContext(), "Lỗi kết nối", Toast.LENGTH_SHORT).show()
+                response -> {
+                    // Khi có mạng: Lưu cache + Hiển thị
+                    if (getContext() != null) {
+                        DataCacheManager.getInstance(getContext())
+                                .saveCache(CACHE_FILE_RESIDENTS, response.toString());
+                        parseResidents(response);
+                    }
+                },
+                error -> Toast.makeText(getContext(), "Lỗi kết nối, đang hiển thị dữ liệu cũ", Toast.LENGTH_SHORT).show()
         );
         queue.add(request);
+    }
+
+    // HÀM MỚI: Đọc cache
+    private void loadFromCache() {
+        if (getContext() == null) return;
+        String data = DataCacheManager.getInstance(getContext()).readCache(CACHE_FILE_RESIDENTS);
+        if (data != null && !data.isEmpty()) {
+            try {
+                JSONArray jsonArray = new JSONArray(data);
+                parseResidents(jsonArray);
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }
     }
 
     private void parseResidents(JSONArray response) {
@@ -414,7 +442,7 @@ public class ManageResidentFragment extends Fragment {
     @Override
     public void onActivityResult(int requestCode, int resultCode, @Nullable Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
-        if (requestCode == 101 && resultCode == AppCompatActivity.RESULT_OK) {
+        if (requestCode == 101 && resultCode == BaseActivity.RESULT_OK) {
             fetchResidentsFromAPI();
         }
     }

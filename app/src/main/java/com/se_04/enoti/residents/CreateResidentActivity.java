@@ -18,6 +18,7 @@ import com.google.android.material.button.MaterialButton;
 import com.google.android.material.textfield.TextInputEditText;
 import com.se_04.enoti.R;
 import com.se_04.enoti.utils.ApiConfig;
+import com.se_04.enoti.utils.BaseActivity;
 
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -27,7 +28,7 @@ import java.text.SimpleDateFormat;
 import java.util.Calendar;
 import java.util.Locale;
 
-public class CreateResidentActivity extends AppCompatActivity {
+public class CreateResidentActivity extends BaseActivity {
 
     // 🔥 Đã thêm edtIdentityCard, edtHomeTown vào danh sách biến
     private TextInputEditText edtFullName, edtBirthDate, edtRelation, edtPhone, edtEmail, edtRoom, edtFloor, edtIdentityCard, edtHomeTown;

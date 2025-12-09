@@ -23,8 +23,10 @@ import com.se_04.enoti.account.UserItem;
 import com.se_04.enoti.maintenance.admin.AssetAdapter; // Dùng chung Adapter
 import com.se_04.enoti.maintenance.AssetItem;
 import com.se_04.enoti.utils.ApiConfig;
+import com.se_04.enoti.utils.DataCacheManager;
 import com.se_04.enoti.utils.UserManager;
 
+import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
@@ -38,6 +40,7 @@ public class UserAssetFragment extends Fragment {
     private AssetAdapter adapter;
     private List<AssetItem> assetList = new ArrayList<>();
     private TextView txtEmptyAssets;
+    private static final String CACHE_FILE_ASSETS = "cache_assets.json";
 
     @Nullable
     @Override
@@ -93,43 +96,33 @@ public class UserAssetFragment extends Fragment {
     private void loadAssets() {
         if (getContext() == null) return;
 
-        String url = ApiConfig.BASE_URL + "/api/maintenance/assets";
+        // 1. Load Cache
+        String cachedData = DataCacheManager.getInstance(requireContext()).readCache(CACHE_FILE_ASSETS);
+        if (cachedData != null && !cachedData.isEmpty()) {
+            parseAndDisplay(cachedData);
+        }
 
+        // 2. Gọi API
+        String url = ApiConfig.BASE_URL + "/api/maintenance/assets";
         JsonArrayRequest request = new JsonArrayRequest(Request.Method.GET, url, null,
                 response -> {
                     if (getContext() == null) return;
-                    assetList.clear();
-                    try {
-                        for (int i = 0; i < response.length(); i++) {
-                            JSONObject obj = response.getJSONObject(i);
-                            assetList.add(new AssetItem(obj));
-                        }
-                        adapter.notifyDataSetChanged();
-
-                        // 🔥 [FIX] Cập nhật giao diện Empty View
-                        if (assetList.isEmpty()) {
-                            if (txtEmptyAssets != null) {
-                                txtEmptyAssets.setVisibility(View.VISIBLE);
-                                txtEmptyAssets.setText("Chưa có thiết bị nào.");
-                            }
-                            recyclerView.setVisibility(View.GONE);
-                        } else {
-                            if (txtEmptyAssets != null) txtEmptyAssets.setVisibility(View.GONE);
-                            recyclerView.setVisibility(View.VISIBLE);
-                        }
-
-                    } catch (JSONException e) {
-                        e.printStackTrace();
-                    }
+                    // Lưu cache
+                    DataCacheManager.getInstance(requireContext())
+                            .saveCache(CACHE_FILE_ASSETS, response.toString());
+                    // Hiển thị
+                    parseAndDisplay(response.toString());
                 },
                 error -> {
                     if (getContext() != null) {
                         Log.e("UserAssetFragment", "Error: " + error.getMessage());
-                        if (txtEmptyAssets != null) {
-                            txtEmptyAssets.setText("Không thể tải danh sách thiết bị.\nVui lòng kiểm tra kết nối!");
-                            txtEmptyAssets.setVisibility(View.VISIBLE);
+                        // Nếu list trống (không có cache và không có mạng) mới báo lỗi
+                        if (assetList.isEmpty()) {
+                            if (txtEmptyAssets != null) {
+                                txtEmptyAssets.setText("Không thể tải dữ liệu.\nVui lòng kiểm tra kết nối!");
+                                txtEmptyAssets.setVisibility(View.VISIBLE);
+                            }
                         }
-                        recyclerView.setVisibility(View.GONE);
                     }
                 }
         );
@@ -139,5 +132,30 @@ public class UserAssetFragment extends Fragment {
         ));
 
         Volley.newRequestQueue(requireContext()).add(request);
+    }
+
+    private void parseAndDisplay(String jsonString) {
+        try {
+            JSONArray response = new JSONArray(jsonString);
+            assetList.clear();
+            for (int i = 0; i < response.length(); i++) {
+                JSONObject obj = response.getJSONObject(i);
+                assetList.add(new AssetItem(obj));
+            }
+            adapter.notifyDataSetChanged();
+
+            if (assetList.isEmpty()) {
+                if (txtEmptyAssets != null) {
+                    txtEmptyAssets.setVisibility(View.VISIBLE);
+                    txtEmptyAssets.setText("Chưa có thiết bị nào.");
+                }
+                recyclerView.setVisibility(View.GONE);
+            } else {
+                if (txtEmptyAssets != null) txtEmptyAssets.setVisibility(View.GONE);
+                recyclerView.setVisibility(View.VISIBLE);
+            }
+        } catch (JSONException e) {
+            e.printStackTrace();
+        }
     }
 }

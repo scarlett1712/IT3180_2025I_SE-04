@@ -27,6 +27,7 @@ import com.google.android.material.textfield.TextInputEditText;
 import com.se_04.enoti.R;
 import com.se_04.enoti.maintenance.MaintenanceItem;
 import com.se_04.enoti.utils.ApiConfig;
+import com.se_04.enoti.utils.BaseActivity;
 
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -34,7 +35,7 @@ import org.json.JSONObject;
 import java.util.ArrayList;
 import java.util.List;
 
-public class MaintenanceActivity extends AppCompatActivity {
+public class MaintenanceActivity extends BaseActivity {
 
     private RecyclerView recyclerView;
     private MaintenanceAdapter adapter;

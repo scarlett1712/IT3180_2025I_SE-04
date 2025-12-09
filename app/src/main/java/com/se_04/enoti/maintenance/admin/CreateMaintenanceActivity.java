@@ -18,6 +18,7 @@ import com.android.volley.toolbox.Volley;
 import com.google.android.material.textfield.TextInputEditText;
 import com.se_04.enoti.R;
 import com.se_04.enoti.utils.ApiConfig;
+import com.se_04.enoti.utils.BaseActivity;
 
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -28,7 +29,7 @@ import java.util.Calendar;
 import java.util.List;
 import java.util.Locale;
 
-public class CreateMaintenanceActivity extends AppCompatActivity {
+public class CreateMaintenanceActivity extends BaseActivity {
 
     private Spinner spinnerAssets, spinnerStaff;
     private TextInputEditText edtDate, edtDesc;

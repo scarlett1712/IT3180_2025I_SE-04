@@ -20,6 +20,7 @@ import com.android.volley.toolbox.Volley;
 import com.google.android.material.textfield.TextInputEditText;
 import com.se_04.enoti.R;
 import com.se_04.enoti.utils.ApiConfig;
+import com.se_04.enoti.utils.BaseActivity;
 import com.se_04.enoti.utils.UserManager;
 
 import org.json.JSONArray;
@@ -27,7 +28,7 @@ import org.json.JSONObject;
 
 import java.util.*;
 
-public class CreateFinanceActivity extends AppCompatActivity {
+public class CreateFinanceActivity extends BaseActivity {
 
     private TextInputEditText edtFinanceTitle, edtFinanceContent, edtAmount, edtDueDate;
     private Spinner spinnerFloor, spinnerType;

@@ -2,6 +2,7 @@ import express from "express";
 import { pool } from "../db.js";
 // 🔥 Import helper để gửi thông báo
 import { sendNotification } from "../utils/firebaseHelper.js";
+import { verifySession } from "../middleware/authMiddleware.js";
 
 const router = express.Router();
 

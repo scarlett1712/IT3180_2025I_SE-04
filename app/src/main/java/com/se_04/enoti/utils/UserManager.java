@@ -4,9 +4,11 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.util.Log;
+import android.widget.Toast;
 
 import com.android.volley.DefaultRetryPolicy;
 import com.android.volley.Request;
+import com.android.volley.VolleyError;
 import com.android.volley.toolbox.JsonObjectRequest;
 import com.android.volley.toolbox.Volley;
 import com.se_04.enoti.account.Gender;
@@ -25,7 +27,6 @@ public class UserManager {
     private final SharedPreferences sharedPreferences;
     private final Context context;
 
-    // Interface để báo kết quả về cho Activity/Fragment
     public interface LogoutCallback {
         void onLogoutComplete();
     }
@@ -42,6 +43,7 @@ public class UserManager {
         return instance;
     }
 
+    // --- Token Management ---
     public void saveAuthToken(String token) {
         sharedPreferences.edit().putString(KEY_AUTH_TOKEN, token).apply();
     }
@@ -50,7 +52,9 @@ public class UserManager {
         return sharedPreferences.getString(KEY_AUTH_TOKEN, null);
     }
 
-    // 🔥 HÀM LOGOUT NÂNG CẤP: Chờ Server phản hồi
+    // --- Logout Logic ---
+
+    // 1. Logout có gọi Server
     public void logout(LogoutCallback callback) {
         String url = ApiConfig.BASE_URL + "/api/users/logout";
         JSONObject body = new JSONObject();
@@ -64,41 +68,47 @@ public class UserManager {
         JsonObjectRequest request = new JsonObjectRequest(Request.Method.POST, url, body,
                 response -> {
                     Log.d("UserManager", "Server logout success");
-                    performLocalLogout();
+                    forceLogout(); // Xóa data local
                     if (callback != null) callback.onLogoutComplete();
                 },
                 error -> {
-                    Log.e("UserManager", "Server logout failed or timeout");
-                    // Kể cả lỗi mạng cũng phải cho logout local để người dùng không bị kẹt
-                    performLocalLogout();
+                    Log.e("UserManager", "Server logout failed");
+                    forceLogout();
                     if (callback != null) callback.onLogoutComplete();
                 }
         );
 
-        // Tăng timeout để tránh lỗi nếu server đang ngủ
         request.setRetryPolicy(new DefaultRetryPolicy(
-                10000,
-                DefaultRetryPolicy.DEFAULT_MAX_RETRIES,
-                DefaultRetryPolicy.DEFAULT_BACKOFF_MULT));
+                5000, 0, DefaultRetryPolicy.DEFAULT_BACKOFF_MULT));
 
         Volley.newRequestQueue(context).add(request);
     }
 
-    // Hàm này dùng khi muốn logout ngay lập tức không cần gọi server
-    // (Ví dụ khi token hết hạn hoặc bị đá ra)
-    public void logoutLocal() {
-        performLocalLogout();
+    // 2. Kiểm tra lỗi 401
+    public void checkAndForceLogout(VolleyError error) {
+        if (error.networkResponse != null && error.networkResponse.statusCode == 401) {
+            Log.e("UserManager", "Token expired or invalid (401). Force logging out...");
+            Toast.makeText(context, "Phiên đăng nhập hết hạn.", Toast.LENGTH_LONG).show();
+            forceLogout();
+        }
     }
 
-    private void performLocalLogout() {
-        clearUser();
+    // 3. Thực hiện xóa dữ liệu và chuyển màn hình (Local Logout)
+    public void forceLogout() {
+        clearUser(); // Xóa SharedPreferences
 
+        // 🔥 XÓA TOÀN BỘ CACHE KHI ĐĂNG XUẤT ĐỂ BẢO MẬT
+        // (Yêu cầu DataCacheManager phải có hàm clearAllCache)
+        DataCacheManager.getInstance(context).clearAllCache();
+
+        // Chuyển về màn hình đăng nhập
         Intent intent = new Intent(context, LogInActivity.class);
-        intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TASK | Intent.FLAG_ACTIVITY_NEW_TASK);
+        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
         context.startActivity(intent);
     }
 
-    // --- Các hàm Getter/Setter ---
+    // --- User Data Management ---
+
     public void saveCurrentUser(UserItem user) {
         if (user == null) return;
         SharedPreferences.Editor editor = sharedPreferences.edit();
@@ -112,11 +122,16 @@ public class UserManager {
         editor.putInt("apartment_number", user.getRoom());
         editor.putString("phone", user.getPhone());
         if (user.getRole() != null) editor.putString("role", user.getRole().name());
+
+        editor.putString("identity_card", user.getIdentityCard());
+        editor.putString("home_town", user.getHomeTown());
+
         editor.apply();
     }
 
     public UserItem getCurrentUser() {
         if (!sharedPreferences.contains("id")) return null;
+
         Gender gender = Gender.MALE;
         try {
             String g = sharedPreferences.getString("gender", Gender.MALE.name());
@@ -140,8 +155,8 @@ public class UserManager {
                 sharedPreferences.getInt("apartment_number", 0),
                 role,
                 sharedPreferences.getString("phone", ""),
-                sharedPreferences.getString("identity_card", ""), // 🔥 Thêm
-                sharedPreferences.getString("home_town", "")      // 🔥 Thêm
+                sharedPreferences.getString("identity_card", ""),
+                sharedPreferences.getString("home_town", "")
         );
     }
 

@@ -32,6 +32,7 @@ import com.se_04.enoti.account.UserItem;
 import com.se_04.enoti.residents.ResidentAdapter;
 import com.se_04.enoti.residents.ResidentItem;
 import com.se_04.enoti.utils.ApiConfig;
+import com.se_04.enoti.utils.BaseActivity;
 import com.se_04.enoti.utils.UserManager;
 
 import org.json.JSONArray;
@@ -41,7 +42,7 @@ import org.json.JSONObject;
 import java.text.SimpleDateFormat;
 import java.util.*;
 
-public class CreateNotificationActivity extends AppCompatActivity {
+public class CreateNotificationActivity extends BaseActivity {
 
     private Spinner spinnerNotificationType, spinnerReceiverFloor, spinnerReceiverRoom;
     private SearchView searchView;

@@ -23,6 +23,7 @@ import com.android.volley.toolbox.Volley;
 import com.google.android.material.textfield.TextInputEditText;
 import com.se_04.enoti.R;
 import com.se_04.enoti.utils.ApiConfig;
+import com.se_04.enoti.utils.BaseActivity;
 import com.se_04.enoti.utils.UserManager;
 
 import org.json.JSONException;
@@ -34,7 +35,7 @@ import java.util.Calendar;
 import java.util.Date;
 import java.util.Locale;
 
-public class EditProfileActivity extends AppCompatActivity {
+public class EditProfileActivity extends BaseActivity {
 
     private TextInputEditText edtFullName, edtPhone, edtEmail, edtDob;
     private TextInputEditText edtIdentityCard, edtHomeTown;

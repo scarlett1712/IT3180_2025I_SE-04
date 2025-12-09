@@ -1,6 +1,7 @@
 import express from "express";
 import { pool } from "../db.js";
 import { sendNotification } from "../utils/firebaseHelper.js"; // Import để gửi thông báo
+import { verifySession } from "../middleware/authMiddleware.js";
 
 const router = express.Router();
 

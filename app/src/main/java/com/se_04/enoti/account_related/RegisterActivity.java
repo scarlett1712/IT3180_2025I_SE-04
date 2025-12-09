@@ -8,7 +8,7 @@ import android.view.View;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.Spinner;
-import android.widget.TextView; // 🔥 Import thêm TextView
+import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.annotation.Nullable;
@@ -16,29 +16,31 @@ import androidx.appcompat.app.AppCompatActivity;
 
 import com.google.android.material.textfield.TextInputEditText;
 import com.se_04.enoti.R;
+import com.se_04.enoti.utils.BaseActivity;
 
 import java.util.Calendar;
 import java.util.Locale;
 
-// Import các hàm validate có sẵn của bạn
 import static com.se_04.enoti.utils.ValidatePhoneNumberUtil.isValidVietnamesePhoneNumber;
 import static com.se_04.enoti.utils.ValidatePhoneNumberUtil.normalizePhoneNumber;
 
-public class RegisterActivity extends AppCompatActivity {
+public class RegisterActivity extends BaseActivity {
 
     // Khai báo view
     private TextInputEditText edtFullName, edtDob, edtPhoneNumber, edtPassword, edtConfirmPassword, edtAdminKey;
+    // 🔥 Thêm 2 trường mới cho CCCD và Quê quán
+    private TextInputEditText edtIdentityCard, edtHomeTown;
+
     private Spinner spnGender;
     private Button btnRegister;
-    private TextView textBackToLogin; // 🔥 Biến mới cho nút "Đã có tài khoản?"
+    private TextView textBackToLogin;
 
-    // Key xác thực admin (Hardcode hoặc lấy từ config)
+    // Key xác thực admin
     private static final String ADMIN_SECRET_KEY = "ENOTI_ADMIN_2024";
 
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        // Lưu ý: Đảm bảo tên layout trùng với file XML bạn vừa tạo (ví dụ: activity_register_admin)
         setContentView(R.layout.activity_register);
 
         initViews();
@@ -54,10 +56,13 @@ public class RegisterActivity extends AppCompatActivity {
         edtPassword = findViewById(R.id.edtPassword);
         edtConfirmPassword = findViewById(R.id.edtConfirmPassword);
         edtAdminKey = findViewById(R.id.edtAdminKey);
+
+        // 🔥 Ánh xạ view mới (Đảm bảo file XML đã có ID này)
+        edtIdentityCard = findViewById(R.id.edtIdentityCard);
+        edtHomeTown = findViewById(R.id.edtHomeTown);
+
         spnGender = findViewById(R.id.spnGender);
         btnRegister = findViewById(R.id.btnRegister);
-
-        // 🔥 Ánh xạ text view mới
         textBackToLogin = findViewById(R.id.textBackToLogin);
     }
 
@@ -82,14 +87,10 @@ public class RegisterActivity extends AppCompatActivity {
     }
 
     private void setupListeners() {
-        // Sự kiện nút Đăng ký
         btnRegister.setOnClickListener(v -> handleRegistration());
 
-        // 🔥 Sự kiện nút "Đã có tài khoản? Đăng nhập"
         textBackToLogin.setOnClickListener(v -> {
-            // Chuyển về màn hình LoginActivity
             Intent intent = new Intent(RegisterActivity.this, LogInActivity.class);
-            // Xóa stack cũ để tránh người dùng ấn Back lại quay về màn đăng ký
             intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_NEW_TASK);
             startActivity(intent);
             finish();
@@ -97,66 +98,84 @@ public class RegisterActivity extends AppCompatActivity {
     }
 
     private void handleRegistration() {
+        // 🛑 Chống spam click: Khóa nút ngay lập tức
+        btnRegister.setEnabled(false);
+
         // 1. Lấy dữ liệu
-        String fullName = edtFullName.getText() != null ? edtFullName.getText().toString().trim() : "";
-        String dob = edtDob.getText() != null ? edtDob.getText().toString().trim() : "";
-        String phone = edtPhoneNumber.getText() != null ? edtPhoneNumber.getText().toString().trim() : "";
-        String password = edtPassword.getText() != null ? edtPassword.getText().toString().trim() : "";
-        String confirmPassword = edtConfirmPassword.getText() != null ? edtConfirmPassword.getText().toString().trim() : "";
-        String adminKey = edtAdminKey.getText() != null ? edtAdminKey.getText().toString().trim() : "";
+        String fullName = getTextSafe(edtFullName);
+        String dob = getTextSafe(edtDob);
+        String phone = getTextSafe(edtPhoneNumber);
+        String password = getTextSafe(edtPassword);
+        String confirmPassword = getTextSafe(edtConfirmPassword);
+        String adminKey = getTextSafe(edtAdminKey);
+        // 🔥 Lấy dữ liệu mới
+        String identityCard = getTextSafe(edtIdentityCard);
+        String homeTown = getTextSafe(edtHomeTown);
 
-        String genderDisplay = spnGender.getSelectedItem() != null
-                ? spnGender.getSelectedItem().toString()
-                : "";
+        String genderDisplay = spnGender.getSelectedItem() != null ? spnGender.getSelectedItem().toString() : "";
 
-        // Map gender sang Enum backend
+        // Map gender
         String gender = "OTHER";
         if ("Nam".equals(genderDisplay)) gender = "MALE";
         else if ("Nữ".equals(genderDisplay)) gender = "FEMALE";
 
-        // 2. Kiểm tra dữ liệu (Validate)
-        if (TextUtils.isEmpty(fullName) || TextUtils.isEmpty(dob)
-                || TextUtils.isEmpty(genderDisplay) || TextUtils.isEmpty(phone)
+        // 2. Validate dữ liệu
+        if (TextUtils.isEmpty(fullName) || TextUtils.isEmpty(dob) || TextUtils.isEmpty(phone)
                 || TextUtils.isEmpty(password) || TextUtils.isEmpty(confirmPassword)
-                || TextUtils.isEmpty(adminKey)) {
-            Toast.makeText(this, "Vui lòng điền đầy đủ tất cả các trường.", Toast.LENGTH_SHORT).show();
+                || TextUtils.isEmpty(adminKey) || TextUtils.isEmpty(identityCard) || TextUtils.isEmpty(homeTown)) {
+            showError("Vui lòng điền đầy đủ tất cả các trường.");
             return;
         }
 
         if (!isValidVietnamesePhoneNumber(phone)) {
-            Toast.makeText(this, "Số điện thoại không hợp lệ. Vui lòng nhập số Việt Nam.", Toast.LENGTH_LONG).show();
+            showError("Số điện thoại không hợp lệ.");
             return;
         }
         String normalizedPhone = normalizePhoneNumber(phone);
 
         if (password.length() < 6) {
-            Toast.makeText(this, "Mật khẩu phải có ít nhất 6 ký tự.", Toast.LENGTH_SHORT).show();
+            showError("Mật khẩu phải có ít nhất 6 ký tự.");
             return;
         }
 
         if (!password.equals(confirmPassword)) {
-            Toast.makeText(this, "Mật khẩu xác nhận không khớp.", Toast.LENGTH_SHORT).show();
+            showError("Mật khẩu xác nhận không khớp.");
             return;
         }
 
-        // Kiểm tra mã BQT
         if (!ADMIN_SECRET_KEY.equals(adminKey)) {
-            Toast.makeText(this, "Mã xác thực Ban Quản Trị không chính xác.", Toast.LENGTH_SHORT).show();
+            showError("Mã xác thực Ban Quản Trị không chính xác.");
             return;
         }
 
-        // 3. Chuyển sang màn hình nhập OTP
+        // 3. Chuyển sang màn hình nhập OTP (Kèm theo toàn bộ dữ liệu)
         Intent intent = new Intent(this, EnterOTPActivity.class);
         intent.putExtra("phone", normalizedPhone);
         intent.putExtra("password", password);
         intent.putExtra("fullName", fullName);
         intent.putExtra("dob", dob);
         intent.putExtra("gender", gender);
-        intent.putExtra("is_admin_registration", true);
+        // 🔥 Truyền thêm 2 trường mới
+        intent.putExtra("identity_card", identityCard);
+        intent.putExtra("home_town", homeTown);
 
-        // Gửi cờ báo hiệu đây là luồng đăng ký
+        intent.putExtra("is_admin_registration", true);
         intent.putExtra(EnterOTPActivity.EXTRA_PREVIOUS_ACTIVITY, EnterOTPActivity.FROM_REGISTER_PHONE);
 
         startActivity(intent);
+
+        // Mở lại nút sau một khoảng thời gian ngắn (phòng trường hợp quay lại)
+        btnRegister.postDelayed(() -> btnRegister.setEnabled(true), 2000);
+    }
+
+    // Helper lấy text an toàn
+    private String getTextSafe(TextInputEditText edt) {
+        return edt.getText() != null ? edt.getText().toString().trim() : "";
+    }
+
+    // Helper hiện lỗi và mở khóa nút
+    private void showError(String message) {
+        Toast.makeText(this, message, Toast.LENGTH_SHORT).show();
+        btnRegister.setEnabled(true);
     }
 }
