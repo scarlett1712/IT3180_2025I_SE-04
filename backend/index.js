@@ -18,6 +18,7 @@ import financeRoutes from "./routes/finance.js"; // Đã bỏ import { createFin
 import invoiceRoute from "./routes/invoice.js";
 import profileRequestRoutes from "./routes/profileRequests.js"; // 🔥 Sửa tên file thành số nhiều (Requests)
 import maintenanceRoutes from "./routes/maintenance.js";
+import reportsRoutes from "./routes/reports.js";
 
 import { startScheduler } from "./cron/scheduler.js";
 
@@ -62,6 +63,7 @@ app.use("/api/finance", financeRoutes);
 app.use("/api/invoice", invoiceRoute);
 app.use("/api/profile-requests", profileRequestRoutes);
 app.use("/api/maintenance", maintenanceRoutes);
+app.use("/api/reports", reportsRoutes);
 
 // ✅ Health check
 app.get("/", (req, res) => {
