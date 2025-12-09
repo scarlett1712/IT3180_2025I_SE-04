@@ -5,18 +5,19 @@
     <meta name="viewport" content="width=device-width,initial-scale=1" />
     <title>Hướng dẫn sử dụng — ENoti</title>
 
-    <!-- Font -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&display=swap" rel="stylesheet">
 
-    <!-- 🔥 CSS ĐÃ ĐƯỢC CẬP NHẬT SANG THEME TỐI -->
     <style>
         :root {
             --primary-color: #007aff;
-            --background-color: #121212; /* Nền tối */
-            --card-background: #1e1e1e; /* Nền thẻ tối hơn */
-            --text-color: #e1e1e1; /* Chữ sáng */
-            --muted-color: #888888; /* Chữ mờ */
-            --border-color: #333333; /* Màu viền */
+            --background-color: #121212;
+            --card-background: #1e1e1e;
+            --text-color: #e1e1e1;
+            --muted-color: #a0a0a0;
+            --border-color: #333333;
+            --success-color: #4cd964;
+            --warning-color: #ff9500;
+            --danger-color: #ff3b30;
         }
 
         body {
@@ -52,13 +53,14 @@
         .brand img {
             width: 50px;
             height: 50px;
-            border-radius: 8px;
+            border-radius: 12px;
         }
 
         .brand h1 {
             margin: 0;
             font-size: 1.5em;
-            color: var(--text-color); /* Đảm bảo chữ header sáng */
+            color: #ffffff;
+            font-weight: 800;
         }
 
         .brand .small {
@@ -76,6 +78,10 @@
             color: var(--text-color);
             font-weight: 600;
             padding-bottom: 4px;
+            transition: color 0.2s;
+        }
+        nav a:hover {
+            color: var(--primary-color);
         }
         nav a.active {
             color: var(--primary-color);
@@ -85,30 +91,30 @@
         /* --- Main Content --- */
         main {
             background: var(--card-background);
-            padding: 20px 40px;
-            margin-top: 20px;
-            border-radius: 12px;
-            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.2); /* Shadow cho nền tối */
+            padding: 30px 40px;
+            margin-top: 25px;
+            border-radius: 16px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
         }
 
         /* --- Hero Section --- */
         .hero {
-            padding: 40px 0;
+            padding: 20px 0 40px 0;
             border-bottom: 1px solid var(--border-color);
         }
 
         .hero h2 {
-            font-size: 2.5em;
+            font-size: 2.2em;
             margin-top: 0;
             margin-bottom: 15px;
             line-height: 1.2;
-            color: #ffffff; /* Làm nổi bật tiêu đề */
+            color: #ffffff;
         }
 
         .hero p {
             font-size: 1.1em;
             color: var(--muted-color);
-            max-width: 600px;
+            max-width: 650px;
         }
 
         /* --- Button Style --- */
@@ -131,67 +137,73 @@
             transform: translateY(-2px);
         }
 
-        /* --- Content Sections (Install, Usage) --- */
+        /* --- Content Sections --- */
         section {
-            margin-bottom: 40px;
+            margin-bottom: 50px;
         }
 
         section h2 {
             font-size: 1.8em;
             border-bottom: 1px solid var(--border-color);
-            padding-bottom: 10px;
-            color: #ffffff; /* Nổi bật tiêu đề section */
+            padding-bottom: 12px;
+            margin-top: 40px;
+            color: #ffffff;
         }
 
         section h3 {
-            font-size: 1.4em;
+            font-size: 1.3em;
             color: var(--primary-color);
             margin-top: 30px;
-            margin-bottom: 10px;
+            margin-bottom: 12px;
         }
 
         section h4 {
             font-size: 1.1em;
             font-weight: 700;
             margin-top: 20px;
-            margin-bottom: 5px;
-            color: var(--text-color); /* Nổi bật tiêu đề h4 */
+            margin-bottom: 8px;
+            color: #ffffff;
         }
 
-        section p {
-            color: var(--muted-color);
-            margin-bottom: 15px;
+        section p, section li {
+            color: var(--text-color);
+            margin-bottom: 10px;
         }
 
         section b {
-             color: var(--text-color); /* Làm chữ <b> dễ đọc hơn */
+             color: #ffffff;
         }
 
         section ol,
         section ul {
-            padding-left: 30px;
+            padding-left: 20px;
         }
 
         section li {
-            margin-bottom: 10px;
-            color: var(--muted-color);
+            margin-bottom: 8px;
         }
 
-        section ul ul {
-            margin-top: 10px;
+        /* Note Box */
+        .note {
+            background: rgba(255, 149, 0, 0.15);
+            border-left: 4px solid var(--warning-color);
+            padding: 15px;
+            border-radius: 6px;
+            margin: 20px 0;
+            color: #ffb340;
+            font-size: 0.95em;
         }
 
-        /* --- Contact Section --- */
-        #contact p {
-            font-size: 1.1em;
+        .status-dot {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            margin-right: 8px;
         }
 
-        #contact b {
-            color: var(--text-color);
-            font-weight: 600;
-        }
-
-        #contact a { /* Làm link dễ thấy hơn */
+        /* Contact Link */
+        #contact a {
             color: var(--primary-color);
             text-decoration: none;
         }
@@ -211,7 +223,7 @@
             color: var(--text-color);
         }
 
-        /* --- Animation (Giữ nguyên) --- */
+        /* --- Animation --- */
         .fade-up {
             opacity: 0;
             transform: translateY(20px);
@@ -244,130 +256,185 @@
     </header>
 
     <main>
-        <!-- INTRO -->
         <section class="hero">
             <div>
-                <h2 class="fade-up">Hướng dẫn cài đặt & sử dụng ENoti</h2>
+                <h2 class="fade-up">Hướng dẫn cài đặt & sử dụng</h2>
                 <p class="fade-up delay-1">
-                    Làm quen nhanh với ứng dụng quản lý toà nhà thông minh ENoti — từ bước cài đặt đến sử dụng các tính năng chính.
+                    Tài liệu chi tiết giúp bạn làm chủ mọi tính năng của ENoti — dành cho cả Cư dân và Ban quản trị.
                 </p>
             </div>
         </section>
 
-        <!-- INSTALL -->
         <section id="install">
-            <h2 style="margin:24px 0 12px;">Cài đặt ứng dụng</h2>
+            <h2>1. Cài đặt và Cấp quyền</h2>
 
-            <h3>Tải từ Google Play (khuyên dùng)</h3>
-            <p>Tìm kiếm <b>“ENoti”</b> trên Google Play và nhấn <b>Cài đặt</b> để tải ứng dụng.</p>
+            <div class="note">
+                <b>Lưu ý:</b> Để ứng dụng hoạt động ổn định (nhận thông báo tức thời, tải file), vui lòng cấp đủ quyền (Thông báo, Bộ nhớ) khi lần đầu mở ứng dụng.
+            </div>
 
-            <h3>Cài đặt thủ công (APK)</h3>
+            <h3>Bước 1: Tải ứng dụng</h3>
+            <ul>
+                <li><b>Cách 1 (Khuyên dùng):</b> Tìm kiếm từ khoá <b>“ENoti”</b> trên Google Play Store và nhấn Cài đặt.</li>
+                <li><b>Cách 2 (File APK):</b> Tải file cài đặt trực tiếp từ liên kết bên dưới.</li>
+            </ul>
+            <div style="margin:20px 0;">
+                <a class="btn-primary" href="https://github.com/scarlett1712/IT3180_2025I_SE-04/releases/latest/download/ENoti.apk" target="_blank">Tải ENoti APK</a>
+            </div>
+
+            <h3>Bước 2: Cài đặt thủ công (Nếu dùng APK)</h3>
             <ol>
-                <li>Tải file ENoti.apk</li>
-                <li>Mở ứng dụng “Trình quản lý tệp” và chọn file vừa tải.</li>
-                <li>Nhấn “Cài đặt”. Nếu có cảnh báo, bật cho phép “Cài đặt từ nguồn không xác định”.</li>
-                <li>Khởi chạy ENoti từ màn hình chính.</li>
+                <li>Mở ứng dụng <b>Trình quản lý tệp (File Manager)</b> trên điện thoại.</li>
+                <li>Tìm đến thư mục <b>Download</b> và chọn file <code>ENoti.apk</code> vừa tải.</li>
+                <li>Nhấn <b>Cài đặt</b>. Nếu hệ thống hỏi, hãy bật cho phép <i>“Cài đặt ứng dụng từ nguồn không xác định”</i>.</li>
+            </ol>
+        </section>
+
+        <section id="login">
+            <h2>2. Đăng nhập & Đăng ký</h2>
+
+            <h3>Dành cho Cư dân</h3>
+            <p>Tài khoản cư dân được Ban quản trị (BQT) tạo sẵn. Bạn không cần tự đăng ký.</p>
+            <ul>
+                <li><b>Tên đăng nhập:</b> Số điện thoại của bạn (Ví dụ: <code>0999999999</code>).</li>
+                <li><b>Mật khẩu mặc định:</b> <code>123456</code>.</li>
+            </ul>
+            <p><i>* Hệ thống sẽ yêu cầu bạn đổi mật khẩu ngay trong lần đăng nhập đầu tiên để đảm bảo an toàn.</i></p>
+
+            <h3>Dành cho Ban quản trị (BQT)</h3>
+
+            <h4>Trường hợp 1: Đã có tài khoản</h4>
+            <p>Nhập số điện thoại và mật khẩu quản trị viên để đăng nhập (Tài khoản mẫu: <code>0912345678</code> / <code>admin123</code>).</p>
+
+            <h4>Trường hợp 2: Đăng ký tài khoản BQT mới</h4>
+            <ol>
+                <li>Tại màn hình đăng nhập, nhấn <b>"Tạo tài khoản (BQT)"</b>.</li>
+                <li>Nhập đầy đủ thông tin cá nhân (Họ tên, SĐT, Email...).</li>
+                <li>Nhập <b>Mã xác nhận Ban quản trị</b> (Mã bí mật do nhà phát triển cung cấp để xác minh quyền hạn).</li>
+                <li>Hệ thống chuyển sang màn hình nhập OTP.
+                    <br><i>Do giới hạn về vốn chúng tôi chưa triển khai được chức năng gửi OTP về số điện thoại. Nếu khách hàng có nhu cầu sử dụng tài khoản khác ngoài 2 tài khoản đã được cung cấp trên vui lòng liên hệ với chúng tôi.</i>
+                    <br><i>Mã OTP cố định cho 2 tài khoản trên là 123456.</i>
+                </li>
+            </ol>
+        </section>
+
+        <section id="admin-features">
+            <h2>3. Hướng dẫn dành cho Ban quản trị</h2>
+
+            <h3>A. Quản lý cư dân</h3>
+            <p>Tại màn hình chính, chọn mục <b>Cư dân</b> để truy cập danh sách.</p>
+            <ul>
+                <li><b>Thêm cư dân mới:</b> Nhấn nút tròn dấu <b>(+)</b> ở góc dưới. Nhập thông tin căn hộ và cư dân. Tài khoản sẽ được tạo tự động với mật khẩu <code>123456</code>.</li>
+                <li><b>Xem chi tiết:</b> Nhấn vào tên cư dân bất kỳ để xem thông tin cá nhân và lịch sử.</li>
+                <li><b>Xuất báo cáo:</b> Nhấn vào biểu tượng <b>Máy in</b> để xuất danh sách cư dân ra file Excel.
+                    <br>File sẽ được lưu tại thư mục: <code>Bộ nhớ trong / Download / Enoti</code>.
+                </li>
+            </ul>
+
+            <h3>B. Quản lý thông báo</h3>
+            <p>Gửi thông báo tức thời (Push Notification) đến toàn bộ hoặc một nhóm cư dân.</p>
+            <ol>
+                <li>Chọn mục <b>Thông báo</b> > Nhấn nút <b>(+)</b>.</li>
+                <li>Nhập Tiêu đề và Nội dung thông báo.</li>
+                <li><b>Chọn người nhận:</b> Nhấn vào biểu tượng <b>3 gạch ngang</b> cạnh thanh tìm kiếm để lọc (Gửi tất cả, gửi theo tầng, hoặc chọn từng người).</li>
+                <li>Nhấn <b>Gửi</b>.</li>
+                <li><b>Theo dõi phản hồi:</b> Bấm vào thông báo đã gửi để xem danh sách cư dân đã đọc và các phản hồi của họ. Bạn có thể trả lời trực tiếp tại đây.</li>
             </ol>
 
-            <div style="margin-top:20px">
-                <a class="btn-primary" href="https://github.com/scarlett1712/IT3180_2025I_SE-04/releases/latest/download/enoti_update.apk" target="_blank">Tải ENoti APK</a>
-            </div>
+            <h3>C. Quản lý tài chính & Khoản thu</h3>
+            <ol>
+                <li>Chọn mục <b>Khoản thu</b> > Nhấn nút <b>(+)</b> để tạo đợt thu phí mới (Ví dụ: Phí dịch vụ tháng 5, Tiền nước...).</li>
+                <li>Nhập số tiền và nội dung thu.</li>
+                <li>Chọn danh sách các phòng cần áp dụng khoản thu này.</li>
+                <li><b>Xác nhận thanh toán:</b>
+                    <ul>
+                        <li>Khi cư dân chuyển khoản hoặc đóng tiền mặt, BQT cần vào chi tiết khoản thu.</li>
+                        <li>Tìm tên phòng tương ứng và <b>đánh dấu (tick)</b> vào ô vuông để xác nhận "Đã thanh toán" trên hệ thống.</li>
+                    </ul>
+                </li>
+            </ol>
+
+            <h3>D. Quản lý Cơ sở vật chất & Tài sản</h3>
+            <p>Giúp BQT theo dõi tình trạng các thiết bị trong tòa nhà (Thang máy, Máy bơm, Đèn hành lang...).</p>
+            <ol>
+                <li>Chọn mục <b>Cơ sở vật chất</b> (hoặc biểu tượng Tòa nhà/Tài sản).</li>
+                <li><b>Thêm thiết bị mới:</b> Nhấn nút <b>(+)</b>. Nhập tên thiết bị, vị trí lắp đặt và tình trạng ban đầu.</li>
+                <li><b>Cập nhật trạng thái:</b>
+                    <ul>
+                        <li>Khi thiết bị hỏng hoặc cần bảo trì, BQT bấm vào thiết bị đó và chuyển trạng thái sang <b>"Đang hỏng"</b> hoặc <b>"Đang bảo trì"</b>.</li>
+                        <li>Hệ thống sẽ tự động gửi thông báo đến cư dân để họ nắm bắt tình hình.</li>
+                    </ul>
+                </li>
+                <li><b>Lên lịch bảo trì:</b> Tạo lịch nhắc nhở bảo trì định kỳ cho các thiết bị quan trọng.</li>
+            </ol>
         </section>
 
-        <!-- USAGE -->
-        <section id="usage" style="margin-top:40px;">
-            <h2>Sử dụng ứng dụng</h2>
+        <section id="resident-features">
+            <h2>4. Hướng dẫn dành cho Cư dân</h2>
 
-            <p>Lưu ý: Cần cấp đầy đủ các quyền cho ứng dụng để có thể hoạt động</p>
-
-            <h3>Đăng nhập</h3>
-
-            <h4>Đối với cư dân</h4>
-
-            <p>Nhập tài khoản được cung cấp (tên đăng nhập & mật khẩu). Lần đầu đăng nhập cần thay đổi mật khẩu. (TK mẫu: 0999999999, MK mẫu: 123456)</p>
-
-            <h4>Đối với quản lý</h4>
-
-            <h5>Nếu đã có tài khoản đăng nhập:</h5>
-
-            <p>Nhập tài khoản quản lý (tên đăng nhập & mật khẩu). (TK mẫu: 0912345678, MK mẫu: admin123)</p>
-
-            <h5>Nếu chưa có tài khoản đăng nhập:</h5>
-
-            <p>Bấm vào Tạo tài khoản (BQT), nhập đầy đủ thông tin, nhập mã xác nhận Ban quản trị (Do nhà phát triển cung cấp).</p>
-
-            <p>Nhập mã OTP được gửi đến số điện thoại của bạn. Ở phiên bản này chức năng gửi mã OTP chưa được xây dựng. Có thể điền số bất kỳ.</p>
-
-            <p>Bạn đã tạo thành công tài khoản</p>
-
-            <h2>Dành cho Ban quản trị:</h2>
-
-            <h3>Quản lý cư dân</h3>
+            <h3>A. Xem thông báo</h3>
             <ul>
-                <li>Bấm vào cư dân để xem thông tin chi tiết.</li>
-                <li>Bấm vào nút có dấu "+" để thêm cư dân. Cư dân mới tạo tài khoản có thể đăng nhập vào ứng dụng bằng số điện thoại và mật khẩu mặc định 123456.</li>
-                <li>Bấm vào hình máy in để có thể xuẩt file Excel danh sách thông tin cư dân. File mới tạo sẽ được lưu trong thư mục Download/Enoti.</li>
+                <li>Các thông báo mới nhất từ BQT sẽ hiện ngay trên màn hình chính.</li>
+                <li>Thông báo <b>chưa đọc</b> sẽ sáng rõ, thông báo <b>đã đọc</b> sẽ được làm mờ đi giúp dễ phân biệt.</li>
+                <li>Nhấn vào thông báo để xem chi tiết và sử dụng tính năng <b>Gửi phản hồi</b> nếu bạn có thắc mắc.</li>
             </ul>
 
-            <h3>Quản lý thông báo</h3>
+            <h3>B. Theo dõi khoản thu & Thanh toán</h3>
             <ul>
-                <li>Bấm vào nút có dấu "+" để tạo thông báo mới.</li>
-                <li>Nhập đầy đủ thông tin. Mở danh sách cư dân bằng cách bấm nút 3 dấu gạch bên cạnh thanh tìm kiếm.</li>
-                <li>Gửi và theo dõi phản hồi.</li>
-                <li>Khi bấm vào mỗi thông báo sẽ hiển thị danh sách phản hồi người dùng đã gửi.</li>
-                <li>Bấm vào từng phản hồi để có thể trả lời cho cư dân.</li>
+                <li>Truy cập mục <b>Phí</b> (biểu tượng Hóa đơn) để xem các khoản cần đóng.</li>
+                <li>Nhấn vào từng khoản thu để xem chi tiết số tiền và nội dung.</li>
+                <li>Nhấn nút <b>Thanh toán</b> để hiển thị mã QR chuyển khoản của toà nhà.</li>
+                <li>Sau khi chuyển khoản, vui lòng đợi BQT xác nhận. Khi đã xác nhận, trạng thái sẽ chuyển thành "Đã thanh toán" và bị làm mờ.</li>
             </ul>
 
-            <h3>Quản lý khoản thu</h3>
-            <ul>
-                <li>Bấm vào nút có dấu "+" để tạo khoản thu mới.</li>
-                <li>Nhập đầy đủ thông tin. Chọn các phòng để tạo khoản thu.</li>
-                <li>Gửi và theo dõi tình hình khoản thu.</li>
-                <li>Trong phiên bản đầu tiên này, Ban quản trị cần kiểm tra tiến độ thủ công.</li>
-                <li>Bấm vào từng khoản thu để hiển thị danh sách các phòng. Ban quản trị tick checkbox để cập nhật phòng đã thanh toán khoản thu.</li>
+            <h3>C. Theo dõi trạng thái Phản hồi</h3>
+            <p>Khi bạn gửi ý kiến (về sự cố, thông báo...), hãy chú ý màu sắc của dấu chấm trạng thái:</p>
+            <ul style="list-style: none; padding-left: 10px;">
+                <li><span class="status-dot" style="background-color: #888;"></span> <b>Màu xám:</b> Đang gửi / Chưa thành công.</li>
+                <li><span class="status-dot" style="background-color: #007aff;"></span> <b>Màu xanh dương:</b> Đã gửi thành công đến hệ thống.</li>
+                <li><span class="status-dot" style="background-color: #ff9500;"></span> <b>Màu cam:</b> BQT đã xem phản hồi của bạn.</li>
+                <li><span class="status-dot" style="background-color: #4cd964;"></span> <b>Màu xanh lá:</b> BQT đã trả lời phản hồi.</li>
             </ul>
 
-            <h3>Đổi mật khẩu</h3>
-            <p>Vào mục <b>Tài khoản</b> để đổi mật khẩu, cập nhật thông tin, hoặc tùy chỉnh nhận thông báo.</p>
-
-            <h2>Dành cho Cư dân:</h2>
-
-            <h3>Thông báo</h3>
+            <h3>D. Tra cứu & Báo cáo sự cố</h3>
+            <p>Phát hiện bóng đèn cháy, thang máy trục trặc hay vòi nước rò rỉ? Hãy báo ngay cho BQT:</p>
             <ul>
-                <li>Bấm vào thông báo để xem thông tin chi tiết.</li>
-                <li>Bấm vào Gửi phản hồi để gửi phản hồi đến Ban quản trị.</li>
-                <li>Thông báo đã đọc sẽ được làm mờ</li>
+                <li>Truy cập mục <b>Cơ sở vật chất</b> (hoặc biểu tượng Tài sản).</li>
+                <li>Tại đây bạn có thể xem danh sách các thiết bị công cộng và trạng thái thực tế của chúng (Ví dụ: Thang máy A - <i>Đang bảo trì</i>).</li>
+                <li><b>Gửi báo cáo hỏng hóc:</b>
+                    <br>Chọn thiết bị đang gặp vấn đề -> Nhấn <b>Báo cáo sự cố</b> -> Nhập mô tả chi tiết.
+                </li>
+                <li>Theo dõi tiến độ xử lý của BQT ngay trên ứng dụng (Đã tiếp nhận -> Đang sửa -> Hoàn thành).</li>
             </ul>
-
-            <h3>Khoản thu</h3>
-            <ul>
-                <li>Bấm vào khoản thu để xem thông tin chi tiết.</li>
-                <li>Trong phiên bản đầu tiên này, cư dân bấm vào thanh toán sẽ hiển thị mã QR thanh toán. Khoản thu sẽ được xác nhận bởi Ban quản trị</li>
-                <li>Khoản thu đã thanh toán sẽ được làm mờ</li>
-            </ul>
-
-            <h3>Phản hồi</h3>
-            <ul>
-                <li>Dấu bên trong thanh phản hồi chỉ trạng thái của phản hồi:</li>
-                <ul>
-                    <li>Màu xám: Phản hồi chưa được gửi</li>
-                    <li>Màu xanh dương: Phản hồi đã được gửi</li>
-                    <li>Màu cam: Phản hồi đã được ban quản trị đọc</li>
-                    <li>Màu xanh lá: Phản hồi đã được trả lời</li>
-                </ul>
-            </ul>
-
-            <h3>Đổi mật khẩu</h3>
-            <p>Vào mục <b>Tài khoản</b> để đổi mật khẩu, cập nhật thông tin, hoặc tùy chỉnh nhận thông báo.</p>
         </section>
 
-        <!-- CONTACT -->
-        <section id="contact" style="margin-top:40px;">
+        <section id="settings">
+            <h2>5. Quản lý tài khoản & Cài đặt</h2>
+            <p>Tại thanh menu dưới cùng, chọn tab <b>Tài khoản</b> (hoặc biểu tượng cá nhân) để truy cập:</p>
+
+            <h3>Chỉnh sửa thông tin cá nhân</h3>
+            <ul>
+                <li>Nhấn vào nút <b>"Chỉnh sửa thông tin"</b> (hoặc biểu tượng cây bút cạnh tên bạn).</li>
+                <li><b>Cập nhật Avatar:</b> Nhấn vào ảnh đại diện để chọn ảnh mới từ thư viện hoặc chụp trực tiếp.</li>
+                <li><b>Thông tin liên hệ:</b> Bạn có thể tự thay đổi Số điện thoại, Email, Ngày sinh và Quê quán.</li>
+                <li><i>Lưu ý: Các thông tin định danh như <b>Số căn hộ, Vai trò (Chủ hộ)</b> được cố định để đảm bảo an ninh. Nếu cần thay đổi, vui lòng liên hệ trực tiếp BQT.</i></li>
+            </ul>
+
+            <h3>Bảo mật & Tiện ích</h3>
+            <ul>
+                <li><b>Đổi mật khẩu:</b> Nhập mật khẩu hiện tại và mật khẩu mới. Nên thực hiện định kỳ 3-6 tháng/lần để bảo vệ tài khoản.</li>
+                <li><b>Cài đặt ứng dụng:</b> Tùy chỉnh nhận thông báo đẩy (Push Notification), Giao diện Sáng/Tối (Dark Mode).</li>
+                <li><b>Đăng xuất:</b> Nhấn nút Đăng xuất ở cuối trang để thoát tài khoản khỏi thiết bị hiện tại.</li>
+            </ul>
+        </section>
+
+        <section id="contact">
             <h2>Liên hệ hỗ trợ</h2>
-            <p>Nếu bạn cần hỗ trợ thêm, vui lòng gửi phản hồi qua biểu mẫu trên <a href="index.html#contact">Trang chủ</a> hoặc email cho nhóm phát triển.</p>
-            <p><b>Email:</b> support@enoti.vn &nbsp; | &nbsp; <b>Hotline:</b> +84 963 291 687</p>
+            <p>Nếu gặp lỗi trong quá trình sử dụng hoặc cần hỗ trợ kỹ thuật, vui lòng liên hệ:</p>
+            <p>
+                <b>📧 Email:</b> <a href="mailto:support@enoti.vn">support@enoti.vn</a><br>
+                <b>📞 Hotline:</b> +84 963 291 686
+            </p>
         </section>
-
 
     </main>
 
@@ -377,8 +444,8 @@
 </div>
 
 <script>
+    // Hiệu ứng Fade-up nhẹ nhàng khi tải trang
     document.querySelectorAll('.fade-up').forEach((el, i) => {
-        // Thêm một chút delay cơ bản nếu không có class delay-
         if (!el.className.includes('delay-')) {
             el.style.animationDelay = `${i * 0.1}s`;
         } else if (el.className.includes('delay-1')) {

@@ -17,9 +17,9 @@ import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
-import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.content.ContextCompat;
 
+import com.android.volley.AuthFailureError; // 🔥 Import AuthFailureError
 import com.android.volley.Request;
 import com.android.volley.toolbox.JsonObjectRequest;
 import com.android.volley.toolbox.Volley;
@@ -27,17 +27,19 @@ import com.google.android.material.appbar.MaterialToolbar;
 import com.se_04.enoti.R;
 import com.se_04.enoti.utils.ApiConfig;
 import com.se_04.enoti.utils.BaseActivity;
+import com.se_04.enoti.utils.UserManager; // 🔥 Import UserManager để lấy Token
 
 import org.json.JSONException;
 import org.json.JSONObject;
 
 import java.io.File;
+import java.util.HashMap;
+import java.util.Map;
 
 public class ResidentDetailActivity extends BaseActivity {
 
     private TextView txtName, txtGender, txtDob, txtEmail, txtPhone,
             txtRelationship, txtLiving, txtRoom;
-    // 🔥 Thêm TextView cho CCCD và Quê quán (Đảm bảo bạn đã thêm TextView tương ứng vào XML layout)
     private TextView txtIdentityCard, txtHomeTown;
 
     private ImageView imgResident;
@@ -76,8 +78,6 @@ public class ResidentDetailActivity extends BaseActivity {
         txtRoom = findViewById(R.id.txtRoom);
         imgResident = findViewById(R.id.imgResident);
 
-        // 🔥 Tìm view mới (Hãy chắc chắn XML đã có 2 TextView này với ID đúng)
-        // Nếu chưa có trong layout XML, ứng dụng sẽ không crash nhưng sẽ không hiển thị gì.
         txtIdentityCard = findViewById(R.id.txtResidentIdentity);
         txtHomeTown = findViewById(R.id.txtResidentHomeTown);
 
@@ -99,7 +99,6 @@ public class ResidentDetailActivity extends BaseActivity {
         txtRelationship.setText(bundle.getString("relationship", ""));
         txtRoom.setText(bundle.getString("room", ""));
 
-        // 🔥 Hiển thị CCCD và Quê quán
         String identity = bundle.getString("identity_card", "");
         if (txtIdentityCard != null) txtIdentityCard.setText(identity.isEmpty() ? "Chưa cập nhật" : identity);
 
@@ -150,21 +149,17 @@ public class ResidentDetailActivity extends BaseActivity {
         EditText edtEmail = dialogView.findViewById(R.id.edtEditEmail);
         EditText edtGender = dialogView.findViewById(R.id.edtEditGender);
         EditText edtDob = dialogView.findViewById(R.id.edtEditDob);
-
-        // 🔥 Ánh xạ các trường mới trong Dialog
         EditText edtIdentity = dialogView.findViewById(R.id.edtEditIdentityCard);
         EditText edtHomeTown = dialogView.findViewById(R.id.edtEditHomeTown);
-
         Button btnSave = dialogView.findViewById(R.id.btnSaveEdit);
 
-        // Fill dữ liệu hiện tại
+        // Fill dữ liệu
         edtName.setText(txtName.getText());
         edtPhone.setText(txtPhone.getText());
         edtEmail.setText(txtEmail.getText());
         edtGender.setText(txtGender.getText());
         edtDob.setText(txtDob.getText());
 
-        // 🔥 Fill dữ liệu mới (lấy từ TextView nếu đã hiển thị, hoặc từ Intent nếu chưa)
         if (txtIdentityCard != null && !txtIdentityCard.getText().toString().equals("Chưa cập nhật")) {
             edtIdentity.setText(txtIdentityCard.getText());
         }
@@ -198,16 +193,15 @@ public class ResidentDetailActivity extends BaseActivity {
             body.put("email", email);
             body.put("gender", gender);
             body.put("dob", dob);
-            // 🔥 Gửi thêm 2 trường mới
             body.put("identity_card", identity);
             body.put("home_town", homeTown);
         } catch (JSONException e) { e.printStackTrace(); }
 
+        // 🔥 THÊM getHeaders() ĐỂ GỬI TOKEN
         JsonObjectRequest request = new JsonObjectRequest(Request.Method.PUT, API_UPDATE + userId, body,
                 response -> {
                     Toast.makeText(this, "Cập nhật thành công!", Toast.LENGTH_SHORT).show();
-
-                    // Cập nhật UI
+                    // Update UI
                     txtName.setText(name);
                     txtPhone.setText(phone);
                     txtEmail.setText(email);
@@ -220,22 +214,24 @@ public class ResidentDetailActivity extends BaseActivity {
                     setResult(RESULT_OK);
                 },
                 error -> {
-                    String errorMsg = "Lỗi cập nhật";
-                    if (error.networkResponse != null && error.networkResponse.data != null) {
-                        try {
-                            String errorData = new String(error.networkResponse.data);
-                            JSONObject errorJson = new JSONObject(errorData);
-                            errorMsg = errorJson.optString("error", errorMsg);
-                        } catch (Exception e) {}
+                    // Check lỗi 401 Force Logout
+                    if (error.networkResponse != null && error.networkResponse.statusCode == 401) {
+                        UserManager.getInstance(this).checkAndForceLogout(error);
+                    } else {
+                        Toast.makeText(this, "Lỗi cập nhật: " + error.getMessage(), Toast.LENGTH_SHORT).show();
                     }
-                    Toast.makeText(this, errorMsg, Toast.LENGTH_SHORT).show();
                 }
-        );
+        ) {
+            @Override
+            public Map<String, String> getHeaders() throws AuthFailureError {
+                Map<String, String> headers = new HashMap<>();
+                String token = UserManager.getInstance(getApplicationContext()).getAuthToken();
+                if (token != null) headers.put("Authorization", "Bearer " + token);
+                return headers;
+            }
+        };
         Volley.newRequestQueue(this).add(request);
     }
-
-    // ... (Các hàm showDeleteConfirmDialog, deleteResident, toggleResidentStatus, loadResidentAvatar, setDefaultAvatar, getAvatarFile GIỮ NGUYÊN)
-    // Tôi giữ nguyên phần còn lại để đảm bảo logic xóa và ẩn hiện vẫn hoạt động như cũ.
 
     private void showDeleteConfirmDialog() {
         new AlertDialog.Builder(this)
@@ -247,14 +243,29 @@ public class ResidentDetailActivity extends BaseActivity {
     }
 
     private void deleteResident() {
+        // 🔥 THÊM getHeaders() ĐỂ GỬI TOKEN
         JsonObjectRequest request = new JsonObjectRequest(Request.Method.DELETE, API_DELETE + userId, null,
                 response -> {
                     Toast.makeText(this, "Đã xóa cư dân.", Toast.LENGTH_SHORT).show();
                     setResult(RESULT_OK);
                     finish();
                 },
-                error -> Toast.makeText(this, "Lỗi khi xóa.", Toast.LENGTH_SHORT).show()
-        );
+                error -> {
+                    if (error.networkResponse != null && error.networkResponse.statusCode == 401) {
+                        UserManager.getInstance(this).checkAndForceLogout(error);
+                    } else {
+                        Toast.makeText(this, "Lỗi khi xóa.", Toast.LENGTH_SHORT).show();
+                    }
+                }
+        ) {
+            @Override
+            public Map<String, String> getHeaders() throws AuthFailureError {
+                Map<String, String> headers = new HashMap<>();
+                String token = UserManager.getInstance(getApplicationContext()).getAuthToken();
+                if (token != null) headers.put("Authorization", "Bearer " + token);
+                return headers;
+            }
+        };
         Volley.newRequestQueue(this).add(request);
     }
 
@@ -265,6 +276,7 @@ public class ResidentDetailActivity extends BaseActivity {
             body.put("is_living", newStatus);
         } catch (JSONException e) { e.printStackTrace(); }
 
+        // 🔥 THÊM getHeaders() ĐỂ GỬI TOKEN
         JsonObjectRequest request = new JsonObjectRequest(Request.Method.PUT, API_STATUS + userId, body,
                 response -> {
                     isLiving = newStatus;
@@ -279,8 +291,22 @@ public class ResidentDetailActivity extends BaseActivity {
                     invalidateOptionsMenu();
                     setResult(RESULT_OK);
                 },
-                error -> Toast.makeText(this, "Lỗi cập nhật trạng thái.", Toast.LENGTH_SHORT).show()
-        );
+                error -> {
+                    if (error.networkResponse != null && error.networkResponse.statusCode == 401) {
+                        UserManager.getInstance(this).checkAndForceLogout(error);
+                    } else {
+                        Toast.makeText(this, "Lỗi cập nhật trạng thái.", Toast.LENGTH_SHORT).show();
+                    }
+                }
+        ) {
+            @Override
+            public Map<String, String> getHeaders() throws AuthFailureError {
+                Map<String, String> headers = new HashMap<>();
+                String token = UserManager.getInstance(getApplicationContext()).getAuthToken();
+                if (token != null) headers.put("Authorization", "Bearer " + token);
+                return headers;
+            }
+        };
         Volley.newRequestQueue(this).add(request);
     }
 

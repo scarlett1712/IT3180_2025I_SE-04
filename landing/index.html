@@ -3,26 +3,22 @@
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1" />
-    <title>ENoti — Ứng dụng quản lý chung cư thông minh</title>
+    <title>ENoti — Giải pháp quản lý chung cư thông minh</title>
 
-    <!-- Google Fonts -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&display=swap" rel="stylesheet">
 
-    <!-- 🔥 CSS ĐÃ ĐƯỢC CẬP NHẬT SANG THEME TỐI -->
     <style>
         :root {
             --primary-color: #007aff;
-            --background-color: #121212; /* Nền tối */
-            --card-background: #1e1e1e; /* Nền thẻ tối hơn */
-            --text-color: #e1e1e1; /* Chữ sáng */
-            --muted-color: #888888; /* Chữ mờ */
-            --border-color: #333333; /* Màu viền */
+            --background-color: #121212;
+            --card-background: #1e1e1e;
+            --text-color: #e1e1e1;
+            --muted-color: #a0a0a0;
+            --border-color: #333333;
+            --accent-gradient: linear-gradient(135deg, #007aff 0%, #00c6ff 100%);
         }
 
-        ::placeholder { /* Đảm bảo placeholder hiển thị trên nền tối */
-             color: var(--muted-color);
-             opacity: 1;
-        }
+        * { box-sizing: border-box; }
 
         body {
             font-family: 'Inter', sans-serif;
@@ -34,7 +30,7 @@
         }
 
         .container {
-            max-width: 960px;
+            max-width: 1000px;
             margin: 0 auto;
             padding: 20px;
         }
@@ -57,23 +53,26 @@
         .brand img {
             width: 50px;
             height: 50px;
-            border-radius: 8px;
+            border-radius: 12px;
         }
 
         .brand h1 {
             margin: 0;
             font-size: 1.5em;
-            color: var(--text-color);
+            color: #ffffff;
+            font-weight: 800;
         }
 
         .brand .small {
             font-size: 0.9em;
             color: var(--muted-color);
+            display: none; /* Ẩn trên mobile để gọn */
         }
+        @media(min-width: 600px) { .brand .small { display: block; } }
 
         nav {
             display: flex;
-            gap: 20px;
+            gap: 25px;
         }
 
         nav a {
@@ -81,190 +80,242 @@
             color: var(--text-color);
             font-weight: 600;
             padding-bottom: 4px;
+            transition: color 0.2s;
         }
-        /* Đánh dấu link 'Trang chủ' là active */
-        nav a[href="index.html"] {
+        nav a:hover { color: var(--primary-color); }
+
+        nav a.active {
             color: var(--primary-color);
             border-bottom: 2px solid var(--primary-color);
         }
 
-        /* --- Sections --- */
+        /* --- Main Layout --- */
         main {
-            padding-top: 20px; /* Thêm khoảng cách đầu main */
+            padding-top: 40px;
         }
 
         section {
-             margin-bottom: 40px;
+             margin-bottom: 80px;
         }
 
+        /* --- Hero Section --- */
         .hero {
-            padding: 40px 0;
+            text-align: center; /* Căn giữa cho hiện đại */
+            padding: 20px 0;
         }
 
         .hero h2 {
-            font-size: 2.5em;
+            font-size: 2.8em;
             margin-top: 0;
-            margin-bottom: 15px;
+            margin-bottom: 20px;
             line-height: 1.2;
-            color: #ffffff; /* Nổi bật tiêu đề */
+            color: #ffffff;
+            font-weight: 800;
+            background: -webkit-linear-gradient(45deg, #fff, #888);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
         }
 
         .hero p {
-            font-size: 1.1em;
+            font-size: 1.2em;
             color: var(--muted-color);
-            max-width: 600px;
+            max-width: 700px;
+            margin: 0 auto 30px auto;
         }
 
-        /* --- Cards (Hero) --- */
+        /* Stats Cards */
         .cards {
             display: flex;
+            justify-content: center;
+            gap: 20px;
             flex-wrap: wrap;
-            gap: 15px;
-            margin-top: 20px;
+            margin-bottom: 40px;
         }
 
         .card {
-            background: var(--card-background); /* Nền thẻ tối */
-            padding: 15px 20px;
-            border-radius: 10px;
-            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+            background: rgba(255,255,255,0.05);
+            padding: 15px 25px;
+            border-radius: 50px;
+            border: 1px solid var(--border-color);
             font-weight: 500;
             color: var(--text-color);
+            font-size: 0.95em;
         }
 
-        /* --- Button Style --- */
+        /* Buttons */
+        .btn-group {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+        }
+
         .btn-primary {
             display: inline-block;
-            background-color: var(--primary-color);
+            background: var(--primary-color);
             color: #ffffff;
-            padding: 15px 30px;
-            font-size: 16px;
+            padding: 14px 32px;
+            font-size: 1.1em;
             font-weight: 600;
             text-decoration: none;
-            border-radius: 10px;
-            transition: background-color 0.2s ease, transform 0.2s ease;
-            cursor: pointer;
+            border-radius: 12px;
+            transition: all 0.2s ease;
             border: none;
+            box-shadow: 0 4px 15px rgba(0, 122, 255, 0.3);
         }
 
         .btn-primary:hover {
             background-color: #0056b3;
             transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0, 122, 255, 0.4);
         }
 
-        a[href="#contact"] {
-            color: var(--muted-color);
+        .btn-outline {
+            display: inline-block;
+            background: transparent;
+            color: var(--text-color);
+            padding: 14px 32px;
+            font-size: 1.1em;
+            font-weight: 600;
+            text-decoration: none;
+            border-radius: 12px;
+            border: 1px solid var(--border-color);
+            transition: all 0.2s ease;
+        }
+        .btn-outline:hover {
+            border-color: var(--text-color);
+            background: rgba(255,255,255,0.05);
         }
 
         /* --- Features Section --- */
-        #features h2 {
-            font-size: 1.8em;
-            border-bottom: 1px solid var(--border-color);
-            padding-bottom: 10px;
-            color: #ffffff;
+        .section-header {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+        .section-header h2 {
+            font-size: 2em;
+            color: #fff;
+            margin-bottom: 10px;
+        }
+        .section-header p {
+            color: var(--muted-color);
         }
 
         .features {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-            gap: 20px;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 25px;
         }
 
         .feature {
-            background: var(--card-background); /* Nền thẻ tối */
-            padding: 20px;
-            border-radius: 10px;
-            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+            background: var(--card-background);
+            padding: 30px;
+            border-radius: 16px;
+            border: 1px solid var(--border-color);
+            transition: transform 0.2s;
+        }
+        .feature:hover {
+            transform: translateY(-5px);
+            border-color: var(--primary-color);
         }
 
         .feature h3 {
             margin-top: 0;
-            color: var(--primary-color);
+            color: #fff;
+            font-size: 1.25em;
+            margin-bottom: 10px;
         }
 
         .feature p {
             font-size: 0.95em;
-            line-height: 1.6;
             color: var(--muted-color);
+            margin: 0;
         }
 
-        /* --- Screens Section --- */
-        #screens h2 {
-             font-size: 1.8em;
-             border-bottom: 1px solid var(--border-color);
-             padding-bottom: 10px;
-             color: #ffffff;
+        /* --- Screenshots Section --- */
+        .screenshot-scroller {
+            display: flex;
+            gap: 20px;
+            overflow-x: auto;
+            padding: 20px 0 40px 0;
+            /* Ẩn thanh cuộn nhưng vẫn cuộn được */
+            scrollbar-width: none;
+            -ms-overflow-style: none;
+        }
+        .screenshot-scroller::-webkit-scrollbar {
+            display: none;
         }
 
-        #screens div {
-            box-shadow: 0 8px 24px rgba(0,0,0,0.6); /* Đã hợp với theme tối */
+        .screenshot-scroller img {
+            width: 280px;
+            border-radius: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            border: 4px solid #333;
+            transition: transform 0.3s;
+        }
+        .screenshot-scroller img:hover {
+            transform: scale(1.02);
         }
 
         /* --- Contact Section --- */
-        #contact h2 {
-             font-size: 1.8em;
-             border-bottom: 1px solid var(--border-color);
-             padding-bottom: 10px;
-             color: #ffffff;
-        }
-
-        .contact {
+        .contact-container {
+            background: var(--card-background);
+            padding: 40px;
+            border-radius: 20px;
             display: flex;
             flex-wrap: wrap;
-            gap: 20px;
+            gap: 40px;
+            border: 1px solid var(--border-color);
         }
 
-        .contact form {
+        .contact-form {
             flex: 1;
             min-width: 300px;
             display: flex;
             flex-direction: column;
-            gap: 10px;
+            gap: 15px;
         }
 
-        .contact form input,
-        .contact form textarea {
-            padding: 12px;
-            font-family: 'Inter', sans-serif;
+        .contact-info {
+            flex: 1;
+            min-width: 250px;
+            padding-left: 20px;
+            border-left: 1px solid var(--border-color);
+        }
+        @media(max-width: 768px) {
+            .contact-info { border-left: none; padding-left: 0; border-top: 1px solid var(--border-color); padding-top: 20px;}
+        }
+
+        input, textarea {
+            width: 100%;
+            padding: 14px;
             border-radius: 8px;
             border: 1px solid var(--border-color);
-            background-color: var(--card-background); /* Nền input tối */
-            color: var(--text-color); /* Chữ input sáng */
+            background-color: #121212;
+            color: var(--text-color);
+            font-family: inherit;
             font-size: 1em;
         }
-
-        .contact form .btn-primary {
-            width: fit-content;
-        }
-
-        .contact h4 {
-             color: var(--text-color);
-        }
-
-        .contact .small {
-            color: var(--muted-color);
+        input:focus, textarea:focus {
+            outline: none;
+            border-color: var(--primary-color);
         }
 
         /* --- Footer --- */
         footer {
             text-align: center;
-            padding: 40px 20px 20px 20px;
+            padding: 40px 20px;
             border-top: 1px solid var(--border-color);
             color: var(--muted-color);
             font-size: 0.9em;
-        }
-
-        footer strong {
-            color: var(--text-color);
+            margin-top: 40px;
         }
 
         /* --- Animation --- */
         .fade-up {
             opacity: 0;
-            transform: translateY(20px);
-            transition: opacity 0.5s ease, transform 0.5s ease;
+            transform: translateY(30px);
+            transition: opacity 0.6s ease, transform 0.6s ease;
         }
-
         .fade-up.visible {
             opacity: 1;
             transform: translateY(0);
@@ -282,97 +333,112 @@
             </div>
         </div>
         <nav>
-            <a href="index.html">Trang chủ</a>
+            <a href="index.html" class="active">Trang chủ</a>
             <a href="guide.html">Hướng dẫn</a>
         </nav>
     </header>
 
     <main>
-        <!-- HERO -->
         <section class="hero">
-            <div>
-                <h2 class="fade-up">ENoti — Ứng dụng quản lý toà nhà toàn diện</h2>
-                <p class="fade-up delay-1">
-                    Hỗ trợ Ban quản lý và cư dân kết nối nhanh chóng: gửi thông báo, phản hồi, theo dõi khoản thu và quản lý thông tin cư dân chỉ với vài thao tác.
-                </p>
-                <p class="fade-up delay-1">
-                    Hiện đã có ứng dụng cho điện thoại Android.
-                </p>
+            <h2 class="fade-up">Giải pháp quản lý chung cư<br>thông minh & toàn diện</h2>
+            <p class="fade-up delay-1">
+                ENoti giúp Ban quản lý và cư dân kết nối tức thì: gửi thông báo, thanh toán hóa đơn, báo cáo sự cố và quản lý cư dân chỉ với vài thao tác trên điện thoại.
+            </p>
 
-                <div class="cards">
-                    <div class="card fade-up delay-2">Kết nối cư dân & Ban quản trị dễ dàng</div>
-                    <div class="card fade-up delay-3">Tối ưu quản lý — Tăng hiệu quả vận hành</div>
-                </div>
-
-                <div style="margin-top:24px" class="fade-up delay-3">
-                    <!-- 🔥 SỬA ĐỔI: Sử dụng link tĩnh chính xác từ repo IT3180... -->
-                    <a class="btn-primary"
-                       href="https://github.com/scarlett1712/IT3180_2025I_SE-04/releases/latest/download/ENoti.apk"
-                       target="_blank"
-                       rel="noopener noreferrer">
-                        Dùng thử ngay
-                    </a>
-                    <a style="margin-left:12px;" href="#contact">Liên hệ</a>
-                </div>
+            <div class="cards fade-up delay-2">
+                <div class="card">✨ Giao diện thân thiện</div>
+                <div class="card">⚡ Tương tác tức thì</div>
+                <div class="card">🔒 Bảo mật dữ liệu</div>
             </div>
 
-
+            <div class="btn-group fade-up delay-3">
+                <a class="btn-primary"
+                   href="https://github.com/scarlett1712/IT3180_2025I_SE-04/releases/latest/download/ENoti.apk"
+                   target="_blank">
+                    Tải ENoti APK
+                </a>
+                <a class="btn-outline" href="#contact">Liên hệ tư vấn</a>
+            </div>
         </section>
 
-        <!-- FEATURES -->
         <section id="features">
-            <h2 style="margin:24px 0 12px">Tính năng nổi bật</h2>
+            <div class="section-header fade-up">
+                <h2>Tính năng nổi bật</h2>
+                <p>Mọi công cụ bạn cần để vận hành toà nhà trơn tru</p>
+            </div>
+
             <div class="features">
-                <div class="feature">
-                    <h3>Thông báo nhanh</h3>
-                    <p>Gửi thông báo cho từng phòng, tầng hoặc toàn toà nhà. Cư dân nhận tức thì qua ứng dụng di động.</p>
+                <div class="feature fade-up">
+                    <h3>📢 Thông báo thông minh</h3>
+                    <p>Gửi thông báo tức thì (Push Notification) đến từng căn hộ, từng tầng hoặc toàn toà nhà. Theo dõi ai đã xem.</p>
                 </div>
-                <div class="feature">
-                    <h3>Quản lý khoản thu</h3>
-                    <p>Tạo, theo dõi và thống kê khoản thu theo căn hộ. Giảm thiểu sai sót và tiết kiệm thời gian cho ban quản lý.</p>
+                <div class="feature fade-up delay-1">
+                    <h3>💰 Quản lý khoản thu</h3>
+                    <p>Tạo hóa đơn điện, nước, dịch vụ tự động. Cư dân theo dõi công nợ và thanh toán dễ dàng qua mã QR.</p>
                 </div>
-                <div class="feature">
-                    <h3>Phản hồi cư dân</h3>
-                    <p>Cư dân gửi phản hồi, góp ý hoặc báo sự cố trực tiếp. Ban quản lý có thể trả lời ngay trong hệ thống.</p>
+                <div class="feature fade-up delay-2">
+                    <h3>🛠️ Báo cáo sự cố</h3>
+                    <p>Cư dân chụp ảnh báo hỏng hóc cơ sở vật chất. Ban quản lý tiếp nhận và cập nhật tiến độ sửa chữa real-time.</p>
                 </div>
-                <div class="feature">
-                    <h3>Quản lý cư dân</h3>
-                    <p>Lưu trữ thông tin cư dân, phòng, quan hệ hộ gia đình. Hỗ trợ xuất báo cáo nhanh sang Excel.</p>
+                <div class="feature fade-up">
+                    <h3>👥 Quản lý cư dân</h3>
+                    <p>Số hóa hồ sơ cư dân, quản lý nhân khẩu, xe cộ và thẻ ra vào. Xuất báo cáo Excel nhanh chóng.</p>
                 </div>
-                <div class="feature">
-                    <h3>Bảo mật & Hiệu năng</h3>
-                    <p>Dữ liệu lưu trữ an toàn trên máy chủ Node.js — PostgreSQL, tích hợp xác thực OTP và Firebase.</p>
+                <div class="feature fade-up delay-1">
+                    <h3>📊 Thống kê trực quan</h3>
+                    <p>Biểu đồ doanh thu, tình trạng xử lý sự cố giúp Ban quản trị có cái nhìn tổng quan về vận hành.</p>
+                </div>
+                <div class="feature fade-up delay-2">
+                    <h3>🛡️ An toàn & Bảo mật</h3>
+                    <p>Dữ liệu được mã hóa, hạ tầng Server mạnh mẽ đảm bảo hoạt động 24/7 không gián đoạn.</p>
                 </div>
             </div>
         </section>
 
-        <!-- SCREENS -->
         <section id="screens">
-            <h2 style="margin:24px 0 12px">Giao diện ứng dụng</h2>
-            <div style="display:flex;gap:12px;overflow:auto;padding-bottom:12px">
-                <img alt="screenshot" src="assets/screenshots/screen1.png" style="width:320px;border-radius:12px;box-shadow:0 8px 24px rgba(0,0,0,0.6)"/>
-                <img alt="screenshot" src="assets/screenshots/screen2.png" style="width:320px;border-radius:12px;box-shadow:0 8px 24px rgba(0,0,0,0.6)"/>
-                <img alt="screenshot" src="assets/screenshots/feedback.png" style="width:320px;border-radius:12px;box-shadow:0 8px 24px rgba(0,0,0,0.6)"/>
-                <img alt="screenshot" src="assets/screenshots/feedback.png" style="width:320px;border-radius:12px;box-shadow:0 8px 24px rgba(0,0,0,0.6)"/>
-                <img alt="screenshot" src="assets/screenshots/feedback.png" style="width:320px;border-radius:12px;box-shadow:0 8px 24px rgba(0,0,0,0.6)"/>
-                <img alt="screenshot" src="assets/screenshots/feedback.png" style="width:320px;border-radius:12px;box-shadow:0 8px 24px rgba(0,0,0,0.6)"/>
+            <div class="section-header fade-up">
+                <h2>Trải nghiệm ứng dụng</h2>
+                <p>Giao diện hiện đại, dễ sử dụng cho mọi lứa tuổi</p>
+            </div>
+            <div class="screenshot-scroller fade-up delay-1">
+                <img src="assets/screenshots/screen2.png" alt="Màn hình chính" />
+                <img src="assets/screenshots/screen2.png" alt="Danh sách thông báo" />
+                <img src="assets/screenshots/screen3.png" alt="Quản lý hóa đơn" />
+                <img src="assets/screenshots/screen4.png" alt="Chi tiết cư dân" />
+                <img src="assets/screenshots/screen5.png" alt="Cài đặt tài khoản" />
             </div>
         </section>
 
-        <!-- CONTACT -->
         <section id="contact">
-            <h2 style="margin:24px 0 12px">Liên hệ & Góp ý</h2>
-            <div class="contact">
-                <form onsubmit="event.preventDefault();alert('Cảm ơn bạn! Chúng tôi sẽ liên hệ sớm nhất.');">
-                    <input placeholder="Tên của bạn" required />
-                    <input placeholder="Email" required />
-                    <textarea rows="3" placeholder="Nội dung góp ý"></textarea>
-                    <button class="btn-primary" type="submit">Gửi liên hệ</button>
+            <div class="section-header fade-up">
+                <h2>Liên hệ & Góp ý</h2>
+            </div>
+
+            <div class="contact-container fade-up delay-1">
+                <form class="contact-form" onsubmit="event.preventDefault();alert('Cảm ơn bạn! Chúng tôi sẽ phản hồi sớm nhất.');">
+                    <input type="text" placeholder="Họ và tên" required />
+                    <input type="email" placeholder="Email của bạn" required />
+                    <textarea rows="4" placeholder="Nội dung cần hỗ trợ hoặc góp ý..."></textarea>
+                    <button class="btn-primary" type="submit" style="width: 100%">Gửi tin nhắn</button>
                 </form>
 
-                <div style="width:280px;padding:16px;background:linear-gradient(180deg,rgba(255,255,255,0.05),transparent);border-radius:12px">
-                    <h4 style="margin:0 0 8px">Vì sao chọn ENoti?</h4>
-                    <p class="small">ENoti giúp bạn quản lý toà nhà nhanh chóng, chuyên nghiệp, bảo mật cao — phù hợp cho mọi mô hình chung cư hiện đại.</p>
+                <div class="contact-info">
+                    <h3 style="color:#fff; margin-top:0;">Thông tin liên hệ</h3>
+                    <p style="color:var(--muted-color); margin-bottom: 20px;">
+                        Đội ngũ ENoti luôn sẵn sàng hỗ trợ bạn 24/7.
+                    </p>
+                    <p>
+                        <b>Email:</b> <br>
+                        <a href="mailto:support@enoti.vn" style="color:var(--primary-color); text-decoration:none">support@enoti.vn</a>
+                    </p>
+                    <p>
+                        <b>Hotline:</b> <br>
+                        <span style="color:#fff">+84 963 291 686</span>
+                    </p>
+                    <p>
+                        <b>Địa chỉ:</b> <br>
+                        <span style="color:var(--muted-color)">Đại học Bách Khoa Hà Nội</span>
+                    </p>
                 </div>
             </div>
         </section>
@@ -380,24 +446,30 @@
 
     <footer>
         <div>© 2025 <strong>ENoti</strong> — Giải pháp quản lý chung cư thông minh</div>
-        <!--        <div style="color:var(&#45;&#45;muted)">Email: support@enoti.vn &nbsp;•&nbsp; Hotline: +84 963 291 687</div>-->
     </footer>
 </div>
 
 <script>
-    // hiệu ứng xuất hiện mượt
+    // Hiệu ứng xuất hiện khi cuộn trang
+    const observerOptions = {
+        threshold: 0.1
+    };
+
+    const observer = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+            if (entry.isIntersecting) {
+                entry.target.classList.add('visible');
+            }
+        });
+    }, observerOptions);
+
     document.querySelectorAll('.fade-up').forEach((el, i) => {
-        // Thêm một chút delay cơ bản nếu không có class delay-
-        if (!el.className.includes('delay-')) {
-            el.style.animationDelay = `${i * 0.1}s`;
-        } else if (el.className.includes('delay-1')) {
-            el.style.animationDelay = `0.2s`;
-        } else if (el.className.includes('delay-2')) {
-            el.style.animationDelay = `0.3s`;
-        } else if (el.className.includes('delay-3')) {
-            el.style.animationDelay = `0.4s`;
-        }
-        el.classList.add('visible');
+        // Thêm delay thủ công nếu class delay chưa được CSS xử lý tốt
+        if (el.classList.contains('delay-1')) el.style.transitionDelay = '0.1s';
+        if (el.classList.contains('delay-2')) el.style.transitionDelay = '0.2s';
+        if (el.classList.contains('delay-3')) el.style.transitionDelay = '0.3s';
+
+        observer.observe(el);
     });
 </script>
 </body>
