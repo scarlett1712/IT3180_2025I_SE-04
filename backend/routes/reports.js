@@ -87,7 +87,7 @@ router.get("/all", async (req, res) => {
   }
 });
 
-// 3. [ADMIN] Cập nhật trạng thái & Phản hồi (🔥 ĐÃ FIX LỖI SQL 42P08)
+// 3. [ADMIN] Cập nhật trạng thái & Phản hồi (🔥 ĐÃ FIX LỖI 42P08 BẰNG CÁCH TÁCH PARAM)
 router.post("/update-status", async (req, res) => {
   const { report_id, status, admin_note } = req.body;
 
@@ -101,15 +101,18 @@ router.post("/update-status", async (req, res) => {
 
     const safeNote = admin_note || "";
 
-    // 🔥 SỬA TẠI ĐÂY: Thêm ::text vào sau $1 trong CASE WHEN
-    // (CASE WHEN $1::text = 'Completed' ...)
+    // 🔥 KỸ THUẬT SỬA LỖI:
+    // Thay vì dùng $1 cho cả 2 chỗ, ta dùng $1 cho việc SET và $3 cho việc SO SÁNH
+    // Mảng tham số truyền vào sẽ là: [status, safeNote, status, report_id]
+    // Điều này đảm bảo PostgreSQL không bị nhầm lẫn kiểu dữ liệu.
+
     await client.query(
         `UPDATE incident_reports
          SET status = $1,
              admin_note = $2,
-             resolved_at = (CASE WHEN $1::text = 'Completed' THEN NOW() ELSE resolved_at END)
-         WHERE report_id = $3`,
-        [status, safeNote, report_id]
+             resolved_at = (CASE WHEN $3 = 'Completed' THEN NOW() ELSE resolved_at END)
+         WHERE report_id = $4`,
+        [status, safeNote, status, report_id] // Truyền status 2 lần
     );
 
     // 2. Gửi thông báo an toàn
