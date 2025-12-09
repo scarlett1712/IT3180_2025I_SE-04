@@ -8,33 +8,45 @@ export const verifySession = async (req, res, next) => {
   try {
     const authHeader = req.headers['authorization'];
 
-    // Kiểm tra xem có gửi token không
+    // 1. Kiểm tra header có tồn tại không
     if (!authHeader) {
         return res.status(401).json({ error: "Chưa đăng nhập (Thiếu token)" });
     }
 
-    const token = authHeader.split(' ')[1]; // Lấy phần token sau chữ Bearer
+    // 2. Tách chuỗi để lấy token (Xử lý an toàn hơn để tránh crash)
+    const parts = authHeader.split(' ');
+    if (parts.length !== 2 || parts[0] !== 'Bearer') {
+        return res.status(401).json({ error: "Định dạng Token không hợp lệ" });
+    }
 
-    // Ở đây chúng ta cần user_id để so sánh.
-    // Cách tốt nhất là Client gửi user_id trong body hoặc query,
-    // hoặc chúng ta query ngược lại từ token (nhưng query user_id từ body nhanh hơn nếu có).
+    const token = parts[1];
 
-    // Cách an toàn nhất: Tìm user sở hữu token này trong DB
-    const result = await pool.query(
-        "SELECT user_id FROM users WHERE session_token = $1",
-        [token]
-    );
+    // 3. 🔥 TRUY VẤN DATABASE ĐỂ KIỂM TRA TOKEN
+    // Chúng ta lấy luôn cả `role_id` để tiện phân quyền sau này
+    const result = await pool.query(`
+        SELECT u.user_id, ur.role_id
+        FROM users u
+        LEFT JOIN userrole ur ON u.user_id = ur.user_id
+        WHERE u.session_token = $1
+    `, [token]);
 
+    // 4. 🔥 LOGIC CHẶN MÁY CŨ (QUAN TRỌNG NHẤT)
     if (result.rows.length === 0) {
-        // Token không tồn tại trong DB => Đã bị đăng nhập đè ở máy khác hoặc fake
+        // Nếu không tìm thấy dòng nào => Token gửi lên KHÁC token trong DB
+        // => Chứng tỏ tài khoản đã đăng nhập nơi khác (Token trong DB đã đổi)
         return res.status(401).json({
             error: "Phiên đăng nhập hết hạn hoặc tài khoản đã đăng nhập ở nơi khác.",
-            force_logout: true
+            force_logout: true // Cờ hiệu để Android biết mà đá ra màn hình Login
         });
     }
 
-    // Nếu tìm thấy, gán user_id vào request để các API sau dùng
-    req.currentUser = { id: result.rows[0].user_id };
+    // 5. Gán thông tin user vào request để các API phía sau sử dụng
+    req.currentUser = {
+        id: result.rows[0].user_id,
+        role: (result.rows[0].role_id === 2) ? 'ADMIN' : 'USER'
+    };
+
+    // Cho phép đi tiếp vào hàm xử lý chính
     next();
 
   } catch (err) {
