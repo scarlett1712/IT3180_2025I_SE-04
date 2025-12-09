@@ -1,5 +1,6 @@
 import express from "express";
 import { pool } from "../db.js";
+import { verifySession } from "../middleware/authMiddleware.js";
 
 const router = express.Router();
 const query = (text, params) => pool.query(text, params);
