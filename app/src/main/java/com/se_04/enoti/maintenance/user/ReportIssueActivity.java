@@ -16,12 +16,13 @@ import com.google.android.material.textfield.TextInputEditText;
 import com.se_04.enoti.R;
 import com.se_04.enoti.account.UserItem;
 import com.se_04.enoti.utils.ApiConfig;
+import com.se_04.enoti.utils.BaseActivity;
 import com.se_04.enoti.utils.UserManager; // 🔥 Import UserManager
 
 import org.json.JSONException;
 import org.json.JSONObject;
 
-public class ReportIssueActivity extends AppCompatActivity {
+public class ReportIssueActivity extends BaseActivity {
 
     private TextView txtAssetName;
     private TextInputEditText edtDesc;

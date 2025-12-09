@@ -99,36 +99,59 @@ router.post("/update-status", async (req, res) => {
   const { report_id, status, admin_note } = req.body;
   // status: 'Processing', 'Completed', 'Rejected'
 
+  if (!report_id || !status) {
+      return res.status(400).json({ error: "Thiếu thông tin report_id hoặc status" });
+  }
+
+  const client = await pool.connect();
   try {
-    // Cập nhật trạng thái và ghi chú
-    await pool.query(
+    await client.query("BEGIN");
+
+    // 1. Cập nhật Database
+    await client.query(
         `UPDATE incident_reports
-         SET status = $1, admin_note = $2, resolved_at = (CASE WHEN $1='Completed' THEN NOW() ELSE resolved_at END)
+         SET status = $1,
+             admin_note = $2,
+             resolved_at = (CASE WHEN $1='Completed' THEN NOW() ELSE resolved_at END)
          WHERE report_id = $3`,
         [status, admin_note || "", report_id]
     );
 
-    // Gửi thông báo push cho người dân
-    const userRes = await pool.query(
-        "SELECT u.fcm_token FROM incident_reports r JOIN users u ON r.user_id = u.user_id WHERE r.report_id = $1",
-        [report_id]
-    );
+    // 2. 🔥 LOGIC GỬI THÔNG BÁO "AN TOÀN"
+    // Chúng ta bọc nó trong try-catch riêng để nếu lỗi thông báo thì vẫn tính là update thành công
+    try {
+        const userRes = await client.query(
+            "SELECT u.fcm_token FROM incident_reports r JOIN users u ON r.user_id = u.user_id WHERE r.report_id = $1",
+            [report_id]
+        );
 
-    if(userRes.rows.length > 0 && userRes.rows[0].fcm_token) {
-        let title = "🔔 Cập nhật phản ánh";
-        let body = "";
+        if(userRes.rows.length > 0 && userRes.rows[0].fcm_token) {
+            let title = "🔔 Cập nhật phản ánh";
+            let body = "";
 
-        if (status === 'Processing') body = "Ban quản lý đã tiếp nhận và đang xử lý phản ánh của bạn.";
-        else if (status === 'Completed') body = "Sự cố bạn báo cáo đã được xử lý xong. Cảm ơn bạn!";
-        else if (status === 'Rejected') body = `Phản ánh của bạn bị từ chối. Lý do: ${admin_note}`;
+            if (status === 'Processing') body = "Ban quản lý đã tiếp nhận và đang xử lý phản ánh của bạn.";
+            else if (status === 'Completed') body = "Sự cố bạn báo cáo đã được xử lý xong. Cảm ơn bạn!";
+            else if (status === 'Rejected') body = `Phản ánh của bạn bị từ chối. Lý do: ${admin_note}`;
 
-        if (body) sendNotification(userRes.rows[0].fcm_token, title, body);
+            if (body) {
+                // Gọi hàm gửi (Import từ firebaseHelper)
+                await sendNotification(userRes.rows[0].fcm_token, title, body);
+            }
+        }
+    } catch (notifyError) {
+        // 🔥 Nếu gửi thông báo lỗi, chỉ in ra console, KHÔNG làm crash server
+        console.error("⚠️ Lỗi gửi thông báo (nhưng DB đã update):", notifyError.message);
     }
 
+    await client.query("COMMIT");
     res.json({ success: true, message: "Đã cập nhật trạng thái báo cáo." });
+
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: "Lỗi cập nhật" });
+    await client.query("ROLLBACK");
+    console.error("❌ Update Status Error:", err); // Xem lỗi chi tiết ở Terminal chạy Server
+    res.status(500).json({ error: "Lỗi server khi cập nhật: " + err.message });
+  } finally {
+    client.release();
   }
 });
 

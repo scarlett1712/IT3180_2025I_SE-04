@@ -13,6 +13,7 @@ import androidx.appcompat.app.AppCompatActivity;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.se_04.enoti.R;
+import com.se_04.enoti.utils.BaseActivity;
 
 import java.util.List;
 
@@ -44,7 +45,7 @@ public class FeedbackAdapter_Admin extends RecyclerView.Adapter<FeedbackAdapter_
         // 🔥 Khi bấm vào một phản hồi -> mở màn hình trả lời phản hồi
         holder.itemView.setOnClickListener(v -> {
             // Lấy context của Activity cha
-            AppCompatActivity activity = (AppCompatActivity) v.getContext();
+            BaseActivity activity = (BaseActivity) v.getContext();
 
             // Tạo instance của BottomSheet và truyền dữ liệu
             FeedbackReplyBottomSheet_Admin bottomSheet =

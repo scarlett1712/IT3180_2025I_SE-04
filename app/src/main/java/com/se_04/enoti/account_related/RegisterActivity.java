@@ -16,6 +16,7 @@ import androidx.appcompat.app.AppCompatActivity;
 
 import com.google.android.material.textfield.TextInputEditText;
 import com.se_04.enoti.R;
+import com.se_04.enoti.utils.BaseActivity;
 
 import java.util.Calendar;
 import java.util.Locale;
@@ -23,7 +24,7 @@ import java.util.Locale;
 import static com.se_04.enoti.utils.ValidatePhoneNumberUtil.isValidVietnamesePhoneNumber;
 import static com.se_04.enoti.utils.ValidatePhoneNumberUtil.normalizePhoneNumber;
 
-public class RegisterActivity extends AppCompatActivity {
+public class RegisterActivity extends BaseActivity {
 
     // Khai báo view
     private TextInputEditText edtFullName, edtDob, edtPhoneNumber, edtPassword, edtConfirmPassword, edtAdminKey;

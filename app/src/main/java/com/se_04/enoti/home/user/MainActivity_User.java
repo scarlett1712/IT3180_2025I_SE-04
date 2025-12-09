@@ -37,6 +37,7 @@ import com.se_04.enoti.finance.FinanceFragment;
 import com.se_04.enoti.maintenance.user.UserAssetFragment;
 import com.se_04.enoti.notification.NotificationFragment;
 import com.se_04.enoti.utils.ApiConfig;
+import com.se_04.enoti.utils.BaseActivity;
 import com.se_04.enoti.utils.UserManager;
 
 import org.json.JSONException;
@@ -44,7 +45,7 @@ import org.json.JSONObject;
 
 import java.nio.charset.StandardCharsets;
 
-public class MainActivity_User extends AppCompatActivity {
+public class MainActivity_User extends BaseActivity {
 
     private static final String TAG = "MainActivity_User";
     private static final String SELECTED_ITEM_ID_KEY = "selectedItemIdKey";

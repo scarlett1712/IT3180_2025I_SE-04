@@ -22,6 +22,7 @@ import com.se_04.enoti.R;
 import com.se_04.enoti.account.UserItem;
 import com.se_04.enoti.maintenance.AssetHistoryItem;
 import com.se_04.enoti.utils.ApiConfig;
+import com.se_04.enoti.utils.BaseActivity;
 import com.se_04.enoti.utils.UserManager;
 
 import org.json.JSONArray;
@@ -31,7 +32,7 @@ import org.json.JSONObject;
 import java.util.ArrayList;
 import java.util.List;
 
-public class AssetDetailActivity extends AppCompatActivity {
+public class AssetDetailActivity extends BaseActivity {
 
     private TextView txtName, txtLocation, txtStatus, txtEmpty, txtHistoryTitle;
     private RecyclerView recyclerHistory;

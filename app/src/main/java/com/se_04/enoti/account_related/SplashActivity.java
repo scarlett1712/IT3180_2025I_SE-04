@@ -35,6 +35,7 @@ import com.se_04.enoti.account.Role;
 import com.se_04.enoti.account.UserItem;
 import com.se_04.enoti.home.admin.MainActivity_Admin;
 import com.se_04.enoti.home.user.MainActivity_User;
+import com.se_04.enoti.utils.BaseActivity;
 import com.se_04.enoti.utils.UserManager;
 
 import org.json.JSONArray;
@@ -52,7 +53,7 @@ import okhttp3.Response;
 import okhttp3.ResponseBody; // 🔥 THÊM MỚI
 
 @SuppressLint("CustomSplashScreen")
-public class SplashActivity extends AppCompatActivity {
+public class SplashActivity extends BaseActivity {
 
     private ActivityResultLauncher<String[]> permissionLauncher;
     // 🔥 THÊM MỚI: Launcher để xin quyền "Cài đặt ứng dụng không rõ nguồn gốc"

@@ -26,13 +26,14 @@ import com.android.volley.toolbox.Volley;
 import com.google.android.material.appbar.MaterialToolbar;
 import com.se_04.enoti.R;
 import com.se_04.enoti.utils.ApiConfig;
+import com.se_04.enoti.utils.BaseActivity;
 
 import org.json.JSONException;
 import org.json.JSONObject;
 
 import java.io.File;
 
-public class ResidentDetailActivity extends AppCompatActivity {
+public class ResidentDetailActivity extends BaseActivity {
 
     private TextView txtName, txtGender, txtDob, txtEmail, txtPhone,
             txtRelationship, txtLiving, txtRoom;

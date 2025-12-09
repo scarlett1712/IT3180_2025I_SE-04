@@ -1,65 +1,77 @@
 import cron from "node-cron";
 import { pool } from "../db.js";
-// ✅ SỬA: Chỉ import từ firebaseHelper, bỏ fcm.js
 import { sendNotification } from "../utils/firebaseHelper.js";
 
 /**
  * ==================================================================
- * 1. 📬 GỬI THÔNG BÁO HẸN GIỜ (Chạy mỗi phút)
+ * 1. 📬 GỬI THÔNG BÁO HẸN GIỜ (QUAN TRỌNG NHẤT)
+ * - Chạy: Mỗi phút một lần (* * * * *)
+ * - Nhiệm vụ: Quét các thông báo trạng thái 'PENDING' đã đến giờ gửi.
  * ==================================================================
  */
 const checkScheduledNotifications = async () => {
     const client = await pool.connect();
     try {
-        // Tìm thông báo PENDING đã đến giờ gửi
+        // 1. Tìm thông báo PENDING mà thời gian gửi (scheduled_at) <= thời gian hiện tại
         const pendingNotifications = await client.query(
             `SELECT * FROM notification
              WHERE status = 'PENDING'
              AND scheduled_at <= NOW()`
         );
 
+        // Nếu không có gì để gửi thì dừng luôn cho nhẹ server
         if (pendingNotifications.rows.length === 0) return;
 
-        console.log(`🚀 [CRON] Found ${pendingNotifications.rows.length} scheduled notification(s) to send.`);
+        console.log(`🚀 [CRON] Bắt đầu gửi ${pendingNotifications.rows.length} thông báo hẹn giờ...`);
 
         for (const notification of pendingNotifications.rows) {
             try {
-                // Lấy danh sách token người nhận
+                // 2. Lấy danh sách token của những người cần nhận thông báo này
+                // (Join bảng user_notifications và users)
                 const usersResult = await client.query(`
                     SELECT u.fcm_token
                     FROM user_notifications un
                     JOIN users u ON un.user_id = u.user_id
-                    WHERE un.notification_id = $1 AND u.fcm_token IS NOT NULL
+                    WHERE un.notification_id = $1
+                    AND u.fcm_token IS NOT NULL
+                    AND u.fcm_token != ''
                 `, [notification.notification_id]);
 
-                const tokens = usersResult.rows.map(row => row.fcm_token).filter(t => t);
+                const tokens = usersResult.rows.map(row => row.fcm_token);
 
                 if (tokens.length > 0) {
-                    // ✅ SỬA: Dùng vòng lặp gửi từng người qua firebaseHelper
-                    // (Thay vì dùng sendNotificationToUsers của fcm.js không tồn tại)
+                    console.log(`--> Đang gửi ID ${notification.notification_id} tới ${tokens.length} thiết bị.`);
+
+                    // 3. Gửi thông báo qua Firebase (Loop để gửi từng người đảm bảo an toàn)
                     for (const token of tokens) {
-                        // Lưu ý: sendNotification của bạn nhận tham số (token, title, body, data)
-                        // Bạn có thể thêm object data nếu cần, ví dụ { type: notification.type }
-                        sendNotification(token, notification.title, notification.content, { type: notification.type || "general" });
+                        await sendNotification(
+                            token,
+                            notification.title,
+                            notification.content,
+                            { type: notification.type || "general" }
+                        );
                     }
 
-                    // Cập nhật trạng thái SENT
+                    // 4. Cập nhật trạng thái thành SENT (Đã gửi)
                     await client.query(
                         `UPDATE notification SET status = 'SENT' WHERE notification_id = $1`,
                         [notification.notification_id]
                     );
-                    console.log(`✅ Sent notification ID: ${notification.notification_id}`);
+                    console.log(`✅ Đã gửi xong ID: ${notification.notification_id}`);
+
                 } else {
-                    // Không có token nào -> FAILED
+                    // Trường hợp thông báo không có người nhận (hoặc user chưa có token)
+                    // Vẫn đánh dấu là SENT hoặc FAILED để Cron không quét lại lần sau
                     await client.query(
                         `UPDATE notification SET status = 'FAILED' WHERE notification_id = $1`,
                         [notification.notification_id]
                     );
-                    console.log(`⚠️ Notification ID: ${notification.notification_id} has no valid tokens.`);
+                    console.log(`⚠️ ID: ${notification.notification_id} không có token người nhận hợp lệ.`);
                 }
 
             } catch (sendError) {
-                console.error(`❌ Failed to send notification ID: ${notification.notification_id}`, sendError);
+                console.error(`❌ Lỗi khi xử lý thông báo ID: ${notification.notification_id}`, sendError);
+                // Nếu lỗi, đánh dấu FAILED để không bị kẹt loop
                 await client.query(
                     `UPDATE notification SET status = 'FAILED' WHERE notification_id = $1`,
                     [notification.notification_id]
@@ -75,26 +87,26 @@ const checkScheduledNotifications = async () => {
 
 /**
  * ==================================================================
- * 2. 🎗 NHẮC NỢ PHÍ (Chạy 08:00 sáng mỗi ngày)
+ * 2. 🎗 NHẮC NỢ PHÍ (TỰ ĐỘNG)
+ * - Chạy: 08:00 sáng hàng ngày
  * ==================================================================
  */
 const checkAndRemindPayments = async () => {
-  console.log("⏰ [CRON] Checking for payments due in 3 days...");
+  console.log("⏰ [CRON] Đang kiểm tra các khoản phí sắp hết hạn...");
 
   try {
+    // Tìm các khoản phí chưa thanh toán và sẽ hết hạn trong đúng 3 ngày tới
     const queryText = `
       SELECT
         f.title,
-        f.amount,
         TO_CHAR(f.due_date, 'DD/MM/YYYY') as due_date_fmt,
-        u.user_id,
         u.fcm_token
       FROM finances f
       JOIN user_finances uf ON f.id = uf.finance_id
       JOIN users u ON uf.user_id = u.user_id
       WHERE
         uf.status != 'da_thanh_toan'
-        AND f.due_date = CURRENT_DATE + INTERVAL '3 days'
+        AND f.due_date = CURRENT_DATE + INTERVAL '3 days' -- Nhắc trước 3 ngày
         AND u.fcm_token IS NOT NULL
         AND u.fcm_token != ''
     `;
@@ -102,16 +114,18 @@ const checkAndRemindPayments = async () => {
     const result = await pool.query(queryText);
 
     if (result.rows.length === 0) {
-      console.log("✅ [CRON] No payments due in 3 days found.");
+      console.log("✅ Không có khoản phí nào sắp hết hạn.");
       return;
     }
 
-    console.log(`📢 [CRON] Found ${result.rows.length} payment reminders.`);
+    console.log(`📢 Tìm thấy ${result.rows.length} người cần nhắc phí.`);
 
     for (const row of result.rows) {
       const title = "🎗 Nhắc hạn đóng phí";
       const body = `Khoản thu "${row.title}" sẽ hết hạn vào ngày ${row.due_date_fmt}. Vui lòng thanh toán sớm.`;
-      sendNotification(row.fcm_token, title, body, { type: "finance" });
+
+      // Gửi thông báo
+      await sendNotification(row.fcm_token, title, body, { type: "finance" });
     }
 
   } catch (err) {
@@ -121,48 +135,45 @@ const checkAndRemindPayments = async () => {
 
 /**
  * ==================================================================
- * 3. 🧹 DỌN DẸP THÔNG BÁO CŨ (Chạy 00:00 đêm mỗi ngày)
+ * 3. 🧹 DỌN DẸP THÔNG BÁO CŨ (Maintenance)
+ * - Chạy: 00:00 đêm hàng ngày
  * ==================================================================
  */
 const cleanUpOldNotifications = async () => {
-  console.log("🧹 [CRON] Starting cleanup of old notifications...");
+  console.log("🧹 [CRON] Bắt đầu dọn dẹp thông báo cũ...");
 
+  const client = await pool.connect();
   try {
-    const client = await pool.connect();
-    try {
-        await client.query("BEGIN");
+    await client.query("BEGIN");
 
-        // Tìm các thông báo hết hạn quá 60 ngày
-        const findQuery = `
-            SELECT notification_id FROM notification
-            WHERE expired_date < NOW() - INTERVAL '60 days'
-        `;
-        const oldNotifications = await client.query(findQuery);
+    // Tìm các thông báo đã hết hạn quá 60 ngày
+    const findQuery = `
+        SELECT notification_id FROM notification
+        WHERE expired_date < NOW() - INTERVAL '60 days'
+    `;
+    const oldNotifications = await client.query(findQuery);
 
-        if (oldNotifications.rows.length === 0) {
-            console.log("✨ [CRON] No old notifications to delete today.");
-            await client.query("ROLLBACK");
-            return;
-        }
-
-        const idsToDelete = oldNotifications.rows.map(r => r.notification_id);
-
-        // Xóa dữ liệu liên quan
-        await client.query("DELETE FROM user_notifications WHERE notification_id = ANY($1)", [idsToDelete]);
-        await client.query("DELETE FROM notification WHERE notification_id = ANY($1)", [idsToDelete]);
-
-        await client.query("COMMIT");
-        console.log(`✅ [CRON] Deleted ${idsToDelete.length} expired notifications.`);
-
-    } catch (dbErr) {
+    if (oldNotifications.rows.length === 0) {
+        console.log("✨ Hệ thống sạch sẽ, không có gì để xóa.");
         await client.query("ROLLBACK");
-        throw dbErr;
-    } finally {
-        client.release();
+        return;
     }
 
-  } catch (err) {
-    console.error("❌ [CRON ERROR - Cleanup]", err);
+    const idsToDelete = oldNotifications.rows.map(r => r.notification_id);
+
+    // Xóa dữ liệu liên quan trong bảng phụ trước
+    await client.query("DELETE FROM user_notifications WHERE notification_id = ANY($1)", [idsToDelete]);
+    // Xóa bảng chính
+    await client.query("DELETE FROM notification WHERE notification_id = ANY($1)", [idsToDelete]);
+
+    await client.query("COMMIT");
+    console.log(`✅ [CRON] Đã xóa vĩnh viễn ${idsToDelete.length} thông báo cũ.`);
+
+  } catch (dbErr) {
+    await client.query("ROLLBACK");
+    console.error("❌ [CRON ERROR - Cleanup]", dbErr);
+  } finally {
+    client.release();
   }
 };
 
@@ -172,24 +183,25 @@ const cleanUpOldNotifications = async () => {
  * ==================================================================
  */
 export const startScheduler = () => {
-  const timezone = { timezone: "Asia/Ho_Chi_Minh" };
+  // Cấu hình múi giờ Việt Nam để cron chạy đúng giờ
+  const options = { timezone: "Asia/Ho_Chi_Minh" };
 
-  // 1. Gửi thông báo hẹn giờ: Chạy mỗi phút (* * * * *)
-  cron.schedule("* * * * *", checkScheduledNotifications, timezone);
+  // 1. Gửi thông báo hẹn giờ: Chạy mỗi phút
+  cron.schedule("* * * * *", checkScheduledNotifications, options);
 
   // 2. Nhắc nợ: Chạy vào 08:00 sáng mỗi ngày
-  cron.schedule("0 8 * * *", checkAndRemindPayments, timezone);
+  cron.schedule("0 8 * * *", checkAndRemindPayments, options);
 
   // 3. Dọn dẹp: Chạy vào 00:00 đêm mỗi ngày
-  cron.schedule("0 0 * * *", cleanUpOldNotifications, timezone);
+  cron.schedule("0 0 * * *", cleanUpOldNotifications, options);
 
-  console.log("✅ Scheduler Service Started:");
-  console.log("   - Scheduled Notifications: Every minute");
-  console.log("   - Payment Reminders: Daily at 08:00");
-  console.log("   - Cleanup Task: Daily at 00:00");
+  console.log("✅ Scheduler Service đã khởi động:");
+  console.log("   - Scheduled Notifications: Mỗi phút");
+  console.log("   - Payment Reminders: 08:00 Sáng hàng ngày");
+  console.log("   - Cleanup Task: 00:00 Đêm hàng ngày");
 };
 
-// Export để test thủ công nếu cần
+// Export các hàm để test thủ công nếu cần (ví dụ gọi từ API /test-cron)
 export const manualRunScheduled = checkScheduledNotifications;
 export const manualCheckReminder = checkAndRemindPayments;
 export const manualCleanup = cleanUpOldNotifications;

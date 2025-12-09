@@ -28,6 +28,7 @@ import com.se_04.enoti.account.UserItem;
 import com.se_04.enoti.home.admin.MainActivity_Admin;
 import com.se_04.enoti.home.user.MainActivity_User;
 import com.se_04.enoti.utils.ApiConfig;
+import com.se_04.enoti.utils.BaseActivity;
 import com.se_04.enoti.utils.UserManager;
 
 import org.json.JSONObject;
@@ -39,7 +40,7 @@ import java.util.Map;
 import static com.se_04.enoti.utils.ValidatePhoneNumberUtil.isValidVietnamesePhoneNumber;
 import static com.se_04.enoti.utils.ValidatePhoneNumberUtil.normalizePhoneNumber;
 
-public class LogInActivity extends AppCompatActivity {
+public class LogInActivity extends BaseActivity {
 
     private static final String API_LOGIN_URL = ApiConfig.BASE_URL + "/api/users/login";
     private static final String TAG = "LogInActivity";

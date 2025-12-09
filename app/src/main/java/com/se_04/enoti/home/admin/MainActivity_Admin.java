@@ -20,8 +20,9 @@ import com.se_04.enoti.notification.admin.CreateNotificationActivity;
 import com.se_04.enoti.R;
 import com.se_04.enoti.notification.admin.ManageNotificationFragment;
 import com.se_04.enoti.residents.ManageResidentFragment;
+import com.se_04.enoti.utils.BaseActivity;
 
-public class MainActivity_Admin extends AppCompatActivity {
+public class MainActivity_Admin extends BaseActivity {
 
     private static final String TAG = "MainActivity_Admin"; // For Logcat
     private static final String SELECTED_ITEM_ID_KEY = "selectedItemIdKey";

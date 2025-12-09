@@ -23,6 +23,7 @@ import com.android.volley.toolbox.Volley;
 import androidx.appcompat.widget.Toolbar;
 import com.se_04.enoti.R;
 import com.se_04.enoti.utils.ApiConfig;
+import com.se_04.enoti.utils.BaseActivity;
 
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -30,7 +31,7 @@ import org.json.JSONObject;
 import java.util.ArrayList;
 import java.util.List;
 
-public class ApproveRequestsActivity extends AppCompatActivity {
+public class ApproveRequestsActivity extends BaseActivity {
 
     private RecyclerView recyclerView;
     private ApproveRequestsAdapter adapter;

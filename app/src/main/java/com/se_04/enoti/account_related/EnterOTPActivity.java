@@ -36,6 +36,7 @@ import com.se_04.enoti.account.UserItem;
 import com.se_04.enoti.home.admin.MainActivity_Admin;
 import com.se_04.enoti.home.user.MainActivity_User;
 import com.se_04.enoti.utils.ApiConfig;
+import com.se_04.enoti.utils.BaseActivity;
 import com.se_04.enoti.utils.UserManager;
 
 import org.json.JSONException;
@@ -46,7 +47,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
-public class EnterOTPActivity extends AppCompatActivity {
+public class EnterOTPActivity extends BaseActivity {
 
     public static final String EXTRA_PREVIOUS_ACTIVITY = "previous_activity";
     public static final String FROM_REGISTER_PHONE = "from_register_phone";

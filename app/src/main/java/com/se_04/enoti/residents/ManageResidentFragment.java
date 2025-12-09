@@ -39,6 +39,7 @@ import com.se_04.enoti.R;
 import com.se_04.enoti.account.UserItem;
 import com.se_04.enoti.account.admin.ApproveRequestsActivity; // 🔥 Import Activity Duyệt (đã tạo trước đó)
 import com.se_04.enoti.utils.ApiConfig;
+import com.se_04.enoti.utils.BaseActivity;
 import com.se_04.enoti.utils.UserManager;
 
 import org.apache.poi.ss.usermodel.Cell;
@@ -414,7 +415,7 @@ public class ManageResidentFragment extends Fragment {
     @Override
     public void onActivityResult(int requestCode, int resultCode, @Nullable Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
-        if (requestCode == 101 && resultCode == AppCompatActivity.RESULT_OK) {
+        if (requestCode == 101 && resultCode == BaseActivity.RESULT_OK) {
             fetchResidentsFromAPI();
         }
     }

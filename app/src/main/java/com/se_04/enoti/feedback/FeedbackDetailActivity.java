@@ -18,12 +18,13 @@ import com.google.android.material.appbar.MaterialToolbar;
 import com.se_04.enoti.R;
 import com.se_04.enoti.notification.NotificationRepository;
 import com.se_04.enoti.utils.ApiConfig;
+import com.se_04.enoti.utils.BaseActivity;
 
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
-public class FeedbackDetailActivity extends AppCompatActivity {
+public class FeedbackDetailActivity extends BaseActivity {
 
     private LinearLayout adminReplySection;
     private TextView txtAdminReplyDate, txtAdminReplyContent;

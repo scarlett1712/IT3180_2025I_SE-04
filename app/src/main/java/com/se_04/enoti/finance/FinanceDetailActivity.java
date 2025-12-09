@@ -19,6 +19,7 @@ import com.android.volley.toolbox.Volley;
 import com.google.android.material.appbar.MaterialToolbar;
 import com.se_04.enoti.R;
 import com.se_04.enoti.utils.ApiConfig;
+import com.se_04.enoti.utils.BaseActivity;
 import com.se_04.enoti.utils.UserManager;
 import com.se_04.enoti.utils.VnNumberToWords;
 
@@ -29,7 +30,7 @@ import java.text.SimpleDateFormat; // 🔥 Import mới
 import java.util.TimeZone;       // 🔥 Import mới
 import java.util.Objects;
 
-public class FinanceDetailActivity extends AppCompatActivity {
+public class FinanceDetailActivity extends BaseActivity {
 
     private int financeId;
     private long price;
