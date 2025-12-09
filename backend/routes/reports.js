@@ -4,9 +4,7 @@ import { sendNotification } from "../utils/firebaseHelper.js";
 
 const router = express.Router();
 
-// 1. [USER] Tạo báo cáo sự cố (Insert + Notify Admin)
-// routes/reports.js
-
+// 1. [USER] Tạo báo cáo sự cố -> Cập nhật thiết bị thành 'Broken'
 router.post("/create", async (req, res) => {
   const { user_id, asset_id, description } = req.body;
 
@@ -14,18 +12,18 @@ router.post("/create", async (req, res) => {
       return res.status(400).json({ error: "Thiếu thông tin báo cáo." });
   }
 
-  const client = await pool.connect(); // 🔥 Dùng client để chạy Transaction
+  const client = await pool.connect(); // 🔥 Dùng Client để chạy Transaction
   try {
     await client.query("BEGIN");
 
-    // 1. Tạo báo cáo sự cố
+    // 1. Insert báo cáo (Trạng thái mặc định là Pending)
     await client.query(
       `INSERT INTO incident_reports (user_id, asset_id, description, status)
        VALUES ($1, $2, $3, 'Pending')`,
       [user_id, asset_id, description]
     );
 
-    // 2. 🔥 CẬP NHẬT TRẠNG THÁI THIẾT BỊ -> 'Broken' (Chờ sửa)
+    // 2. 🔥 TỰ ĐỘNG CẬP NHẬT THIẾT BỊ SANG 'Broken' (Hỏng/Chờ sửa)
     await client.query(
       `UPDATE asset SET status = 'Broken' WHERE asset_id = $1`,
       [asset_id]
@@ -33,7 +31,7 @@ router.post("/create", async (req, res) => {
 
     await client.query("COMMIT");
 
-    // 3. Gửi thông báo cho Admin (Thực hiện sau khi commit thành công)
+    // 3. Gửi thông báo cho Admin (Sau khi commit thành công)
     const adminRes = await pool.query(`
         SELECT u.fcm_token
         FROM users u

@@ -46,6 +46,16 @@ public class AssetDetailActivity extends AppCompatActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+
+        // 🔥 1. Làm trong suốt Status Bar để Gradient hiển thị đẹp
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.LOLLIPOP) {
+            android.view.Window window = getWindow();
+            window.getDecorView().setSystemUiVisibility(
+                    android.view.View.SYSTEM_UI_FLAG_LAYOUT_STABLE
+                            | android.view.View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN);
+            window.setStatusBarColor(android.graphics.Color.TRANSPARENT);
+        }
+
         setContentView(R.layout.activity_asset_detail);
 
         Toolbar toolbar = findViewById(R.id.toolbar);
@@ -72,8 +82,7 @@ public class AssetDetailActivity extends AppCompatActivity {
         txtLocation = findViewById(R.id.txtDetailLocation);
         txtStatus = findViewById(R.id.txtDetailStatus);
         txtEmpty = findViewById(R.id.txtEmptyHistory);
-        // 🔥 Lưu ý: XML phải có ID này, nếu không hãy xóa dòng này và xóa biến txtHistoryTitle
-        txtHistoryTitle = findViewById(R.id.txtHistoryTitle);
+        txtHistoryTitle = findViewById(R.id.txtHistoryTitle); // Đảm bảo ID này tồn tại trong XML
 
         recyclerHistory = findViewById(R.id.recyclerHistory);
         btnReport = findViewById(R.id.btnGoToReport);
@@ -114,25 +123,35 @@ public class AssetDetailActivity extends AppCompatActivity {
 
         JsonObjectRequest request = new JsonObjectRequest(Request.Method.GET, url, null,
                 response -> {
-                    Log.d("AssetDetail", "Response: " + response.toString());
                     try {
-                        // 1. Info
+                        // 1. Hiển thị thông tin chung
                         if (response.has("asset")) {
                             JSONObject assetObj = response.getJSONObject("asset");
                             txtName.setText(assetObj.optString("asset_name", "N/A"));
                             txtLocation.setText("Vị trí: " + assetObj.optString("location", "N/A"));
 
-                            String status = assetObj.optString("status", "");
-                            if ("Good".equals(status)) {
+                            // 🔥 2. Cập nhật logic hiển thị trạng thái
+                            String status = assetObj.optString("status", "Good");
+
+                            if ("Good".equalsIgnoreCase(status)) {
                                 txtStatus.setText("Trạng thái: Hoạt động tốt");
-                                txtStatus.setTextColor(Color.parseColor("#388E3C"));
-                            } else {
+                                txtStatus.setTextColor(Color.parseColor("#388E3C")); // Xanh lá
+                            }
+                            else if ("Maintenance".equalsIgnoreCase(status)) {
                                 txtStatus.setText("Trạng thái: Đang bảo trì");
-                                txtStatus.setTextColor(Color.parseColor("#D32F2F"));
+                                txtStatus.setTextColor(Color.parseColor("#1976D2")); // Xanh dương
+                            }
+                            else if ("Broken".equalsIgnoreCase(status)) {
+                                txtStatus.setText("Trạng thái: Đang gặp sự cố");
+                                txtStatus.setTextColor(Color.parseColor("#D32F2F")); // Đỏ
+                            }
+                            else {
+                                txtStatus.setText("Trạng thái: " + status);
+                                txtStatus.setTextColor(Color.DKGRAY);
                             }
                         }
 
-                        // 2. History
+                        // 3. Hiển thị lịch sử
                         historyList.clear();
                         if (response.has("history")) {
                             JSONArray historyArr = response.getJSONArray("history");
@@ -151,11 +170,27 @@ public class AssetDetailActivity extends AppCompatActivity {
                     }
                 },
                 error -> {
-                    Log.e("AssetDetail", "Error: " + error.toString());
-                    Toast.makeText(this, "Không thể tải dữ liệu", Toast.LENGTH_SHORT).show();
+                    // 🔥 3. Bỏ qua lỗi 404 (Không có dữ liệu chi tiết)
+                    if (error.networkResponse != null && error.networkResponse.statusCode == 404) {
+                        Log.w("AssetDetail", "Chưa có dữ liệu lịch sử (404).");
+                        txtEmpty.setVisibility(View.VISIBLE);
+                        txtEmpty.setText("Chưa có lịch sử bảo trì.");
+                    } else {
+                        Log.e("AssetDetail", "Error: " + error.toString());
+                        Toast.makeText(this, "Lỗi kết nối server", Toast.LENGTH_SHORT).show();
+                    }
                 }
         );
 
         Volley.newRequestQueue(this).add(request);
+    }
+
+    @Override
+    public boolean onOptionsItemSelected(MenuItem item) {
+        if (item.getItemId() == android.R.id.home) {
+            finish();
+            return true;
+        }
+        return super.onOptionsItemSelected(item);
     }
 }

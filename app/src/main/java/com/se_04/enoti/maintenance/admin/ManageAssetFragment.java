@@ -38,8 +38,6 @@ public class ManageAssetFragment extends Fragment {
     private RecyclerView recyclerView;
     private AssetAdapter adapter;
     private List<AssetItem> assetList = new ArrayList<>();
-
-    // 🔥 Biến cho View thông báo trống
     private TextView txtEmptyAssets;
 
     @Nullable
@@ -51,10 +49,8 @@ public class ManageAssetFragment extends Fragment {
         setupWelcomeViews(view);
         setupRecyclerView(view);
 
-        // 🔥 Ánh xạ TextView trống
         txtEmptyAssets = view.findViewById(R.id.txtEmptyAssets);
 
-        // Nút mở Lịch bảo trì
         View cardSchedule = view.findViewById(R.id.cardMaintenanceSchedule);
         if (cardSchedule != null) {
             cardSchedule.setOnClickListener(v -> {
@@ -71,7 +67,6 @@ public class ManageAssetFragment extends Fragment {
             });
         }
 
-        // Nút thêm thiết bị
         FloatingActionButton btnAdd = view.findViewById(R.id.btnAddAsset);
         if (btnAdd != null) {
             btnAdd.setOnClickListener(v -> {
@@ -113,10 +108,10 @@ public class ManageAssetFragment extends Fragment {
         adapter = new AssetAdapter(assetList);
 
         adapter.setOnItemClickListener(item -> {
-            Intent intent = new Intent(getActivity(), com.se_04.enoti.maintenance.user.AssetDetailActivity.class); // Trỏ tới Activity chi tiết
+            Intent intent = new Intent(getActivity(), com.se_04.enoti.maintenance.user.AssetDetailActivity.class);
             intent.putExtra("ASSET_ID", item.getId());
             intent.putExtra("ASSET_NAME", item.getName());
-            intent.putExtra("IS_ADMIN", true); // 🚩 Đánh dấu là Admin đang xem
+            intent.putExtra("IS_ADMIN", true);
             startActivity(intent);
         });
 
@@ -130,6 +125,7 @@ public class ManageAssetFragment extends Fragment {
 
         JsonArrayRequest request = new JsonArrayRequest(Request.Method.GET, url, null,
                 response -> {
+                    if (getContext() == null) return;
                     assetList.clear();
                     try {
                         for (int i = 0; i < response.length(); i++) {
@@ -138,14 +134,15 @@ public class ManageAssetFragment extends Fragment {
                         }
                         adapter.notifyDataSetChanged();
 
-                        // 🔥 LOGIC KIỂM TRA RỖNG Ở ĐÂY
+                        // 🔥 [FIX] Logic hiển thị Empty View cho Admin
                         if (assetList.isEmpty()) {
-                            // Nếu danh sách rỗng -> Hiện chữ "Trống", Ẩn RecyclerView
-                            txtEmptyAssets.setVisibility(View.VISIBLE);
+                            if (txtEmptyAssets != null) {
+                                txtEmptyAssets.setVisibility(View.VISIBLE);
+                                txtEmptyAssets.setText("Chưa có thiết bị nào.\nBấm + để thêm mới.");
+                            }
                             recyclerView.setVisibility(View.GONE);
                         } else {
-                            // Nếu có dữ liệu -> Ẩn chữ "Trống", Hiện RecyclerView
-                            txtEmptyAssets.setVisibility(View.GONE);
+                            if (txtEmptyAssets != null) txtEmptyAssets.setVisibility(View.GONE);
                             recyclerView.setVisibility(View.VISIBLE);
                         }
 
@@ -156,20 +153,18 @@ public class ManageAssetFragment extends Fragment {
                 },
                 error -> {
                     if (getContext() != null) {
-                        Log.e("ManageAssetFragment", "Error loading assets: " + error.getMessage());
-                        // Nếu lỗi mạng, có thể coi như không có dữ liệu để hiển thị
-                        // Hoặc bạn có thể set text khác như "Lỗi kết nối"
-                        txtEmptyAssets.setVisibility(View.VISIBLE);
-                        txtEmptyAssets.setText("Không thể tải dữ liệu. Kiểm tra kết nối!");
+                        Log.e("ManageAssetFragment", "Error: " + error.getMessage());
+                        if (txtEmptyAssets != null) {
+                            txtEmptyAssets.setVisibility(View.VISIBLE);
+                            txtEmptyAssets.setText("Không thể tải dữ liệu.\nKiểm tra kết nối mạng!");
+                        }
                         recyclerView.setVisibility(View.GONE);
                     }
                 }
         );
 
         request.setRetryPolicy(new com.android.volley.DefaultRetryPolicy(
-                10000, // Thời gian chờ: 30 giây
-                0,     // Số lần thử lại: 0 (Để 0 để tránh gửi chồng request)
-                com.android.volley.DefaultRetryPolicy.DEFAULT_BACKOFF_MULT
+                10000, 0, com.android.volley.DefaultRetryPolicy.DEFAULT_BACKOFF_MULT
         ));
 
         Volley.newRequestQueue(requireContext()).add(request);

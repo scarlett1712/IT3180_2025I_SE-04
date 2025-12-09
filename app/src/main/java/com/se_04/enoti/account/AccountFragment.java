@@ -292,7 +292,7 @@ public class AccountFragment extends Fragment {
             relationship.setVisibility(View.VISIBLE);
             relationship.setText("Quản trị viên");
         } else {
-            txtApartment.setText(user.getRoom());
+            txtApartment.setText(String.valueOf(user.getRoom()));
             txtApartment.setVisibility(View.VISIBLE);
             relationship.setVisibility(View.VISIBLE);
         }

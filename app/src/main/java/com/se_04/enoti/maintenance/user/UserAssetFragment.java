@@ -20,8 +20,7 @@ import com.android.volley.toolbox.JsonArrayRequest;
 import com.android.volley.toolbox.Volley;
 import com.se_04.enoti.R;
 import com.se_04.enoti.account.UserItem;
-// 🔥 Đảm bảo import đúng Adapter chúng ta đã viết ở phần Admin
-import com.se_04.enoti.maintenance.admin.AssetAdapter;
+import com.se_04.enoti.maintenance.admin.AssetAdapter; // Dùng chung Adapter
 import com.se_04.enoti.maintenance.AssetItem;
 import com.se_04.enoti.utils.ApiConfig;
 import com.se_04.enoti.utils.UserManager;
@@ -65,7 +64,7 @@ public class UserAssetFragment extends Fragment {
 
         UserItem currentUser = UserManager.getInstance(requireContext()).getCurrentUser();
         String username = (currentUser != null) ? currentUser.getName() : "Cư dân";
-        txtWelcome.setText("Xin chào " + username + "!");
+        if (txtWelcome != null) txtWelcome.setText("Xin chào " + username + "!");
 
         if (txtGreeting != null) {
             Calendar calendar = Calendar.getInstance();
@@ -81,7 +80,6 @@ public class UserAssetFragment extends Fragment {
 
         adapter = new AssetAdapter(assetList);
 
-        // 🔥 Sự kiện click: Chuyển ID và Tên thiết bị sang Activity báo cáo
         adapter.setOnItemClickListener(item -> {
             Intent intent = new Intent(getActivity(), AssetDetailActivity.class);
             intent.putExtra("ASSET_ID", item.getId());
@@ -95,12 +93,12 @@ public class UserAssetFragment extends Fragment {
     private void loadAssets() {
         if (getContext() == null) return;
 
-        // Dùng chung API lấy danh sách tài sản
         String url = ApiConfig.BASE_URL + "/api/maintenance/assets";
 
         JsonArrayRequest request = new JsonArrayRequest(Request.Method.GET, url, null,
                 response -> {
-                    assetList.clear(); // Xóa cũ tránh trùng lặp
+                    if (getContext() == null) return;
+                    assetList.clear();
                     try {
                         for (int i = 0; i < response.length(); i++) {
                             JSONObject obj = response.getJSONObject(i);
@@ -108,8 +106,12 @@ public class UserAssetFragment extends Fragment {
                         }
                         adapter.notifyDataSetChanged();
 
+                        // 🔥 [FIX] Cập nhật giao diện Empty View
                         if (assetList.isEmpty()) {
-                            if (txtEmptyAssets != null) txtEmptyAssets.setVisibility(View.VISIBLE);
+                            if (txtEmptyAssets != null) {
+                                txtEmptyAssets.setVisibility(View.VISIBLE);
+                                txtEmptyAssets.setText("Chưa có thiết bị nào.");
+                            }
                             recyclerView.setVisibility(View.GONE);
                         } else {
                             if (txtEmptyAssets != null) txtEmptyAssets.setVisibility(View.GONE);
@@ -124,17 +126,16 @@ public class UserAssetFragment extends Fragment {
                     if (getContext() != null) {
                         Log.e("UserAssetFragment", "Error: " + error.getMessage());
                         if (txtEmptyAssets != null) {
-                            txtEmptyAssets.setText("Lỗi kết nối server!");
+                            txtEmptyAssets.setText("Không thể tải danh sách thiết bị.\nVui lòng kiểm tra kết nối!");
                             txtEmptyAssets.setVisibility(View.VISIBLE);
                         }
+                        recyclerView.setVisibility(View.GONE);
                     }
                 }
         );
 
         request.setRetryPolicy(new com.android.volley.DefaultRetryPolicy(
-                10000, // Thời gian chờ: 30 giây
-                0,     // Số lần thử lại: 0 (Để 0 để tránh gửi chồng request)
-                com.android.volley.DefaultRetryPolicy.DEFAULT_BACKOFF_MULT
+                10000, 0, com.android.volley.DefaultRetryPolicy.DEFAULT_BACKOFF_MULT
         ));
 
         Volley.newRequestQueue(requireContext()).add(request);
