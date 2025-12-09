@@ -1,14 +1,37 @@
 import express from "express";
 import { pool } from "../db.js";
+// 🔥 Đảm bảo đường dẫn import middleware chính xác
 import { verifySession } from "../middleware/authMiddleware.js";
 
 const router = express.Router();
 const query = (text, params) => pool.query(text, params);
 
+/**
+ * 🛠️ Helper: Chuẩn hóa ngày tháng sang định dạng YYYY-MM-DD cho Database
+ * Input: "17-12-2005", "17/12/2005"
+ * Output: "2005-12-17"
+ */
+const formatDateForDB = (dateStr) => {
+    if (!dateStr || dateStr.trim() === "") return null; // Trả về null nếu chuỗi rỗng
+
+    // Nếu đã đúng chuẩn YYYY-MM-DD thì giữ nguyên
+    if (dateStr.match(/^\d{4}-\d{2}-\d{2}$/)) return dateStr;
+
+    // Xử lý tách chuỗi (chấp nhận cả - và /)
+    const parts = dateStr.split(/[-/]/);
+    if (parts.length === 3) {
+        // Giả định định dạng đầu vào là DD-MM-YYYY
+        // parts[0]=Ngày, parts[1]=Tháng, parts[2]=Năm
+        return `${parts[2]}-${parts[1]}-${parts[0]}`;
+    }
+
+    return null; // Trả về null nếu format lạ để COALESCE giữ lại giá trị cũ trong DB
+};
+
 // ==================================================================
 // 📋 API: Lấy danh sách toàn bộ cư dân (Chi tiết)
 // ==================================================================
-router.get("/", async (req, res) => {
+router.get("/", verifySession, async (req, res) => { // 🔥 Thêm verifySession cho an toàn
   try {
     const queryStr = `
       SELECT
@@ -18,8 +41,8 @@ router.get("/", async (req, res) => {
         u.phone,
         TO_CHAR(ui.dob, 'DD-MM-YYYY') AS dob,
         ui.gender,
-        ui.identity_card, -- 🔥 THÊM: CCCD
-        ui.home_town,     -- 🔥 THÊM: Quê quán
+        ui.identity_card,
+        ui.home_town,
         ur.role_id,
         r.relationship_id,
         r.apartment_id,
@@ -47,32 +70,37 @@ router.get("/", async (req, res) => {
 });
 
 // ==================================================================
-// ✏️ API: Cập nhật thông tin cư dân (Dành cho Admin)
+// ✏️ API: Cập nhật thông tin cư dân (ĐÃ FIX LỖI DATE OUT OF RANGE)
 // ==================================================================
-router.put("/update/:userId", async (req, res) => {
+router.put("/update/:userId", verifySession, async (req, res) => {
   const { userId } = req.params;
   const { full_name, gender, dob, email, phone, identity_card, home_town } = req.body;
 
   if (!userId) return res.status(400).json({ error: "Thiếu User ID" });
 
+  // 🔥 1. CHUẨN HÓA NGÀY SINH
+  // Biến này sẽ là "YYYY-MM-DD" hoặc null
+  const formattedDob = formatDateForDB(dob);
+
   const client = await pool.connect();
   try {
     await client.query("BEGIN");
 
-    // 1. Cập nhật bảng user_item (Thông tin chi tiết bao gồm CCCD, Quê quán)
+    // 🔥 2. Cập nhật bảng user_item
+    // Sử dụng formattedDob vào vị trí $3
     await client.query(
       `UPDATE user_item
        SET full_name = COALESCE($1, full_name),
            gender = COALESCE($2, gender),
-           dob = COALESCE($3, dob),
+           dob = COALESCE($3, dob),          -- Nếu formattedDob là null, giữ nguyên giá trị cũ
            email = COALESCE($4, email),
-           identity_card = COALESCE($5, identity_card), -- Cập nhật CCCD
-           home_town = COALESCE($6, home_town)          -- Cập nhật Quê quán
+           identity_card = COALESCE($5, identity_card),
+           home_town = COALESCE($6, home_town)
        WHERE user_id = $7`,
-      [full_name, gender, dob, email, identity_card, home_town, userId]
+      [full_name, gender, formattedDob, email, identity_card, home_town, userId]
     );
 
-    // 2. Cập nhật số điện thoại trong bảng users (nếu có thay đổi)
+    // 3. Cập nhật số điện thoại trong bảng users (nếu có)
     if (phone) {
       const checkPhone = await client.query(
           "SELECT user_id FROM users WHERE phone = $1 AND user_id != $2",
@@ -105,14 +133,12 @@ router.put("/update/:userId", async (req, res) => {
 ========================================================== */
 router.delete("/delete/:target_id", verifySession, async (req, res) => {
   const { target_id } = req.params;
-  const currentUserId = req.currentUser.id; // Lấy từ token của người đang thao tác
+  const currentUserId = req.currentUser.id; // Lấy từ token (đảm bảo middleware đã chạy)
 
-  // 1. Kiểm tra quyền Admin
   if (req.currentUser.role !== 'ADMIN') {
       return res.status(403).json({ error: "Bạn không có quyền xóa cư dân." });
   }
 
-  // 2. Không cho phép tự xóa chính mình
   if (parseInt(target_id) === parseInt(currentUserId)) {
       return res.status(400).json({ error: "Không thể tự xóa tài khoản của chính mình." });
   }
@@ -121,24 +147,14 @@ router.delete("/delete/:target_id", verifySession, async (req, res) => {
   try {
     await client.query("BEGIN");
 
-    // --- Bắt đầu dọn dẹp dữ liệu liên quan ---
-
-    // 1. Xóa các yêu cầu đăng nhập đang chờ
+    // Xóa dữ liệu liên quan
     await client.query("DELETE FROM login_requests WHERE user_id = $1", [target_id]);
-
-    // 2. Xóa thông báo liên quan (Bảng phụ)
     await client.query("DELETE FROM user_notifications WHERE user_id = $1", [target_id]);
-
-    // 3. Xóa thông tin tài chính cá nhân
     await client.query("DELETE FROM user_finances WHERE user_id = $1", [target_id]);
-
-    // 4. Xóa vai trò (User Role)
     await client.query("DELETE FROM userrole WHERE user_id = $1", [target_id]);
-
-    // 5. Xóa thông tin hồ sơ (User Item)
     await client.query("DELETE FROM user_item WHERE user_id = $1", [target_id]);
 
-    // 6. Cuối cùng: Xóa tài khoản chính (Users)
+    // Xóa tài khoản chính
     const deleteRes = await client.query("DELETE FROM users WHERE user_id = $1", [target_id]);
 
     if (deleteRes.rowCount === 0) {
@@ -152,9 +168,8 @@ router.delete("/delete/:target_id", verifySession, async (req, res) => {
   } catch (err) {
     await client.query("ROLLBACK");
     console.error("Delete User Error:", err);
-    // Nếu lỗi do ràng buộc khóa ngoại (Foreign Key) chưa xử lý hết
     if (err.code === '23503') {
-        res.status(400).json({ error: "Không thể xóa vì cư dân này còn dữ liệu liên kết (Báo cáo, Hóa đơn...)." });
+        res.status(400).json({ error: "Không thể xóa vì cư dân này còn dữ liệu liên kết." });
     } else {
         res.status(500).json({ error: "Lỗi server khi xóa cư dân." });
     }
@@ -164,9 +179,9 @@ router.delete("/delete/:target_id", verifySession, async (req, res) => {
 });
 
 // ==================================================================
-// 👻 API: Ẩn/Hiện cư dân
+// 👻 API: Ẩn/Hiện cư dân (Soft Delete)
 // ==================================================================
-router.put("/status/:userId", async (req, res) => {
+router.put("/status/:userId", verifySession, async (req, res) => {
   const { userId } = req.params;
   const { is_living } = req.body;
 
@@ -180,7 +195,7 @@ router.put("/status/:userId", async (req, res) => {
       [is_living, userId]
     );
 
-    const msg = is_living ? "Đã kích hoạt lại cư dân." : "Đã ẩn cư dân (Đánh dấu rời đi).";
+    const msg = is_living ? "Đã kích hoạt lại cư dân." : "Đã ẩn cư dân.";
     res.json({ success: true, message: msg });
 
   } catch (err) {

@@ -9,28 +9,50 @@ import { verifySession } from "../middleware/authMiddleware.js";
 
 const router = express.Router();
 
-// 🛠️ 1. TỰ ĐỘNG KHỞI TẠO DB
-(async () => {
-  try {
-    await pool.query(`
-      CREATE TABLE IF NOT EXISTS login_requests (
-        id SERIAL PRIMARY KEY,
-        user_id INTEGER NOT NULL,
-        status VARCHAR(20) DEFAULT 'pending',
-        temp_token VARCHAR(255),
-        created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
-      );
-    `);
-    await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS session_token VARCHAR(255);`);
-    await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS fcm_token TEXT;`);
-    await pool.query(`ALTER TABLE user_item ADD COLUMN IF NOT EXISTS identity_card VARCHAR(50);`);
-    await pool.query(`ALTER TABLE user_item ADD COLUMN IF NOT EXISTS home_town VARCHAR(255);`);
-    await pool.query(`ALTER TABLE user_item ADD COLUMN IF NOT EXISTS is_living BOOLEAN DEFAULT TRUE;`);
-    console.log("✅ Database schema verified (Users).");
-  } catch (err) {
-    console.error("Error initializing database schema:", err);
+// 🛠️ 1. HÀM KHỞI TẠO DB VỚI CƠ CHẾ THỬ LẠI (RETRY)
+const wait = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+
+const initSchemaWithRetry = async (retries = 10) => {
+  for (let i = 0; i < retries; i++) {
+    try {
+      // Thử ping nhẹ DB
+      await pool.query("SELECT 1");
+
+      // Nếu OK, chạy lệnh tạo bảng
+      await pool.query(`
+        CREATE TABLE IF NOT EXISTS login_requests (
+          id SERIAL PRIMARY KEY,
+          user_id INTEGER NOT NULL,
+          status VARCHAR(20) DEFAULT 'pending',
+          temp_token VARCHAR(255),
+          created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+        );
+      `);
+      await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS session_token VARCHAR(255);`);
+      await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS fcm_token TEXT;`);
+      await pool.query(`ALTER TABLE user_item ADD COLUMN IF NOT EXISTS identity_card VARCHAR(50);`);
+      await pool.query(`ALTER TABLE user_item ADD COLUMN IF NOT EXISTS home_town VARCHAR(255);`);
+      await pool.query(`ALTER TABLE user_item ADD COLUMN IF NOT EXISTS is_living BOOLEAN DEFAULT TRUE;`);
+
+      console.log("✅ Database schema verified (Users).");
+      return; // Thành công thì thoát
+
+    } catch (err) {
+      // Nếu lỗi là DB đang khởi động (57P03) hoặc mất kết nối (ECONNREFUSED)
+      if (err.code === '57P03' || err.code === 'ECONNREFUSED') {
+        console.log(`⏳ Database đang khởi động... Thử lại sau 3s (${i + 1}/${retries})`);
+        await wait(3000); // Chờ 3 giây
+      } else {
+        console.error("❌ Error initializing database schema:", err);
+        break; // Lỗi khác thì dừng luôn
+      }
+    }
   }
-})();
+  console.error("❌ Không thể kết nối Database sau nhiều lần thử.");
+};
+
+// Gọi hàm khởi tạo
+initSchemaWithRetry();
 
 /* ==========================================================
    🔍 API MỚI: Lấy thông tin chi tiết (BẢO MẬT BẰNG MIDDLEWARE)
