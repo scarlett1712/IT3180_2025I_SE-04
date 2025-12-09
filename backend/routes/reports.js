@@ -5,6 +5,8 @@ import { sendNotification } from "../utils/firebaseHelper.js";
 const router = express.Router();
 
 // 1. [USER] Tạo báo cáo sự cố (Insert + Notify Admin)
+// routes/reports.js
+
 router.post("/create", async (req, res) => {
   const { user_id, asset_id, description } = req.body;
 
@@ -12,16 +14,26 @@ router.post("/create", async (req, res) => {
       return res.status(400).json({ error: "Thiếu thông tin báo cáo." });
   }
 
+  const client = await pool.connect(); // 🔥 Dùng client để chạy Transaction
   try {
-    // 1. Insert dữ liệu mới
-    await pool.query(
+    await client.query("BEGIN");
+
+    // 1. Tạo báo cáo sự cố
+    await client.query(
       `INSERT INTO incident_reports (user_id, asset_id, description, status)
        VALUES ($1, $2, $3, 'Pending')`,
       [user_id, asset_id, description]
     );
 
-    // 2. 🔥 GỬI THÔNG BÁO CHO ADMIN
-    // Tìm tất cả user có role_id = 2 (Admin) và có fcm_token
+    // 2. 🔥 CẬP NHẬT TRẠNG THÁI THIẾT BỊ -> 'Broken' (Chờ sửa)
+    await client.query(
+      `UPDATE asset SET status = 'Broken' WHERE asset_id = $1`,
+      [asset_id]
+    );
+
+    await client.query("COMMIT");
+
+    // 3. Gửi thông báo cho Admin (Thực hiện sau khi commit thành công)
     const adminRes = await pool.query(`
         SELECT u.fcm_token
         FROM users u
@@ -29,22 +41,25 @@ router.post("/create", async (req, res) => {
         WHERE ur.role_id = 2 AND u.fcm_token IS NOT NULL
     `);
 
-    // Gửi loop cho tất cả admin
     for (const row of adminRes.rows) {
         if (row.fcm_token) {
             sendNotification(
                 row.fcm_token,
-                "Báo cáo sự cố mới",
-                `Có một báo cáo sự cố mới từ cư dân: "${description}". Vui lòng kiểm tra.`,
-                { type: "report" }
+                "⚠️ Báo cáo sự cố mới",
+                `Cư dân báo hỏng thiết bị #${asset_id}: "${description}"`,
+                { type: "report", assetId: asset_id.toString() }
             );
         }
     }
 
-    res.json({ success: true, message: "Gửi báo cáo thành công! Ban quản lý sẽ sớm kiểm tra." });
+    res.json({ success: true, message: "Gửi báo cáo thành công! Trạng thái thiết bị đã được cập nhật." });
+
   } catch (err) {
+    await client.query("ROLLBACK");
     console.error("Create Report Error:", err);
     res.status(500).json({ error: "Lỗi server khi tạo báo cáo" });
+  } finally {
+    client.release();
   }
 });
 
