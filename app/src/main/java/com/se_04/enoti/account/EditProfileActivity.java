@@ -5,10 +5,12 @@ import android.graphics.Color;
 import android.os.Bundle;
 import android.text.TextUtils;
 import android.view.MenuItem;
+import android.view.View;
 import android.widget.ArrayAdapter;
 import android.widget.AutoCompleteTextView;
 import android.widget.Button;
 import android.widget.CheckBox;
+import android.widget.TextView; // Đảm bảo import TextView
 import android.widget.Toast;
 import androidx.appcompat.widget.Toolbar;
 
@@ -35,7 +37,6 @@ import java.util.Locale;
 public class EditProfileActivity extends AppCompatActivity {
 
     private TextInputEditText edtFullName, edtPhone, edtEmail, edtDob;
-    // 🔥 Thêm 2 trường mới
     private TextInputEditText edtIdentityCard, edtHomeTown;
     private TextInputEditText edtRoom, edtFloor, edtRelation;
     private CheckBox checkboxIsHouseholder;
@@ -43,6 +44,7 @@ public class EditProfileActivity extends AppCompatActivity {
     private Button btnSubmit;
     private UserItem currentUser;
     private Toolbar toolbar;
+    private TextView txtWarning; // Cảnh báo "Chỉ user thường mới cần duyệt"
 
     private final SimpleDateFormat displayDateFormat = new SimpleDateFormat("dd-MM-yyyy", Locale.getDefault());
     private final SimpleDateFormat apiDateFormat = new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault());
@@ -77,11 +79,35 @@ public class EditProfileActivity extends AppCompatActivity {
         });
 
         currentUser = UserManager.getInstance(this).getCurrentUser();
+
+        // Xử lý giao diện theo Role
         if (currentUser != null) {
+            setupViewsByRole(currentUser.getRole());
             loadUserData();
         }
 
         btnSubmit.setOnClickListener(v -> submitUpdate());
+    }
+
+    private void setupViewsByRole(Role role) {
+        if (role == Role.ADMIN) {
+            // Ẩn các trường không cần thiết cho Admin
+            checkboxIsHouseholder.setVisibility(View.GONE);
+            hideInputLayout(edtRoom);
+            hideInputLayout(edtFloor);
+            hideInputLayout(edtRelation);
+
+            // Ẩn cảnh báo (nếu có trong XML)
+            if (txtWarning != null) txtWarning.setVisibility(View.GONE);
+        }
+    }
+
+    private void hideInputLayout(View view) {
+        if (view == null) return;
+        view.setVisibility(View.GONE);
+        if (view.getParent() instanceof View) {
+            ((View) view.getParent()).setVisibility(View.GONE);
+        }
     }
 
     private void initViews() {
@@ -91,7 +117,6 @@ public class EditProfileActivity extends AppCompatActivity {
         edtGender = findViewById(R.id.edtGender);
         edtDob = findViewById(R.id.edtDob);
 
-        // 🔥 Ánh xạ view mới (Bạn cần đảm bảo ID này có trong XML)
         edtIdentityCard = findViewById(R.id.edtIdentityCard);
         edtHomeTown = findViewById(R.id.edtHomeTown);
 
@@ -100,6 +125,9 @@ public class EditProfileActivity extends AppCompatActivity {
         edtRelation = findViewById(R.id.edtRelation);
         checkboxIsHouseholder = findViewById(R.id.checkboxIsHouseholder);
         btnSubmit = findViewById(R.id.btnSubmit);
+
+        // Nếu file XML có TextView cảnh báo
+        txtWarning = findViewById(R.id.warning);
 
         edtRoom.setEnabled(false);
         edtFloor.setEnabled(false);
@@ -150,8 +178,6 @@ public class EditProfileActivity extends AppCompatActivity {
         edtFullName.setText(currentUser.getName());
         edtPhone.setText(currentUser.getPhone());
         edtEmail.setText(currentUser.getEmail());
-
-        // 🔥 Load CCCD & Quê quán
         edtIdentityCard.setText(currentUser.getIdentityCard());
         edtHomeTown.setText(currentUser.getHomeTown());
 
@@ -173,18 +199,20 @@ public class EditProfileActivity extends AppCompatActivity {
             }
         }
 
-        String currentRoom = String.valueOf(currentUser.getRoom());
-        if (currentRoom != null && !currentRoom.isEmpty() && !"null".equals(currentRoom)) {
-            edtRoom.setText(currentRoom);
-            edtFloor.setText(calculateFloorFromRoom(currentRoom));
-        }
+        if (currentUser.getRole() != Role.ADMIN) {
+            String currentRoom = String.valueOf(currentUser.getRoom());
+            if (currentRoom != null && !currentRoom.isEmpty() && !"null".equals(currentRoom)) {
+                edtRoom.setText(currentRoom);
+                edtFloor.setText(calculateFloorFromRoom(currentRoom));
+            }
 
-        if (currentUser.getRelationship() != null) {
-            edtRelation.setText(currentUser.getRelationship());
-            boolean isHead = "Bản thân".equalsIgnoreCase(currentUser.getRelationship()) ||
-                    "Chủ hộ".equalsIgnoreCase(currentUser.getRelationship());
-            checkboxIsHouseholder.setChecked(isHead);
-            edtRelation.setEnabled(!isHead);
+            if (currentUser.getRelationship() != null) {
+                edtRelation.setText(currentUser.getRelationship());
+                boolean isHead = "Bản thân".equalsIgnoreCase(currentUser.getRelationship()) ||
+                        "Chủ hộ".equalsIgnoreCase(currentUser.getRelationship());
+                checkboxIsHouseholder.setChecked(isHead);
+                edtRelation.setEnabled(!isHead);
+            }
         }
     }
 
@@ -199,19 +227,23 @@ public class EditProfileActivity extends AppCompatActivity {
         String email = edtEmail.getText().toString().trim();
         String gender = edtGender.getText().toString().trim();
         String dobDisplay = edtDob.getText().toString().trim();
-        // 🔥 Lấy giá trị mới
         String identityCard = edtIdentityCard.getText().toString().trim();
         String homeTown = edtHomeTown.getText().toString().trim();
 
-        boolean isHead = checkboxIsHouseholder.isChecked();
-        String relation = isHead ? "Bản thân" : edtRelation.getText().toString().trim();
+        boolean isHead = false;
+        String relation = "";
+
+        if (currentUser.getRole() != Role.ADMIN) {
+            isHead = checkboxIsHouseholder.isChecked();
+            relation = isHead ? "Bản thân" : edtRelation.getText().toString().trim();
+            if (!isHead && TextUtils.isEmpty(relation)) {
+                Toast.makeText(this, "Vui lòng nhập quan hệ với chủ hộ!", Toast.LENGTH_SHORT).show();
+                return;
+            }
+        }
 
         if (TextUtils.isEmpty(fullName) || TextUtils.isEmpty(phone) || TextUtils.isEmpty(dobDisplay)) {
             Toast.makeText(this, "Vui lòng nhập đầy đủ: Họ tên, SĐT, Ngày sinh", Toast.LENGTH_SHORT).show();
-            return;
-        }
-        if (!isHead && TextUtils.isEmpty(relation)) {
-            Toast.makeText(this, "Vui lòng nhập quan hệ với chủ hộ!", Toast.LENGTH_SHORT).show();
             return;
         }
 
@@ -232,11 +264,14 @@ public class EditProfileActivity extends AppCompatActivity {
             body.put("email", email);
             body.put("gender", gender);
             body.put("dob", dobApi);
-            body.put("relationship", relation);
-            body.put("is_head", isHead);
-            // 🔥 Gửi thêm 2 trường mới
             body.put("identity_card", identityCard);
             body.put("home_town", homeTown);
+
+            if (currentUser.getRole() != Role.ADMIN) {
+                body.put("relationship", relation);
+                body.put("is_head", isHead);
+            }
+
         } catch (JSONException e) {
             e.printStackTrace();
         }
@@ -247,7 +282,20 @@ public class EditProfileActivity extends AppCompatActivity {
                 response -> {
                     try {
                         if (response.has("success") && response.getBoolean("success")) {
-                            Toast.makeText(this, "Gửi yêu cầu thành công! Vui lòng chờ duyệt.", Toast.LENGTH_LONG).show();
+
+                            // 🔥 LOGIC THÔNG BÁO THÔNG MINH
+                            // Kiểm tra cờ từ server trả về (nếu backend đã update theo Phần 1)
+                            boolean isAutoApproved = response.optBoolean("is_auto_approved", false);
+
+                            if (isAutoApproved || currentUser.getRole() == Role.ADMIN) {
+                                // Admin: Thành công ngay
+                                Toast.makeText(this, "✅ Cập nhật thông tin thành công!", Toast.LENGTH_LONG).show();
+
+                            } else {
+                                // User thường: Chờ duyệt
+                                Toast.makeText(this, "📩 Đã gửi yêu cầu! Vui lòng chờ BQT duyệt.", Toast.LENGTH_LONG).show();
+                            }
+
                             finish();
                         } else {
                             String msg = response.optString("error", "Có lỗi xảy ra");
@@ -257,7 +305,7 @@ public class EditProfileActivity extends AppCompatActivity {
                         e.printStackTrace();
                     }
                 },
-                error -> Toast.makeText(this, "Lỗi kết nối hoặc yêu cầu đang chờ duyệt", Toast.LENGTH_SHORT).show()
+                error -> Toast.makeText(this, "Lỗi kết nối", Toast.LENGTH_SHORT).show()
         );
 
         Volley.newRequestQueue(this).add(request);
@@ -273,14 +321,11 @@ public class EditProfileActivity extends AppCompatActivity {
     }
 
     private String getGenderString(Gender gender) {
-        if (gender == null) {
-            return "";
-        }
+        if (gender == null) return "";
         switch (gender) {
             case MALE: return "Nam";
             case FEMALE: return "Nữ";
-            case OTHER:
-            default: return "Khác";
+            case OTHER: default: return "Khác";
         }
     }
 }

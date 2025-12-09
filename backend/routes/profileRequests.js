@@ -49,57 +49,83 @@ const createTableQuery = `
 
 // 📤 2. [USER] Gửi yêu cầu thay đổi thông tin
 router.post("/create", async (req, res) => {
-  const {
-    user_id, full_name, phone, email, gender, dob,
-    identity_card, home_town, // 🔥 Nhận thêm 2 trường này
-    relationship, is_head,    // relationship ở đây là TEXT (VD: "Con")
-    is_living
-  } = req.body;
-
-  if (!user_id) return res.status(400).json({ error: "Thiếu user_id" });
-
   try {
-    // Kiểm tra xem có yêu cầu nào đang chờ không
-    const checkPending = await query(
-      "SELECT * FROM profile_requests WHERE user_id = $1 AND status = 'pending'",
-      [user_id]
-    );
+    const {
+      user_id, full_name, phone, email, gender, dob,
+      identity_card, home_town, relationship, is_head
+    } = req.body;
 
-    if (checkPending.rowCount > 0) {
-      return res.status(400).json({ error: "Bạn đang có yêu cầu chờ duyệt." });
-    }
+    if (!user_id) return res.status(400).json({ error: "Thiếu user_id" });
 
-    // Insert yêu cầu
-    await query(
-      `INSERT INTO profile_requests
-       (user_id, new_full_name, new_phone, new_email, new_gender, new_dob,
-        new_identity_card, new_home_town,
-        new_relationship, new_is_head, new_is_living)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
-      [user_id, full_name, phone, email, gender, dob, identity_card, home_town, relationship, is_head, is_living]
-    );
+    // 1. Kiểm tra Role của user đang gửi yêu cầu
+    const userRoleRes = await pool.query("SELECT role_id FROM userrole WHERE user_id = $1", [user_id]);
 
-    // Gửi thông báo cho Admin (Ban quản trị)
-    const adminTokensRes = await query(`
-        SELECT u.fcm_token
-        FROM users u
-        JOIN userrole ur ON u.user_id = ur.user_id
-        WHERE ur.role_id = 2 AND u.fcm_token IS NOT NULL AND u.fcm_token != ''
-    `);
+    // Giả sử role_id = 2 là ADMIN (Bạn hãy check lại ID trong DB của bạn)
+    const isAdmin = userRoleRes.rows.length > 0 && userRoleRes.rows[0].role_id === 2;
 
-    const adminTokens = adminTokensRes.rows.map(row => row.fcm_token);
-    if (adminTokens.length > 0) {
-        sendMulticastNotification(
-            adminTokens,
-            "📋 Yêu cầu thay đổi thông tin",
-            `Cư dân ${full_name} vừa gửi yêu cầu cập nhật hồ sơ.`
+    if (isAdmin) {
+      // 🔥 TRƯỜNG HỢP ADMIN: Cập nhật thẳng vào bảng chính (AUTO-APPROVE)
+      const client = await pool.connect();
+      try {
+        await client.query("BEGIN");
+
+        // 1. Update bảng user_item (Thông tin cá nhân)
+        await client.query(
+          `UPDATE user_item
+           SET full_name = COALESCE($1, full_name),
+               email = COALESCE($2, email),
+               gender = COALESCE($3, gender),
+               dob = COALESCE($4, dob),
+               identity_card = COALESCE($5, identity_card),
+               home_town = COALESCE($6, home_town)
+           WHERE user_id = $7`,
+          [full_name, email, gender, dob, identity_card, home_town, user_id]
         );
+
+        // 2. Update bảng users (Số điện thoại)
+        if (phone) {
+          await client.query("UPDATE users SET phone = $1 WHERE user_id = $2", [phone, user_id]);
+        }
+
+        await client.query("COMMIT");
+
+        // Trả về cờ is_auto_approved = true để Android biết
+        return res.json({ success: true, message: "Cập nhật hồ sơ thành công!", is_auto_approved: true });
+
+      } catch (err) {
+        await client.query("ROLLBACK");
+        throw err;
+      } finally {
+        client.release();
+      }
+
+    } else {
+      // 🔥 TRƯỜNG HỢP USER THƯỜNG: Lưu vào bảng chờ duyệt
+
+      // Kiểm tra xem có yêu cầu cũ đang chờ không
+      const checkPending = await pool.query(
+        "SELECT * FROM profile_requests WHERE user_id = $1 AND status = 'pending'",
+        [user_id]
+      );
+
+      if (checkPending.rowCount > 0) {
+        return res.status(400).json({ error: "Bạn đang có yêu cầu chờ duyệt." });
+      }
+
+      await pool.query(
+        `INSERT INTO profile_requests
+         (user_id, new_full_name, new_phone, new_email, new_gender, new_dob,
+          new_identity_card, new_home_town, new_relationship, new_is_head)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+        [user_id, full_name, phone, email, gender, dob, identity_card, home_town, relationship, is_head]
+      );
+
+      return res.json({ success: true, message: "Đã gửi yêu cầu, vui lòng chờ BQT duyệt.", is_auto_approved: false });
     }
 
-    res.json({ success: true, message: "Đã gửi yêu cầu thay đổi thông tin." });
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: "Lỗi server" });
+    console.error("Update Profile Error:", err);
+    res.status(500).json({ error: "Lỗi server: " + err.message });
   }
 });
 

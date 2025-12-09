@@ -253,13 +253,14 @@
             </com.google.android.material.textfield.TextInputLayout>
 
             <TextView
+                android:id="@+id/warning"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="* Thông tin sau khi chỉnh sửa sẽ được gửi đến Ban quản trị để phê duyệt."
-                android:textSize="13sp"
-                android:textColor="#666"
                 android:layout_marginTop="16dp"
-                android:fontFamily="sans-serif-light"/>
+                android:fontFamily="sans-serif-light"
+                android:text="* Thông tin sau khi chỉnh sửa sẽ được gửi đến Ban quản trị để phê duyệt."
+                android:textColor="#666"
+                android:textSize="13sp" />
 
             <Button
                 android:id="@+id/btnSubmit"

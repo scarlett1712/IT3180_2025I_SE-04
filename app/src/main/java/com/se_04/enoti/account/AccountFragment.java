@@ -280,18 +280,19 @@ public class AccountFragment extends Fragment {
         if (!isFragmentAttached()) return;
 
         txtFullName.setText(user.getName());
-        txtApartment.setText("Căn hộ: " + user.getRoom());
-        email.setText("Email: " + user.getEmail());
-        phoneNumber.setText("Số điện thoại: " + user.getPhone());
-        relationship.setText("Quan hệ với chủ hộ: " + user.getRelationship());
-        startDate.setText("Ngày sinh: " + user.getDob());
+        email.setText(user.getEmail());
+        phoneNumber.setText(user.getPhone());
+        relationship.setText(user.getRelationship());
+        startDate.setText(user.getDob());
 
         loadAvatarFromLocal(user.getId());
 
         if (user.getRole() == Role.ADMIN) {
             txtApartment.setText("Quản trị viên");
-            relationship.setVisibility(View.GONE);
+            relationship.setVisibility(View.VISIBLE);
+            relationship.setText("Quản trị viên");
         } else {
+            txtApartment.setText(user.getRoom());
             txtApartment.setVisibility(View.VISIBLE);
             relationship.setVisibility(View.VISIBLE);
         }
