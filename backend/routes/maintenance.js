@@ -111,18 +111,23 @@ router.post("/schedule/update", async (req, res) => {
   try {
     await client.query("BEGIN");
 
-    // Cập nhật lịch
+    // 1. Cập nhật lịch
     await client.query(
       "UPDATE maintenanceschedule SET status = $1, result_note = $2 WHERE schedule_id = $3",
       [status, result_note, schedule_id]
     );
 
-    // Nếu hoàn thành, cập nhật lại trạng thái tài sản thành 'Good'
-    if (status === 'Completed') {
-        // Lấy asset_id từ lịch
-        const scheduleRes = await client.query("SELECT asset_id FROM maintenanceschedule WHERE schedule_id = $1", [schedule_id]);
-        if (scheduleRes.rows.length > 0) {
-            const assetId = scheduleRes.rows[0].asset_id;
+    // 2. Cập nhật trạng thái thiết bị dựa trên tiến độ
+    const scheduleRes = await client.query("SELECT asset_id FROM maintenanceschedule WHERE schedule_id = $1", [schedule_id]);
+    if (scheduleRes.rows.length > 0) {
+        const assetId = scheduleRes.rows[0].asset_id;
+
+        if (status === 'In Progress') {
+            // Đang sửa -> Thiết bị là 'Maintenance'
+            await client.query("UPDATE asset SET status = 'Maintenance' WHERE asset_id = $1", [assetId]);
+        }
+        else if (status === 'Completed') {
+            // Sửa xong -> Thiết bị là 'Good'
             await client.query("UPDATE asset SET status = 'Good' WHERE asset_id = $1", [assetId]);
         }
     }
