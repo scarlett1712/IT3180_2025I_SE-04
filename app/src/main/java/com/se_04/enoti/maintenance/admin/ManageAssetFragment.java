@@ -24,8 +24,10 @@ import com.se_04.enoti.account.UserItem;
 import com.se_04.enoti.maintenance.AssetItem;
 import com.se_04.enoti.report.AdminReportBottomSheet;
 import com.se_04.enoti.utils.ApiConfig;
+import com.se_04.enoti.utils.DataCacheManager;
 import com.se_04.enoti.utils.UserManager;
 
+import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
@@ -121,35 +123,23 @@ public class ManageAssetFragment extends Fragment {
     private void loadAssets() {
         if (getContext() == null) return;
 
-        String url = ApiConfig.BASE_URL + "/api/maintenance/assets";
+        // 1. Load Cache
+        String cachedData = DataCacheManager.getInstance(requireContext()).readCache(DataCacheManager.CACHE_ASSETS);
+        if (cachedData != null && !cachedData.isEmpty()) {
+            parseAndDisplayData(cachedData);
+        }
 
+        // 2. Load API
+        String url = ApiConfig.BASE_URL + "/api/maintenance/assets";
         JsonArrayRequest request = new JsonArrayRequest(Request.Method.GET, url, null,
                 response -> {
                     if (getContext() == null) return;
-                    assetList.clear();
-                    try {
-                        for (int i = 0; i < response.length(); i++) {
-                            JSONObject obj = response.getJSONObject(i);
-                            assetList.add(new AssetItem(obj));
-                        }
-                        adapter.notifyDataSetChanged();
 
-                        // 🔥 [FIX] Logic hiển thị Empty View cho Admin
-                        if (assetList.isEmpty()) {
-                            if (txtEmptyAssets != null) {
-                                txtEmptyAssets.setVisibility(View.VISIBLE);
-                                txtEmptyAssets.setText("Chưa có thiết bị nào.\nBấm + để thêm mới.");
-                            }
-                            recyclerView.setVisibility(View.GONE);
-                        } else {
-                            if (txtEmptyAssets != null) txtEmptyAssets.setVisibility(View.GONE);
-                            recyclerView.setVisibility(View.VISIBLE);
-                        }
+                    // 🔥 Lưu Cache
+                    DataCacheManager.getInstance(requireContext())
+                            .saveCache(DataCacheManager.CACHE_ASSETS, response.toString());
 
-                    } catch (JSONException e) {
-                        e.printStackTrace();
-                        Toast.makeText(getContext(), "Lỗi xử lý dữ liệu", Toast.LENGTH_SHORT).show();
-                    }
+                    parseAndDisplayData(response.toString());
                 },
                 error -> {
                     if (getContext() != null) {
@@ -169,4 +159,24 @@ public class ManageAssetFragment extends Fragment {
 
         Volley.newRequestQueue(requireContext()).add(request);
     }
+    private void parseAndDisplayData(String jsonString) {
+        try {
+            JSONArray response = new JSONArray(jsonString); // Hoặc parse từ String nếu load từ cache
+            assetList.clear();
+            for (int i = 0; i < response.length(); i++) {
+                JSONObject obj = response.getJSONObject(i);
+                assetList.add(new AssetItem(obj));
+            }
+            adapter.notifyDataSetChanged();
+
+            // Xử lý empty view ...
+            if (assetList.isEmpty() && txtEmptyAssets != null) {
+                txtEmptyAssets.setVisibility(View.VISIBLE);
+            } else if (txtEmptyAssets != null) {
+                txtEmptyAssets.setVisibility(View.GONE);
+            }
+
+        } catch (JSONException e) { e.printStackTrace(); }
+    }
+
 }

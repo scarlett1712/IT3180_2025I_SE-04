@@ -1,8 +1,11 @@
 package com.se_04.enoti.finance;
 
 import android.content.Context;
+import android.content.Intent;
 import android.os.Bundle;
 import android.os.Handler;
+import android.os.Looper;
+import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -22,7 +25,11 @@ import com.se_04.enoti.R;
 import com.se_04.enoti.account.Role;
 import com.se_04.enoti.account.UserItem;
 import com.se_04.enoti.finance.admin.FinanceDetailActivity_Admin;
+import com.se_04.enoti.utils.DataCacheManager; // 🔥 Import Cache
 import com.se_04.enoti.utils.UserManager;
+
+import org.json.JSONArray;
+import org.json.JSONObject;
 
 import java.util.ArrayList;
 import java.util.Calendar;
@@ -38,15 +45,16 @@ public class FinanceFragment extends Fragment {
     private boolean isAdmin;
     private int currentUserId;
     private Context context;
+    private String cacheFileName; // 🔥 Tên file cache
 
     // 🕒 Handler để refresh dữ liệu định kỳ
-    private final Handler refreshHandler = new Handler();
+    private final Handler refreshHandler = new Handler(Looper.getMainLooper());
     private final Runnable refreshRunnable = new Runnable() {
         @Override
         public void run() {
             if (isAdded()) {
-                loadFinances();
-                refreshHandler.postDelayed(this, 3000); // Cập nhật lại sau 3 giây
+                loadFinances(false); // false = không load cache lại, chỉ gọi API
+                refreshHandler.postDelayed(this, 5000); // 5s refresh 1 lần
             }
         }
     };
@@ -67,7 +75,12 @@ public class FinanceFragment extends Fragment {
         // 👤 Lấy thông tin người dùng hiện tại
         UserItem currentUser = UserManager.getInstance(context).getCurrentUser();
         if (currentUser != null) {
-            currentUserId = Integer.parseInt(currentUser.getId());
+            try {
+                currentUserId = Integer.parseInt(currentUser.getId());
+                // 🔥 Đặt tên file cache theo ID user để bảo mật
+                cacheFileName = "cache_finance_user_" + currentUserId + ".json";
+            } catch (NumberFormatException e) { e.printStackTrace(); }
+
             isAdmin = currentUser.getRole() == Role.ADMIN;
             txtWelcome.setText(getString(R.string.welcome, currentUser.getName()));
         } else {
@@ -89,7 +102,7 @@ public class FinanceFragment extends Fragment {
         if (isAdmin) {
             adapter = new FinanceAdapter(financeList, item -> {
                 // Khi admin bấm vào -> mở trang quản lý chi tiết
-                android.content.Intent intent = new android.content.Intent(context, FinanceDetailActivity_Admin.class);
+                Intent intent = new Intent(context, FinanceDetailActivity_Admin.class);
                 intent.putExtra("finance_id", item.getId());
                 intent.putExtra("title", item.getTitle());
                 intent.putExtra("due_date", item.getDate());
@@ -110,14 +123,14 @@ public class FinanceFragment extends Fragment {
         searchView.setOnQueryTextListener(new SearchView.OnQueryTextListener() {
             @Override
             public boolean onQueryTextSubmit(String query) {
-                adapter.getFilter().filter(query);
+                if (adapter != null) adapter.getFilter().filter(query);
                 return false;
             }
 
             @Override
             public boolean onQueryTextChange(String newText) {
                 spinnerFilter.setSelection(0, false);
-                adapter.getFilter().filter(newText);
+                if (adapter != null) adapter.getFilter().filter(newText);
                 return false;
             }
         });
@@ -130,7 +143,7 @@ public class FinanceFragment extends Fragment {
                 if (!searchView.getQuery().toString().isEmpty()) {
                     searchView.setQuery("", false);
                 }
-                adapter.filterByType(selected);
+                if (adapter != null) adapter.filterByType(selected);
             }
 
             @Override
@@ -138,12 +151,19 @@ public class FinanceFragment extends Fragment {
         });
     }
 
-    private void loadFinances() {
+    // 🔥 Sửa hàm loadFinances để hỗ trợ Cache
+    private void loadFinances(boolean loadCacheFirst) {
         if (currentUserId == 0) {
-            Toast.makeText(context, "Vui lòng đăng nhập để xem thông tin tài chính", Toast.LENGTH_SHORT).show();
+            Toast.makeText(context, "Vui lòng đăng nhập", Toast.LENGTH_SHORT).show();
             return;
         }
 
+        // 1. Load từ Cache trước (chỉ chạy khi onResume hoặc lần đầu)
+        if (loadCacheFirst) {
+            loadFromCache();
+        }
+
+        // 2. Gọi API lấy dữ liệu mới
         FinanceRepository.getInstance().fetchFinances(
                 context,
                 currentUserId,
@@ -151,22 +171,80 @@ public class FinanceFragment extends Fragment {
                 new FinanceRepository.FinanceCallback() {
                     @Override
                     public void onSuccess(List<FinanceItem> finances) {
-                        adapter.updateList(finances);
+                        if (!isAdded()) return;
+
+                        // Lưu vào cache
+                        saveToCache(finances);
+
+                        // Cập nhật UI
+                        if (adapter != null) {
+                            adapter.updateList(finances);
+                            // Giữ lại filter nếu đang chọn
+                            if (spinnerFilter != null && spinnerFilter.getSelectedItem() != null) {
+                                String selected = spinnerFilter.getSelectedItem().toString();
+                                if (!selected.equals("Tất cả")) {
+                                    adapter.filterByType(selected);
+                                }
+                            }
+                        }
                     }
 
                     @Override
                     public void onError(String message) {
-                        Toast.makeText(context, message, Toast.LENGTH_SHORT).show();
+                        // Nếu lỗi mạng thì thôi, dữ liệu cache vẫn đang hiển thị
+                        // Toast.makeText(context, message, Toast.LENGTH_SHORT).show();
                     }
                 }
         );
     }
 
+    // 🔥 Helper: Đọc từ Cache
+    private void loadFromCache() {
+        String data = DataCacheManager.getInstance(context).readCache(cacheFileName);
+        if (data != null && !data.isEmpty()) {
+            try {
+                JSONArray jsonArray = new JSONArray(data);
+                List<FinanceItem> list = new ArrayList<>();
+                for (int i = 0; i < jsonArray.length(); i++) {
+                    JSONObject obj = jsonArray.getJSONObject(i);
+                    FinanceItem item = new FinanceItem();
+                    item.setId(obj.optInt("id"));
+                    item.setTitle(obj.optString("title"));
+                    item.setDate(obj.optString("date"));
+                    item.setPrice(obj.optLong("amount")); // amount/price
+                    item.setType(obj.optString("type"));
+                    item.setStatus(obj.optString("status"));
+                    list.add(item);
+                }
+                if (adapter != null) adapter.updateList(list);
+            } catch (Exception e) { e.printStackTrace(); }
+        }
+    }
+
+    // 🔥 Helper: Lưu vào Cache
+    private void saveToCache(List<FinanceItem> items) {
+        try {
+            JSONArray array = new JSONArray();
+            for (FinanceItem item : items) {
+                JSONObject obj = new JSONObject();
+                obj.put("id", item.getId());
+                obj.put("title", item.getTitle());
+                obj.put("date", item.getDate());
+                obj.put("amount", item.getPrice());
+                obj.put("type", item.getType());
+                obj.put("status", item.getStatus());
+                array.put(obj);
+            }
+            DataCacheManager.getInstance(context).saveCache(cacheFileName, array.toString());
+        } catch (Exception e) { e.printStackTrace(); }
+    }
+
     @Override
     public void onResume() {
         super.onResume();
-        loadFinances(); // tải lần đầu
-        refreshHandler.postDelayed(refreshRunnable, 3000);
+        // Lần đầu vào màn hình -> Load cache ngay + Gọi API
+        loadFinances(true);
+        refreshHandler.postDelayed(refreshRunnable, 5000);
     }
 
     @Override

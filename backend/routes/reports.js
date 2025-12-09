@@ -1,6 +1,5 @@
 import express from "express";
 import { pool } from "../db.js";
-// 🔥 QUAN TRỌNG: Đảm bảo đường dẫn import đúng
 import { sendNotification } from "../utils/firebaseHelper.js";
 
 const router = express.Router();
@@ -17,14 +16,14 @@ router.post("/create", async (req, res) => {
   try {
     await client.query("BEGIN");
 
-    // 1. Insert dữ liệu mới
+    // Insert báo cáo
     await client.query(
       `INSERT INTO incident_reports (user_id, asset_id, description, status, created_at)
        VALUES ($1, $2, $3, 'Pending', NOW())`,
       [user_id, asset_id, description]
     );
 
-    // 2. Cập nhật trạng thái thiết bị -> Broken
+    // Update thiết bị -> Broken
     await client.query(
       `UPDATE asset SET status = 'Broken' WHERE asset_id = $1`,
       [asset_id]
@@ -32,7 +31,7 @@ router.post("/create", async (req, res) => {
 
     await client.query("COMMIT");
 
-    // 3. Gửi thông báo cho Admin
+    // Gửi thông báo cho Admin (Chạy ngầm)
     (async () => {
         try {
             const adminRes = await pool.query(`
@@ -44,10 +43,10 @@ router.post("/create", async (req, res) => {
             for (const row of adminRes.rows) {
                 if (row.fcm_token) {
                     sendNotification(row.fcm_token, "⚠️ Sự cố mới", description, { type: "report" })
-                        .catch(e => console.error("Lỗi gửi push lẻ:", e.message));
+                        .catch(e => console.error("Lỗi push lẻ:", e.message));
                 }
             }
-        } catch (e) { console.error("Lỗi gửi thông báo admin:", e); }
+        } catch (e) { console.error("Lỗi gửi admin:", e); }
     })();
 
     res.json({ success: true, message: "Gửi báo cáo thành công!" });
@@ -87,12 +86,12 @@ router.get("/all", async (req, res) => {
   }
 });
 
-// 3. [ADMIN] Cập nhật trạng thái & Phản hồi (🔥 ĐÃ FIX LỖI 42P08 BẰNG CÁCH TÁCH PARAM)
+// 3. [ADMIN] Cập nhật trạng thái & Phản hồi (🔥 ĐÃ SỬA LỖI SQL)
 router.post("/update-status", async (req, res) => {
   const { report_id, status, admin_note } = req.body;
 
   if (!report_id || !status) {
-      return res.status(400).json({ error: "Thiếu thông tin report_id hoặc status" });
+      return res.status(400).json({ error: "Thiếu thông tin." });
   }
 
   const client = await pool.connect();
@@ -101,10 +100,10 @@ router.post("/update-status", async (req, res) => {
 
     const safeNote = admin_note || "";
 
-    // 🔥 KỸ THUẬT SỬA LỖI:
-    // Thay vì dùng $1 cho cả 2 chỗ, ta dùng $1 cho việc SET và $3 cho việc SO SÁNH
-    // Mảng tham số truyền vào sẽ là: [status, safeNote, status, report_id]
-    // Điều này đảm bảo PostgreSQL không bị nhầm lẫn kiểu dữ liệu.
+    // 🔥 KỸ THUẬT QUAN TRỌNG:
+    // Dùng $1 để SET giá trị (Postgres tự hiểu kiểu dữ liệu cột status)
+    // Dùng $3 để so sánh chuỗi (Postgres hiểu là Text)
+    // Mảng tham số: [status, safeNote, status, report_id]
 
     await client.query(
         `UPDATE incident_reports
@@ -112,10 +111,10 @@ router.post("/update-status", async (req, res) => {
              admin_note = $2,
              resolved_at = (CASE WHEN $3 = 'Completed' THEN NOW() ELSE resolved_at END)
          WHERE report_id = $4`,
-        [status, safeNote, status, report_id] // Truyền status 2 lần
+        [status, safeNote, status, report_id]
     );
 
-    // 2. Gửi thông báo an toàn
+    // Gửi thông báo (An toàn, không làm crash nếu lỗi mạng)
     try {
         const userRes = await client.query(
             `SELECT u.fcm_token
@@ -134,6 +133,7 @@ router.post("/update-status", async (req, res) => {
             else if (status === 'Rejected') body = `Phản ánh bị từ chối. Lý do: ${safeNote}`;
 
             if (body) {
+                // Thêm { type: "report_update" } để tránh lỗi thiếu data
                 await sendNotification(userRes.rows[0].fcm_token, title, body, { type: "report_update" });
             }
         }
@@ -142,7 +142,7 @@ router.post("/update-status", async (req, res) => {
     }
 
     await client.query("COMMIT");
-    res.json({ success: true, message: "Đã cập nhật trạng thái báo cáo." });
+    res.json({ success: true, message: "Đã cập nhật trạng thái thành công." });
 
   } catch (err) {
     await client.query("ROLLBACK");

@@ -28,8 +28,12 @@ import com.se_04.enoti.account.UserItem;
 import com.se_04.enoti.notification.NotificationAdapter;
 import com.se_04.enoti.notification.NotificationItem;
 import com.se_04.enoti.notification.NotificationRepository;
+import com.se_04.enoti.utils.DataCacheManager;
 import com.se_04.enoti.utils.UserManager;
 import androidx.appcompat.widget.SearchView;
+
+import org.json.JSONArray;
+import org.json.JSONObject;
 
 import java.util.ArrayList;
 import java.util.Calendar;
@@ -158,17 +162,21 @@ public class ManageNotificationFragment extends Fragment {
 
     private void loadSentNotifications() {
         UserItem currentUser = UserManager.getInstance(requireContext()).getCurrentUser();
-        if (currentUser == null || currentUser.getId() == null) {
-            return;
-        }
+        if (currentUser == null) return;
 
+        // 1. Load Cache
+        loadCache();
+
+        // 2. Load API
         repository.fetchAdminNotifications(new NotificationRepository.NotificationsCallback() {
             @Override
             public void onSuccess(List<NotificationItem> items) {
                 if (isAdded() && items != null) {
-                    originalList.clear();
-                    originalList.addAll(items);
-                    applyFiltersAndSearch();
+                    // 🔥 Lưu cache
+                    saveCache(items);
+
+                    // Update UI
+                    updateListUI(items);
                 }
             }
 
@@ -180,6 +188,56 @@ public class ManageNotificationFragment extends Fragment {
                 }
             }
         });
+    }
+
+    private void updateListUI(List<NotificationItem> items) {
+        originalList.clear();
+        originalList.addAll(items);
+        applyFiltersAndSearch();
+    }
+
+    // 🔥 Lưu cache
+    private void saveCache(List<NotificationItem> items) {
+        try {
+            JSONArray array = new JSONArray();
+            for (NotificationItem item : items) {
+                JSONObject obj = new JSONObject();
+                obj.put("notification_id", item.getId());
+                obj.put("title", item.getTitle());
+                obj.put("content", item.getContent());
+                obj.put("type", item.getType());
+                obj.put("created_at", item.getDate());
+                obj.put("expired_date", item.getExpired_date());
+                // Admin không cần isRead
+                array.put(obj);
+            }
+            DataCacheManager.getInstance(requireContext()).saveCache(DataCacheManager.CACHE_ADMIN_NOTIFS, array.toString());
+        } catch (Exception e) { e.printStackTrace(); }
+    }
+
+    // 🔥 Đọc cache
+    private void loadCache() {
+        String data = DataCacheManager.getInstance(requireContext()).readCache(DataCacheManager.CACHE_ADMIN_NOTIFS);
+        if (data != null && !data.isEmpty()) {
+            try {
+                JSONArray array = new JSONArray(data);
+                List<NotificationItem> list = new ArrayList<>();
+                for (int i = 0; i < array.length(); i++) {
+                    JSONObject obj = array.getJSONObject(i);
+                    list.add(new NotificationItem(
+                            obj.optInt("notification_id"),
+                            obj.optString("title"),
+                            obj.optString("created_at"),
+                            obj.optString("expired_date"),
+                            obj.optString("type"),
+                            "Hệ thống", // Sender mặc định admin
+                            obj.optString("content"),
+                            true
+                    ));
+                }
+                updateListUI(list);
+            } catch (Exception e) { e.printStackTrace(); }
+        }
     }
 
     private void applyFiltersAndSearch() {

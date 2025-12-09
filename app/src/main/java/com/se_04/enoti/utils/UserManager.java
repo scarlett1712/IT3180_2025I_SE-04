@@ -8,7 +8,7 @@ import android.widget.Toast;
 
 import com.android.volley.DefaultRetryPolicy;
 import com.android.volley.Request;
-import com.android.volley.VolleyError; // 🔥 Import VolleyError
+import com.android.volley.VolleyError;
 import com.android.volley.toolbox.JsonObjectRequest;
 import com.android.volley.toolbox.Volley;
 import com.se_04.enoti.account.Gender;
@@ -27,7 +27,6 @@ public class UserManager {
     private final SharedPreferences sharedPreferences;
     private final Context context;
 
-    // Interface để báo kết quả về cho Activity/Fragment
     public interface LogoutCallback {
         void onLogoutComplete();
     }
@@ -55,7 +54,7 @@ public class UserManager {
 
     // --- Logout Logic ---
 
-    // 1. Logout có gọi Server (Dùng khi người dùng chủ động bấm Đăng xuất)
+    // 1. Logout có gọi Server
     public void logout(LogoutCallback callback) {
         String url = ApiConfig.BASE_URL + "/api/users/logout";
         JSONObject body = new JSONObject();
@@ -74,7 +73,6 @@ public class UserManager {
                 },
                 error -> {
                     Log.e("UserManager", "Server logout failed");
-                    // Kể cả lỗi mạng cũng phải logout local
                     forceLogout();
                     if (callback != null) callback.onLogoutComplete();
                 }
@@ -86,11 +84,11 @@ public class UserManager {
         Volley.newRequestQueue(context).add(request);
     }
 
-    // 🔥 2. HÀM MỚI: Kiểm tra lỗi 401 để Force Logout (Dùng trong onError của API)
+    // 2. Kiểm tra lỗi 401
     public void checkAndForceLogout(VolleyError error) {
         if (error.networkResponse != null && error.networkResponse.statusCode == 401) {
             Log.e("UserManager", "Token expired or invalid (401). Force logging out...");
-            Toast.makeText(context, "Phiên đăng nhập hết hạn hoặc tài khoản đã đăng nhập nơi khác.", Toast.LENGTH_LONG).show();
+            Toast.makeText(context, "Phiên đăng nhập hết hạn.", Toast.LENGTH_LONG).show();
             forceLogout();
         }
     }
@@ -99,7 +97,11 @@ public class UserManager {
     public void forceLogout() {
         clearUser(); // Xóa SharedPreferences
 
-        // Chuyển về màn hình đăng nhập và xóa sạch các màn hình cũ (Back Stack)
+        // 🔥 XÓA TOÀN BỘ CACHE KHI ĐĂNG XUẤT ĐỂ BẢO MẬT
+        // (Yêu cầu DataCacheManager phải có hàm clearAllCache)
+        DataCacheManager.getInstance(context).clearAllCache();
+
+        // Chuyển về màn hình đăng nhập
         Intent intent = new Intent(context, LogInActivity.class);
         intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
         context.startActivity(intent);
@@ -121,7 +123,6 @@ public class UserManager {
         editor.putString("phone", user.getPhone());
         if (user.getRole() != null) editor.putString("role", user.getRole().name());
 
-        // 🔥 CẬP NHẬT: Lưu thêm 2 trường mới (Quan trọng)
         editor.putString("identity_card", user.getIdentityCard());
         editor.putString("home_town", user.getHomeTown());
 
@@ -154,7 +155,6 @@ public class UserManager {
                 sharedPreferences.getInt("apartment_number", 0),
                 role,
                 sharedPreferences.getString("phone", ""),
-                // 🔥 Lấy 2 trường mới ra
                 sharedPreferences.getString("identity_card", ""),
                 sharedPreferences.getString("home_town", "")
         );
