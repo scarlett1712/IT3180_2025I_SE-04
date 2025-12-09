@@ -99,35 +99,66 @@ router.put("/update/:userId", async (req, res) => {
   }
 });
 
-// ==================================================================
-// 🗑️ API: Xóa cư dân (Xóa vĩnh viễn)
-// ==================================================================
-router.delete("/delete/:userId", async (req, res) => {
-  const { userId } = req.params;
+/* ==========================================================
+   🗑️ API: XÓA CƯ DÂN (Chỉ Admin mới được dùng)
+========================================================== */
+router.delete("/delete/:target_id", verifySession, async (req, res) => {
+  const { target_id } = req.params;
+  const currentUserId = req.currentUser.id; // Lấy từ token của người đang thao tác
 
+  // 1. Kiểm tra quyền Admin
+  if (req.currentUser.role !== 'ADMIN') {
+      return res.status(403).json({ error: "Bạn không có quyền xóa cư dân." });
+  }
+
+  // 2. Không cho phép tự xóa chính mình
+  if (parseInt(target_id) === parseInt(currentUserId)) {
+      return res.status(400).json({ error: "Không thể tự xóa tài khoản của chính mình." });
+  }
+
+  const client = await pool.connect();
   try {
-    // 1. Kiểm tra an toàn: Không cho phép xóa tài khoản Admin
-    const roleCheck = await query(
-        "SELECT r.role_name FROM userrole ur JOIN role r ON ur.role_id = r.role_id WHERE ur.user_id = $1",
-        [userId]
-    );
+    await client.query("BEGIN");
 
-    if (roleCheck.rows.length > 0 && roleCheck.rows[0].role_name === 'ADMIN') {
-        return res.status(403).json({ error: "Không thể xóa tài khoản Quản trị viên." });
+    // --- Bắt đầu dọn dẹp dữ liệu liên quan ---
+
+    // 1. Xóa các yêu cầu đăng nhập đang chờ
+    await client.query("DELETE FROM login_requests WHERE user_id = $1", [target_id]);
+
+    // 2. Xóa thông báo liên quan (Bảng phụ)
+    await client.query("DELETE FROM user_notifications WHERE user_id = $1", [target_id]);
+
+    // 3. Xóa thông tin tài chính cá nhân
+    await client.query("DELETE FROM user_finances WHERE user_id = $1", [target_id]);
+
+    // 4. Xóa vai trò (User Role)
+    await client.query("DELETE FROM userrole WHERE user_id = $1", [target_id]);
+
+    // 5. Xóa thông tin hồ sơ (User Item)
+    await client.query("DELETE FROM user_item WHERE user_id = $1", [target_id]);
+
+    // 6. Cuối cùng: Xóa tài khoản chính (Users)
+    const deleteRes = await client.query("DELETE FROM users WHERE user_id = $1", [target_id]);
+
+    if (deleteRes.rowCount === 0) {
+        await client.query("ROLLBACK");
+        return res.status(404).json({ error: "Không tìm thấy cư dân để xóa." });
     }
 
-    // 2. Thực hiện xóa từ bảng users (ON DELETE CASCADE sẽ lo phần còn lại)
-    const result = await query("DELETE FROM users WHERE user_id = $1 RETURNING user_id", [userId]);
-
-    if (result.rowCount === 0) {
-        return res.status(404).json({ error: "Không tìm thấy cư dân này." });
-    }
-
-    res.json({ success: true, message: "Đã xóa cư dân vĩnh viễn." });
+    await client.query("COMMIT");
+    res.json({ success: true, message: "Đã xóa cư dân thành công." });
 
   } catch (err) {
-    console.error("❌ Error deleting resident:", err);
-    res.status(500).json({ error: "Lỗi server khi xóa cư dân." });
+    await client.query("ROLLBACK");
+    console.error("Delete User Error:", err);
+    // Nếu lỗi do ràng buộc khóa ngoại (Foreign Key) chưa xử lý hết
+    if (err.code === '23503') {
+        res.status(400).json({ error: "Không thể xóa vì cư dân này còn dữ liệu liên kết (Báo cáo, Hóa đơn...)." });
+    } else {
+        res.status(500).json({ error: "Lỗi server khi xóa cư dân." });
+    }
+  } finally {
+    client.release();
   }
 });
 
