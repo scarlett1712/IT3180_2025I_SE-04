@@ -1,41 +1,53 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:orientation="vertical"
-    android:padding="20dp"
-    android:background="@drawable/bg_box"
-    android:clipToPadding="false">
+    android:padding="24dp"
+    android:background="@color/white">
 
     <TextView
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:text="Thiết lập thời gian gửi"
-        android:textSize="18sp"
+        android:textSize="20sp"
         android:textStyle="bold"
+        android:textColor="@color/black"
         android:gravity="center"
-        android:layout_marginBottom="16dp" />
+        android:layout_marginBottom="24dp" />
 
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="horizontal"
-        android:layout_marginBottom="8dp">
+        android:layout_marginBottom="16dp">
 
-        <Button
+        <com.google.android.material.button.MaterialButton
             android:id="@+id/btnSelectDate"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
             android:text="Chọn ngày"
+            android:textColor="@color/black"
+            app:icon="@drawable/ic_calendar"
+            app:iconTint="?attr/colorPrimary"
+            style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+            app:strokeColor="#DDDDDD"
             android:layout_marginEnd="8dp"/>
 
-        <Button
+        <com.google.android.material.button.MaterialButton
             android:id="@+id/btnSelectTime"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:text="Chọn giờ"/>
+            android:text="Chọn giờ"
+            android:textColor="@color/black"
+            app:icon="@drawable/ic_time"
+            app:iconTint="?attr/colorPrimary"
+            style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+            app:strokeColor="#DDDDDD"/>
     </LinearLayout>
 
     <LinearLayout
@@ -43,65 +55,78 @@
         android:layout_height="wrap_content"
         android:orientation="horizontal"
         android:gravity="center_vertical"
-        android:layout_marginBottom="12dp">
+        android:layout_marginBottom="20dp"
+        android:paddingHorizontal="4dp">
 
         <TextView
-            android:layout_width="wrap_content"
+            android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:text="Thời gian gửi:"
+            android:text="Thời gian gửi dự kiến:"
             android:textSize="16sp"
+            android:textColor="#555555"
             android:layout_weight="1" />
 
         <TextView
             android:id="@+id/txtSendTime"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="hh:mm:ss"
+            tools:text="2025-12-31 15:30"
             android:textStyle="bold"
-            android:textColor="@android:color/holo_blue_dark"
-            android:padding="6dp" />
+            android:textColor="?attr/colorPrimary"
+            android:background="@drawable/bg_time_display"
+            android:paddingVertical="6dp"
+            android:paddingHorizontal="10dp" />
     </LinearLayout>
 
-    <!-- Checkbox nhắc nhở -->
     <CheckBox
         android:id="@+id/checkRemind"
-        android:layout_width="wrap_content"
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:text="Nhắc nhở tôi trước khi gửi?"
         android:textSize="16sp"
-        android:layout_marginBottom="8dp" />
+        android:layout_marginBottom="16dp"
+        android:textColor="@color/black" />
 
-    <!-- Nếu chọn true -->
     <LinearLayout
         android:id="@+id/layoutRemindBefore"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="horizontal"
         android:gravity="center_vertical"
-        android:visibility="gone">
+        android:visibility="gone"
+        tools:visibility="visible"
+        android:layout_marginBottom="16dp"
+        android:paddingHorizontal="4dp">
 
         <TextView
-            android:layout_width="wrap_content"
+            android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:text="Nhắc tôi trước:"
+            android:text="Thời gian nhắc nhở:"
             android:textSize="16sp"
+            android:textColor="#555555"
             android:layout_weight="1" />
 
         <TextView
             android:id="@+id/txtRemindTime"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="hh:mm:ss"
+            tools:text="15 phút trước"
             android:textStyle="bold"
-            android:textColor="@android:color/holo_orange_dark"
-            android:padding="6dp" />
+            android:textColor="#FF9800"
+            android:background="@drawable/bg_time_display_secondary"
+            android:paddingVertical="6dp"
+            android:paddingHorizontal="10dp" />
     </LinearLayout>
 
-    <Button
+    <com.google.android.material.button.MaterialButton
         android:id="@+id/btnConfirmSend"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:text="Xác nhận gửi"
-        android:textAllCaps="false"
+        android:textColor="@color/white"
+        android:textStyle="bold"
+        app:backgroundTint="?attr/colorPrimary"
+        app:cornerRadius="12dp"
+        android:paddingVertical="12dp"
         android:layout_marginTop="16dp" />
 </LinearLayout>

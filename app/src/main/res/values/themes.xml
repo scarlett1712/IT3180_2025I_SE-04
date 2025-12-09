@@ -6,8 +6,7 @@
         <item name="colorPrimary">@color/brand_start</item>
         <item name="colorOnPrimary">@color/white</item>
         <item name="colorSecondary">@color/brand_start</item>
-
-        <item name="android:statusBarColor">@color/brand_start</item>
+        <item name="android:windowLayoutInDisplayCutoutMode" tools:targetApi="27">shortEdges</item>
         <item name="android:windowLightStatusBar">false</item>
 
         <item name="toolbarStyle">@style/GradientToolbarStyle</item>
@@ -21,7 +20,7 @@
 
     <style name="TransparentAppBarLayout" parent="">
         <!-- Ghi đè màu surface (bề mặt) của component thành trong suốt -->
-        <item name="colorSurface">@android:color/transparent</item>
+        <item name="colorSurface">@color/brand_start</item>
     </style>
 
     <style name="SettingItem">

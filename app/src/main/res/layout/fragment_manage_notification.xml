@@ -2,104 +2,132 @@
 <androidx.coordinatorlayout.widget.CoordinatorLayout
     xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@android:color/white">
+    android:background="#F5F7FA">
 
-    <!-- ScrollView giữ nguyên -->
-    <ScrollView
-        android:id="@+id/scrollView_manage_notification"
+    <androidx.constraintlayout.widget.ConstraintLayout
         android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:fillViewport="true">
+        android:layout_height="match_parent">
 
-        <LinearLayout
+        <View
+            android:id="@+id/viewHeader"
+            android:layout_width="match_parent"
+            android:layout_height="220dp"
+            android:background="@drawable/bg_header_curved"
+            app:layout_constraintTop_toTopOf="parent"
+            tools:layout_editor_absoluteX="0dp" />
+
+        <TextView
+            android:id="@+id/txtWelcome"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="24dp"
+            android:layout_marginTop="75dp"
+            android:text="@string/welcome"
+            android:textColor="@color/white"
+            android:textSize="26sp"
+            android:textStyle="bold"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent" />
+
+        <TextView
+            android:id="@+id/txtGreeting"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:text="@string/greeting"
+            android:textColor="#E0E0E0"
+            android:textSize="16sp"
+            app:layout_constraintStart_toStartOf="@+id/txtWelcome"
+            app:layout_constraintTop_toBottomOf="@+id/txtWelcome" />
+
+        <androidx.cardview.widget.CardView
+            android:id="@+id/cardFilters"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:orientation="vertical"
-            android:padding="16dp">
+            android:layout_marginHorizontal="16dp"
+            android:layout_marginTop="20dp"
+            app:cardCornerRadius="16dp"
+            app:cardElevation="6dp"
+            app:cardBackgroundColor="@color/white"
+            app:layout_constraintTop_toBottomOf="@+id/txtGreeting">
 
-            <!-- Phần chào -->
-            <TextView
-                android:id="@+id/txtWelcome"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="@string/welcome"
-                android:textSize="24sp"
-                android:textColor="@android:color/black"
-                android:layout_marginTop="60dp"
-                android:layout_marginBottom="4dp" />
-
-            <TextView
-                android:id="@+id/txtGreeting"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="@string/greeting"
-                android:textSize="20sp"
-                android:textColor="@android:color/darker_gray"
-                android:layout_marginBottom="20dp" />
-
-            <!-- Tiêu đề Thông tin chung -->
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="@string/manage_notification"
-                android:textStyle="bold"
-                android:textSize="24sp"
-                android:layout_marginBottom="8dp"
-                android:textColor="@android:color/black" />
-
-            <!-- Thanh tìm kiếm -->
-            <androidx.appcompat.widget.SearchView
-                android:id="@+id/search_view"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginBottom="8dp"
-                app:queryHint="@string/search_title"
-                app:iconifiedByDefault="false"
-                android:background="@drawable/search_view_background" />
-
-            <!-- Bộ lọc -->
             <LinearLayout
-                android:id="@+id/layout_filters"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:orientation="horizontal"
-                android:gravity="center"
-                android:layout_marginBottom="12dp">
+                android:orientation="vertical"
+                android:padding="16dp">
 
-                <!-- Lọc theo loại thông báo -->
-                <Spinner
-                    android:id="@+id/spinnerFilterType"
-                    android:layout_width="0dp"
-                    android:layout_height="30dp"
-                    android:layout_weight="1"
-                    android:spinnerMode="dropdown"
-                    android:background="@drawable/spinner_background"
-                    android:layout_marginEnd="8dp" />
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/manage_notification"
+                    android:textColor="#333333"
+                    android:textSize="18sp"
+                    android:textStyle="bold"
+                    android:layout_marginBottom="12dp"/>
 
-                <!-- Lọc theo thời gian -->
-                <Spinner
-                    android:id="@+id/spinnerFilterTime"
-                    android:layout_width="0dp"
-                    android:layout_height="30dp"
-                    android:layout_weight="1"
-                    android:spinnerMode="dropdown"
-                    android:background="@drawable/spinner_background" />
+                <androidx.appcompat.widget.SearchView
+                    android:id="@+id/search_view"
+                    android:layout_width="match_parent"
+                    android:layout_height="40dp"
+                    android:background="@drawable/bg_input_rounded"
+                    app:iconifiedByDefault="false"
+                    app:queryBackground="@null"
+                    app:queryHint="@string/search_title"
+                    android:layout_marginBottom="12dp"/>
+
+                <LinearLayout
+                    android:id="@+id/layout_filters"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical">
+
+                    <ImageView
+                        android:layout_width="20dp"
+                        android:layout_height="20dp"
+                        android:src="@drawable/ic_filter"
+                        app:tint="#757575"
+                        android:layout_marginEnd="8dp"
+                        android:contentDescription="Filter Icon"/>
+
+                    <Spinner
+                        android:id="@+id/spinnerFilterType"
+                        android:layout_width="0dp"
+                        android:layout_height="36dp"
+                        android:layout_weight="1"
+                        android:background="@drawable/bg_spinner_border"
+                        android:layout_marginEnd="8dp" />
+
+                    <Spinner
+                        android:id="@+id/spinnerFilterTime"
+                        android:layout_width="0dp"
+                        android:layout_height="36dp"
+                        android:layout_weight="1"
+                        android:background="@drawable/bg_spinner_border" />
+                </LinearLayout>
             </LinearLayout>
+        </androidx.cardview.widget.CardView>
 
-            <!-- Danh sách thông báo -->
-            <androidx.recyclerview.widget.RecyclerView
-                android:id="@+id/recyclerViewSentNotifications"
-                android:layout_width="match_parent"
-                android:layout_height="match_parent"
-                android:clipToPadding="false"
-                android:paddingBottom="100dp" />
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/recyclerViewSentNotifications"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_marginTop="12dp"
+            android:clipToPadding="false"
+            android:paddingHorizontal="16dp"
+            android:paddingBottom="100dp"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintTop_toBottomOf="@+id/cardFilters"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            tools:listitem="@layout/item_notification" />
 
-        </LinearLayout>
-    </ScrollView>
+    </androidx.constraintlayout.widget.ConstraintLayout>
 
-    <!-- Nút nổi thêm thông báo -->
     <com.google.android.material.floatingactionbutton.FloatingActionButton
         android:id="@+id/btnAddNotification"
         android:layout_width="wrap_content"
@@ -109,7 +137,6 @@
         app:tint="@android:color/white"
         app:backgroundTint="?attr/colorPrimary"
         android:layout_margin="24dp"
-        app:layout_anchorGravity="bottom|end"
         android:layout_gravity="bottom|end" />
 
 </androidx.coordinatorlayout.widget.CoordinatorLayout>

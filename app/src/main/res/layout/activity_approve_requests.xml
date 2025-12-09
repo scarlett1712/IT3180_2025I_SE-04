@@ -1,44 +1,92 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<androidx.coordinatorlayout.widget.CoordinatorLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:orientation="vertical"
-    android:background="#F5F5F5">
+    android:background="#F5F7FA"> <com.google.android.material.appbar.AppBarLayout
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:background="@android:color/transparent"
+    app:elevation="0dp">
 
-    <!-- Thanh tiêu đề -->
-    <com.google.android.material.appbar.AppBarLayout
+    <com.google.android.material.appbar.MaterialToolbar
+        android:id="@+id/toolbar"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:background="?attr/colorPrimary"
-        android:fitsSystemWindows="true">
+        android:layout_height="?attr/actionBarSize"
+        app:title="Phê duyệt yêu cầu"
+        app:titleTextColor="@color/white"
+        app:navigationIcon="@drawable/ic_arrow_back" />
+</com.google.android.material.appbar.AppBarLayout>
 
-        <com.google.android.material.appbar.MaterialToolbar
-            android:id="@+id/toolbar"
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        app:layout_behavior="@string/appbar_scrolling_view_behavior">
+
+        <com.google.android.material.card.MaterialCardView
+            android:id="@+id/cardSearch"
             android:layout_width="match_parent"
-            android:layout_height="?attr/actionBarSize"
-            android:background="?attr/colorPrimary"
-            app:title="Phê duyệt yêu cầu"
-            app:titleTextColor="@android:color/white" />
-    </com.google.android.material.appbar.AppBarLayout>
+            android:layout_height="wrap_content"
+            android:layout_marginHorizontal="16dp"
+            android:layout_marginTop="20dp"
+            app:cardBackgroundColor="@color/white"
+            app:cardCornerRadius="12dp"
+            app:cardElevation="4dp"
+            app:layout_constraintTop_toTopOf="parent"
+            tools:layout_editor_absoluteX="16dp">
 
-    <androidx.recyclerview.widget.RecyclerView
-        android:id="@+id/recyclerViewRequests"
-        android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:padding="16dp"
-        android:paddingTop="8dp"
-        android:clipToPadding="false"/>
+            <androidx.appcompat.widget.SearchView
+                android:id="@+id/searchView"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:background="@color/white"
+                app:iconifiedByDefault="false"
+                app:queryBackground="@null"
+                app:queryHint="Tìm theo tên cư dân..." />
+        </com.google.android.material.card.MaterialCardView>
 
-    <!-- Hiển thị khi danh sách trống -->
-    <TextView
-        android:id="@+id/txtEmpty"
-        android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:text="Không có yêu cầu nào đang chờ."
-        android:gravity="center"
-        android:textSize="16sp"
-        android:textColor="#999"
-        android:visibility="gone"/>
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/recyclerViewRequests"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:paddingHorizontal="16dp"
+            android:paddingTop="16dp"
+            android:paddingBottom="16dp"
+            android:clipToPadding="false"
+            app:layout_constraintTop_toBottomOf="@+id/cardSearch"
+            app:layout_constraintBottom_toBottomOf="parent"
+            tools:listitem="@layout/item_profile_request"/>
+        <LinearLayout
+            android:id="@+id/layoutEmpty"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:gravity="center"
+            android:visibility="gone"
+            app:layout_constraintTop_toBottomOf="@+id/cardSearch"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent">
 
-</LinearLayout>
+            <ImageView
+                android:layout_width="80dp"
+                android:layout_height="80dp"
+                android:src="@drawable/ic_clipboard_check"
+                app:tint="#CCCCCC"
+                android:layout_marginBottom="16dp"/>
+
+            <TextView
+                android:id="@+id/txtEmpty"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Không có yêu cầu nào đang chờ."
+                android:textSize="16sp"
+                android:textColor="#999999"
+                android:textStyle="italic"/>
+        </LinearLayout>
+
+    </androidx.constraintlayout.widget.ConstraintLayout>
+
+</androidx.coordinatorlayout.widget.CoordinatorLayout>

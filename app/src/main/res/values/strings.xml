@@ -82,11 +82,13 @@
     <string name="room_paid_list">Danh sách căn hộ đã đóng</string>
     <string name="save_changes">Lưu thay đổi</string>
     <string name="maintenance">Bảo trì</string>
-    <string name="manage_finance">Quản lý khoản thu</string>
+    <string name="manage_finance">Quản lý tài chính</string>
     <string name="notification_detail">Chi tiết thông báo</string>
     <string name="status_paid">Đã thanh toán</string>
     <string name="see_invoice_detail">Xem chi tiết hóa đơn</string>
     <string name="manage_asset">Thiết bị và bảo trì</string>
     <string name="asset">Cơ sở vật chất</string>
+    <string name="no_notifications">Không có thông báo</string>
+    <string name="feedback_reply_history">Lịch sử phản hồi</string>
 
 </resources>

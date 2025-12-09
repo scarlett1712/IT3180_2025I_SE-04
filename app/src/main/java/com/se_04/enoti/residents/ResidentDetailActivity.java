@@ -16,10 +16,9 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
-import androidx.annotation.Nullable;
 import androidx.core.content.ContextCompat;
 
-import com.android.volley.AuthFailureError; // 🔥 Import AuthFailureError
+import com.android.volley.AuthFailureError;
 import com.android.volley.Request;
 import com.android.volley.toolbox.JsonObjectRequest;
 import com.android.volley.toolbox.Volley;
@@ -27,7 +26,7 @@ import com.google.android.material.appbar.MaterialToolbar;
 import com.se_04.enoti.R;
 import com.se_04.enoti.utils.ApiConfig;
 import com.se_04.enoti.utils.BaseActivity;
-import com.se_04.enoti.utils.UserManager; // 🔥 Import UserManager để lấy Token
+import com.se_04.enoti.utils.UserManager;
 
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -38,15 +37,17 @@ import java.util.Map;
 
 public class ResidentDetailActivity extends BaseActivity {
 
-    private TextView txtName, txtGender, txtDob, txtEmail, txtPhone,
-            txtRelationship, txtLiving, txtRoom;
-    private TextView txtIdentityCard, txtHomeTown;
-
+    // Các TextView hiển thị giá trị (Value)
+    private TextView tvName, tvGender, tvDob, tvIdentity, tvHomeTown;
+    private TextView tvEmail, tvPhone;
+    private TextView tvRoom, tvRelationship, tvRole; // tvRole lấy từ layout rowRole
+    private TextView txtResidentLiving;
     private ImageView imgResident;
 
     private int userId;
     private boolean isLiving;
 
+    // API URLs
     private static final String API_UPDATE = ApiConfig.BASE_URL + "/api/residents/update/";
     private static final String API_DELETE = ApiConfig.BASE_URL + "/api/residents/delete/";
     private static final String API_STATUS = ApiConfig.BASE_URL + "/api/residents/status/";
@@ -56,31 +57,10 @@ public class ResidentDetailActivity extends BaseActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_resident_detail);
 
-        MaterialToolbar toolbar = findViewById(R.id.toolbar_resident_detail);
-        setSupportActionBar(toolbar);
+        setupToolbar();
+        initViews();
 
-        if (getSupportActionBar() != null) {
-            getSupportActionBar().setDisplayHomeAsUpEnabled(true);
-            getSupportActionBar().setDisplayShowTitleEnabled(true);
-            getSupportActionBar().setTitle("Chi tiết cư dân");
-            toolbar.setTitleTextColor(ContextCompat.getColor(this, android.R.color.white));
-        }
-
-        toolbar.setNavigationOnClickListener(v -> onBackPressed());
-
-        txtName = findViewById(R.id.txtResidentName);
-        txtGender = findViewById(R.id.txtResidentGender);
-        txtDob = findViewById(R.id.txtResidentDob);
-        txtEmail = findViewById(R.id.txtResidentEmail);
-        txtPhone = findViewById(R.id.txtResidentPhone);
-        txtRelationship = findViewById(R.id.txtResidentRelationship);
-        txtLiving = findViewById(R.id.txtResidentLiving);
-        txtRoom = findViewById(R.id.txtRoom);
-        imgResident = findViewById(R.id.imgResident);
-
-        txtIdentityCard = findViewById(R.id.txtResidentIdentity);
-        txtHomeTown = findViewById(R.id.txtResidentHomeTown);
-
+        // Lấy dữ liệu từ Intent
         Bundle bundle = getIntent().getExtras();
         if (bundle != null) {
             userId = bundle.getInt("user_id", -1);
@@ -89,28 +69,184 @@ public class ResidentDetailActivity extends BaseActivity {
         }
     }
 
+    private void setupToolbar() {
+        MaterialToolbar toolbar = findViewById(R.id.toolbar_resident_detail);
+        setSupportActionBar(toolbar);
+        if (getSupportActionBar() != null) {
+            getSupportActionBar().setDisplayHomeAsUpEnabled(true);
+            getSupportActionBar().setTitle("Chi tiết cư dân");
+        }
+        toolbar.setNavigationOnClickListener(v -> onBackPressed());
+    }
+
+    private void initViews() {
+        // 1. Ánh xạ các View cố định
+        imgResident = findViewById(R.id.imgResident);
+        tvName = findViewById(R.id.txtResidentName);
+        txtResidentLiving = findViewById(R.id.txtResidentLiving);
+
+        // 2. Ánh xạ các dòng <include> bằng hàm helper
+        // Hàm này sẽ gán Label cho dòng đó và trả về TextView Value để ta set dữ liệu sau này
+        tvGender = setupRow(R.id.rowGender, "Giới tính");
+        tvDob = setupRow(R.id.rowDob, "Ngày sinh");
+        tvIdentity = setupRow(R.id.rowIdentity, "CCCD/CMND");
+        tvHomeTown = setupRow(R.id.rowHomeTown, "Quê quán");
+
+        tvEmail = setupRow(R.id.rowEmail, "Email");
+        tvPhone = setupRow(R.id.rowPhone, "Số điện thoại");
+
+        tvRoom = setupRow(R.id.rowRoom, "Căn hộ");
+        tvRelationship = setupRow(R.id.rowRelationship, "Quan hệ chủ hộ");
+        tvRole = setupRow(R.id.rowRole, "Vai trò"); // Nếu bundle không có thì ẩn hoặc set default
+    }
+
+    /**
+     * Hàm hỗ trợ tìm View trong layout <include>
+     * @param includeId ID của thẻ include (VD: R.id.rowGender)
+     * @param labelText Nhãn muốn hiển thị (VD: "Giới tính")
+     * @return TextView dùng để hiển thị giá trị
+     */
+    private TextView setupRow(int includeId, String labelText) {
+        View rowView = findViewById(includeId);
+        if (rowView != null) {
+            TextView lbl = rowView.findViewById(R.id.txtLabel);
+            TextView val = rowView.findViewById(R.id.txtValue);
+            if (lbl != null) lbl.setText(labelText);
+            return val; // Trả về TextView giá trị để set text sau
+        }
+        return null;
+    }
+
     private void updateUI(Bundle bundle) {
         if (bundle == null) return;
-        txtName.setText(bundle.getString("name", ""));
-        txtGender.setText(bundle.getString("gender", ""));
-        txtDob.setText(bundle.getString("dob", ""));
-        txtEmail.setText(bundle.getString("email", ""));
-        txtPhone.setText(bundle.getString("phone", ""));
-        txtRelationship.setText(bundle.getString("relationship", ""));
-        txtRoom.setText(bundle.getString("room", ""));
+
+        // Set text an toàn (kiểm tra null)
+        if (tvName != null) tvName.setText(bundle.getString("name", ""));
+
+        if (tvGender != null) tvGender.setText(bundle.getString("gender", ""));
+        if (tvDob != null) tvDob.setText(bundle.getString("dob", ""));
 
         String identity = bundle.getString("identity_card", "");
-        if (txtIdentityCard != null) txtIdentityCard.setText(identity.isEmpty() ? "Chưa cập nhật" : identity);
+        if (tvIdentity != null) tvIdentity.setText(identity.isEmpty() ? "Chưa cập nhật" : identity);
 
         String homeTown = bundle.getString("home_town", "");
-        if (txtHomeTown != null) txtHomeTown.setText(homeTown.isEmpty() ? "Chưa cập nhật" : homeTown);
+        if (tvHomeTown != null) tvHomeTown.setText(homeTown.isEmpty() ? "Chưa cập nhật" : homeTown);
 
+        if (tvEmail != null) tvEmail.setText(bundle.getString("email", ""));
+        if (tvPhone != null) tvPhone.setText(bundle.getString("phone", ""));
+
+        if (tvRoom != null) tvRoom.setText(bundle.getString("room", ""));
+        if (tvRelationship != null) tvRelationship.setText(bundle.getString("relationship", ""));
+
+        // Vai trò (Giả sử lấy từ bundle hoặc set mặc định)
+        if (tvRole != null) tvRole.setText("Cư dân");
+
+        // Trạng thái sinh sống
         isLiving = bundle.getBoolean("is_living", true);
-        txtLiving.setText(isLiving ? "Đang sinh sống" : "Đã rời đi");
-        txtLiving.setTextColor(isLiving ?
-                ContextCompat.getColor(this, android.R.color.holo_green_dark) :
-                ContextCompat.getColor(this, android.R.color.holo_red_dark));
+        if (txtResidentLiving != null) {
+            txtResidentLiving.setText(isLiving ? "Đang sinh sống" : "Đã rời đi");
+            txtResidentLiving.setTextColor(isLiving ?
+                    ContextCompat.getColor(this, android.R.color.holo_green_dark) :
+                    ContextCompat.getColor(this, android.R.color.holo_red_dark));
+        }
     }
+
+    // --- Các hàm Logic (Edit, Delete, Avatar) giữ nguyên, chỉ sửa ID lấy dữ liệu ---
+
+    private void showEditDialog() {
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        LayoutInflater inflater = getLayoutInflater();
+        View dialogView = inflater.inflate(R.layout.dialog_edit_resident, null);
+        builder.setView(dialogView);
+
+        EditText edtName = dialogView.findViewById(R.id.edtEditName);
+        EditText edtPhone = dialogView.findViewById(R.id.edtEditPhone);
+        EditText edtEmail = dialogView.findViewById(R.id.edtEditEmail);
+        EditText edtGender = dialogView.findViewById(R.id.edtEditGender);
+        EditText edtDob = dialogView.findViewById(R.id.edtEditDob);
+        EditText edtIdentity = dialogView.findViewById(R.id.edtEditIdentityCard);
+        EditText edtHomeTown = dialogView.findViewById(R.id.edtEditHomeTown);
+        Button btnSave = dialogView.findViewById(R.id.btnSaveEdit);
+
+        // Lấy dữ liệu từ các TextView đã setup
+        if (tvName != null) edtName.setText(tvName.getText());
+        if (tvPhone != null) edtPhone.setText(tvPhone.getText());
+        if (tvEmail != null) edtEmail.setText(tvEmail.getText());
+        if (tvGender != null) edtGender.setText(tvGender.getText());
+        if (tvDob != null) edtDob.setText(tvDob.getText());
+
+        if (tvIdentity != null && !tvIdentity.getText().toString().equals("Chưa cập nhật")) {
+            edtIdentity.setText(tvIdentity.getText());
+        }
+        if (tvHomeTown != null && !tvHomeTown.getText().toString().equals("Chưa cập nhật")) {
+            edtHomeTown.setText(tvHomeTown.getText());
+        }
+
+        AlertDialog dialog = builder.create();
+
+        btnSave.setOnClickListener(v -> {
+            updateResidentInfo(
+                    edtName.getText().toString().trim(),
+                    edtPhone.getText().toString().trim(),
+                    edtEmail.getText().toString().trim(),
+                    edtGender.getText().toString().trim(),
+                    edtDob.getText().toString().trim(),
+                    edtIdentity.getText().toString().trim(),
+                    edtHomeTown.getText().toString().trim(),
+                    dialog
+            );
+        });
+
+        dialog.show();
+    }
+
+    private void updateResidentInfo(String name, String phone, String email, String gender, String dob, String identity, String homeTown, AlertDialog dialog) {
+        JSONObject body = new JSONObject();
+        try {
+            body.put("full_name", name);
+            body.put("phone", phone);
+            body.put("email", email);
+            body.put("gender", gender);
+            body.put("dob", dob);
+            body.put("identity_card", identity);
+            body.put("home_town", homeTown);
+        } catch (JSONException e) { e.printStackTrace(); }
+
+        JsonObjectRequest request = new JsonObjectRequest(Request.Method.PUT, API_UPDATE + userId, body,
+                response -> {
+                    Toast.makeText(this, "Cập nhật thành công!", Toast.LENGTH_SHORT).show();
+                    // Update UI
+                    if (tvName != null) tvName.setText(name);
+                    if (tvPhone != null) tvPhone.setText(phone);
+                    if (tvEmail != null) tvEmail.setText(email);
+                    if (tvGender != null) tvGender.setText(gender);
+                    if (tvDob != null) tvDob.setText(dob);
+                    if (tvIdentity != null) tvIdentity.setText(identity);
+                    if (tvHomeTown != null) tvHomeTown.setText(homeTown);
+
+                    dialog.dismiss();
+                    setResult(RESULT_OK);
+                },
+                error -> {
+                    if (error.networkResponse != null && error.networkResponse.statusCode == 401) {
+                        UserManager.getInstance(this).checkAndForceLogout(error);
+                    } else {
+                        Toast.makeText(this, "Lỗi cập nhật: " + error.getMessage(), Toast.LENGTH_SHORT).show();
+                    }
+                }
+        ) {
+            @Override
+            public Map<String, String> getHeaders() throws AuthFailureError {
+                Map<String, String> headers = new HashMap<>();
+                String token = UserManager.getInstance(getApplicationContext()).getAuthToken();
+                if (token != null) headers.put("Authorization", "Bearer " + token);
+                return headers;
+            }
+        };
+        Volley.newRequestQueue(this).add(request);
+    }
+
+    // --- Các hàm Menu, Delete, Toggle Status giữ nguyên ---
 
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
@@ -138,101 +274,6 @@ public class ResidentDetailActivity extends BaseActivity {
         return super.onOptionsItemSelected(item);
     }
 
-    private void showEditDialog() {
-        AlertDialog.Builder builder = new AlertDialog.Builder(this);
-        LayoutInflater inflater = getLayoutInflater();
-        View dialogView = inflater.inflate(R.layout.dialog_edit_resident, null);
-        builder.setView(dialogView);
-
-        EditText edtName = dialogView.findViewById(R.id.edtEditName);
-        EditText edtPhone = dialogView.findViewById(R.id.edtEditPhone);
-        EditText edtEmail = dialogView.findViewById(R.id.edtEditEmail);
-        EditText edtGender = dialogView.findViewById(R.id.edtEditGender);
-        EditText edtDob = dialogView.findViewById(R.id.edtEditDob);
-        EditText edtIdentity = dialogView.findViewById(R.id.edtEditIdentityCard);
-        EditText edtHomeTown = dialogView.findViewById(R.id.edtEditHomeTown);
-        Button btnSave = dialogView.findViewById(R.id.btnSaveEdit);
-
-        // Fill dữ liệu
-        edtName.setText(txtName.getText());
-        edtPhone.setText(txtPhone.getText());
-        edtEmail.setText(txtEmail.getText());
-        edtGender.setText(txtGender.getText());
-        edtDob.setText(txtDob.getText());
-
-        if (txtIdentityCard != null && !txtIdentityCard.getText().toString().equals("Chưa cập nhật")) {
-            edtIdentity.setText(txtIdentityCard.getText());
-        }
-        if (txtHomeTown != null && !txtHomeTown.getText().toString().equals("Chưa cập nhật")) {
-            edtHomeTown.setText(txtHomeTown.getText());
-        }
-
-        AlertDialog dialog = builder.create();
-
-        btnSave.setOnClickListener(v -> {
-            updateResidentInfo(
-                    edtName.getText().toString().trim(),
-                    edtPhone.getText().toString().trim(),
-                    edtEmail.getText().toString().trim(),
-                    edtGender.getText().toString().trim(),
-                    edtDob.getText().toString().trim(),
-                    edtIdentity != null ? edtIdentity.getText().toString().trim() : "",
-                    edtHomeTown != null ? edtHomeTown.getText().toString().trim() : "",
-                    dialog
-            );
-        });
-
-        dialog.show();
-    }
-
-    private void updateResidentInfo(String name, String phone, String email, String gender, String dob, String identity, String homeTown, AlertDialog dialog) {
-        JSONObject body = new JSONObject();
-        try {
-            body.put("full_name", name);
-            body.put("phone", phone);
-            body.put("email", email);
-            body.put("gender", gender);
-            body.put("dob", dob);
-            body.put("identity_card", identity);
-            body.put("home_town", homeTown);
-        } catch (JSONException e) { e.printStackTrace(); }
-
-        // 🔥 THÊM getHeaders() ĐỂ GỬI TOKEN
-        JsonObjectRequest request = new JsonObjectRequest(Request.Method.PUT, API_UPDATE + userId, body,
-                response -> {
-                    Toast.makeText(this, "Cập nhật thành công!", Toast.LENGTH_SHORT).show();
-                    // Update UI
-                    txtName.setText(name);
-                    txtPhone.setText(phone);
-                    txtEmail.setText(email);
-                    txtGender.setText(gender);
-                    txtDob.setText(dob);
-                    if (txtIdentityCard != null) txtIdentityCard.setText(identity);
-                    if (txtHomeTown != null) txtHomeTown.setText(homeTown);
-
-                    dialog.dismiss();
-                    setResult(RESULT_OK);
-                },
-                error -> {
-                    // Check lỗi 401 Force Logout
-                    if (error.networkResponse != null && error.networkResponse.statusCode == 401) {
-                        UserManager.getInstance(this).checkAndForceLogout(error);
-                    } else {
-                        Toast.makeText(this, "Lỗi cập nhật: " + error.getMessage(), Toast.LENGTH_SHORT).show();
-                    }
-                }
-        ) {
-            @Override
-            public Map<String, String> getHeaders() throws AuthFailureError {
-                Map<String, String> headers = new HashMap<>();
-                String token = UserManager.getInstance(getApplicationContext()).getAuthToken();
-                if (token != null) headers.put("Authorization", "Bearer " + token);
-                return headers;
-            }
-        };
-        Volley.newRequestQueue(this).add(request);
-    }
-
     private void showDeleteConfirmDialog() {
         new AlertDialog.Builder(this)
                 .setTitle("Xóa cư dân?")
@@ -243,7 +284,6 @@ public class ResidentDetailActivity extends BaseActivity {
     }
 
     private void deleteResident() {
-        // 🔥 THÊM getHeaders() ĐỂ GỬI TOKEN
         JsonObjectRequest request = new JsonObjectRequest(Request.Method.DELETE, API_DELETE + userId, null,
                 response -> {
                     Toast.makeText(this, "Đã xóa cư dân.", Toast.LENGTH_SHORT).show();
@@ -276,18 +316,18 @@ public class ResidentDetailActivity extends BaseActivity {
             body.put("is_living", newStatus);
         } catch (JSONException e) { e.printStackTrace(); }
 
-        // 🔥 THÊM getHeaders() ĐỂ GỬI TOKEN
         JsonObjectRequest request = new JsonObjectRequest(Request.Method.PUT, API_STATUS + userId, body,
                 response -> {
                     isLiving = newStatus;
                     String msg = isLiving ? "Đã kích hoạt lại." : "Đã ẩn cư dân.";
                     Toast.makeText(this, msg, Toast.LENGTH_SHORT).show();
 
-                    txtLiving.setText(isLiving ? "Đang sinh sống" : "Đã rời đi");
-                    txtLiving.setTextColor(isLiving ?
-                            ContextCompat.getColor(this, android.R.color.holo_green_dark) :
-                            ContextCompat.getColor(this, android.R.color.holo_red_dark));
-
+                    if (txtResidentLiving != null) {
+                        txtResidentLiving.setText(isLiving ? "Đang sinh sống" : "Đã rời đi");
+                        txtResidentLiving.setTextColor(isLiving ?
+                                ContextCompat.getColor(this, android.R.color.holo_green_dark) :
+                                ContextCompat.getColor(this, android.R.color.holo_red_dark));
+                    }
                     invalidateOptionsMenu();
                     setResult(RESULT_OK);
                 },

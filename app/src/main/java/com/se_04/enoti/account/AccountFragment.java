@@ -390,7 +390,7 @@ public class AccountFragment extends Fragment {
             imgAvatar.setImageResource(
                     currentUser.getGender() == Gender.MALE
                             ? R.drawable.ic_person
-                            : R.drawable.ic_person_female
+                            : R.drawable.ic_person
             );
         }
     }

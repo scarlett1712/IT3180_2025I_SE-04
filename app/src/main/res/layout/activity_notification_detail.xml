@@ -1,81 +1,148 @@
 <?xml version="1.0" encoding="utf-8"?>
-<androidx.coordinatorlayout.widget.CoordinatorLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<androidx.coordinatorlayout.widget.CoordinatorLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@color/white">
+    android:background="#F5F7FA"> <com.google.android.material.appbar.AppBarLayout
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:background="@android:color/transparent"
+    app:elevation="0dp">
 
-    <!-- Thanh AppBar -->
-    <com.google.android.material.appbar.AppBarLayout
+    <com.google.android.material.appbar.MaterialToolbar
+        android:id="@+id/toolbar"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:fitsSystemWindows="true"
-        android:background="?attr/colorPrimary">
+        android:layout_height="?attr/actionBarSize"
+        app:title="Chi tiết thông báo"
+        app:titleTextColor="@color/white"
+        app:navigationIcon="@drawable/ic_arrow_back"/>
+</com.google.android.material.appbar.AppBarLayout>
 
-        <com.google.android.material.appbar.MaterialToolbar
-            android:id="@+id/toolbar"
-            android:layout_width="match_parent"
-            android:layout_height="?attr/actionBarSize"
-            android:titleTextColor="@android:color/white" />
-    </com.google.android.material.appbar.AppBarLayout>
-
-    <!-- Nội dung có thể cuộn -->
-    <ScrollView
+    <androidx.core.widget.NestedScrollView
         android:id="@+id/scrollView"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:padding="16dp"
-        android:layout_marginBottom="60dp"
+        android:fillViewport="true"
         app:layout_behavior="@string/appbar_scrolling_view_behavior">
 
-        <LinearLayout
+        <androidx.constraintlayout.widget.ConstraintLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:orientation="vertical">
+            android:paddingBottom="100dp">
 
-            <TextView
-                android:id="@+id/txtDetailTitle"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:textSize="24sp"
-                android:textStyle="bold"
-                android:textColor="@android:color/black"
-                android:layout_marginBottom="8dp" />
-
-            <TextView
-                android:id="@+id/txtDetailDate"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:textSize="16sp"
-                android:textColor="@android:color/darker_gray"
-                android:layout_marginBottom="12dp" />
-
-            <TextView
-                android:id="@+id/txtDetailSender"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="@string/notification_sender"
-                android:textSize="18sp"
-                android:textColor="@android:color/black"
-                android:layout_marginBottom="12dp" />
-
-            <TextView
-                android:id="@+id/txtDetailContent"
+            <com.google.android.material.card.MaterialCardView
+                android:id="@+id/cardContent"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:textSize="18sp"
-                android:textColor="@android:color/black" />
-        </LinearLayout>
-    </ScrollView>
+                android:layout_marginHorizontal="16dp"
+                android:layout_marginTop="20dp"
+                app:cardBackgroundColor="@color/white"
+                app:cardCornerRadius="16dp"
+                app:cardElevation="6dp"
+                app:layout_constraintTop_toTopOf="parent"
+                tools:layout_editor_absoluteX="16dp">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:padding="24dp">
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginBottom="16dp"
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal">
+
+                        <LinearLayout
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:background="@drawable/bg_status_rounded"
+                            android:backgroundTint="#F0F0F0"
+                            android:gravity="center_vertical"
+                            android:orientation="horizontal"
+                            android:paddingHorizontal="8dp"
+                            android:paddingVertical="4dp">
+
+                            <ImageView
+                                android:layout_width="14dp"
+                                android:layout_height="14dp"
+                                android:layout_marginEnd="6dp"
+                                android:src="@drawable/ic_calendar"
+                                app:tint="#757575" />
+
+                            <TextView
+                                android:id="@+id/txtDetailDate"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:textColor="#757575"
+                                android:textSize="12sp"
+                                android:textStyle="bold"
+                                tools:text="12/05/2025" />
+                        </LinearLayout>
+
+                        <View
+                            android:layout_width="0dp"
+                            android:layout_height="0dp"
+                            android:layout_weight="1" />
+
+                        <TextView
+                            android:id="@+id/txtDetailSender"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="@string/notification_sender"
+                            android:textColor="?attr/colorPrimary"
+                            android:textSize="14sp"
+                            android:textStyle="italic" />
+                    </LinearLayout>
+
+                    <TextView
+                        android:id="@+id/txtDetailTitle"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginBottom="16dp"
+                        android:textColor="@color/black"
+                        android:textSize="22sp"
+                        android:textStyle="bold"
+                        tools:text="Thông báo lịch bảo trì thang máy tòa A" />
+
+                    <View
+                        android:layout_width="match_parent"
+                        android:layout_height="1dp"
+                        android:layout_marginBottom="16dp"
+                        android:background="#EEEEEE" />
+
+                    <TextView
+                        android:id="@+id/txtDetailContent"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:lineSpacingExtra="6dp"
+                        android:textColor="#333333"
+                        android:textSize="16sp"
+                        tools:text="Kính gửi cư dân,\nBan quản lý xin thông báo lịch bảo trì..." />
+
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+        </androidx.constraintlayout.widget.ConstraintLayout>
+    </androidx.core.widget.NestedScrollView>
 
     <com.google.android.material.button.MaterialButton
         android:id="@+id/btnReply"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
+        android:layout_height="60dp"
         android:text="@string/feedback"
         android:textSize="18sp"
         android:textColor="@android:color/white"
-        android:backgroundTint="?attr/colorPrimary"
-        android:layout_margin="12dp"
+        app:backgroundTint="?attr/colorPrimary"
+        app:cornerRadius="12dp"
+        app:icon="@drawable/ic_chat_bubble"
+        app:iconGravity="textStart"
+        app:iconPadding="8dp"
+        android:layout_margin="16dp"
         android:layout_gravity="bottom" />
+
 </androidx.coordinatorlayout.widget.CoordinatorLayout>

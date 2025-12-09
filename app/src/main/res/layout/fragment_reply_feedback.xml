@@ -2,56 +2,87 @@
 <androidx.constraintlayout.widget.ConstraintLayout
     xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:padding="16dp"
-    android:background="@android:color/white">
+    android:background="#F5F7FA"> <View
+    android:id="@+id/viewHeader"
+    android:layout_width="match_parent"
+    android:layout_height="220dp"
+    android:background="@drawable/bg_header_curved"
+    app:layout_constraintTop_toTopOf="parent" />
 
-    <!-- Phần chào -->
     <TextView
         android:id="@+id/txtWelcome"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
+        android:layout_marginStart="24dp"
+        android:layout_marginTop="75dp"
         android:text="@string/welcome"
-        android:textSize="24sp"
-        android:textColor="@android:color/black"
-        app:layout_constraintTop_toTopOf="parent"
+        android:textColor="@color/white"
+        android:textSize="26sp"
+        android:textStyle="bold"
         app:layout_constraintStart_toStartOf="parent"
-        android:layout_marginTop="60dp"
-        android:layout_marginBottom="4dp"/>
+        app:layout_constraintTop_toTopOf="parent" />
 
     <TextView
         android:id="@+id/txtGreeting"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="@string/greeting"
-        android:textSize="20sp"
-        android:textColor="@android:color/darker_gray"
-        app:layout_constraintTop_toBottomOf="@id/txtWelcome"
-        app:layout_constraintStart_toStartOf="parent"
         android:layout_marginTop="4dp"
-        android:layout_marginBottom="12dp"/>
+        android:text="@string/greeting"
+        android:textColor="#E0E0E0"
+        android:textSize="16sp"
+        app:layout_constraintStart_toStartOf="@+id/txtWelcome"
+        app:layout_constraintTop_toBottomOf="@+id/txtWelcome" />
 
-    <!-- Tiêu đề Phản hồi -->
-    <TextView
-        android:id="@+id/textViewReplyFeedback"
-        android:layout_width="wrap_content"
+    <androidx.cardview.widget.CardView
+        android:id="@+id/cardHeaderList"
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="@string/feedback"
-        android:textStyle="bold"
-        android:textSize="24sp"
-        app:layout_constraintTop_toBottomOf="@id/txtGreeting"
-        app:layout_constraintStart_toStartOf="parent"
+        android:layout_marginHorizontal="16dp"
         android:layout_marginTop="20dp"
-        android:layout_marginBottom="8dp"
-        android:textColor="@android:color/black"/>
+        app:cardCornerRadius="12dp"
+        app:cardElevation="6dp"
+        app:cardBackgroundColor="@color/white"
+        app:layout_constraintTop_toBottomOf="@+id/txtGreeting">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:padding="16dp"
+            android:gravity="center_vertical">
+
+            <ImageView
+                android:layout_width="24dp"
+                android:layout_height="24dp"
+                android:src="@drawable/ic_chat_bubble"
+                app:tint="@color/brand_start"
+                android:layout_marginEnd="12dp"
+                android:contentDescription="Chat Icon"/>
+
+            <TextView
+                android:id="@+id/textViewReplyFeedback"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/feedback_reply_history"
+                android:textColor="#333333"
+                android:textSize="18sp"
+                android:textStyle="bold" />
+        </LinearLayout>
+    </androidx.cardview.widget.CardView>
 
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/recyclerViewReplyFeedback"
         android:layout_width="match_parent"
         android:layout_height="0dp"
-        android:layout_marginTop="8dp"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/textViewReplyFeedback" />
+        android:layout_marginTop="12dp"
+        android:paddingHorizontal="16dp"
+        android:clipToPadding="false"
+        android:paddingBottom="16dp"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/cardHeaderList"
+        tools:listitem="@layout/item_feedback" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>

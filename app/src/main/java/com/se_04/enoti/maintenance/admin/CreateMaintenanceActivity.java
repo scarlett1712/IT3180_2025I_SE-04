@@ -3,18 +3,20 @@ package com.se_04.enoti.maintenance.admin;
 import android.app.DatePickerDialog;
 import android.os.Bundle;
 import android.text.TextUtils;
+import android.util.TypedValue;
+import android.view.View;
 import android.widget.ArrayAdapter;
-import android.widget.Button;
-import android.widget.Spinner;
+import android.widget.AutoCompleteTextView;
 import android.widget.Toast;
 
 import androidx.annotation.Nullable;
-import androidx.appcompat.app.AppCompatActivity;
 
 import com.android.volley.Request;
 import com.android.volley.toolbox.JsonArrayRequest;
 import com.android.volley.toolbox.JsonObjectRequest;
 import com.android.volley.toolbox.Volley;
+import com.google.android.material.appbar.MaterialToolbar;
+import com.google.android.material.button.MaterialButton;
 import com.google.android.material.textfield.TextInputEditText;
 import com.se_04.enoti.R;
 import com.se_04.enoti.utils.ApiConfig;
@@ -31,30 +33,32 @@ import java.util.Locale;
 
 public class CreateMaintenanceActivity extends BaseActivity {
 
-    private Spinner spinnerAssets, spinnerStaff;
+    // 🔥 Thay đổi: Dùng AutoCompleteTextView thay cho Spinner
+    private AutoCompleteTextView autoCompleteAssets, autoCompleteStaff;
     private TextInputEditText edtDate, edtDesc;
-    private Button btnCreate;
+    private MaterialButton btnCreate; // Dùng MaterialButton
 
-    // Lưu danh sách ID song song với danh sách Tên hiển thị trên Spinner
-    private List<String> assetNames = new ArrayList<>();
-    private List<Integer> assetIds = new ArrayList<>();
+    // Lưu danh sách ID song song với danh sách Tên
+    private final List<String> assetNames = new ArrayList<>();
+    private final List<Integer> assetIds = new ArrayList<>();
 
-    private List<String> staffNames = new ArrayList<>();
-    private List<Integer> staffIds = new ArrayList<>();
+    private final List<String> staffNames = new ArrayList<>();
+    private final List<Integer> staffIds = new ArrayList<>();
+
+    // Biến lưu ID đã chọn
+    private int selectedAssetId = -1;
+    private int selectedStaffId = -1;
 
     private final SimpleDateFormat apiDateFormat = new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault());
+    private final SimpleDateFormat displayDateFormat = new SimpleDateFormat("dd/MM/yyyy", Locale.getDefault());
 
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_create_maintenance);
 
-        // Ánh xạ View
-        spinnerAssets = findViewById(R.id.spinnerAssets);
-        spinnerStaff = findViewById(R.id.spinnerStaff);
-        edtDate = findViewById(R.id.edtScheduledDate);
-        edtDesc = findViewById(R.id.edtDescription);
-        btnCreate = findViewById(R.id.btnCreate);
+        initViews();
+        setupToolbar();
 
         // Sự kiện chọn ngày
         edtDate.setOnClickListener(v -> showDatePicker());
@@ -62,16 +66,38 @@ public class CreateMaintenanceActivity extends BaseActivity {
         // Sự kiện nút tạo
         btnCreate.setOnClickListener(v -> createSchedule());
 
-        // Tải dữ liệu cho Spinner
+        // Tải dữ liệu
         loadAssets();
         loadStaff();
+    }
+
+    private void initViews() {
+        // Ánh xạ đúng ID trong layout mới
+        autoCompleteAssets = findViewById(R.id.autoCompleteAssets);
+        autoCompleteStaff = findViewById(R.id.autoCompleteStaff);
+        edtDate = findViewById(R.id.edtScheduledDate);
+        edtDesc = findViewById(R.id.edtDescription);
+        btnCreate = findViewById(R.id.btnCreate);
+    }
+
+    private void setupToolbar() {
+        MaterialToolbar toolbar = findViewById(R.id.toolbar);
+        setSupportActionBar(toolbar);
+        if (getSupportActionBar() != null) {
+            getSupportActionBar().setDisplayHomeAsUpEnabled(true);
+            getSupportActionBar().setTitle("Tạo lịch bảo trì");
+        }
+        toolbar.setNavigationOnClickListener(v -> onBackPressed());
     }
 
     private void showDatePicker() {
         Calendar c = Calendar.getInstance();
         new DatePickerDialog(this, (view, year, month, dayOfMonth) -> {
             c.set(year, month, dayOfMonth);
-            edtDate.setText(apiDateFormat.format(c.getTime()));
+            // Hiển thị định dạng dễ đọc (dd/MM/yyyy)
+            edtDate.setText(displayDateFormat.format(c.getTime()));
+            // Lưu định dạng API (yyyy-MM-dd) vào tag để dùng sau này
+            edtDate.setTag(apiDateFormat.format(c.getTime()));
         }, c.get(Calendar.YEAR), c.get(Calendar.MONTH), c.get(Calendar.DAY_OF_MONTH)).show();
     }
 
@@ -89,8 +115,16 @@ public class CreateMaintenanceActivity extends BaseActivity {
                             // Hiển thị tên + vị trí
                             assetNames.add(obj.getString("asset_name") + " (" + obj.optString("location") + ")");
                         }
-                        ArrayAdapter<String> adapter = new ArrayAdapter<>(this, android.R.layout.simple_spinner_dropdown_item, assetNames);
-                        spinnerAssets.setAdapter(adapter);
+
+                        // 🔥 Setup Adapter cho AutoCompleteTextView
+                        ArrayAdapter<String> adapter = new ArrayAdapter<>(this, android.R.layout.simple_dropdown_item_1line, assetNames);
+                        autoCompleteAssets.setAdapter(adapter);
+
+                        // 🔥 Xử lý sự kiện chọn item
+                        autoCompleteAssets.setOnItemClickListener((parent, view, position, id) -> {
+                            selectedAssetId = assetIds.get(position);
+                        });
+
                     } catch (JSONException e) { e.printStackTrace(); }
                 },
                 error -> Toast.makeText(this, "Lỗi tải thiết bị", Toast.LENGTH_SHORT).show()
@@ -112,8 +146,16 @@ public class CreateMaintenanceActivity extends BaseActivity {
                             // Hiển thị tên + SĐT
                             staffNames.add(obj.getString("full_name") + " - " + obj.getString("phone"));
                         }
-                        ArrayAdapter<String> adapter = new ArrayAdapter<>(this, android.R.layout.simple_spinner_dropdown_item, staffNames);
-                        spinnerStaff.setAdapter(adapter);
+
+                        // 🔥 Setup Adapter cho AutoCompleteTextView
+                        ArrayAdapter<String> adapter = new ArrayAdapter<>(this, android.R.layout.simple_dropdown_item_1line, staffNames);
+                        autoCompleteStaff.setAdapter(adapter);
+
+                        // 🔥 Xử lý sự kiện chọn item
+                        autoCompleteStaff.setOnItemClickListener((parent, view, position, id) -> {
+                            selectedStaffId = staffIds.get(position);
+                        });
+
                     } catch (JSONException e) { e.printStackTrace(); }
                 },
                 error -> Toast.makeText(this, "Lỗi tải nhân viên", Toast.LENGTH_SHORT).show()
@@ -123,21 +165,34 @@ public class CreateMaintenanceActivity extends BaseActivity {
 
     // 3. Gửi yêu cầu tạo lịch
     private void createSchedule() {
-        String date = edtDate.getText().toString();
+        String displayDate = edtDate.getText().toString();
+        // Lấy ngày chuẩn API từ Tag (đã set ở showDatePicker) hoặc parse lại
+        String apiDate = (edtDate.getTag() != null) ? edtDate.getTag().toString() : "";
         String desc = edtDesc.getText().toString();
 
-        if (TextUtils.isEmpty(date)) {
-            Toast.makeText(this, "Vui lòng chọn ngày", Toast.LENGTH_SHORT).show();
+        // Validate
+        if (selectedAssetId == -1) {
+            Toast.makeText(this, "Vui lòng chọn thiết bị", Toast.LENGTH_SHORT).show();
             return;
         }
-        if (assetIds.isEmpty() || staffIds.isEmpty()) {
-            Toast.makeText(this, "Dữ liệu chưa tải xong, vui lòng đợi", Toast.LENGTH_SHORT).show();
+        if (selectedStaffId == -1) {
+            Toast.makeText(this, "Vui lòng chọn nhân viên", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        if (TextUtils.isEmpty(displayDate)) {
+            Toast.makeText(this, "Vui lòng chọn ngày bảo trì", Toast.LENGTH_SHORT).show();
             return;
         }
 
-        // Lấy ID dựa trên vị trí đang chọn trong Spinner
-        int selectedAssetId = assetIds.get(spinnerAssets.getSelectedItemPosition());
-        int selectedStaffId = staffIds.get(spinnerStaff.getSelectedItemPosition());
+        // Nếu người dùng nhập tay ngày mà không qua Picker -> apiDate sẽ rỗng -> Parse thủ công
+        if (apiDate.isEmpty()) {
+            try {
+                // Giả sử user nhập đúng dd/MM/yyyy
+                apiDate = apiDateFormat.format(displayDateFormat.parse(displayDate));
+            } catch (Exception e) {
+                apiDate = displayDate; // Fallback
+            }
+        }
 
         btnCreate.setEnabled(false);
         btnCreate.setText("Đang xử lý...");
@@ -146,7 +201,7 @@ public class CreateMaintenanceActivity extends BaseActivity {
         try {
             body.put("asset_id", selectedAssetId);
             body.put("user_id", selectedStaffId);
-            body.put("scheduled_date", date);
+            body.put("scheduled_date", apiDate);
             body.put("description", desc);
         } catch (JSONException e) { e.printStackTrace(); }
 
@@ -157,7 +212,11 @@ public class CreateMaintenanceActivity extends BaseActivity {
                     Toast.makeText(this, "✅ Tạo lịch bảo trì thành công!", Toast.LENGTH_LONG).show();
                     finish(); // Đóng màn hình này, quay về danh sách
                 },
-                error -> Toast.makeText(this, "❌ Lỗi khi tạo lịch", Toast.LENGTH_SHORT).show()
+                error -> {
+                    btnCreate.setEnabled(true);
+                    btnCreate.setText("Tạo lịch & Giao việc");
+                    Toast.makeText(this, "❌ Lỗi khi tạo lịch", Toast.LENGTH_SHORT).show();
+                }
         );
 
         Volley.newRequestQueue(this).add(request);

@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="horizontal"
+    android:gravity="center_vertical"
+    android:paddingVertical="8dp"
+    android:paddingHorizontal="4dp"
+    android:weightSum="10">
+
+    <EditText
+        android:id="@+id/edtTierName"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="2.5"
+        android:hint="Tên bậc"
+        android:textSize="14sp"
+        android:background="@drawable/bg_input_rounded_border"
+        android:padding="8dp"
+        android:layout_marginEnd="4dp"
+        android:inputType="text" />
+
+    <EditText
+        android:id="@+id/edtMin"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1.8"
+        android:hint="Từ"
+        android:inputType="number"
+        android:textSize="14sp"
+        android:background="@drawable/bg_input_rounded_border"
+        android:padding="8dp"
+        android:gravity="center"
+        android:layout_marginEnd="4dp" />
+
+    <EditText
+        android:id="@+id/edtMax"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1.8"
+        android:hint="Đến"
+        android:inputType="number"
+        android:textSize="14sp"
+        android:background="@drawable/bg_input_rounded_border"
+        android:padding="8dp"
+        android:gravity="center"
+        android:layout_marginEnd="4dp" />
+
+    <EditText
+        android:id="@+id/edtPrice"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="2.9"
+        android:hint="Giá"
+        android:inputType="numberDecimal"
+        android:textSize="14sp"
+        android:textStyle="bold"
+        android:textColor="#388E3C"
+        android:background="@drawable/bg_input_rounded_border"
+        android:padding="8dp"
+        android:gravity="end"
+        android:layout_marginEnd="4dp" />
+
+    <ImageView
+        android:id="@+id/btnDelete"
+        android:layout_width="0dp"
+        android:layout_height="32dp"
+        android:layout_weight="1"
+        android:src="@drawable/ic_delete"
+        android:scaleType="centerInside"
+        android:background="?attr/selectableItemBackgroundBorderless"
+        android:contentDescription="Xóa bậc"
+        app:tint="#E53935" />
+
+</LinearLayout>

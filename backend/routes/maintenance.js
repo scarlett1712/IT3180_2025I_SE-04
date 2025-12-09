@@ -142,82 +142,105 @@ router.post("/schedule/update", async (req, res) => {
     client.release();
   }
 });
-
+// 6. Lấy danh sách nhân viên (Staff) để giao việc
 router.get("/staff-list", async (req, res) => {
   try {
-    // Lấy user có role là nhân viên (giả sử role_id = 1 hoặc 3, hoặc lấy hết tùy logic)
-    // Ở đây tôi lấy tất cả user để bạn dễ test, sau này bạn có thể thêm WHERE ur.role_id = ...
+    // Lấy user có role là nhân viên (giả sử role_id = 3 là kỹ thuật viên/nhân viên)
+    // Nếu bạn chưa phân quyền kỹ, có thể lấy tất cả user hoặc lọc theo role_id phù hợp
     const result = await pool.query(`
       SELECT u.user_id, ui.full_name, u.phone
       FROM users u
       JOIN user_item ui ON u.user_id = ui.user_id
+      -- WHERE u.role_id = 3  <-- Bỏ comment nếu muốn lọc đúng role
       ORDER BY ui.full_name ASC
     `);
     res.json(result.rows);
   } catch (err) {
+    console.error(err);
     res.status(500).json({ error: "Lỗi lấy danh sách nhân viên" });
   }
 });
 
-// 7. [USER & ADMIN] Lấy chi tiết thiết bị & Lịch sử
+// 7. [USER & ADMIN] Lấy chi tiết thiết bị & Lịch sử hoạt động
+// API này trả về cả thông tin thiết bị lẫn danh sách lịch sử (Bảo trì + Báo cáo)
 router.get("/asset/:asset_id/details", async (req, res) => {
   const { asset_id } = req.params;
-  const { user_id, role } = req.query; // Thêm tham số role
+  const { user_id, role } = req.query; // role='admin' hoặc không
 
   try {
-    // 1. Lấy thông tin thiết bị
+    // 1. Lấy thông tin cơ bản của thiết bị
     const assetRes = await pool.query("SELECT * FROM asset WHERE asset_id = $1", [asset_id]);
-    if (assetRes.rows.length === 0) return res.status(404).json({ error: "Không tìm thấy thiết bị" });
+
+    if (assetRes.rows.length === 0) {
+      return res.status(404).json({ error: "Không tìm thấy thiết bị" });
+    }
     const assetInfo = assetRes.rows[0];
 
+    // 2. Lấy lịch sử (Logic phân quyền)
     let historyQuery = "";
     let queryParams = [];
 
     if (role === 'admin') {
-      // 🔥 ADMIN: Chỉ lấy Lịch sử bảo trì (Maintenance Schedule)
+      // 🔥 ADMIN: Xem toàn bộ lịch sử BẢO TRÌ (Maintenance Schedule)
+      // Kèm tên người thực hiện (nếu có)
       historyQuery = `
         SELECT
-          schedule_id as id,
-          'Maintenance' as type,
-          status,
-          description,
-          TO_CHAR(scheduled_date, 'YYYY-MM-DD') as date
-        FROM maintenanceschedule
-        WHERE asset_id = $1
-        ORDER BY scheduled_date DESC
+          ms.schedule_id as id,
+          'Maintenance' as type, -- Đánh dấu loại để Frontend phân biệt
+          ms.status,
+          ms.description,
+          ms.result_note as result, -- Kết quả bảo trì
+          TO_CHAR(ms.scheduled_date, 'YYYY-MM-DD HH24:MI:SS') as date,
+          ui.full_name as performer_name -- Tên nhân viên thực hiện
+        FROM maintenanceschedule ms
+        LEFT JOIN users u ON ms.user_id = u.user_id
+        LEFT JOIN user_item ui ON u.user_id = ui.user_id
+        WHERE ms.asset_id = $1
+        ORDER BY ms.scheduled_date DESC
       `;
       queryParams = [asset_id];
 
     } else {
-      // 🔥 USER: Lấy Lịch sử bảo trì + Báo cáo của chính họ
+      // 🔥 USER (Cư dân):
+      // - Xem lịch sử BẢO TRÌ (để biết máy đang sửa hay tốt)
+      // - Xem lịch sử BÁO CÁO SỰ CỐ của CHÍNH HỌ (My Report)
+
       historyQuery = `
+        -- Phần 1: Lịch sử bảo trì (Công khai)
         SELECT
           schedule_id as id,
           'Maintenance' as type,
           status,
           description,
-          TO_CHAR(scheduled_date, 'YYYY-MM-DD') as date
+          result_note as result,
+          TO_CHAR(scheduled_date, 'YYYY-MM-DD HH24:MI:SS') as date,
+          'Ban quản lý' as performer_name -- User không cần biết tên kỹ thuật viên cụ thể
         FROM maintenanceschedule
         WHERE asset_id = $1
 
         UNION ALL
 
+        -- Phần 2: Báo cáo sự cố của chính user đó
         SELECT
           report_id as id,
           'MyReport' as type,
           status,
           description,
-          TO_CHAR(created_at, 'YYYY-MM-DD') as date
+          admin_response as result, -- Phản hồi của admin
+          TO_CHAR(created_at, 'YYYY-MM-DD HH24:MI:SS') as date,
+          'Tôi' as performer_name
         FROM incident_reports
         WHERE asset_id = $1 AND user_id = $2
 
         ORDER BY date DESC
       `;
-      queryParams = [asset_id, user_id];
+      // Param thứ 2 là user_id (để lọc báo cáo của chính họ)
+      queryParams = [asset_id, user_id || 0];
     }
 
     const historyRes = await pool.query(historyQuery, queryParams);
 
+    // Trả về JSON kết hợp
     res.json({
         asset: assetInfo,
         history: historyRes.rows
@@ -225,7 +248,7 @@ router.get("/asset/:asset_id/details", async (req, res) => {
 
   } catch (err) {
     console.error(err);
-    res.status(500).json({ error: "Lỗi lấy chi tiết" });
+    res.status(500).json({ error: "Lỗi lấy chi tiết thiết bị" });
   }
 });
 export default router;

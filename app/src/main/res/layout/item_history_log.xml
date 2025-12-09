@@ -1,0 +1,78 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="horizontal"
+    android:paddingVertical="8dp"
+    android:baselineAligned="false">
+
+    <LinearLayout
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="0.25"
+        android:orientation="vertical"
+        android:gravity="end"
+        android:layout_marginEnd="12dp">
+
+        <TextView
+            android:id="@+id/txtLogDate"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="20/10"
+            android:textStyle="bold"
+            android:textColor="#333"
+            android:textSize="14sp"/>
+
+        <TextView
+            android:id="@+id/txtLogTime"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="14:30"
+            android:textSize="12sp"
+            android:textColor="#757575"/>
+    </LinearLayout>
+
+    <View
+        android:layout_width="2dp"
+        android:layout_height="match_parent"
+        android:background="#E0E0E0"
+        android:layout_marginEnd="12dp"/>
+
+    <LinearLayout
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="0.75"
+        android:orientation="vertical"
+        android:background="@drawable/bg_gray_message_box"
+        android:padding="12dp">
+
+        <TextView
+            android:id="@+id/txtLogAction"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Bảo trì định kỳ"
+            android:textStyle="bold"
+            android:textColor="@color/black"
+            android:textSize="15sp"
+            android:layout_marginBottom="4dp"/>
+
+        <TextView
+            android:id="@+id/txtLogPerformer"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Thực hiện bởi: Nguyễn Văn A"
+            android:textSize="13sp"
+            android:textColor="#555"/>
+
+        <TextView
+            android:id="@+id/txtLogResult"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Đã thay dầu máy và kiểm tra cáp."
+            android:textSize="13sp"
+            android:textColor="#333"
+            android:layout_marginTop="4dp"
+            android:visibility="visible"/>
+    </LinearLayout>
+
+</LinearLayout>

@@ -2,93 +2,169 @@
 <androidx.coordinatorlayout.widget.CoordinatorLayout
     xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@color/white">
+    android:background="#F5F7FA"> <com.google.android.material.appbar.AppBarLayout
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:background="@android:color/transparent"
+    app:elevation="0dp">
 
-    <!-- Thanh AppBar -->
-    <com.google.android.material.appbar.AppBarLayout
+    <com.google.android.material.appbar.MaterialToolbar
+        android:id="@+id/toolbar"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:fitsSystemWindows="true"
-        android:background="?attr/colorPrimary">
+        android:layout_height="?attr/actionBarSize"
+        app:title="@string/notification_detail"
+        app:titleTextColor="@color/white"
+        app:navigationIcon="@drawable/ic_arrow_back" />
+</com.google.android.material.appbar.AppBarLayout>
 
-        <com.google.android.material.appbar.MaterialToolbar
-            android:id="@+id/toolbar"
-            android:layout_width="match_parent"
-            android:layout_height="?attr/actionBarSize"
-            android:title="@string/notification_detail"
-            android:titleTextColor="@android:color/white" />
-    </com.google.android.material.appbar.AppBarLayout>
-
-    <!-- Nội dung cuộn -->
-    <ScrollView
+    <androidx.core.widget.NestedScrollView
         android:id="@+id/scrollView"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:padding="16dp"
-        android:layout_marginBottom="60dp"
         app:layout_behavior="@string/appbar_scrolling_view_behavior">
 
-        <LinearLayout
+        <androidx.constraintlayout.widget.ConstraintLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:orientation="vertical">
+            android:paddingBottom="40dp">
 
-            <!-- Thông tin thông báo -->
-            <TextView
-                android:id="@+id/txtDetailTitle"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:textSize="24sp"
-                android:textStyle="bold"
-                android:textColor="@android:color/black"
-                android:layout_marginBottom="8dp" />
-
-            <TextView
-                android:id="@+id/txtDetailDate"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:textSize="16sp"
-                android:textColor="@android:color/darker_gray"
-                android:layout_marginBottom="8dp" />
-
-            <TextView
-                android:id="@+id/txtDetailSender"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="@string/notification_sender"
-                android:textSize="18sp"
-                android:textColor="@android:color/black"
-                android:layout_marginBottom="12dp" />
-
-            <TextView
-                android:id="@+id/txtDetailContent"
+            <com.google.android.material.card.MaterialCardView
+                android:id="@+id/cardDetail"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:textSize="18sp"
-                android:textColor="@android:color/black"
-                android:layout_marginBottom="20dp" />
+                android:layout_marginHorizontal="16dp"
+                android:layout_marginTop="20dp"
+                app:cardBackgroundColor="@color/white"
+                app:cardCornerRadius="16dp"
+                app:cardElevation="6dp"
+                app:layout_constraintTop_toTopOf="parent"
+                tools:layout_editor_absoluteX="16dp">
 
-            <!-- Khu vực feedback -->
-            <TextView
-                android:id="@+id/txtFeedbackHeader"
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:padding="20dp">
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginBottom="12dp"
+                        android:orientation="horizontal">
+
+                        <ImageView
+                            android:layout_width="16dp"
+                            android:layout_height="16dp"
+                            android:layout_gravity="center_vertical"
+                            android:layout_marginEnd="6dp"
+                            android:src="@drawable/ic_calendar"
+                            app:tint="#757575" />
+
+                        <TextView
+                            android:id="@+id/txtDetailDate"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:textColor="#757575"
+                            android:textSize="14sp"
+                            tools:text="12/05/2025 - 08:30" />
+
+                        <View
+                            android:layout_width="0dp"
+                            android:layout_height="0dp"
+                            android:layout_weight="1" />
+
+                        <TextView
+                            android:id="@+id/txtDetailSender"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="@string/notification_sender"
+                            android:textColor="?attr/colorPrimary"
+                            android:textSize="14sp"
+                            android:textStyle="italic" />
+                    </LinearLayout>
+
+                    <TextView
+                        android:id="@+id/txtDetailTitle"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginBottom="12dp"
+                        android:textColor="@color/black"
+                        android:textSize="22sp"
+                        android:textStyle="bold"
+                        tools:text="Thông báo cắt nước định kỳ khu A" />
+
+                    <View
+                        android:layout_width="match_parent"
+                        android:layout_height="1dp"
+                        android:layout_marginBottom="12dp"
+                        android:background="#EEEEEE" />
+
+                    <TextView
+                        android:id="@+id/txtDetailContent"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:lineSpacingExtra="4dp"
+                        android:textColor="#333333"
+                        android:textSize="16sp"
+                        tools:text="Do sự cố đường ống, chúng tôi sẽ tạm ngưng cung cấp nước..." />
+
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+            <LinearLayout
+                android:id="@+id/layoutFeedbackHeader"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="Phản hồi từ cư dân"
-                android:textStyle="bold"
-                android:textSize="20sp"
-                android:textColor="@color/black"
-                android:layout_marginBottom="8dp" />
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:paddingHorizontal="24dp"
+                android:layout_marginTop="24dp"
+                app:layout_constraintTop_toBottomOf="@+id/cardDetail">
 
-            <TextView
-                android:id="@+id/txtFeedbackCount"
-                android:layout_width="wrap_content"
+                <ImageView
+                    android:layout_width="24dp"
+                    android:layout_height="24dp"
+                    android:src="@drawable/ic_chat_bubble"
+                    app:tint="?attr/colorPrimary"
+                    android:layout_marginEnd="12dp"/>
+
+                <TextView
+                    android:id="@+id/txtFeedbackHeader"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="Phản hồi từ cư dân"
+                    android:textStyle="bold"
+                    android:textSize="18sp"
+                    android:textColor="#333333" />
+
+                <TextView
+                    android:id="@+id/txtFeedbackCount"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    tools:text="5 phản hồi"
+                    android:textSize="14sp"
+                    android:textStyle="bold"
+                    android:textColor="@color/white"
+                    android:background="@drawable/bg_status_rounded"
+                    android:backgroundTint="#FF9800"
+                    android:paddingHorizontal="10dp"
+                    android:paddingVertical="4dp"/>
+            </LinearLayout>
+
+            <androidx.recyclerview.widget.RecyclerView
+                android:id="@+id/recyclerFeedback"
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="Tổng phản hồi: 0"
-                android:textSize="16sp"
-                android:textColor="@color/black"
-                android:layout_marginBottom="8dp" />
+                android:layout_marginTop="12dp"
+                android:nestedScrollingEnabled="false"
+                android:overScrollMode="never"
+                android:clipToPadding="false"
+                android:paddingHorizontal="16dp"
+                app:layout_constraintTop_toBottomOf="@+id/layoutFeedbackHeader" />
 
             <LinearLayout
                 android:id="@+id/layoutEmpty"
@@ -97,26 +173,25 @@
                 android:orientation="vertical"
                 android:gravity="center"
                 android:visibility="gone"
-                android:padding="24dp">
+                android:padding="32dp"
+                app:layout_constraintTop_toBottomOf="@+id/layoutFeedbackHeader">
+
+                <ImageView
+                    android:layout_width="48dp"
+                    android:layout_height="48dp"
+                    android:src="@drawable/ic_chat_bubble"
+                    app:tint="#CCCCCC"
+                    android:layout_marginBottom="8dp"/>
 
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="Chưa có phản hồi nào"
-                    android:textColor="@android:color/darker_gray"
+                    android:textColor="#999999"
                     android:textSize="16sp" />
             </LinearLayout>
 
-            <!-- Danh sách feedback -->
-            <androidx.recyclerview.widget.RecyclerView
-                android:id="@+id/recyclerFeedback"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginBottom="16dp"
-                android:nestedScrollingEnabled="false"
-                android:overScrollMode="never" />
-
-        </LinearLayout>
-    </ScrollView>
+        </androidx.constraintlayout.widget.ConstraintLayout>
+    </androidx.core.widget.NestedScrollView>
 
 </androidx.coordinatorlayout.widget.CoordinatorLayout>
