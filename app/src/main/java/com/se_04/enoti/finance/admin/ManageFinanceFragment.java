@@ -161,7 +161,7 @@ public class ManageFinanceFragment extends Fragment {
                 if (cardStatsContainer != null) cardStatsContainer.setVisibility(View.GONE);
 
                 // 3. Đổi màu chữ danh sách cho dễ nhìn (nếu cần)
-                if (textList != null) textList.setTextColor(Color.BLACK); // Nên để đen cho nền trắng
+                if (textList != null) textList.setTextColor(Color.WHITE); // Nên để đen cho nền trắng
 
                 // 4. Đảm bảo nút Xuất Excel HIỆN
                 if (btnExportExcel != null) btnExportExcel.setVisibility(View.VISIBLE);
@@ -185,8 +185,7 @@ public class ManageFinanceFragment extends Fragment {
         String username = (currentUser != null) ? currentUser.getName() : "Admin";
 
         // Thêm prefix chức vụ
-        String prefix = (currentUser != null && currentUser.getRole() == Role.ACCOUNTANT) ? "Kế toán " : "";
-        txtWelcome.setText("Xin chào " + prefix + username + "!");
+        txtWelcome.setText("Xin chào " + username + "!");
 
         Calendar calendar = Calendar.getInstance();
         int hour = calendar.get(Calendar.HOUR_OF_DAY);
