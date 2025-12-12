@@ -1,7 +1,9 @@
 package com.se_04.enoti.home.accountant;
 
 import android.content.Intent;
+import android.graphics.Color;
 import android.os.Bundle;
+import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -13,8 +15,9 @@ import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
-import androidx.core.content.ContextCompat;
+import androidx.core.widget.NestedScrollView;
 import androidx.fragment.app.Fragment;
+import androidx.swiperefreshlayout.widget.SwipeRefreshLayout;
 
 import com.android.volley.Request;
 import com.android.volley.toolbox.JsonObjectRequest;
@@ -26,12 +29,14 @@ import com.github.mikephil.charting.data.BarDataSet;
 import com.github.mikephil.charting.data.BarEntry;
 import com.github.mikephil.charting.formatter.IndexAxisValueFormatter;
 import com.se_04.enoti.R;
+import com.se_04.enoti.account.UserItem;
 import com.se_04.enoti.finance.admin.BulkUtilityBillActivity;
 import com.se_04.enoti.finance.admin.ConfigRatesActivity;
 import com.se_04.enoti.finance.admin.CreateFinanceActivity;
 import com.se_04.enoti.utils.ApiConfig;
+import com.se_04.enoti.utils.UserManager;
 
-import org.json.JSONArray;
+import org.json.JSONException;
 import org.json.JSONObject;
 
 import java.text.NumberFormat;
@@ -42,13 +47,21 @@ import java.util.Locale;
 
 public class HomeFragment_Accountant extends Fragment {
 
-    // Views
-    private TextView txtTotalRevenue, txtTotalExpense;
-    private Spinner spinnerMonth, spinnerYear;
-    private BarChart barChart;
+    private SwipeRefreshLayout swipeRefreshLayout;
 
-    // 🔥 Đã thêm btnApprovePayment vào danh sách biến
-    private LinearLayout btnCreateFee, btnUtility, btnConfigPrice, btnApprovePayment;
+    // Texts
+    private TextView txtTotalRevenue, txtTotalExpense;
+
+    // Chart + Spinners
+    private BarChart barChart;
+    private Spinner spinnerMonth, spinnerYear;
+
+    // Buttons
+    private LinearLayout btnCreateFee, btnUtility, btnApprovePayment, btnConfigPrice;
+
+    // Time filters
+    private int selectedMonth = 0;
+    private int selectedYear = Calendar.getInstance().get(Calendar.YEAR);
 
     @Nullable
     @Override
@@ -56,135 +69,170 @@ public class HomeFragment_Accountant extends Fragment {
         View view = inflater.inflate(R.layout.fragment_home_accountant, container, false);
 
         initViews(view);
+        setupWelcomeViews(view);
         setupSpinners();
+        setupChart();
         setupActions();
 
-        // Tải dữ liệu mặc định (tháng hiện tại)
-        fetchDashboardData();
+        loadFinancialStats();
 
         return view;
     }
 
     private void initViews(View view) {
-        // Thống kê text
+        swipeRefreshLayout = view.findViewById(R.id.swipeRefreshLayout);
+
         txtTotalRevenue = view.findViewById(R.id.txtTotalRevenue);
         txtTotalExpense = view.findViewById(R.id.txtTotalExpense);
 
-        // Spinners & Chart
-        spinnerMonth = view.findViewById(R.id.spinner_month);
-        spinnerYear = view.findViewById(R.id.spinner_year);
         barChart = view.findViewById(R.id.barChart);
 
-        // Các nút chức năng (LinearLayout)
+        spinnerMonth = view.findViewById(R.id.spinner_month);
+        spinnerYear = view.findViewById(R.id.spinner_year);
+
         btnCreateFee = view.findViewById(R.id.btnCreateFee);
         btnUtility = view.findViewById(R.id.btnUtility);
+        btnApprovePayment = view.findViewById(R.id.btnApprovePayment);
         btnConfigPrice = view.findViewById(R.id.btnConfigPrice);
+
+        swipeRefreshLayout.setOnRefreshListener(this::loadFinancialStats);
     }
 
     private void setupSpinners() {
-        // 1. Setup Spinner Năm (5 năm gần nhất)
+        // Setup năm
         int currentYear = Calendar.getInstance().get(Calendar.YEAR);
         List<String> years = new ArrayList<>();
         for (int i = 0; i < 5; i++) {
             years.add(String.valueOf(currentYear - i));
         }
+
         if (getContext() != null) {
-            ArrayAdapter<String> yearAdapter = new ArrayAdapter<>(getContext(), android.R.layout.simple_spinner_item, years);
+            ArrayAdapter<String> yearAdapter = new ArrayAdapter<>(getContext(),
+                    android.R.layout.simple_spinner_item, years);
             yearAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
             spinnerYear.setAdapter(yearAdapter);
         }
 
-        // 2. Chọn mặc định tháng hiện tại
-        int currentMonth = Calendar.getInstance().get(Calendar.MONTH); // 0-11
+        // Tháng hiện tại
+        int currentMonth = Calendar.getInstance().get(Calendar.MONTH);
         spinnerMonth.setSelection(currentMonth);
+
+        spinnerMonth.setOnItemSelectedListener(new android.widget.AdapterView.OnItemSelectedListener() {
+            @Override public void onItemSelected(android.widget.AdapterView<?> parent, View view, int pos, long id) {
+                selectedMonth = pos;
+                loadFinancialStats();
+            }
+            @Override public void onNothingSelected(android.widget.AdapterView<?> parent) {}
+        });
+
+        spinnerYear.setOnItemSelectedListener(new android.widget.AdapterView.OnItemSelectedListener() {
+            @Override public void onItemSelected(android.widget.AdapterView<?> parent, View view, int pos, long id) {
+                selectedYear = Integer.parseInt(parent.getItemAtPosition(pos).toString());
+                loadFinancialStats();
+            }
+            @Override public void onNothingSelected(android.widget.AdapterView<?> parent) {}
+        });
     }
 
     private void setupActions() {
-        // 1. Tạo khoản thu mới
         btnCreateFee.setOnClickListener(v ->
                 startActivity(new Intent(getActivity(), CreateFinanceActivity.class)));
 
-        // 2. Chốt số Điện/Nước
         btnUtility.setOnClickListener(v ->
                 startActivity(new Intent(getActivity(), BulkUtilityBillActivity.class)));
 
-        // 4. Cấu hình đơn giá
+        btnApprovePayment.setOnClickListener(v ->
+                Toast.makeText(getContext(), "Tính năng duyệt tiền đang được phát triển", Toast.LENGTH_SHORT).show());
+
         btnConfigPrice.setOnClickListener(v ->
                 startActivity(new Intent(getActivity(), ConfigRatesActivity.class)));
     }
 
-    // --- API & DATA ---
+    // ------------------------------
+    //  🔥 CẤU HÌNH CHART NHƯ ADMIN
+    // ------------------------------
+    private void setupChart() {
+        barChart.getDescription().setEnabled(false);
+        barChart.setDrawValueAboveBar(true);
+        barChart.setPinchZoom(false);
+        barChart.setScaleEnabled(false);
+        barChart.getAxisRight().setEnabled(false);
 
-    private void fetchDashboardData() {
-        if (getContext() == null) return;
+        XAxis xAxis = barChart.getXAxis();
+        xAxis.setPosition(XAxis.XAxisPosition.BOTTOM);
+        xAxis.setGranularity(1f);
+        xAxis.setDrawGridLines(false);
+        xAxis.setValueFormatter(new IndexAxisValueFormatter(new String[]{"Thu", "Chi"}));
+    }
 
-        // Lấy tháng/năm đang chọn
-        int month = spinnerMonth.getSelectedItemPosition() + 1;
-        Object selectedYear = spinnerYear.getSelectedItem();
-        String year = (selectedYear != null) ? selectedYear.toString() : String.valueOf(Calendar.getInstance().get(Calendar.YEAR));
-
-        String url = ApiConfig.BASE_URL + "/api/finance/dashboard?month=" + month + "&year=" + year;
+    // ------------------------------
+    //  🔥 TẢI THỐNG KÊ
+    // ------------------------------
+    private void loadFinancialStats() {
+        String url = ApiConfig.BASE_URL + "/api/finance/statistics";
+        url += "?year=" + selectedYear;
+        if (selectedMonth > 0) url += "&month=" + selectedMonth;
 
         JsonObjectRequest request = new JsonObjectRequest(Request.Method.GET, url, null,
                 response -> {
                     try {
-                        // 1. Hiển thị Tổng Thu / Tổng Chi
-                        double revenue = response.optDouble("total_revenue", 0);
-                        double expense = response.optDouble("total_expense", 0);
+                        double revenue = response.getDouble("revenue");
+                        double expense = response.getDouble("expense");
 
                         NumberFormat formatter = NumberFormat.getCurrencyInstance(new Locale("vi", "VN"));
                         txtTotalRevenue.setText(formatter.format(revenue));
                         txtTotalExpense.setText(formatter.format(expense));
 
-                        // 2. Vẽ biểu đồ
-                        if (response.has("chart_data")) {
-                            setupChart(response.getJSONArray("chart_data"));
-                        }
+                        updateChart(revenue, expense);
 
-                    } catch (Exception e) {
-                        e.printStackTrace();
-                    }
+                    } catch (JSONException e) { e.printStackTrace(); }
+
+                    if (swipeRefreshLayout != null) swipeRefreshLayout.setRefreshing(false);
                 },
                 error -> {
-                    // Không cần Toast lỗi mỗi lần mở app để tránh phiền người dùng nếu mạng chậm
-                }
-        );
+                    Log.e("Stats", "Error: " + error.getMessage());
+                    if (swipeRefreshLayout != null) swipeRefreshLayout.setRefreshing(false);
+                });
 
-        Volley.newRequestQueue(getContext()).add(request);
+        Volley.newRequestQueue(requireContext()).add(request);
     }
 
-    private void setupChart(JSONArray data) {
-        if (getContext() == null) return;
-
+    // ------------------------------
+    //  🔥 UPDATE CHART GIỐNG ADMIN
+    // ------------------------------
+    private void updateChart(double revenue, double expense) {
         ArrayList<BarEntry> entries = new ArrayList<>();
-        final ArrayList<String> labels = new ArrayList<>();
+        entries.add(new BarEntry(0f, (float) revenue));
+        entries.add(new BarEntry(1f, (float) expense));
 
-        try {
-            for (int i = 0; i < data.length(); i++) {
-                JSONObject obj = data.getJSONObject(i);
-                float amount = (float) obj.optDouble("amount", 0);
-                entries.add(new BarEntry(i, amount));
-                labels.add(obj.optString("day"));
-            }
-        } catch (Exception e) { e.printStackTrace(); }
+        BarDataSet dataSet = new BarDataSet(entries, "Thống kê Thu/Chi");
+        dataSet.setColors(Color.parseColor("#4CAF50"), Color.parseColor("#F44336"));
+        dataSet.setValueTextSize(14f);
+        dataSet.setValueTextColor(Color.BLACK);
 
-        BarDataSet dataSet = new BarDataSet(entries, "Doanh thu ngày");
-        // Sử dụng ContextCompat để lấy màu an toàn hơn
-        dataSet.setColor(ContextCompat.getColor(getContext(), R.color.purple_primary));
-        dataSet.setValueTextSize(10f);
+        BarData data = new BarData(dataSet);
+        data.setBarWidth(0.5f);
 
-        BarData barData = new BarData(dataSet);
-        barChart.setData(barData);
+        barChart.setData(data);
+        barChart.animateY(800);
+        barChart.invalidate();
+    }
+    private void setupWelcomeViews(View view) {
+        TextView txtWelcome = view.findViewById(R.id.txtWelcome);
+        TextView txtGreeting = view.findViewById(R.id.txtGreeting);
 
-        // Cấu hình trục X
-        XAxis xAxis = barChart.getXAxis();
-        xAxis.setValueFormatter(new IndexAxisValueFormatter(labels));
-        xAxis.setPosition(XAxis.XAxisPosition.BOTTOM);
-        xAxis.setGranularity(1f);
-        xAxis.setDrawGridLines(false);
+        UserItem currentUser = UserManager.getInstance(requireContext()).getCurrentUser();
+        String username = (currentUser != null && currentUser.getName() != null)
+                ? currentUser.getName()
+                : "Cư dân";
 
-        barChart.getDescription().setEnabled(false);
-        barChart.animateY(1000);
-        barChart.invalidate(); // Refresh
+        txtWelcome.setText(getString(R.string.welcome, username));
+
+        Calendar calendar = Calendar.getInstance();
+        int hour = calendar.get(Calendar.HOUR_OF_DAY);
+        String timeOfDay = (hour >= 5 && hour < 11) ? "sáng" :
+                (hour >= 11 && hour < 14) ? "trưa" :
+                        (hour >= 14 && hour < 18) ? "chiều" : "tối";
+        txtGreeting.setText(getString(R.string.greeting, timeOfDay));
     }
 }

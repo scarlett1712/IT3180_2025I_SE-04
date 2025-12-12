@@ -24,10 +24,10 @@
 
                 <RelativeLayout
                     android:layout_width="match_parent"
-                    android:layout_height="250dp"
+                    android:layout_height="220dp"
                     android:background="@drawable/bg_header_curved"
                     android:paddingHorizontal="24dp"
-                    android:paddingTop="100dp">
+                    android:paddingTop="75dp">
 
                     <TextView
                         android:id="@+id/txtWelcome"

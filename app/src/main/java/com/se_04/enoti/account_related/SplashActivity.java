@@ -33,7 +33,9 @@ import androidx.core.content.FileProvider; // 🔥 THÊM MỚI
 import com.se_04.enoti.R; // 🔥 Cần R.layout.dialog_progress (Tôi sẽ giả định bạn tự tạo)
 import com.se_04.enoti.account.Role;
 import com.se_04.enoti.account.UserItem;
+import com.se_04.enoti.home.accountant.MainActivity_Accountant;
 import com.se_04.enoti.home.admin.MainActivity_Admin;
+import com.se_04.enoti.home.agency.MainActivity_Agency;
 import com.se_04.enoti.home.user.MainActivity_User;
 import com.se_04.enoti.utils.BaseActivity;
 import com.se_04.enoti.utils.UserManager;
@@ -418,7 +420,12 @@ public class SplashActivity extends BaseActivity {
         if (userManager.isLoggedIn() && user != null) {
             if (user.getRole() == Role.ADMIN) {
                 startActivity(new Intent(this, MainActivity_Admin.class));
-            } else {
+            } else if (user.getRole() == Role.ACCOUNTANT) {
+                startActivity(new Intent(this, MainActivity_Accountant.class));
+            } else if (user.getRole() == Role.AGENCY) {
+                startActivity(new Intent(this, MainActivity_Agency.class));
+            }
+            else {
                 startActivity(new Intent(this, MainActivity_User.class));
             }
         } else {

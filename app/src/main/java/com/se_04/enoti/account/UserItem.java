@@ -2,9 +2,11 @@ package com.se_04.enoti.account;
 
 import org.json.JSONObject;
 
+import java.io.Serializable;
+
 import javax.annotation.Nullable;
 
-public class UserItem {
+public class UserItem implements Serializable {
     private final String id;
     private final String familyId;
     private final String email;

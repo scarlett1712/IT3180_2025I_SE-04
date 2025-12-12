@@ -36,12 +36,13 @@ import com.github.mikephil.charting.formatter.IndexAxisValueFormatter;
 import com.google.android.material.floatingactionbutton.ExtendedFloatingActionButton;
 
 import com.se_04.enoti.R;
+import com.se_04.enoti.account.Role;
 import com.se_04.enoti.account.UserItem;
 import com.se_04.enoti.finance.FinanceAdapter;
 import com.se_04.enoti.finance.FinanceItem;
 import com.se_04.enoti.finance.FinanceRepository;
 import com.se_04.enoti.utils.ApiConfig;
-import com.se_04.enoti.utils.DataCacheManager; // 🔥 Import Cache
+import com.se_04.enoti.utils.DataCacheManager;
 import com.se_04.enoti.utils.UserManager;
 
 import org.json.JSONArray;
@@ -62,15 +63,19 @@ public class ManageFinanceFragment extends Fragment {
     private TextView txtRevenue, txtExpense;
     private BarChart barChart;
     private SearchView searchView;
-    private Spinner spinnerFilterType;
-    private Spinner spinnerMonth;
-    private Spinner spinnerYear;
+    private Spinner spinnerFilterType, spinnerMonth, spinnerYear;
     private ExtendedFloatingActionButton btnUtility, btnAdd;
     private RecyclerView recyclerView;
 
+    // 🔥 Các View cần ẩn
+    private View cardStatsContainer;      // CardView biểu đồ
+    private View lblFinanceStatsHeader;   // Dòng chữ "Quản lý tài chính"
+    private View layoutFabContainer;      // Layout chứa các nút thêm mới
+    private TextView textList;
+
     // --- Data & Logic ---
     private FinanceAdapter adapter;
-    private final List<FinanceItem> allFinances = new ArrayList<>(); // Danh sách gốc
+    private final List<FinanceItem> allFinances = new ArrayList<>();
 
     private int selectedMonth = 0;
     private int selectedYear = Calendar.getInstance().get(Calendar.YEAR);
@@ -92,12 +97,16 @@ public class ManageFinanceFragment extends Fragment {
 
         initViews(view);
         setupWelcome(view);
+
+        // 🔥 KIỂM TRA ROLE VÀ ẨN GIAO DIỆN
+        setupRoleBasedUI();
+
         setupChart();
         setupRecyclerView();
         setupTimeFilters();
         setupOtherListeners();
 
-        loadAllData(); // Tải lần đầu (Cache + API)
+        loadAllData();
 
         return view;
     }
@@ -107,18 +116,46 @@ public class ManageFinanceFragment extends Fragment {
         txtRevenue = view.findViewById(R.id.txtTotalRevenue);
         txtExpense = view.findViewById(R.id.txtTotalExpense);
         barChart = view.findViewById(R.id.barChart);
-
         searchView = view.findViewById(R.id.search_view);
         spinnerFilterType = view.findViewById(R.id.spinner_filter);
         spinnerMonth = view.findViewById(R.id.spinner_month);
         spinnerYear = view.findViewById(R.id.spinner_year);
+        recyclerView = view.findViewById(R.id.recyclerViewManageFinance);
+
+        // Các nút FAB lẻ (nếu cần dùng)
         btnAdd = view.findViewById(R.id.btnAddReceipt);
         btnUtility = view.findViewById(R.id.btnUtility);
-        recyclerView = view.findViewById(R.id.recyclerViewManageFinance);
+
+        // 🔥 ÁNH XẠ CÁC PHẦN CẦN ẨN (KHỚP VỚI XML MỚI)
+        cardStatsContainer = view.findViewById(R.id.card_stats_container);
+        lblFinanceStatsHeader = view.findViewById(R.id.lbl_finance_stats_header);
+        layoutFabContainer = view.findViewById(R.id.layout_fab_container);
+        textList = view.findViewById(R.id.textList);
 
         if (swipeRefreshLayout != null) {
             swipeRefreshLayout.setColorSchemeResources(R.color.purple_primary, android.R.color.holo_green_light);
             swipeRefreshLayout.setOnRefreshListener(this::loadAllData);
+        }
+    }
+
+    private void setupRoleBasedUI() {
+        UserItem currentUser = UserManager.getInstance(requireContext()).getCurrentUser();
+
+        // Nếu là Kế Toán, ẨN các phần không cần thiết
+        if (currentUser != null && currentUser.getRole() == Role.ACCOUNTANT) {
+
+            // 1. Ẩn dòng chữ "Quản lý tài chính"
+            if (lblFinanceStatsHeader != null) lblFinanceStatsHeader.setVisibility(View.GONE);
+
+            // 2. Ẩn CardView Thống kê
+            if (cardStatsContainer != null) cardStatsContainer.setVisibility(View.GONE);
+
+            if (textList != null) textList.setTextColor(Color.WHITE);
+        }
+
+        if (currentUser != null && currentUser.getRole() == Role.ADMIN){
+            // 3. Ẩn các nút thêm mới (Vì HomeFragment_Accountant đã có nút riêng)
+            if (layoutFabContainer != null) layoutFabContainer.setVisibility(View.GONE);
         }
     }
 
@@ -128,6 +165,8 @@ public class ManageFinanceFragment extends Fragment {
 
         UserItem currentUser = UserManager.getInstance(requireContext()).getCurrentUser();
         String username = (currentUser != null) ? currentUser.getName() : "Admin";
+
+        // Thêm chữ "Kế toán" vào trước tên
         txtWelcome.setText("Xin chào " + username + "!");
 
         Calendar calendar = Calendar.getInstance();
@@ -137,6 +176,9 @@ public class ManageFinanceFragment extends Fragment {
     }
 
     private void setupChart() {
+        // Nếu View đã ẩn thì không cần setup
+        if (barChart == null || (cardStatsContainer != null && cardStatsContainer.getVisibility() == View.GONE)) return;
+
         barChart.getDescription().setEnabled(false);
         barChart.setDrawValueAboveBar(true);
         barChart.setPinchZoom(false);
@@ -157,6 +199,9 @@ public class ManageFinanceFragment extends Fragment {
     }
 
     private void setupTimeFilters() {
+        // Nếu là kế toán (đã ẩn chart) thì không cần setup Spinner tháng/năm
+        if (cardStatsContainer != null && cardStatsContainer.getVisibility() == View.GONE) return;
+
         List<String> years = new ArrayList<>();
         int currentYear = Calendar.getInstance().get(Calendar.YEAR);
         for (int i = currentYear - 2; i <= currentYear + 2; i++) {
@@ -180,8 +225,7 @@ public class ManageFinanceFragment extends Fragment {
         spinnerYear.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
             @Override
             public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
-                String yearStr = parent.getItemAtPosition(position).toString();
-                selectedYear = Integer.parseInt(yearStr);
+                selectedYear = Integer.parseInt(parent.getItemAtPosition(position).toString());
                 loadFinancialStats();
             }
             @Override public void onNothingSelected(AdapterView<?> parent) {}
@@ -189,15 +233,19 @@ public class ManageFinanceFragment extends Fragment {
     }
 
     private void setupOtherListeners() {
-        btnAdd.setOnClickListener(v -> {
-            Intent intent = new Intent(getActivity(), CreateFinanceActivity.class);
-            addFinanceLauncher.launch(intent);
-        });
+        if (btnAdd != null) {
+            btnAdd.setOnClickListener(v -> {
+                Intent intent = new Intent(getActivity(), CreateFinanceActivity.class);
+                addFinanceLauncher.launch(intent);
+            });
+        }
 
-        btnUtility.setOnClickListener(v -> {
-            Intent intent = new Intent(getActivity(), BulkUtilityBillActivity.class);
-            addFinanceLauncher.launch(intent);
-        });
+        if (btnUtility != null) {
+            btnUtility.setOnClickListener(v -> {
+                Intent intent = new Intent(getActivity(), BulkUtilityBillActivity.class);
+                addFinanceLauncher.launch(intent);
+            });
+        }
 
         searchView.setOnQueryTextListener(new SearchView.OnQueryTextListener() {
             @Override
@@ -209,49 +257,40 @@ public class ManageFinanceFragment extends Fragment {
         spinnerFilterType.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
             @Override
             public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
-                String selectedType = parent.getItemAtPosition(position).toString();
-                adapter.filterByType(selectedType);
+                adapter.filterByType(parent.getItemAtPosition(position).toString());
             }
             @Override public void onNothingSelected(AdapterView<?> parent) {}
         });
     }
 
-    // --- MAIN LOADER ---
     private void loadAllData() {
         if (swipeRefreshLayout != null) swipeRefreshLayout.setRefreshing(true);
         loadFinanceList();
-        loadFinancialStats();
+
+        // Chỉ tải dữ liệu biểu đồ nếu container đang hiển thị
+        if (cardStatsContainer != null && cardStatsContainer.getVisibility() == View.VISIBLE) {
+            loadFinancialStats();
+        }
     }
 
     private void loadFinanceList() {
-        // 🔥 1. Load Cache trước để hiện ngay lập tức
         loadFinanceFromCache();
-
-        // 2. Gọi API tải mới
         FinanceRepository.getInstance().fetchAdminFinances(requireContext(),
                 new FinanceRepository.FinanceCallback() {
                     @Override
                     public void onSuccess(List<FinanceItem> finances) {
                         if (!isAdded()) return;
-
-                        // 🔥 Lưu vào Cache
                         saveFinanceToCache(finances);
-
-                        // Cập nhật UI
                         updateListUI(finances);
                         if (swipeRefreshLayout != null) swipeRefreshLayout.setRefreshing(false);
                     }
-
                     @Override
                     public void onError(String message) {
                         if (swipeRefreshLayout != null) swipeRefreshLayout.setRefreshing(false);
-                        // Log.e("ManageFinance", "List Error: " + message);
-                        // Lỗi thì thôi, cache đã hiển thị rồi
                     }
                 });
     }
 
-    // 🔥 Helper: Đọc Cache và Parse JSON thành List<FinanceItem>
     private void loadFinanceFromCache() {
         if (getContext() == null) return;
         String data = DataCacheManager.getInstance(getContext()).readCache(DataCacheManager.CACHE_FINANCE);
@@ -259,39 +298,24 @@ public class ManageFinanceFragment extends Fragment {
             try {
                 JSONArray jsonArray = new JSONArray(data);
                 List<FinanceItem> cachedList = new ArrayList<>();
-
                 for (int i = 0; i < jsonArray.length(); i++) {
                     JSONObject obj = jsonArray.getJSONObject(i);
                     FinanceItem item = new FinanceItem();
-
-                    // Parse thủ công từng trường
                     item.setId(obj.optInt("id"));
                     item.setTitle(obj.optString("title"));
-
-                    // Xử lý giá tiền (long)
                     item.setPrice(obj.has("amount") ? obj.optLong("amount") : 0);
-
                     item.setType(obj.optString("type"));
                     item.setDate(obj.optString("date"));
                     item.setStatus(obj.optString("status"));
-
-                    // Các trường admin
                     item.setPaidRooms(obj.optInt("paid_rooms"));
                     item.setTotalRooms(obj.optInt("total_rooms"));
-
                     cachedList.add(item);
                 }
-
-                // Cập nhật UI với dữ liệu cache
                 updateListUI(cachedList);
-
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
+            } catch (Exception e) { e.printStackTrace(); }
         }
     }
 
-    // 🔥 Helper: Lưu Cache (List -> JSON String)
     private void saveFinanceToCache(List<FinanceItem> list) {
         if (getContext() == null) return;
         try {
@@ -300,15 +324,12 @@ public class ManageFinanceFragment extends Fragment {
                 JSONObject obj = new JSONObject();
                 obj.put("id", item.getId());
                 obj.put("title", item.getTitle());
-                obj.put("amount", item.getPrice()); // Lưu ý: dùng getPrice()
+                obj.put("amount", item.getPrice());
                 obj.put("type", item.getType());
                 obj.put("date", item.getDate());
                 obj.put("status", item.getStatus());
-
-                // Lưu thêm thông tin thống kê admin
                 obj.put("paid_rooms", item.getPaidRooms());
                 obj.put("total_rooms", item.getTotalRooms());
-
                 array.put(obj);
             }
             DataCacheManager.getInstance(getContext()).saveCache(DataCacheManager.CACHE_FINANCE, array.toString());
@@ -324,7 +345,6 @@ public class ManageFinanceFragment extends Fragment {
                 allFinances.add(item);
             }
         }
-        // Sắp xếp giảm dần theo ID
         allFinances.sort((f1, f2) -> f2.getId() - f1.getId());
 
         if (adapter != null) {
@@ -335,38 +355,31 @@ public class ManageFinanceFragment extends Fragment {
         }
     }
 
-    // --- API 2: Tải thống kê biểu đồ (Theo Tháng/Năm) ---
     private void loadFinancialStats() {
-        // ... (Giữ nguyên logic load chart cũ của bạn) ...
+        if (cardStatsContainer == null || cardStatsContainer.getVisibility() == View.GONE) return;
+
         String url = ApiConfig.BASE_URL + "/api/finance/statistics";
         url += "?year=" + selectedYear;
-        if (selectedMonth > 0) {
-            url += "&month=" + selectedMonth;
-        }
+        if (selectedMonth > 0) url += "&month=" + selectedMonth;
 
         JsonObjectRequest request = new JsonObjectRequest(Request.Method.GET, url, null,
                 response -> {
                     try {
                         double revenue = response.getDouble("revenue");
                         double expense = response.getDouble("expense");
-
                         NumberFormat formatter = NumberFormat.getCurrencyInstance(new Locale("vi", "VN"));
                         if (txtRevenue != null) txtRevenue.setText(formatter.format(revenue));
                         if (txtExpense != null) txtExpense.setText(formatter.format(expense));
-
                         updateChart(revenue, expense);
-
                     } catch (JSONException e) { e.printStackTrace(); }
                 },
-                error -> Log.e("Stats", "Error loading stats: " + error.getMessage())
+                error -> Log.e("Stats", "Error: " + error.getMessage())
         );
-
         Volley.newRequestQueue(requireContext()).add(request);
     }
 
     private void updateChart(double revenue, double expense) {
         if (barChart == null) return;
-
         ArrayList<BarEntry> entries = new ArrayList<>();
         entries.add(new BarEntry(0f, (float) revenue));
         entries.add(new BarEntry(1f, (float) expense));
@@ -375,10 +388,8 @@ public class ManageFinanceFragment extends Fragment {
         dataSet.setColors(Color.parseColor("#4CAF50"), Color.parseColor("#F44336"));
         dataSet.setValueTextSize(14f);
         dataSet.setValueTextColor(Color.BLACK);
-
         BarData data = new BarData(dataSet);
         data.setBarWidth(0.5f);
-
         barChart.setData(data);
         barChart.animateY(800);
         barChart.invalidate();

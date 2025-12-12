@@ -68,15 +68,13 @@ public class LogInActivity extends BaseActivity {
                 editTextPassword.getText().toString().trim()
         ));
 
-        textViewForgotPassword.setOnClickListener(v -> {
-            Intent intent = new Intent(LogInActivity.this, ForgetPasswordEnterPhoneActivity.class);
-            startActivity(intent);
-        });
+        textViewForgotPassword.setOnClickListener(v ->
+                startActivity(new Intent(LogInActivity.this, ForgetPasswordEnterPhoneActivity.class))
+        );
 
-        textViewRegister.setOnClickListener(v -> {
-            Intent intent = new Intent(LogInActivity.this, RegisterActivity.class);
-            startActivity(intent);
-        });
+        textViewRegister.setOnClickListener(v ->
+                startActivity(new Intent(LogInActivity.this, RegisterActivity.class))
+        );
     }
 
     private void handleLogin(String phone, String password) {
@@ -230,40 +228,29 @@ public class LogInActivity extends BaseActivity {
                         Toast.makeText(this, "Yêu cầu đăng nhập bị từ chối.", Toast.LENGTH_LONG).show();
                     }
                 },
-                error -> { }
+                error -> {}
         );
         Volley.newRequestQueue(this).add(request);
     }
 
+    // Trong LogInActivity.java
     private void processLoginSuccess(JSONObject response) {
         try {
-            // BƯỚC 1: KIỂM TRA VÀ LẤY TOKEN. ĐÂY LÀ BƯỚC QUAN TRỌNG NHẤT.
-            String sessionToken = response.optString("session_token", null);
-            if (sessionToken == null || sessionToken.isEmpty() || sessionToken.equals("null")) {
-                Toast.makeText(this, "Lỗi nghiêm trọng: Server không trả về token hợp lệ.", Toast.LENGTH_LONG).show();
-                Log.e("LoginError", "Token is null or empty from server response.");
-                return; // Dừng lại ngay lập tức nếu không có token
-            }
-
-            // BƯỚC 2: LƯU TOKEN VÀO BỘ NHỚ NGAY LẬP TỨC
-            // Phải thực hiện trước khi khởi chạy bất kỳ Activity hay Fragment nào khác.
+            // ... (lưu token như cũ)
+            String sessionToken = response.optString("session_token", "");
             UserManager.getInstance(getApplicationContext()).saveAuthToken(sessionToken);
 
-            // BƯỚC 3: KIỂM TRA VÀ PHÂN TÍCH DỮ LIỆU NGƯỜI DÙNG
-            if (!response.has("user")) {
-                Toast.makeText(this, "Lỗi: Dữ liệu người dùng không tồn tại.", Toast.LENGTH_SHORT).show();
-                return;
-            }
+            // TẠO USER MỚI VỚI LOGIC ĐÃ SỬA CỦA BẠN
             JSONObject userJson = response.getJSONObject("user");
             UserItem user = UserItem.fromJson(userJson);
 
-            // BƯỚC 4: LƯU TOÀN BỘ THÔNG TIN NGƯỜI DÙNG
+            // LƯU USER MỚI NÀY XUỐNG SharedPreferences
             UserManager.getInstance(getApplicationContext()).saveCurrentUser(user);
             UserManager.getInstance(getApplicationContext()).setLoggedIn(true);
 
             Toast.makeText(this, "Đăng nhập thành công!", Toast.LENGTH_SHORT).show();
 
-            // BƯỚC 5: ĐIỀU HƯỚNG DỰA TRÊN VAI TRÒ
+            // ĐIỀU HƯỚNG DỰA TRÊN USER MỚI
             Intent intent;
             Role userRole = user.getRole();
 
@@ -271,22 +258,21 @@ public class LogInActivity extends BaseActivity {
                 intent = new Intent(this, MainActivity_Admin.class);
             } else if (userRole == Role.ACCOUNTANT) {
                 intent = new Intent(this, MainActivity_Accountant.class);
-            } else if (userRole == Role.AGENCY) {
-                intent = new Intent(this, MainActivity_Agency.class);
             } else {
                 intent = new Intent(this, MainActivity_User.class);
             }
 
-            intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
+            // 🔥 BƯỚC QUAN TRỌNG: GỬI KÈM USER MỚI QUA INTENT
+            // Để làm được điều này, UserItem cần implement Serializable hoặc Parcelable
+            intent.putExtra("NEW_USER_DATA", user); // "NEW_USER_DATA" là một key tự đặt
+
             startActivity(intent);
             finish();
-
         } catch (Exception e) {
             e.printStackTrace();
-            Log.e("LoginError", "Exception in processLoginSuccess: " + e.getMessage());
-            Toast.makeText(this, "Lỗi xử lý dữ liệu đăng nhập: " + e.getMessage(), Toast.LENGTH_LONG).show();
         }
     }
+
 
     private void handleLoginError(com.android.volley.VolleyError error) {
         String message = "Đăng nhập thất bại.";
@@ -295,7 +281,7 @@ public class LogInActivity extends BaseActivity {
                 String responseBody = new String(error.networkResponse.data, StandardCharsets.UTF_8);
                 JSONObject data = new JSONObject(responseBody);
                 message = data.optString("error", message);
-            } catch (Exception e) { }
+            } catch (Exception ignored) {}
         }
         Toast.makeText(this, message, Toast.LENGTH_LONG).show();
     }

@@ -557,4 +557,54 @@ router.get("/utility-rates", async (req, res) => {
     }
 });
 
+// ✏️ [ADMIN/ACCOUNTANT] Cập nhật thông tin khoản thu (Tiêu đề, nội dung, số tiền, hạn nộp)
+router.put("/:id", async (req, res) => {
+  const { id } = req.params;
+  const { title, content, amount, due_date } = req.body;
+
+  if (!title || !amount) {
+    return res.status(400).json({ error: "Thiếu thông tin bắt buộc (Tiêu đề, số tiền)." });
+  }
+
+  try {
+    const result = await query(
+      `UPDATE finances
+       SET title = $1, content = $2, amount = $3, due_date = TO_DATE($4, 'DD-MM-YYYY')
+       WHERE id = $5
+       RETURNING id`,
+      [title, content, amount, due_date, id]
+    );
+
+    if (result.rowCount === 0) {
+      return res.status(404).json({ error: "Không tìm thấy khoản thu." });
+    }
+
+    res.json({ success: true, message: "Cập nhật thành công!" });
+  } catch (err) {
+    console.error("Lỗi cập nhật:", err);
+    res.status(500).json({ error: "Lỗi server khi cập nhật." });
+  }
+});
+
+// 🗑️ [ADMIN/ACCOUNTANT] Xóa khoản thu
+router.delete("/:id", async (req, res) => {
+  const { id } = req.params;
+
+  try {
+    // Lưu ý: user_finances sẽ tự động xóa nếu bạn đã thiết lập ON DELETE CASCADE trong DB
+    // Nếu chưa, hãy chạy: DELETE FROM user_finances WHERE finance_id = $1 trước.
+
+    const result = await query("DELETE FROM finances WHERE id = $1 RETURNING id", [id]);
+
+    if (result.rowCount === 0) {
+      return res.status(404).json({ error: "Không tìm thấy khoản thu hoặc đã bị xóa." });
+    }
+
+    res.json({ success: true, message: "Đã xóa khoản thu thành công." });
+  } catch (err) {
+    console.error("Lỗi xóa:", err);
+    res.status(500).json({ error: "Không thể xóa (có thể do ràng buộc dữ liệu)." });
+  }
+});
+
 export default router;
