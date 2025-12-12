@@ -15,10 +15,8 @@ const wait = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 const initSchemaWithRetry = async (retries = 10) => {
   for (let i = 0; i < retries; i++) {
     try {
-      // Thử ping nhẹ DB
       await pool.query("SELECT 1");
 
-      // Nếu OK, chạy lệnh tạo bảng
       await pool.query(`
         CREATE TABLE IF NOT EXISTS login_requests (
           id SERIAL PRIMARY KEY,
@@ -35,37 +33,36 @@ const initSchemaWithRetry = async (retries = 10) => {
       await pool.query(`ALTER TABLE user_item ADD COLUMN IF NOT EXISTS is_living BOOLEAN DEFAULT TRUE;`);
 
       console.log("✅ Database schema verified (Users).");
-      return; // Thành công thì thoát
+      return;
 
     } catch (err) {
-      // Nếu lỗi là DB đang khởi động (57P03) hoặc mất kết nối (ECONNREFUSED)
       if (err.code === '57P03' || err.code === 'ECONNREFUSED') {
         console.log(`⏳ Database đang khởi động... Thử lại sau 3s (${i + 1}/${retries})`);
-        await wait(3000); // Chờ 3 giây
+        await wait(3000);
       } else {
         console.error("❌ Error initializing database schema:", err);
-        break; // Lỗi khác thì dừng luôn
+        break;
       }
     }
   }
   console.error("❌ Không thể kết nối Database sau nhiều lần thử.");
 };
 
-// Gọi hàm khởi tạo
 initSchemaWithRetry();
 
+// 🔥 HELPER: Hàm chuyển đổi Role ID sang tên Role
+const getRoleName = (roleId) => {
+    if (roleId === 2) return "ADMIN";
+    if (roleId === 3) return "ACCOUNTANT"; // ✅ Kế toán
+    return "USER";
+};
+
 /* ==========================================================
-   🔍 API MỚI: Lấy thông tin chi tiết (BẢO MẬT BẰNG MIDDLEWARE)
+   🔍 API: Lấy thông tin chi tiết (BẢO MẬT)
 ========================================================== */
-// 🔥 Thêm verifySession vào đây
 router.get("/profile/:user_id", verifySession, async (req, res) => {
   try {
     const { user_id } = req.params;
-
-    // (Tùy chọn) Kiểm tra xem user đang request có đúng là chủ tài khoản không
-    // if (req.currentUser.id != user_id && req.currentUser.role !== 'ADMIN') {
-    //    return res.status(403).json({ error: "Không có quyền xem thông tin người khác" });
-    // }
 
     const result = await pool.query(`
       SELECT
@@ -92,7 +89,12 @@ router.get("/profile/:user_id", verifySession, async (req, res) => {
       return res.status(404).json({ error: "Không tìm thấy user" });
     }
 
-    res.json({ success: true, user: result.rows[0] });
+    const userData = result.rows[0];
+
+    // 🔥 Thêm thông tin Role vào response
+    userData.role_name = getRoleName(userData.role_id);
+
+    res.json({ success: true, user: userData });
 
   } catch (err) {
     console.error("Get Profile Error:", err);
@@ -101,12 +103,13 @@ router.get("/profile/:user_id", verifySession, async (req, res) => {
 });
 
 /* ==========================================================
-   🟢 API: Đăng nhập (Mật khẩu) - KHÔNG CẦN MIDDLEWARE
+   🟢 API: Đăng nhập (Mật khẩu)
 ========================================================== */
 router.post("/login", async (req, res) => {
   try {
     const { phone, password, is_polling, request_id, force_login } = req.body || {};
 
+    // --- LOGIC POLLING (Khi chờ duyệt thiết bị cũ) ---
     if (is_polling) {
         if (!request_id) return res.status(400).json({ error: "Thiếu request_id" });
         const reqRes = await pool.query("SELECT * FROM login_requests WHERE id = $1", [request_id]);
@@ -124,7 +127,9 @@ router.post("/login", async (req, res) => {
 
         const userRes = await pool.query(`SELECT u.user_id, u.phone, ur.role_id FROM users u LEFT JOIN userrole ur ON u.user_id = ur.user_id WHERE u.user_id = $1`, [request.user_id]);
         const user = userRes.rows[0];
-        const role = (user.role_id == 2) ? "ADMIN" : "USER";
+
+        // 🔥 Xác định Role
+        const roleName = getRoleName(user.role_id);
 
         const infoRes = await pool.query(
           `SELECT ui.full_name, ui.gender, TO_CHAR(ui.dob, 'DD-MM-YYYY') AS dob, ui.email,
@@ -144,7 +149,8 @@ router.post("/login", async (req, res) => {
             user: {
                 id: user.user_id.toString(),
                 phone: user.phone,
-                role: role,
+                role: roleName,        // String: ADMIN/USER/ACCOUNTANT
+                role_id: user.role_id, // 🔥 Integer: 1/2/3 (Quan trọng cho Java)
                 name: info.full_name || user.phone,
                 gender: info.gender || "Khác",
                 dob: info.dob || "01-01-2000",
@@ -157,6 +163,7 @@ router.post("/login", async (req, res) => {
         });
     }
 
+    // --- LOGIC ĐĂNG NHẬP CHÍNH ---
     if (!phone || !password) return res.status(400).json({ error: "Thiếu thông tin." });
 
     const userRes = await pool.query(
@@ -169,7 +176,9 @@ router.post("/login", async (req, res) => {
     if (userRes.rows.length === 0) return res.status(404).json({ error: "Số điện thoại không tồn tại." });
 
     const user = userRes.rows[0];
-    const role = (user.role_id == 2) ? "ADMIN" : "USER";
+
+    // 🔥 Xác định Role
+    const roleName = getRoleName(user.role_id);
 
     const match = await bcrypt.compare(password, user.password_hash);
     if (!match) return res.status(401).json({ error: "Sai mật khẩu." });
@@ -212,7 +221,8 @@ router.post("/login", async (req, res) => {
       user: {
         id: user.user_id.toString(),
         phone: user.phone,
-        role: role,
+        role: roleName,        // String: ADMIN/USER/ACCOUNTANT
+        role_id: user.role_id, // 🔥 Integer: 1/2/3
         name: info.full_name || user.phone,
         gender: info.gender || "Khác",
         dob: info.dob || "01-01-2000",
@@ -230,7 +240,7 @@ router.post("/login", async (req, res) => {
 });
 
 /* ==========================================================
-   🟢 API: Auth Firebase (OTP Login) - KHÔNG CẦN MIDDLEWARE
+   🟢 API: Auth Firebase (OTP Login)
 ========================================================== */
 router.post("/auth/firebase", async (req, res) => {
   try {
@@ -266,7 +276,7 @@ router.post("/auth/firebase", async (req, res) => {
             require_approval: true,
             request_id: insertReq.rows[0].id,
             allow_force_login: true,
-            message: "Tài khoản đang đăng nhập nơi khác. Bạn có muốn tiếp tục?"
+            message: "Tài khoản đang đăng nhập nơi khác."
         });
     }
 
@@ -290,7 +300,9 @@ router.post("/auth/firebase", async (req, res) => {
     );
 
     const info = infoRes.rows.length > 0 ? infoRes.rows[0] : {};
-    const role = user.role_id === 2 ? "ADMIN" : "USER";
+
+    // 🔥 Xác định Role cho OTP Login
+    const roleName = getRoleName(user.role_id);
 
     return res.json({
       message: "Xác thực Firebase thành công",
@@ -298,7 +310,8 @@ router.post("/auth/firebase", async (req, res) => {
       user: {
         id: user.user_id.toString(),
         phone: user.phone,
-        role: role,
+        role: roleName,        // String
+        role_id: user.role_id, // 🔥 Integer
         name: info.full_name || user.phone,
         gender: info.gender || "Khác",
         dob: info.dob || "01-01-2000",
@@ -317,7 +330,7 @@ router.post("/auth/firebase", async (req, res) => {
 });
 
 /* ==========================================================
-   🟢 API: Đăng ký Admin - KHÔNG CẦN MIDDLEWARE
+   🟢 API: Đăng ký Admin
 ========================================================== */
 router.post("/create_admin", async (req, res) => {
   const client = await pool.connect();
@@ -347,6 +360,7 @@ router.post("/create_admin", async (req, res) => {
       [user_id, full_name, gender || "Khác", dob || null, email || null, identity_card || null, home_town || null]
     );
 
+    // Mặc định Admin là Role ID 2
     await client.query(`INSERT INTO userrole (user_id, role_id) VALUES ($1, 2)`, [user_id]);
 
     await client.query("COMMIT");
@@ -399,23 +413,16 @@ router.post("/resolve_login", async (req, res) => {
     } catch (err) { res.status(500).json({ error: "Lỗi server" }); }
 });
 
-// 🔥 SỬA LẠI API LOGOUT ĐỂ CHẶN THÔNG BÁO RÁC
 router.post("/logout", verifySession, async (req, res) => {
     try {
         const { user_id } = req.body;
-        // Ưu tiên lấy ID từ token (an toàn hơn), nếu không có thì lấy từ body
         const targetId = req.currentUser ? req.currentUser.id : user_id;
 
         if (targetId) {
-            // 🔥 CẬP NHẬT: Xóa cả session_token VÀ fcm_token
             await pool.query(
-                `UPDATE users
-                 SET session_token = NULL,
-                     fcm_token = NULL
-                 WHERE user_id = $1`,
+                `UPDATE users SET session_token = NULL, fcm_token = NULL WHERE user_id = $1`,
                 [targetId]
             );
-
             await pool.query("DELETE FROM login_requests WHERE user_id = $1", [targetId]);
         }
         res.json({ success: true, message: "Đã đăng xuất và hủy nhận thông báo." });
@@ -425,11 +432,10 @@ router.post("/logout", verifySession, async (req, res) => {
     }
 });
 
-// 🔥 Thêm verifySession vào Update FCM
 router.post("/update_fcm_token", verifySession, async (req, res) => {
     try {
         const { fcm_token } = req.body;
-        const user_id = req.currentUser.id; // Lấy từ token, an toàn hơn
+        const user_id = req.currentUser.id;
 
         if (!fcm_token) return res.status(400).json({ error: "Thiếu thông tin." });
         await pool.query("UPDATE users SET fcm_token = $1 WHERE user_id = $2", [fcm_token, user_id]);

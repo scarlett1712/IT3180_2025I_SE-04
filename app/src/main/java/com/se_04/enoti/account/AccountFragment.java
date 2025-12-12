@@ -293,16 +293,28 @@ public class AccountFragment extends Fragment {
 
         loadAvatarFromLocal(user.getId());
 
-        if (user.getRole() == Role.ADMIN) {
-            txtApartment.setText("Quản trị viên");
-            // Admin không cần hiện quan hệ gia đình, có thể ẩn hoặc set text khác
-            relationship.setText("Quản trị viên");
-        } else {
-            txtApartment.setText("Căn hộ: " + user.getRoom());
-            txtApartment.setVisibility(View.VISIBLE);
-
-            relationship.setText(user.getRelationship());
-            relationship.setVisibility(View.VISIBLE);
+        switch (user.getRole()) {
+            case ADMIN:
+                txtApartment.setText("Quản trị viên");
+                relationship.setText("Quản trị viên");
+                // Có thể ẩn các view không cần thiết
+                txtApartment.setVisibility(View.VISIBLE);
+                relationship.setVisibility(View.VISIBLE);
+                break;
+            case ACCOUNTANT:
+                txtApartment.setText("Nhân viên kế toán"); // Hoặc thông tin phù hợp
+                relationship.setText("Ban quản lý");     // Hoặc thông tin phù hợp
+                // Ẩn hoặc hiện các view tương ứng
+                txtApartment.setVisibility(View.VISIBLE);
+                relationship.setVisibility(View.VISIBLE);
+                break;
+            case USER:
+            default: // Mặc định là USER
+                txtApartment.setText("Căn hộ: " + user.getRoom());
+                relationship.setText(user.getRelationship());
+                txtApartment.setVisibility(View.VISIBLE);
+                relationship.setVisibility(View.VISIBLE);
+                break;
         }
     }
 

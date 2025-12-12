@@ -1,12 +1,9 @@
 package com.se_04.enoti.account_related;
 
-import androidx.appcompat.app.AlertDialog;
-import androidx.appcompat.app.AppCompatActivity;
-
-import android.app.Dialog; // 🔥 Import Dialog
+import android.app.Dialog;
+import android.content.Intent;
 import android.graphics.Color;
 import android.graphics.drawable.ColorDrawable;
-import android.content.Intent;
 import android.os.Bundle;
 import android.os.CountDownTimer;
 import android.os.Handler;
@@ -24,8 +21,11 @@ import com.android.volley.RequestQueue;
 import com.android.volley.toolbox.JsonObjectRequest;
 import com.android.volley.toolbox.Volley;
 import com.se_04.enoti.R;
+import com.se_04.enoti.account.Role; // 🔥 Import Role
 import com.se_04.enoti.account.UserItem;
+import com.se_04.enoti.home.accountant.MainActivity_Accountant; // 🔥 Import màn hình kế toán
 import com.se_04.enoti.home.admin.MainActivity_Admin;
+import com.se_04.enoti.home.agency.MainActivity_Agency;
 import com.se_04.enoti.home.user.MainActivity_User;
 import com.se_04.enoti.utils.ApiConfig;
 import com.se_04.enoti.utils.BaseActivity;
@@ -43,13 +43,11 @@ import static com.se_04.enoti.utils.ValidatePhoneNumberUtil.normalizePhoneNumber
 public class LogInActivity extends BaseActivity {
 
     private static final String API_LOGIN_URL = ApiConfig.BASE_URL + "/api/users/login";
-    private static final String TAG = "LogInActivity";
 
     private Handler pollingHandler;
     private Runnable pollingRunnable;
     private boolean isPolling = false;
 
-    // 🔥 Thay đổi loại Dialog
     private Dialog customWaitingDialog;
     private CountDownTimer countDownTimer;
 
@@ -92,8 +90,6 @@ public class LogInActivity extends BaseActivity {
             return;
         }
 
-        showLoadingDialog();
-
         JSONObject requestBody = new JSONObject();
         try {
             requestBody.put("phone", normalizedPhone);
@@ -106,14 +102,10 @@ public class LogInActivity extends BaseActivity {
                 Request.Method.POST, API_LOGIN_URL, requestBody,
                 response -> {
                     try {
-                        // 1. TRƯỜNG HỢP CẦN DUYỆT
+                        // 1. TRƯỜNG HỢP CẦN DUYỆT (THIẾT BỊ MỚI)
                         if (response.has("require_approval") && response.getBoolean("require_approval")) {
                             int requestId = response.getInt("request_id");
-
-                            // Ẩn loading cũ đi
                             if (customWaitingDialog != null) customWaitingDialog.dismiss();
-
-                            // Hiện Dialog đẹp
                             showWaitingForApprovalDialog(requestId, normalizedPhone);
                             startPolling(requestId);
                             return;
@@ -144,39 +136,29 @@ public class LogInActivity extends BaseActivity {
         queue.add(jsonObjectRequest);
     }
 
-    // Hàm hiện loading đơn giản
-    private void showLoadingDialog() {
-        // Bạn có thể dùng ProgressBar hoặc Dialog đơn giản ở đây
-    }
-
-    // 🔥 HÀM MỚI: HIỂN THỊ DIALOG CHỜ DUYỆT (CUSTOM UI)
     private void showWaitingForApprovalDialog(int requestId, String phone) {
         if (customWaitingDialog != null && customWaitingDialog.isShowing()) customWaitingDialog.dismiss();
 
         customWaitingDialog = new Dialog(this);
         customWaitingDialog.requestWindowFeature(Window.FEATURE_NO_TITLE);
-        customWaitingDialog.setContentView(R.layout.dialog_waiting_approval); // Layout mới
+        customWaitingDialog.setContentView(R.layout.dialog_waiting_approval); // Đảm bảo layout này tồn tại
         customWaitingDialog.setCancelable(false);
 
-        // Làm nền trong suốt để thấy bo góc
         if (customWaitingDialog.getWindow() != null) {
             customWaitingDialog.getWindow().setBackgroundDrawable(new ColorDrawable(Color.TRANSPARENT));
         }
 
-        // Ánh xạ View
         TextView tvMessage = customWaitingDialog.findViewById(R.id.tvMessage);
         TextView tvTimer = customWaitingDialog.findViewById(R.id.tvTimer);
         ProgressBar progressBar = customWaitingDialog.findViewById(R.id.progressBarWaiting);
         Button btnCancel = customWaitingDialog.findViewById(R.id.btnCancel);
         Button btnLostDevice = customWaitingDialog.findViewById(R.id.btnLostDevice);
 
-        // 1. Xử lý nút Hủy
         btnCancel.setOnClickListener(v -> {
             stopPolling();
             customWaitingDialog.dismiss();
         });
 
-        // 2. Xử lý nút Mất máy (Force Login)
         btnLostDevice.setOnClickListener(v -> {
             stopPolling();
             customWaitingDialog.dismiss();
@@ -188,7 +170,6 @@ public class LogInActivity extends BaseActivity {
 
         customWaitingDialog.show();
 
-        // 3. Đếm ngược 30s
         countDownTimer = new CountDownTimer(30000, 1000) {
             @Override
             public void onTick(long millisUntilFinished) {
@@ -203,8 +184,6 @@ public class LogInActivity extends BaseActivity {
                     tvTimer.setText("Không có phản hồi!");
                     tvMessage.setText("Không nhận được phản hồi từ thiết bị cũ.\nBạn có thể đăng nhập bằng mã OTP.");
                     progressBar.setVisibility(View.GONE);
-
-                    // Hiện nút Mất máy
                     btnLostDevice.setVisibility(View.VISIBLE);
                 }
             }
@@ -258,6 +237,7 @@ public class LogInActivity extends BaseActivity {
         Volley.newRequestQueue(this).add(request);
     }
 
+    // 🔥 HÀM ĐÃ SỬA: Điều hướng theo Role
     private void processLoginSuccess(JSONObject response) {
         try {
             if (!response.has("user")) {
@@ -274,9 +254,19 @@ public class LogInActivity extends BaseActivity {
 
             Toast.makeText(this, "Đăng nhập thành công!", Toast.LENGTH_SHORT).show();
 
-            Intent intent = user.getRole() == com.se_04.enoti.account.Role.ADMIN
-                    ? new Intent(this, MainActivity_Admin.class)
-                    : new Intent(this, MainActivity_User.class);
+            Intent intent;
+
+            // 🔥 LOGIC PHÂN QUYỀN MỚI
+            if (user.getRole() == Role.ADMIN) {
+                intent = new Intent(this, MainActivity_Admin.class);
+            } else if (user.getRole() == Role.ACCOUNTANT) {
+                intent = new Intent(this, MainActivity_Accountant.class); // Màn hình kế toán
+            } else if (user.getRole() == Role.AGENCY) {
+                intent = new Intent(this, MainActivity_Agency.class); // Màn hình cqcn
+            } else {
+                intent = new Intent(this, MainActivity_User.class);
+            }
+
             startActivity(intent);
             finish();
         } catch (Exception e) { e.printStackTrace(); }
