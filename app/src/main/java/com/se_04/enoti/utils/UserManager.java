@@ -72,11 +72,23 @@ public class UserManager {
                     if (callback != null) callback.onLogoutComplete();
                 },
                 error -> {
-                    Log.e("UserManager", "Server logout failed");
+                    Log.e("UserManager", "Server logout failed: " + error.toString());
+                    // Dù lỗi server thì vẫn phải cho user đăng xuất ở Local
                     forceLogout();
                     if (callback != null) callback.onLogoutComplete();
                 }
-        );
+        ) {
+            // 🔥🔥🔥 BỔ SUNG PHẦN NÀY ĐỂ GỬI TOKEN LÊN SERVER 🔥🔥🔥
+            @Override
+            public java.util.Map<String, String> getHeaders() {
+                java.util.Map<String, String> headers = new java.util.HashMap<>();
+                String token = getAuthToken(); // Lấy token từ SharedPreferences
+                if (token != null && !token.isEmpty()) {
+                    headers.put("Authorization", "Bearer " + token);
+                }
+                return headers;
+            }
+        };
 
         request.setRetryPolicy(new DefaultRetryPolicy(
                 5000, 0, DefaultRetryPolicy.DEFAULT_BACKOFF_MULT));

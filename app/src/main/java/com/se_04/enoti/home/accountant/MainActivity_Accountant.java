@@ -95,31 +95,17 @@ public class MainActivity_Accountant extends BaseActivity {
         try {
             body.put("user_id", userId);
             body.put("fcm_token", token);
-        } catch (JSONException e) {
-            e.printStackTrace();
-        }
-
-        Log.d(TAG, "Sending Body: " + body.toString());
+        } catch (JSONException e) { e.printStackTrace(); }
 
         JsonObjectRequest request = new JsonObjectRequest(Request.Method.POST, url, body,
                 response -> {
                     Log.d(TAG, "sendRegistrationToServer: Token sent successfully");
-                    // Không cần Toast mỗi lần mở app, tránh làm phiền user
                 },
                 error -> {
-                    String errorMsg = "Lỗi kết nối Server";
-                    if (error.networkResponse != null && error.networkResponse.data != null) {
-                        try {
-                            String responseBody = new String(error.networkResponse.data, StandardCharsets.UTF_8);
-                            Log.e(TAG, "Server Error Body: " + responseBody);
-                        } catch (Exception e) {
-                            e.printStackTrace();
-                        }
-                    }
-                    Log.e(TAG, "sendRegistrationToServer: Failed to update token: " + error.toString());
+                    Log.e(TAG, "sendRegistrationToServer: Failed to update token");
                 }
         ) {
-            // 🔥🔥🔥 PHẦN QUAN TRỌNG NHẤT: THÊM HEADER ĐỂ HẾT LỖI 401 🔥🔥🔥
+            // 🔥🔥🔥 BẮT BUỘC PHẢI CÓ ĐOẠN NÀY ĐỂ GỬI TOKEN 🔥🔥🔥
             @Override
             public java.util.Map<String, String> getHeaders() {
                 java.util.Map<String, String> headers = new java.util.HashMap<>();
