@@ -143,8 +143,7 @@ public class ManageResidentFragment extends Fragment {
         });
 
         btnExportExcel.setOnClickListener(v -> {
-            // exportResidentsToXLS(filteredList); // (Giữ nguyên hàm này nếu bạn có)
-            Toast.makeText(getContext(), "Tính năng xuất Excel", Toast.LENGTH_SHORT).show();
+            exportResidentsToXLS(filteredList); // (Giữ nguyên hàm này nếu bạn có)
         });
 
         btnAddResident.setOnClickListener(v -> {
@@ -338,6 +337,96 @@ public class ManageResidentFragment extends Fragment {
         }
 
         adapter.updateList(filteredList);
+    }
+
+    private void exportResidentsToXLS(List<ResidentItem> residents) {
+        try {
+            org.apache.poi.hssf.usermodel.HSSFWorkbook workbook = new org.apache.poi.hssf.usermodel.HSSFWorkbook();
+            org.apache.poi.ss.usermodel.Sheet sheet = workbook.createSheet("Cư dân");
+
+            String[] headers = {"Họ tên", "Giới tính", "Ngày sinh", "Điện thoại", "Email", "Phòng", "Chủ hộ", "Quan hệ", "CCCD", "Quê quán"};
+            org.apache.poi.ss.usermodel.Row headerRow = sheet.createRow(0);
+            for (int i = 0; i < headers.length; i++) {
+                org.apache.poi.ss.usermodel.Cell cell = headerRow.createCell(i);
+                cell.setCellValue(headers[i]);
+            }
+
+            java.util.Map<String, String> headMap = new java.util.HashMap<>();
+            for (ResidentItem r : fullList) {
+                if ("Bản thân".equalsIgnoreCase(r.getRelationship())) {
+                    headMap.put(r.getFamilyId(), r.getName());
+                }
+            }
+
+            int rowNum = 1;
+            for (ResidentItem r : residents) {
+                org.apache.poi.ss.usermodel.Row row = sheet.createRow(rowNum++);
+                String headName = headMap.getOrDefault(r.getFamilyId(), "Chưa xác định");
+
+                row.createCell(0).setCellValue(r.getName());
+                row.createCell(1).setCellValue(r.getGender());
+                row.createCell(2).setCellValue(r.getDob());
+                row.createCell(3).setCellValue(r.getPhone());
+                row.createCell(4).setCellValue(r.getEmail());
+                row.createCell(5).setCellValue(r.getRoom());
+                row.createCell(6).setCellValue(headName);
+                row.createCell(7).setCellValue(r.getRelationship());
+                row.createCell(8).setCellValue(r.getIdentityCard());
+                row.createCell(9).setCellValue(r.getHomeTown());
+            }
+
+            for (int i = 0; i < headers.length; i++) {
+                sheet.setColumnWidth(i, 6000);
+            }
+
+            String fileName = "DanhSachCuDan_" +
+                    new java.text.SimpleDateFormat("ddMMyyyy_HHmm", java.util.Locale.getDefault()).format(new java.util.Date()) +
+                    ".xls";
+
+            android.content.ContentValues values = new android.content.ContentValues();
+            values.put(android.provider.MediaStore.Downloads.DISPLAY_NAME, fileName);
+            values.put(android.provider.MediaStore.Downloads.MIME_TYPE, "application/vnd.ms-excel");
+            values.put(android.provider.MediaStore.Downloads.RELATIVE_PATH, android.os.Environment.DIRECTORY_DOWNLOADS + "/Enoti");
+
+            android.content.ContentResolver resolver = requireContext().getContentResolver();
+            android.net.Uri uri;
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
+                uri = resolver.insert(android.provider.MediaStore.Downloads.EXTERNAL_CONTENT_URI, values);
+            } else {
+                java.io.File dir = new java.io.File(android.os.Environment.getExternalStoragePublicDirectory(
+                        android.os.Environment.DIRECTORY_DOWNLOADS), "Enoti");
+                if (!dir.exists()) dir.mkdirs();
+                java.io.File file = new java.io.File(dir, fileName);
+                uri = android.net.Uri.fromFile(file);
+            }
+
+            if (uri != null) {
+                java.io.OutputStream outputStream = resolver.openOutputStream(uri);
+                workbook.write(outputStream);
+                outputStream.close();
+                workbook.close();
+                android.widget.Toast.makeText(requireContext(), "Đã lưu: " + fileName, android.widget.Toast.LENGTH_LONG).show();
+            } else {
+                android.widget.Toast.makeText(requireContext(), "Không thể tạo file Excel!", android.widget.Toast.LENGTH_SHORT).show();
+            }
+
+        } catch (Exception e) {
+            e.printStackTrace();
+            android.widget.Toast.makeText(requireContext(), "Lỗi khi xuất file Excel!", android.widget.Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions,
+                                           @NonNull int[] grantResults) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        if (requestCode == REQUEST_WRITE_PERMISSION) {
+            if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                exportResidentsToXLS(filteredList);
+            } else {
+                Toast.makeText(requireContext(), "Không có quyền ghi tệp!", Toast.LENGTH_SHORT).show();
+            }
+        }
     }
 
     @Override
