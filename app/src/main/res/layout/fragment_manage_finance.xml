@@ -208,11 +208,12 @@
                         android:paddingHorizontal="8dp"
                         android:gravity="center_vertical"
                         android:background="@drawable/bg_white_rounded_16">
+
                         <androidx.appcompat.widget.SearchView
                             android:id="@+id/search_view"
                             android:layout_width="0dp"
                             android:layout_height="wrap_content"
-                            android:layout_weight="0.7"
+                            android:layout_weight="0.6"
                             app:queryHint="Tìm kiếm..."
                             app:iconifiedByDefault="false"
                             app:queryBackground="@null"/>
@@ -222,9 +223,20 @@
                             android:layout_width="0dp"
                             android:layout_height="match_parent"
                             android:layout_weight="0.3"
-                            android:layout_marginStart="8dp"
+                            android:layout_marginStart="4dp"
                             android:background="@drawable/bg_spinner_border"
                             android:entries="@array/finance_filter_options" />
+
+                        <ImageView
+                            android:id="@+id/btnExportExcel"
+                            android:layout_width="30dp"
+                            android:layout_height="30dp"
+                            android:layout_marginEnd="8dp"
+                            android:background="?attr/selectableItemBackgroundBorderless"
+                            android:clickable="true"
+                            android:focusable="true"
+                            android:src="@drawable/ic_export_file"
+                            app:tint="#4CAF50" />
                     </LinearLayout>
 
                     <androidx.recyclerview.widget.RecyclerView

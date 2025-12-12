@@ -1,4 +1,5 @@
 import express from "express";
+import ExcelJS from 'exceljs';
 import { pool } from "../db.js";
 // 🔥 Import helper để gửi thông báo
 import { sendNotification } from "../utils/firebaseHelper.js";
@@ -608,6 +609,102 @@ router.delete("/:id", async (req, res) => {
   } catch (err) {
     console.error("Lỗi xóa:", err);
     res.status(500).json({ error: "Không thể xóa (có thể do ràng buộc dữ liệu)." });
+  }
+});
+
+router.get("/export-excel", async (req, res) => {
+  try {
+    // 1. Lấy dữ liệu từ DB (Lấy danh sách thu chi + thống kê ai đã nộp)
+    const result = await query(`
+      SELECT
+        f.id, f.title, f.amount, f.type,
+        TO_CHAR(f.due_date, 'DD/MM/YYYY') AS due_date,
+        COUNT(DISTINCT a.apartment_number) FILTER (WHERE f.type != 'chi_phi') AS total_rooms,
+        COUNT(DISTINCT CASE WHEN uf.status = 'da_thanh_toan' THEN a.apartment_number END) FILTER (WHERE f.type != 'chi_phi') AS paid_rooms
+      FROM finances f
+      LEFT JOIN user_finances uf ON f.id = uf.finance_id
+      LEFT JOIN user_item ui ON uf.user_id = ui.user_id
+      LEFT JOIN relationship r ON ui.relationship = r.relationship_id
+      LEFT JOIN apartment a ON r.apartment_id = a.apartment_id
+      GROUP BY f.id, f.title, f.amount, f.type, f.due_date
+      ORDER BY f.due_date DESC
+    `);
+
+    // 2. Tạo Workbook & Worksheet
+    const workbook = new ExcelJS.Workbook();
+    const worksheet = workbook.addWorksheet('Báo cáo Tài chính');
+
+    // 3. Định nghĩa cột
+    worksheet.columns = [
+      { header: 'ID', key: 'id', width: 10 },
+      { header: 'Tiêu đề', key: 'title', width: 30 },
+      { header: 'Loại', key: 'type', width: 15 },
+      { header: 'Số tiền (VNĐ)', key: 'amount', width: 20 },
+      { header: 'Hạn nộp', key: 'due_date', width: 15 },
+      { header: 'Tiến độ', key: 'progress', width: 20 },
+      { header: 'Tổng thu được', key: 'total_collected', width: 20 },
+    ];
+
+    // 4. Style cho Header (In đậm, nền xanh)
+    worksheet.getRow(1).font = { bold: true, color: { argb: 'FFFFFFFF' } };
+    worksheet.getRow(1).fill = {
+      type: 'pattern',
+      pattern: 'solid',
+      fgColor: { argb: 'FF009688' } // Màu xanh Teal giống App
+    };
+
+    // 5. Thêm dữ liệu
+    let grandTotalRevenue = 0;
+    let grandTotalExpense = 0;
+
+    result.rows.forEach(row => {
+      const isExpense = row.type === 'chi_phi';
+      const amount = parseFloat(row.amount || 0);
+
+      // Tính toán thống kê
+      const paid = parseInt(row.paid_rooms || 0);
+      const total = parseInt(row.total_rooms || 0);
+      const collected = isExpense ? amount : (amount * paid);
+
+      if (isExpense) grandTotalExpense += amount;
+      else grandTotalRevenue += collected;
+
+      worksheet.addRow({
+        id: row.id,
+        title: row.title,
+        type: isExpense ? 'Chi phí' : 'Khoản thu',
+        amount: amount, // Có thể format số sau
+        due_date: row.due_date,
+        progress: isExpense ? '-' : `${paid}/${total} phòng`,
+        total_collected: collected
+      });
+    });
+
+    // 6. Thêm dòng Tổng kết cuối cùng
+    worksheet.addRow({}); // Dòng trống
+    const totalRow = worksheet.addRow({
+      title: 'TỔNG KẾT:',
+      progress: `Thu: ${grandTotalRevenue.toLocaleString()} - Chi: ${grandTotalExpense.toLocaleString()}`,
+      total_collected: (grandTotalRevenue - grandTotalExpense)
+    });
+    totalRow.font = { bold: true, size: 12 };
+
+    // 7. Gửi file về Client
+    res.setHeader(
+      "Content-Type",
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    );
+    res.setHeader(
+      "Content-Disposition",
+      "attachment; filename=" + "BaoCao_TaiChinh.xlsx"
+    );
+
+    await workbook.xlsx.write(res);
+    res.end();
+
+  } catch (err) {
+    console.error("Lỗi xuất Excel:", err);
+    res.status(500).send("Lỗi tạo file Excel");
   }
 });
 
