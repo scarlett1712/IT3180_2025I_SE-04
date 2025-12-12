@@ -4,7 +4,7 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    tools:context=".home.user.MainActivity_User">
+    tools:context=".home.accountant.MainActivity_Accountant">
 
     <!-- This is where your Fragments will be displayed -->
     <androidx.fragment.app.FragmentContainerView

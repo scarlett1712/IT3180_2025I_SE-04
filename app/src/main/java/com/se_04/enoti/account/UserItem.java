@@ -15,13 +15,12 @@ public class UserItem {
     private final int room;
     private final Role role;
     private final String phone;
-    // 🔥 Thêm 2 trường mới
     private final String identityCard;
     private final String homeTown;
 
     public UserItem(String id, @Nullable String familyId, String email, String name, String dob,
                     Gender gender, String relationship, int room, Role role, String phone,
-                    String identityCard, String homeTown) { // 🔥 Cập nhật Constructor
+                    String identityCard, String homeTown) {
         this.id = id;
         this.familyId = familyId;
         this.email = email;
@@ -48,12 +47,23 @@ public class UserItem {
         String identityCard = userJson.optString("identity_card", "");
         String homeTown = userJson.optString("home_town", "");
 
-        String roleString = userJson.optString("role", "USER").toUpperCase();
+        // --- 🔥 LOGIC XỬ LÝ VAI TRÒ MỚI, ĐÁNG TIN CẬY HƠN ---
+        int roleId = userJson.optInt("role_id", 1); // Mặc định là 1 (USER)
         Role role;
-        try {
-            role = Role.valueOf(roleString); // Chuyển "ACCOUNTANT" -> Role.ACCOUNTANT
-        } catch (IllegalArgumentException e) {
-            role = Role.USER; // Gán mặc định nếu có lỗi
+        switch (roleId) {
+            case 2:
+                role = Role.ADMIN;
+                break;
+            case 3:
+                role = Role.ACCOUNTANT;
+                break;
+            case 4:
+                role = Role.AGENCY;
+                break;
+            case 1: // Dành cho người dùng thông thường
+            default: // Bất kỳ role_id nào khác không xác định cũng sẽ là USER
+                role = Role.USER;
+                break;
         }
         // -------------------------------------------------------------
 
@@ -88,6 +98,6 @@ public class UserItem {
     public int getRoom() { return room; }
     public Role getRole() { return role; }
     public String getPhone() { return phone; }
-    public String getIdentityCard() { return identityCard; } // 🔥 Getter mới
-    public String getHomeTown() { return homeTown; }         // 🔥 Getter mới
+    public String getIdentityCard() { return identityCard; }
+    public String getHomeTown() { return homeTown; }
 }

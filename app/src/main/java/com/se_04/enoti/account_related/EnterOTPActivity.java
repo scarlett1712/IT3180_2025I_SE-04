@@ -18,9 +18,6 @@ import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
-import androidx.appcompat.app.AlertDialog;
-import androidx.appcompat.app.AppCompatActivity;
-
 import com.android.volley.Request;
 import com.android.volley.RequestQueue;
 import com.android.volley.toolbox.JsonObjectRequest;
@@ -32,17 +29,19 @@ import com.google.firebase.auth.PhoneAuthCredential;
 import com.google.firebase.auth.PhoneAuthOptions;
 import com.google.firebase.auth.PhoneAuthProvider;
 import com.se_04.enoti.R;
+import com.se_04.enoti.account.Role;
 import com.se_04.enoti.account.UserItem;
+import com.se_04.enoti.home.accountant.MainActivity_Accountant;
 import com.se_04.enoti.home.admin.MainActivity_Admin;
+import com.se_04.enoti.home.agency.MainActivity_Agency;
 import com.se_04.enoti.home.user.MainActivity_User;
-import com.se_04.enoti.utils.ApiConfig;
 import com.se_04.enoti.utils.BaseActivity;
 import com.se_04.enoti.utils.UserManager;
+import com.se_04.enoti.utils.ApiConfig;
 
 import org.json.JSONException;
 import org.json.JSONObject;
 
-import java.nio.charset.StandardCharsets;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
@@ -59,7 +58,7 @@ public class EnterOTPActivity extends BaseActivity {
 
     private PinView pinView;
     private Button btnVerify;
-    private TextView txtOtpMessage, txtResendOtp, txtErrorOtp; // 🔥 Thêm biến mới
+    private TextView txtOtpMessage, txtResendOtp, txtErrorOtp;
     private ProgressBar progressBar;
 
     private FirebaseAuth mAuth;
@@ -77,38 +76,32 @@ public class EnterOTPActivity extends BaseActivity {
 
         mAuth = FirebaseAuth.getInstance();
 
-        // Ánh xạ View (Khớp với ID trong XML mới)
         txtOtpMessage = findViewById(R.id.textViewOTPSentToPhoneNumber);
         TextView txtPhoneDisplay = findViewById(R.id.textViewPhoneNumber);
         btnVerify = findViewById(R.id.buttonConfirm);
         pinView = findViewById(R.id.pinviewEnterOTP);
         progressBar = findViewById(R.id.progressBar);
-
-        // 🔥 Ánh xạ các view mới thêm
         txtResendOtp = findViewById(R.id.textViewResendOTP);
         txtErrorOtp = findViewById(R.id.textViewOTPNotMatch);
 
-        // Lấy SĐT từ Intent
         mPhoneNumber = getIntent().getStringExtra("phone");
         if (mPhoneNumber != null) {
-            txtPhoneDisplay.setText(mPhoneNumber); // Hiển thị số đẹp trên giao diện
-            startPhoneNumberVerification(mPhoneNumber); // Gửi mã lần đầu
+            txtPhoneDisplay.setText(mPhoneNumber);
+            startPhoneNumberVerification(mPhoneNumber);
         } else {
             finish();
         }
 
-        // Sự kiện bấm nút Xác nhận
         btnVerify.setOnClickListener(v -> {
             String otp = pinView.getText() != null ? pinView.getText().toString().trim() : "";
             if (otp.length() == 6) {
-                txtErrorOtp.setVisibility(View.INVISIBLE); // Ẩn lỗi trước khi check
+                txtErrorOtp.setVisibility(View.INVISIBLE);
                 verifyCode(otp);
             } else {
                 Toast.makeText(this, "Vui lòng nhập đủ 6 số OTP", Toast.LENGTH_SHORT).show();
             }
         });
 
-        // 🔥 Sự kiện bấm nút Gửi lại OTP
         txtResendOtp.setOnClickListener(v -> {
             if (mPhoneNumber != null) {
                 Toast.makeText(this, "Đang gửi lại mã...", Toast.LENGTH_SHORT).show();
@@ -116,7 +109,6 @@ public class EnterOTPActivity extends BaseActivity {
             }
         });
 
-        // 🔥 Tự động ẩn lỗi khi người dùng nhập lại
         pinView.addTextChangedListener(new TextWatcher() {
             @Override public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
             @Override public void onTextChanged(CharSequence s, int start, int before, int count) {
@@ -130,7 +122,7 @@ public class EnterOTPActivity extends BaseActivity {
         if (progressBar != null) progressBar.setVisibility(isLoading ? View.VISIBLE : View.INVISIBLE);
         btnVerify.setEnabled(!isLoading);
         pinView.setEnabled(!isLoading);
-        txtResendOtp.setEnabled(!isLoading); // Khóa nút gửi lại khi đang loading
+        txtResendOtp.setEnabled(!isLoading);
     }
 
     private void startPhoneNumberVerification(String phoneNumber) {
@@ -144,7 +136,6 @@ public class EnterOTPActivity extends BaseActivity {
                 .setActivity(this)
                 .setCallbacks(mCallbacks);
 
-        // 🔥 Nếu đã có token gửi lại (Resend), hãy dùng nó để không bị bắt check Robot
         if (mResendToken != null) {
             optionsBuilder.setForceResendingToken(mResendToken);
         }
@@ -173,7 +164,7 @@ public class EnterOTPActivity extends BaseActivity {
         public void onCodeSent(@NonNull String verificationId, @NonNull PhoneAuthProvider.ForceResendingToken token) {
             setLoading(false);
             mVerificationId = verificationId;
-            mResendToken = token; // Lưu token để dùng cho chức năng "Gửi lại"
+            mResendToken = token;
             Toast.makeText(EnterOTPActivity.this, "Đã gửi mã OTP.", Toast.LENGTH_SHORT).show();
         }
     };
@@ -204,9 +195,7 @@ public class EnterOTPActivity extends BaseActivity {
                         }
                     } else {
                         setLoading(false);
-                        // 🔥 Hiển thị lỗi lên giao diện thay vì chỉ Toast
                         txtErrorOtp.setVisibility(View.VISIBLE);
-                        // Toast.makeText(this, "Mã OTP không đúng.", Toast.LENGTH_SHORT).show();
                     }
                 });
     }
@@ -219,13 +208,11 @@ public class EnterOTPActivity extends BaseActivity {
             setLoading(false);
             Intent createPasswordIntent = new Intent(this, CreateNewPasswordActivity.class);
             createPasswordIntent.putExtra("idToken", idToken);
-            createPasswordIntent.putExtra("phone", mPhoneNumber); // <--- QUAN TRỌNG: Gửi số điện thoại sang
+            createPasswordIntent.putExtra("phone", mPhoneNumber);
             startActivity(createPasswordIntent);
             finish();
-
         } else if (FROM_REGISTER_PHONE.equals(previousActivity)) {
             executorService.execute(() -> mainHandler.post(() -> createAdminAccount(idToken)));
-
         } else if (FROM_FORCE_LOGIN.equals(previousActivity)) {
             performForceLogin(idToken, false);
         }
@@ -252,22 +239,39 @@ public class EnterOTPActivity extends BaseActivity {
 
                         if (response.has("user")) {
                             setLoading(false);
-                            String sessionToken = response.optString("session_token", "");
-                            if (!sessionToken.isEmpty()) UserManager.getInstance(this).saveAuthToken(sessionToken);
+                            
+                            String sessionToken = response.optString("session_token", null);
+                            if (sessionToken == null || sessionToken.isEmpty() || sessionToken.equals("null")) {
+                                Toast.makeText(this, "Lỗi nghiêm trọng: Server không trả về token.", Toast.LENGTH_LONG).show();
+                                return;
+                            }
+                            UserManager.getInstance(getApplicationContext()).saveAuthToken(sessionToken);
 
                             JSONObject userJson = response.getJSONObject("user");
                             UserItem user = UserItem.fromJson(userJson);
-                            UserManager.getInstance(this).saveCurrentUser(user);
-                            UserManager.getInstance(this).setLoggedIn(true);
+                            UserManager.getInstance(getApplicationContext()).saveCurrentUser(user);
+                            UserManager.getInstance(getApplicationContext()).setLoggedIn(true);
 
                             Toast.makeText(this, "Đăng nhập thành công!", Toast.LENGTH_SHORT).show();
 
-                            Intent intent = user.getRole() == com.se_04.enoti.account.Role.ADMIN
-                                    ? new Intent(this, MainActivity_Admin.class)
-                                    : new Intent(this, MainActivity_User.class);
+                            // --- 🔥 LOGIC ĐIỀU HƯỚNG ĐÃ SỬA LỖI ---
+                            Intent intent;
+                            Role userRole = user.getRole();
+
+                            if (userRole == Role.ADMIN) {
+                                intent = new Intent(this, MainActivity_Admin.class);
+                            } else if (userRole == Role.ACCOUNTANT) {
+                                intent = new Intent(this, MainActivity_Accountant.class);
+                            } else if (userRole == Role.AGENCY) {
+                                intent = new Intent(this, MainActivity_Agency.class);
+                            } else {
+                                intent = new Intent(this, MainActivity_User.class);
+                            }
+
                             intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TASK | Intent.FLAG_ACTIVITY_NEW_TASK);
                             startActivity(intent);
                             finish();
+
                         } else {
                             setLoading(false);
                             Toast.makeText(this, "Lỗi dữ liệu từ server.", Toast.LENGTH_SHORT).show();
@@ -325,34 +329,29 @@ public class EnterOTPActivity extends BaseActivity {
     private void showForceLoginDialog(String idToken, String message) {
         Dialog dialog = new Dialog(this);
         dialog.requestWindowFeature(Window.FEATURE_NO_TITLE);
-        dialog.setContentView(R.layout.dialog_warning_login); // Layout vừa tạo
-        dialog.setCancelable(false); // Không cho bấm ra ngoài để tắt
+        dialog.setContentView(R.layout.dialog_warning_login);
+        dialog.setCancelable(false);
 
-        // Làm nền dialog trong suốt để thấy bo góc
         if (dialog.getWindow() != null) {
             dialog.getWindow().setBackgroundDrawable(new ColorDrawable(Color.TRANSPARENT));
         }
 
-        // Ánh xạ View trong Dialog
         TextView tvMessage = dialog.findViewById(R.id.tvMessage);
         Button btnCancel = dialog.findViewById(R.id.btnCancel);
         Button btnForce = dialog.findViewById(R.id.btnForceLogin);
 
-        // Set nội dung tin nhắn từ server (nếu có)
         if (message != null && !message.isEmpty()) {
             tvMessage.setText(message);
         }
 
-        // Sự kiện nút Hủy
         btnCancel.setOnClickListener(v -> {
             dialog.dismiss();
-            setLoading(false); // Tắt loading ở màn hình chính
+            setLoading(false);
         });
 
-        // Sự kiện nút Tiếp tục (Force Login)
         btnForce.setOnClickListener(v -> {
             dialog.dismiss();
-            performForceLogin(idToken, true); // Gọi lại API với force = true
+            performForceLogin(idToken, true);
         });
 
         dialog.show();

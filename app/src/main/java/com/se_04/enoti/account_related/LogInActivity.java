@@ -8,6 +8,7 @@ import android.os.Bundle;
 import android.os.CountDownTimer;
 import android.os.Handler;
 import android.os.Looper;
+import android.util.Log;
 import android.view.View;
 import android.view.Window;
 import android.widget.Button;
@@ -21,9 +22,9 @@ import com.android.volley.RequestQueue;
 import com.android.volley.toolbox.JsonObjectRequest;
 import com.android.volley.toolbox.Volley;
 import com.se_04.enoti.R;
-import com.se_04.enoti.account.Role; // 🔥 Import Role
+import com.se_04.enoti.account.Role;
 import com.se_04.enoti.account.UserItem;
-import com.se_04.enoti.home.accountant.MainActivity_Accountant; // 🔥 Import màn hình kế toán
+import com.se_04.enoti.home.accountant.MainActivity_Accountant;
 import com.se_04.enoti.home.admin.MainActivity_Admin;
 import com.se_04.enoti.home.agency.MainActivity_Agency;
 import com.se_04.enoti.home.user.MainActivity_User;
@@ -102,7 +103,6 @@ public class LogInActivity extends BaseActivity {
                 Request.Method.POST, API_LOGIN_URL, requestBody,
                 response -> {
                     try {
-                        // 1. TRƯỜNG HỢP CẦN DUYỆT (THIẾT BỊ MỚI)
                         if (response.has("require_approval") && response.getBoolean("require_approval")) {
                             int requestId = response.getInt("request_id");
                             if (customWaitingDialog != null) customWaitingDialog.dismiss();
@@ -110,8 +110,6 @@ public class LogInActivity extends BaseActivity {
                             startPolling(requestId);
                             return;
                         }
-
-                        // 2. ĐĂNG NHẬP THÀNH CÔNG
                         if (customWaitingDialog != null) customWaitingDialog.dismiss();
                         processLoginSuccess(response);
 
@@ -141,7 +139,7 @@ public class LogInActivity extends BaseActivity {
 
         customWaitingDialog = new Dialog(this);
         customWaitingDialog.requestWindowFeature(Window.FEATURE_NO_TITLE);
-        customWaitingDialog.setContentView(R.layout.dialog_waiting_approval); // Đảm bảo layout này tồn tại
+        customWaitingDialog.setContentView(R.layout.dialog_waiting_approval);
         customWaitingDialog.setCancelable(false);
 
         if (customWaitingDialog.getWindow() != null) {
@@ -237,58 +235,58 @@ public class LogInActivity extends BaseActivity {
         Volley.newRequestQueue(this).add(request);
     }
 
-    // 🔥 HÀM ĐÃ SỬA: Điều hướng theo Role
-    // Trong LogInActivity.java
     private void processLoginSuccess(JSONObject response) {
         try {
-            if (!response.has("user")) {
-                Toast.makeText(this, "Lỗi dữ liệu server.", Toast.LENGTH_SHORT).show();            return;
+            // BƯỚC 1: KIỂM TRA VÀ LẤY TOKEN. ĐÂY LÀ BƯỚC QUAN TRỌNG NHẤT.
+            String sessionToken = response.optString("session_token", null);
+            if (sessionToken == null || sessionToken.isEmpty() || sessionToken.equals("null")) {
+                Toast.makeText(this, "Lỗi nghiêm trọng: Server không trả về token hợp lệ.", Toast.LENGTH_LONG).show();
+                Log.e("LoginError", "Token is null or empty from server response.");
+                return; // Dừng lại ngay lập tức nếu không có token
             }
 
-            // BƯỚC 1: LẤY VÀ LƯU TOKEN NGAY LẬP TỨC
-            String sessionToken = response.optString("session_token", "");
-            if (sessionToken.isEmpty()) {
-                Toast.makeText(this, "Lỗi: Không nhận được session token.", Toast.LENGTH_SHORT).show();
-                return; // Dừng lại nếu không có token
-            }
-            // Lưu token ngay và luôn
+            // BƯỚC 2: LƯU TOKEN VÀO BỘ NHỚ NGAY LẬP TỨC
+            // Phải thực hiện trước khi khởi chạy bất kỳ Activity hay Fragment nào khác.
             UserManager.getInstance(getApplicationContext()).saveAuthToken(sessionToken);
 
-            // BƯỚC 2: PHÂN TÍCH VÀ LƯU THÔNG TIN USER
+            // BƯỚC 3: KIỂM TRA VÀ PHÂN TÍCH DỮ LIỆU NGƯỜI DÙNG
+            if (!response.has("user")) {
+                Toast.makeText(this, "Lỗi: Dữ liệu người dùng không tồn tại.", Toast.LENGTH_SHORT).show();
+                return;
+            }
             JSONObject userJson = response.getJSONObject("user");
-            UserItem user = UserItem.fromJson(userJson); // Đảm bảo UserItem.fromJson đã đúng
+            UserItem user = UserItem.fromJson(userJson);
 
-            // Thêm log để chắc chắn việc parsing đã đúng
-            android.util.Log.d("LOGIN_SUCCESS", "Parsed Role in Java: " + user.getRole().toString());
-
+            // BƯỚC 4: LƯU TOÀN BỘ THÔNG TIN NGƯỜI DÙNG
             UserManager.getInstance(getApplicationContext()).saveCurrentUser(user);
             UserManager.getInstance(getApplicationContext()).setLoggedIn(true);
 
             Toast.makeText(this, "Đăng nhập thành công!", Toast.LENGTH_SHORT).show();
 
-            // BƯỚC 3: ĐIỀU HƯỚNG DỰA TRÊN VAI TRÒ ĐÃ PARSE
+            // BƯỚC 5: ĐIỀU HƯỚNG DỰA TRÊN VAI TRÒ
             Intent intent;
-            Role userRole = user.getRole(); // Lấy vai trò đã được parse chính xác
+            Role userRole = user.getRole();
 
             if (userRole == Role.ADMIN) {
                 intent = new Intent(this, MainActivity_Admin.class);
             } else if (userRole == Role.ACCOUNTANT) {
-                intent = new Intent(this, MainActivity_Accountant.class); // Chuyển đến màn hình kế toán
+                intent = new Intent(this, MainActivity_Accountant.class);
             } else if (userRole == Role.AGENCY) {
                 intent = new Intent(this, MainActivity_Agency.class);
             } else {
-                intent = new Intent(this, MainActivity_User.class); // Mặc định là user
+                intent = new Intent(this, MainActivity_User.class);
             }
 
+            intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
             startActivity(intent);
             finish();
 
         } catch (Exception e) {
             e.printStackTrace();
-            Toast.makeText(this, "Lỗi xử lý đăng nhập: " + e.getMessage(), Toast.LENGTH_LONG).show();
+            Log.e("LoginError", "Exception in processLoginSuccess: " + e.getMessage());
+            Toast.makeText(this, "Lỗi xử lý dữ liệu đăng nhập: " + e.getMessage(), Toast.LENGTH_LONG).show();
         }
     }
-
 
     private void handleLoginError(com.android.volley.VolleyError error) {
         String message = "Đăng nhập thất bại.";

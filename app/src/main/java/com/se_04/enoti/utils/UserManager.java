@@ -45,7 +45,7 @@ public class UserManager {
 
     // --- Token Management ---
     public void saveAuthToken(String token) {
-        sharedPreferences.edit().putString(KEY_AUTH_TOKEN, token).apply();
+        sharedPreferences.edit().putString(KEY_AUTH_TOKEN, token).commit();
     }
 
     public String getAuthToken() {
@@ -54,7 +54,6 @@ public class UserManager {
 
     // --- Logout Logic ---
 
-    // 1. Logout có gọi Server
     public void logout(LogoutCallback callback) {
         String url = ApiConfig.BASE_URL + "/api/users/logout";
         JSONObject body = new JSONObject();
@@ -68,7 +67,7 @@ public class UserManager {
         JsonObjectRequest request = new JsonObjectRequest(Request.Method.POST, url, body,
                 response -> {
                     Log.d("UserManager", "Server logout success");
-                    forceLogout(); // Xóa data local
+                    forceLogout();
                     if (callback != null) callback.onLogoutComplete();
                 },
                 error -> {
@@ -96,7 +95,6 @@ public class UserManager {
         Volley.newRequestQueue(context).add(request);
     }
 
-    // 2. Kiểm tra lỗi 401
     public void checkAndForceLogout(VolleyError error) {
         if (error.networkResponse != null && error.networkResponse.statusCode == 401) {
             Log.e("UserManager", "Token expired or invalid (401). Force logging out...");
@@ -105,15 +103,9 @@ public class UserManager {
         }
     }
 
-    // 3. Thực hiện xóa dữ liệu và chuyển màn hình (Local Logout)
     public void forceLogout() {
-        clearUser(); // Xóa SharedPreferences
-
-        // 🔥 XÓA TOÀN BỘ CACHE KHI ĐĂNG XUẤT ĐỂ BẢO MẬT
-        // (Yêu cầu DataCacheManager phải có hàm clearAllCache)
+        clearUser();
         DataCacheManager.getInstance(context).clearAllCache();
-
-        // Chuyển về màn hình đăng nhập
         Intent intent = new Intent(context, LogInActivity.class);
         intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
         context.startActivity(intent);
@@ -138,7 +130,7 @@ public class UserManager {
         editor.putString("identity_card", user.getIdentityCard());
         editor.putString("home_town", user.getHomeTown());
 
-        editor.apply();
+        editor.commit();
     }
 
     public UserItem getCurrentUser() {
@@ -173,11 +165,11 @@ public class UserManager {
     }
 
     public void clearUser() {
-        sharedPreferences.edit().clear().apply();
+        sharedPreferences.edit().clear().commit();
     }
 
     public void setLoggedIn(boolean loggedIn) {
-        sharedPreferences.edit().putBoolean("isLoggedIn", loggedIn).apply();
+        sharedPreferences.edit().putBoolean("isLoggedIn", loggedIn).commit();
     }
 
     public boolean isLoggedIn() {
@@ -187,6 +179,5 @@ public class UserManager {
     public String getID(){ return sharedPreferences.getString("id", "");}
 
     public boolean isAdmin(){ return sharedPreferences.getString("role", "").equals("ADMIN");}
-
 
 }
