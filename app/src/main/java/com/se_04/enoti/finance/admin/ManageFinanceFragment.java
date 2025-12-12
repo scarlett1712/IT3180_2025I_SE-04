@@ -1,15 +1,20 @@
 package com.se_04.enoti.finance.admin;
 
 import android.app.Activity;
+import android.app.DownloadManager;
+import android.content.Context;
 import android.content.Intent;
 import android.graphics.Color;
+import android.net.Uri;
 import android.os.Bundle;
+import android.os.Environment;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
+import android.widget.ImageView;
 import android.widget.Spinner;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -66,11 +71,12 @@ public class ManageFinanceFragment extends Fragment {
     private Spinner spinnerFilterType, spinnerMonth, spinnerYear;
     private ExtendedFloatingActionButton btnUtility, btnAdd;
     private RecyclerView recyclerView;
+    private ImageView btnExportExcel; // 🔥 Nút xuất Excel
 
-    // 🔥 Các View cần ẩn
+    // 🔥 Các View Container cần ẩn/hiện tùy Role
     private View cardStatsContainer;      // CardView biểu đồ
     private View lblFinanceStatsHeader;   // Dòng chữ "Quản lý tài chính"
-    private View layoutFabContainer;      // Layout chứa các nút thêm mới
+    private View layoutFabContainer;      // Layout chứa các nút thêm mới (FAB)
     private TextView textList;
 
     // --- Data & Logic ---
@@ -80,6 +86,7 @@ public class ManageFinanceFragment extends Fragment {
     private int selectedMonth = 0;
     private int selectedYear = Calendar.getInstance().get(Calendar.YEAR);
 
+    // Launcher để refresh dữ liệu khi quay lại từ màn hình tạo/sửa
     private final ActivityResultLauncher<Intent> addFinanceLauncher = registerForActivityResult(
             new ActivityResultContracts.StartActivityForResult(),
             result -> {
@@ -122,15 +129,18 @@ public class ManageFinanceFragment extends Fragment {
         spinnerYear = view.findViewById(R.id.spinner_year);
         recyclerView = view.findViewById(R.id.recyclerViewManageFinance);
 
-        // Các nút FAB lẻ (nếu cần dùng)
+        // Nút xuất Excel (Cần đảm bảo ID này có trong XML)
+        btnExportExcel = view.findViewById(R.id.btnExportExcel);
+
+        // Các nút FAB thêm mới
         btnAdd = view.findViewById(R.id.btnAddReceipt);
         btnUtility = view.findViewById(R.id.btnUtility);
 
-        // 🔥 ÁNH XẠ CÁC PHẦN CẦN ẨN (KHỚP VỚI XML MỚI)
+        // Ánh xạ các Container để ẩn/hiện
         cardStatsContainer = view.findViewById(R.id.card_stats_container);
         lblFinanceStatsHeader = view.findViewById(R.id.lbl_finance_stats_header);
         layoutFabContainer = view.findViewById(R.id.layout_fab_container);
-        textList = view.findViewById(R.id.textList);
+        textList = view.findViewById(R.id.textList); // Dòng chữ "Danh sách khoản thu/chi"
 
         if (swipeRefreshLayout != null) {
             swipeRefreshLayout.setColorSchemeResources(R.color.purple_primary, android.R.color.holo_green_light);
@@ -141,21 +151,29 @@ public class ManageFinanceFragment extends Fragment {
     private void setupRoleBasedUI() {
         UserItem currentUser = UserManager.getInstance(requireContext()).getCurrentUser();
 
-        // Nếu là Kế Toán, ẨN các phần không cần thiết
-        if (currentUser != null && currentUser.getRole() == Role.ACCOUNTANT) {
+        if (currentUser != null) {
+            // --- LOGIC CHO KẾ TOÁN (ACCOUNTANT) ---
+            if (currentUser.getRole() == Role.ACCOUNTANT) {
+                // 1. Ẩn dòng chữ "Quản lý tài chính"
+                if (lblFinanceStatsHeader != null) lblFinanceStatsHeader.setVisibility(View.GONE);
 
-            // 1. Ẩn dòng chữ "Quản lý tài chính"
-            if (lblFinanceStatsHeader != null) lblFinanceStatsHeader.setVisibility(View.GONE);
+                // 2. Ẩn CardView Thống kê (Biểu đồ)
+                if (cardStatsContainer != null) cardStatsContainer.setVisibility(View.GONE);
 
-            // 2. Ẩn CardView Thống kê
-            if (cardStatsContainer != null) cardStatsContainer.setVisibility(View.GONE);
+                // 3. Đổi màu chữ danh sách cho dễ nhìn (nếu cần)
+                if (textList != null) textList.setTextColor(Color.BLACK); // Nên để đen cho nền trắng
 
-            if (textList != null) textList.setTextColor(Color.WHITE);
-        }
+                // 4. Đảm bảo nút Xuất Excel HIỆN
+                if (btnExportExcel != null) btnExportExcel.setVisibility(View.VISIBLE);
+            }
 
-        if (currentUser != null && currentUser.getRole() == Role.ADMIN){
-            // 3. Ẩn các nút thêm mới (Vì HomeFragment_Accountant đã có nút riêng)
-            if (layoutFabContainer != null) layoutFabContainer.setVisibility(View.GONE);
+            // --- LOGIC CHO ADMIN ---
+            else if (currentUser.getRole() == Role.ADMIN) {
+                // Admin thấy hết, nhưng có thể ẩn bớt FAB nếu muốn quản lý ở chỗ khác
+                // Hiện tại để mặc định là hiển thị tất cả
+                if (layoutFabContainer != null) layoutFabContainer.setVisibility(View.VISIBLE);
+                if (btnExportExcel != null) btnExportExcel.setVisibility(View.VISIBLE);
+            }
         }
     }
 
@@ -166,8 +184,9 @@ public class ManageFinanceFragment extends Fragment {
         UserItem currentUser = UserManager.getInstance(requireContext()).getCurrentUser();
         String username = (currentUser != null) ? currentUser.getName() : "Admin";
 
-        // Thêm chữ "Kế toán" vào trước tên
-        txtWelcome.setText("Xin chào " + username + "!");
+        // Thêm prefix chức vụ
+        String prefix = (currentUser != null && currentUser.getRole() == Role.ACCOUNTANT) ? "Kế toán " : "";
+        txtWelcome.setText("Xin chào " + prefix + username + "!");
 
         Calendar calendar = Calendar.getInstance();
         int hour = calendar.get(Calendar.HOUR_OF_DAY);
@@ -176,7 +195,7 @@ public class ManageFinanceFragment extends Fragment {
     }
 
     private void setupChart() {
-        // Nếu View đã ẩn thì không cần setup
+        // Nếu View đã ẩn thì không cần setup để tiết kiệm tài nguyên
         if (barChart == null || (cardStatsContainer != null && cardStatsContainer.getVisibility() == View.GONE)) return;
 
         barChart.getDescription().setEnabled(false);
@@ -233,6 +252,7 @@ public class ManageFinanceFragment extends Fragment {
     }
 
     private void setupOtherListeners() {
+        // Listener cho nút tạo mới
         if (btnAdd != null) {
             btnAdd.setOnClickListener(v -> {
                 Intent intent = new Intent(getActivity(), CreateFinanceActivity.class);
@@ -247,6 +267,7 @@ public class ManageFinanceFragment extends Fragment {
             });
         }
 
+        // Listener cho tìm kiếm & lọc
         searchView.setOnQueryTextListener(new SearchView.OnQueryTextListener() {
             @Override
             public boolean onQueryTextSubmit(String query) { adapter.getFilter().filter(query); return false; }
@@ -261,20 +282,63 @@ public class ManageFinanceFragment extends Fragment {
             }
             @Override public void onNothingSelected(AdapterView<?> parent) {}
         });
+
+        // 🔥 Listener cho nút Xuất Excel
+        if (btnExportExcel != null) {
+            btnExportExcel.setOnClickListener(v -> downloadExcelReport());
+        }
     }
 
+    // 🔥 HÀM TẢI FILE EXCEL (ĐÃ SỬA)
+    private void downloadExcelReport() {
+        Toast.makeText(getContext(), "Đang yêu cầu server...", Toast.LENGTH_SHORT).show();
+
+        String baseUrl = ApiConfig.BASE_URL + "/api/finance/export-excel";
+        String token = UserManager.getInstance(getContext()).getAuthToken();
+
+        // 🔥 GẮN TOKEN VÀO URL
+        String finalUrl = baseUrl + "?token=" + token;
+
+        try {
+            DownloadManager.Request request = new DownloadManager.Request(Uri.parse(finalUrl));
+
+            request.setTitle("Báo cáo Tài chính");
+            request.setDescription("Đang tải xuống file Excel...");
+            request.setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED);
+
+            // Lưu vào thư mục Downloads
+            request.setDestinationInExternalPublicDir(Environment.DIRECTORY_DOWNLOADS, "BaoCao_TaiChinh_" + System.currentTimeMillis() + ".xlsx");
+
+            // Cho phép quét media để file hiện ngay trong thư viện
+            request.allowScanningByMediaScanner();
+
+            DownloadManager manager = (DownloadManager) requireContext().getSystemService(Context.DOWNLOAD_SERVICE);
+            if (manager != null) {
+                manager.enqueue(request);
+                Toast.makeText(getContext(), "Đang tải xuống! Kiểm tra thanh thông báo.", Toast.LENGTH_LONG).show();
+            }
+        } catch (Exception e) {
+            Toast.makeText(getContext(), "Lỗi tải: " + e.getMessage(), Toast.LENGTH_LONG).show();
+            e.printStackTrace();
+        }
+    }
+
+    // --- MAIN DATA LOADER ---
     private void loadAllData() {
         if (swipeRefreshLayout != null) swipeRefreshLayout.setRefreshing(true);
         loadFinanceList();
 
-        // Chỉ tải dữ liệu biểu đồ nếu container đang hiển thị
+        // Chỉ tải dữ liệu biểu đồ nếu container đang hiển thị (Admin)
         if (cardStatsContainer != null && cardStatsContainer.getVisibility() == View.VISIBLE) {
             loadFinancialStats();
         }
     }
 
     private void loadFinanceList() {
+        // 1. Load từ Cache trước để UI mượt
         loadFinanceFromCache();
+
+        // 2. Gọi API để lấy dữ liệu mới nhất
         FinanceRepository.getInstance().fetchAdminFinances(requireContext(),
                 new FinanceRepository.FinanceCallback() {
                     @Override
