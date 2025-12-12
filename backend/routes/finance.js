@@ -557,14 +557,18 @@ router.get("/utility-rates", async (req, res) => {
     }
 });
 
-// ✏️ [ADMIN/ACCOUNTANT] Cập nhật thông tin khoản thu (Tiêu đề, nội dung, số tiền, hạn nộp)
+// ✏️ [ADMIN/ACCOUNTANT] Cập nhật thông tin khoản thu
 router.put("/:id", async (req, res) => {
   const { id } = req.params;
   const { title, content, amount, due_date } = req.body;
 
-  if (!title || !amount) {
-    return res.status(400).json({ error: "Thiếu thông tin bắt buộc (Tiêu đề, số tiền)." });
+  // 🔥 SỬA: Chỉ kiểm tra title, không bắt buộc amount nữa
+  if (!title) {
+    return res.status(400).json({ error: "Tiêu đề là bắt buộc." });
   }
+
+  // 🔥 Xử lý amount: Nếu gửi lên là null, "null", hoặc rỗng "" thì lưu vào DB là NULL
+  const finalAmount = (amount === "" || amount === null || amount === "null") ? null : amount;
 
   try {
     const result = await query(
@@ -572,7 +576,7 @@ router.put("/:id", async (req, res) => {
        SET title = $1, content = $2, amount = $3, due_date = TO_DATE($4, 'DD-MM-YYYY')
        WHERE id = $5
        RETURNING id`,
-      [title, content, amount, due_date, id]
+      [title, content, finalAmount, due_date, id]
     );
 
     if (result.rowCount === 0) {

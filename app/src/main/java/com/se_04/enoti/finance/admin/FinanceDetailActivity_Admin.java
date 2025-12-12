@@ -186,12 +186,11 @@ public class FinanceDetailActivity_Admin extends BaseActivity {
         requestQueue.add(request);
     }
 
-    // --- LOGIC SỬA (HIỆN DIALOG) ---
+    // --- SỬA HÀM HIỆN DIALOG ---
     private void showEditDialog() {
         AlertDialog.Builder builder = new AlertDialog.Builder(this);
         builder.setTitle("Chỉnh sửa khoản thu");
 
-        // Tạo layout cho dialog
         LinearLayout layout = new LinearLayout(this);
         layout.setOrientation(LinearLayout.VERTICAL);
         layout.setPadding(50, 40, 50, 10);
@@ -209,8 +208,11 @@ public class FinanceDetailActivity_Admin extends BaseActivity {
         final EditText inputAmount = new EditText(this);
         inputAmount.setHint("Số tiền (VNĐ)");
         inputAmount.setInputType(android.text.InputType.TYPE_CLASS_NUMBER);
-        // Nếu có số tiền thì set, không thì để trống hoặc 0
-        if (currentAmount > 0) inputAmount.setText(String.format("%.0f", currentAmount));
+
+        // Chỉ hiển thị số tiền nếu nó > 0 (hoặc khác null logic cũ)
+        if (currentAmount > 0) {
+            inputAmount.setText(String.format("%.0f", currentAmount));
+        }
         layout.addView(inputAmount);
 
         builder.setView(layout);
@@ -220,34 +222,56 @@ public class FinanceDetailActivity_Admin extends BaseActivity {
             String newDate = inputDate.getText().toString().trim();
             String amountStr = inputAmount.getText().toString().trim();
 
-            if (newTitle.isEmpty() || amountStr.isEmpty()) {
-                Toast.makeText(this, "Vui lòng nhập đủ thông tin", Toast.LENGTH_SHORT).show();
+            if (newTitle.isEmpty()) {
+                Toast.makeText(this, "Tiêu đề không được để trống", Toast.LENGTH_SHORT).show();
                 return;
             }
-            updateFinanceInfo(newTitle, newDate, Double.parseDouble(amountStr));
+
+            // 🔥 LOGIC MỚI: Nếu để trống -> Gán là null
+            Double finalAmount = null;
+            if (!amountStr.isEmpty()) {
+                try {
+                    finalAmount = Double.parseDouble(amountStr);
+                } catch (NumberFormatException e) {
+                    finalAmount = null;
+                }
+            }
+
+            updateFinanceInfo(newTitle, newDate, finalAmount);
         });
         builder.setNegativeButton("Hủy", (dialog, which) -> dialog.cancel());
 
         builder.show();
     }
 
-    private void updateFinanceInfo(String title, String date, double amount) {
+    // --- SỬA HÀM GỌI API (Chấp nhận Double thay vì double) ---
+    private void updateFinanceInfo(String title, String date, Double amount) {
         String url = ApiConfig.BASE_URL + "/api/finance/" + financeId;
         JSONObject body = new JSONObject();
         try {
             body.put("title", title);
-            body.put("amount", amount);
             body.put("due_date", date);
-            body.put("content", "Đã chỉnh sửa bởi Kế toán"); // Có thể cho nhập content nếu cần
+            body.put("content", "Đã chỉnh sửa bởi Kế toán");
+
+            // 🔥 QUAN TRỌNG: Gửi null chuẩn JSON nếu amount là null
+            if (amount != null) {
+                body.put("amount", amount);
+            } else {
+                body.put("amount", JSONObject.NULL);
+            }
+
         } catch (JSONException e) { e.printStackTrace(); }
 
         JsonObjectRequest request = new JsonObjectRequest(Request.Method.PUT, url, body,
                 response -> {
                     Toast.makeText(this, "Cập nhật thành công!", Toast.LENGTH_SHORT).show();
-                    // Cập nhật lại UI ngay lập tức
+
+                    // Cập nhật lại UI
                     currentTitle = title;
                     currentDueDate = date;
-                    currentAmount = amount;
+                    // Nếu null thì coi như 0 để hiển thị hoặc xử lý logic hiển thị khác tùy bạn
+                    currentAmount = (amount != null) ? amount : 0;
+
                     updateUIHeader();
                     setResult(RESULT_OK);
                 },
