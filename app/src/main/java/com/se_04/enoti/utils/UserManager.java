@@ -175,4 +175,6 @@ public class UserManager {
     public String getID(){ return sharedPreferences.getString("id", "");}
 
     public boolean isAdmin(){ return sharedPreferences.getString("role", "").equals("ADMIN");}
+
+
 }

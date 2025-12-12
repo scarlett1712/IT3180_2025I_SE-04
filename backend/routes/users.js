@@ -52,8 +52,9 @@ initSchemaWithRetry();
 
 // 🔥 HELPER: Hàm chuyển đổi Role ID sang tên Role
 const getRoleName = (roleId) => {
-    if (roleId === 2) return "ADMIN";
-    if (roleId === 3) return "ACCOUNTANT"; // ✅ Kế toán
+    if (roleId == 2) return "ADMIN";
+    if (roleId == 3) return "ACCOUNTANT"; // ✅ Kế toán
+    if (roleId == 4) return "AGENCY";     // ✅ Cơ quan chức năng)
     return "USER";
 };
 

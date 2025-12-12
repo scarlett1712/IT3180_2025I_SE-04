@@ -238,39 +238,57 @@ public class LogInActivity extends BaseActivity {
     }
 
     // 🔥 HÀM ĐÃ SỬA: Điều hướng theo Role
+    // Trong LogInActivity.java
     private void processLoginSuccess(JSONObject response) {
         try {
             if (!response.has("user")) {
-                Toast.makeText(this, "Lỗi dữ liệu server.", Toast.LENGTH_SHORT).show();
-                return;
+                Toast.makeText(this, "Lỗi dữ liệu server.", Toast.LENGTH_SHORT).show();            return;
             }
-            String sessionToken = response.optString("session_token", "");
-            if (!sessionToken.isEmpty()) UserManager.getInstance(getApplicationContext()).saveAuthToken(sessionToken);
 
+            // BƯỚC 1: LẤY VÀ LƯU TOKEN NGAY LẬP TỨC
+            String sessionToken = response.optString("session_token", "");
+            if (sessionToken.isEmpty()) {
+                Toast.makeText(this, "Lỗi: Không nhận được session token.", Toast.LENGTH_SHORT).show();
+                return; // Dừng lại nếu không có token
+            }
+            // Lưu token ngay và luôn
+            UserManager.getInstance(getApplicationContext()).saveAuthToken(sessionToken);
+
+            // BƯỚC 2: PHÂN TÍCH VÀ LƯU THÔNG TIN USER
             JSONObject userJson = response.getJSONObject("user");
-            UserItem user = UserItem.fromJson(userJson);
+            UserItem user = UserItem.fromJson(userJson); // Đảm bảo UserItem.fromJson đã đúng
+
+            // Thêm log để chắc chắn việc parsing đã đúng
+            android.util.Log.d("LOGIN_SUCCESS", "Parsed Role in Java: " + user.getRole().toString());
+
             UserManager.getInstance(getApplicationContext()).saveCurrentUser(user);
             UserManager.getInstance(getApplicationContext()).setLoggedIn(true);
 
             Toast.makeText(this, "Đăng nhập thành công!", Toast.LENGTH_SHORT).show();
 
+            // BƯỚC 3: ĐIỀU HƯỚNG DỰA TRÊN VAI TRÒ ĐÃ PARSE
             Intent intent;
+            Role userRole = user.getRole(); // Lấy vai trò đã được parse chính xác
 
-            // 🔥 LOGIC PHÂN QUYỀN MỚI
-            if (user.getRole() == Role.ADMIN) {
+            if (userRole == Role.ADMIN) {
                 intent = new Intent(this, MainActivity_Admin.class);
-            } else if (user.getRole() == Role.ACCOUNTANT) {
-                intent = new Intent(this, MainActivity_Accountant.class); // Màn hình kế toán
-            } else if (user.getRole() == Role.AGENCY) {
-                intent = new Intent(this, MainActivity_Agency.class); // Màn hình cqcn
+            } else if (userRole == Role.ACCOUNTANT) {
+                intent = new Intent(this, MainActivity_Accountant.class); // Chuyển đến màn hình kế toán
+            } else if (userRole == Role.AGENCY) {
+                intent = new Intent(this, MainActivity_Agency.class);
             } else {
-                intent = new Intent(this, MainActivity_User.class);
+                intent = new Intent(this, MainActivity_User.class); // Mặc định là user
             }
 
             startActivity(intent);
             finish();
-        } catch (Exception e) { e.printStackTrace(); }
+
+        } catch (Exception e) {
+            e.printStackTrace();
+            Toast.makeText(this, "Lỗi xử lý đăng nhập: " + e.getMessage(), Toast.LENGTH_LONG).show();
+        }
     }
+
 
     private void handleLoginError(com.android.volley.VolleyError error) {
         String message = "Đăng nhập thất bại.";

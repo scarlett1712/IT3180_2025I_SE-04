@@ -37,26 +37,25 @@ public class UserItem {
     }
 
     public static UserItem fromJson(JSONObject userJson) throws Exception {
-        String id = userJson.getString("id");
-        String phone = userJson.getString("phone");
-        String roleStr = userJson.getString("role");
-        String name = userJson.getString("name");
+        String id = userJson.optString("id");
+        String phone = userJson.optString("phone");
+        String name = userJson.optString("name");
         String genderStr = userJson.optString("gender", "Khác");
         String dob = userJson.optString("dob", "01-01-2000");
         String roomStr = userJson.optString("room", "0");
         String relationship = userJson.optString("relationship", "Thành viên");
         String email = userJson.optString("email", "");
-        // 🔥 Parse thêm 2 trường mới
         String identityCard = userJson.optString("identity_card", "");
         String homeTown = userJson.optString("home_town", "");
 
-        // --- Xử lý Role ---
+        String roleString = userJson.optString("role", "USER").toUpperCase();
         Role role;
         try {
-            role = Role.valueOf(roleStr.trim().toUpperCase());
-        } catch (Exception e) {
-            role = Role.USER; // default
+            role = Role.valueOf(roleString); // Chuyển "ACCOUNTANT" -> Role.ACCOUNTANT
+        } catch (IllegalArgumentException e) {
+            role = Role.USER; // Gán mặc định nếu có lỗi
         }
+        // -------------------------------------------------------------
 
         // --- Xử lý Gender ---
         Gender gender;
