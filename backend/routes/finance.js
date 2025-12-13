@@ -24,12 +24,12 @@ export const createFinanceTables = async () => {
         created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
       );
     `);
-    // 🔥 REMOVED status column - payment status is now determined by invoice existence
     await query(`
       CREATE TABLE IF NOT EXISTS user_finances (
         id SERIAL PRIMARY KEY,
         user_id INTEGER NOT NULL,
         finance_id INTEGER NOT NULL REFERENCES finances(id) ON DELETE CASCADE,
+        status VARCHAR(50) DEFAULT 'chua_thanh_toan',
         UNIQUE(user_id, finance_id)
       );
     `);
@@ -66,34 +66,32 @@ router.get("/admin", async (req, res) => {
         TO_CHAR(f.due_date, 'DD-MM-YYYY') AS due_date,
         f.created_at,
         f.created_by,
-        COALESCE(ui.full_name, 'Ban quản lý') AS sender,
+        COALESCE(creator.full_name, 'Ban quản lý') AS sender,
 
         -- Count distinct rooms
         COUNT(DISTINCT a.apartment_number) FILTER (WHERE f.type != 'chi_phi') AS total_rooms,
 
-        -- 🔥 Count paid rooms by checking invoice existence
+        -- Count paid rooms using user_finances.status
         COUNT(DISTINCT CASE
-          WHEN EXISTS (
-            SELECT 1 FROM invoice i
-            WHERE i.finance_id = f.id
-            AND i.user_id = uf.user_id
-          )
+          WHEN uf.status = 'da_thanh_toan'
           THEN a.apartment_number
         END) FILTER (WHERE f.type != 'chi_phi') AS paid_rooms,
 
-        -- Total collected from invoices
+        -- Total collected from invoices (join through user_finances)
         COALESCE((
-            SELECT SUM(i.amount)
-            FROM invoice i
-            WHERE i.finance_id = f.id
+            SELECT SUM(inv.amount)
+            FROM user_finances uf_inner
+            LEFT JOIN invoice inv ON inv.finance_id = uf_inner.id
+            WHERE uf_inner.finance_id = f.id
         ), 0) AS total_collected_real
 
       FROM finances f
       LEFT JOIN user_finances uf ON f.id = uf.finance_id
-      LEFT JOIN user_item ui ON f.created_by = ui.user_id
+      LEFT JOIN user_item creator ON f.created_by = creator.user_id
+      LEFT JOIN user_item ui ON uf.user_id = ui.user_id
       LEFT JOIN relationship r ON ui.relationship = r.relationship_id
       LEFT JOIN apartment a ON r.apartment_id = a.apartment_id
-      GROUP BY f.id, f.title, f.content, f.amount, f.type, f.due_date, f.created_at, f.created_by, ui.full_name
+      GROUP BY f.id, f.title, f.content, f.amount, f.type, f.due_date, f.created_at, f.created_by, creator.full_name
       ORDER BY f.created_at DESC;
     `);
 
@@ -131,9 +129,9 @@ router.get("/all", async (req, res) => {
 // ==================================================================
 router.get("/user/:userId", async (req, res) => {
   try {
-    console.log(`📊 Fetching finances for user: ${req.params.userId}`);
+    const userId = req.params.userId;
+    console.log(`📊 Fetching finances for user: ${userId}`);
 
-    // 🔥 Use invoice table to determine status
     const result = await query(`
       SELECT
         f.id,
@@ -144,23 +142,16 @@ router.get("/user/:userId", async (req, res) => {
         TO_CHAR(f.due_date, 'DD-MM-YYYY') AS due_date,
         f.created_by,
         COALESCE(ui.full_name, 'Ban quản lý') AS sender,
-        CASE
-          WHEN EXISTS (
-            SELECT 1 FROM invoice i
-            WHERE i.finance_id = f.id
-            AND i.user_id = $1
-          )
-          THEN 'da_thanh_toan'
-          ELSE 'chua_thanh_toan'
-        END AS status
+        uf.status,
+        uf.id AS user_finance_id
       FROM finances f
       JOIN user_finances uf ON f.id = uf.finance_id
       LEFT JOIN user_item ui ON f.created_by = ui.user_id
       WHERE uf.user_id = $1 AND f.type != 'chi_phi'
       ORDER BY f.due_date ASC NULLS LAST
-    `, [req.params.userId]);
+    `, [userId]);
 
-    console.log(`✅ Found ${result.rows.length} finance records for user ${req.params.userId}`);
+    console.log(`✅ Found ${result.rows.length} finance records for user ${userId}`);
     res.json(result.rows);
   } catch (e) {
     console.error("❌ Error fetching user finances:", e);
@@ -186,24 +177,22 @@ router.get("/user/payment-status/:financeId", async (req, res) => {
 
     console.log(`🔍 Checking payment status for finance ${financeId}, user ${user_id}`);
 
-    // 🔥 Check if invoice exists for this user and finance
     const result = await query(`
-      SELECT
-        CASE
-          WHEN EXISTS (
-            SELECT 1 FROM invoice
-            WHERE finance_id = $1 AND user_id = $2
-          )
-          THEN 'da_thanh_toan'
-          ELSE 'chua_thanh_toan'
-        END AS status
+      SELECT status, id AS user_finance_id
+      FROM user_finances
+      WHERE finance_id = $1 AND user_id = $2
     `, [financeId, user_id]);
 
-    const status = result.rows[0].status;
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: "Không tìm thấy khoản thu" });
+    }
 
-    console.log(`✅ Payment status: ${status}`);
+    const status = result.rows[0].status || 'chua_thanh_toan';
+    const userFinanceId = result.rows[0].user_finance_id;
 
-    res.json({ status });
+    console.log(`✅ Payment status: ${status}, user_finance_id: ${userFinanceId}`);
+
+    res.json({ status, user_finance_id: userFinanceId });
 
   } catch (error) {
     console.error("❌ Error fetching payment status:", error);
@@ -216,32 +205,30 @@ router.get("/user/payment-status/:financeId", async (req, res) => {
 // ==================================================================
 router.get("/:financeId/users", async (req, res) => {
   try {
-    // 🔥 Use invoice table to determine status
+    const financeId = req.params.financeId;
+    console.log(`📊 Fetching users for finance: ${financeId}`);
+
     const result = await query(`
       SELECT
         ui.full_name,
         uf.user_id,
         a.apartment_number AS room,
-        CASE
-          WHEN EXISTS (
-            SELECT 1 FROM invoice i
-            WHERE i.finance_id = $1
-            AND i.user_id = uf.user_id
-          )
-          THEN 'da_thanh_toan'
-          ELSE 'chua_thanh_toan'
-        END AS status
+        uf.status,
+        uf.id AS user_finance_id
       FROM user_finances uf
       JOIN user_item ui ON uf.user_id = ui.user_id
       JOIN relationship r ON ui.relationship = r.relationship_id
       JOIN apartment a ON r.apartment_id = a.apartment_id
       WHERE uf.finance_id = $1
       ORDER BY a.apartment_number ASC
-    `, [req.params.financeId]);
+    `, [financeId]);
+
+    console.log(`✅ Found ${result.rows.length} users for finance ${financeId}`);
     res.json(result.rows);
   } catch (e) {
-    console.error("Error fetching finance users:", e);
-    res.status(500).json({error:"Lỗi"});
+    console.error("❌ Error fetching finance users:", e);
+    console.error("Stack trace:", e.stack);
+    res.status(500).json({error: "Lỗi server"});
   }
 });
 
@@ -260,14 +247,15 @@ router.put("/update-status", async (req, res) => {
   try {
     await client.query("BEGIN");
 
-    // Get user_id for this room
+    // Get user_id and user_finance_id for this room
     const userResult = await client.query(`
-      SELECT ui.user_id
+      SELECT ui.user_id, uf.id AS user_finance_id
       FROM user_item ui
       JOIN relationship r ON ui.relationship = r.relationship_id
       JOIN apartment a ON r.apartment_id = a.apartment_id
-      WHERE a.apartment_number = $1
-    `, [room]);
+      JOIN user_finances uf ON uf.user_id = ui.user_id
+      WHERE a.apartment_number = $1 AND uf.finance_id = $2
+    `, [room, finance_id]);
 
     if (userResult.rows.length === 0) {
       await client.query("ROLLBACK");
@@ -275,9 +263,17 @@ router.put("/update-status", async (req, res) => {
     }
 
     const userId = userResult.rows[0].user_id;
+    const userFinanceId = userResult.rows[0].user_finance_id;
+
+    // Update user_finances.status
+    await client.query(`
+      UPDATE user_finances
+      SET status = $1
+      WHERE id = $2
+    `, [status, userFinanceId]);
 
     if (status === 'da_thanh_toan') {
-      // 🔥 Create invoice if marking as paid
+      // Create invoice using user_finances.id
       const financeResult = await client.query(
         "SELECT title, amount FROM finances WHERE id = $1",
         [finance_id]
@@ -291,24 +287,24 @@ router.put("/update-status", async (req, res) => {
       const finance = financeResult.rows[0];
       const ordercode = `ADMIN-${Date.now()}-${userId}`;
 
-      // Check if invoice already exists
+      // Check if invoice already exists (using user_finances.id)
       const existingInvoice = await client.query(
-        "SELECT id FROM invoice WHERE finance_id = $1 AND user_id = $2",
-        [finance_id, userId]
+        "SELECT invoice_id FROM invoice WHERE finance_id = $1",
+        [userFinanceId]
       );
 
       if (existingInvoice.rows.length === 0) {
         await client.query(`
-          INSERT INTO invoice (finance_id, user_id, amount, description, ordercode, currency, paytime)
-          VALUES ($1, $2, $3, $4, $5, 'VND', NOW())
-        `, [finance_id, userId, finance.amount, finance.title, ordercode]);
+          INSERT INTO invoice (finance_id, amount, description, ordercode, currency, paytime)
+          VALUES ($1, $2, $3, $4, 'VND', NOW())
+        `, [userFinanceId, finance.amount, finance.title, ordercode]);
       }
 
     } else {
-      // 🔥 Delete invoice if marking as unpaid
+      // Delete invoice (using user_finances.id)
       await client.query(
-        "DELETE FROM invoice WHERE finance_id = $1 AND user_id = $2",
-        [finance_id, userId]
+        "DELETE FROM invoice WHERE finance_id = $1",
+        [userFinanceId]
       );
     }
 
@@ -338,8 +334,28 @@ router.put("/user/update-status", async (req, res) => {
   try {
     await client.query("BEGIN");
 
+    // Get user_finances.id
+    const ufResult = await client.query(`
+      SELECT id FROM user_finances
+      WHERE finance_id = $1 AND user_id = $2
+    `, [finance_id, user_id]);
+
+    if (ufResult.rows.length === 0) {
+      await client.query("ROLLBACK");
+      return res.status(404).json({ error: "Không tìm thấy khoản thu" });
+    }
+
+    const userFinanceId = ufResult.rows[0].id;
+
+    // Update user_finances.status
+    await client.query(`
+      UPDATE user_finances
+      SET status = $1
+      WHERE id = $2
+    `, [status, userFinanceId]);
+
     if (status === 'da_thanh_toan') {
-      // 🔥 Create invoice if marking as paid
+      // Create invoice
       const financeResult = await client.query(
         "SELECT title, amount FROM finances WHERE id = $1",
         [finance_id]
@@ -353,24 +369,24 @@ router.put("/user/update-status", async (req, res) => {
       const finance = financeResult.rows[0];
       const ordercode = `USER-${Date.now()}-${user_id}`;
 
-      // Check if invoice already exists
+      // Check if invoice already exists (using user_finances.id)
       const existingInvoice = await client.query(
-        "SELECT id FROM invoice WHERE finance_id = $1 AND user_id = $2",
-        [finance_id, user_id]
+        "SELECT invoice_id FROM invoice WHERE finance_id = $1",
+        [userFinanceId]
       );
 
       if (existingInvoice.rows.length === 0) {
         await client.query(`
-          INSERT INTO invoice (finance_id, user_id, amount, description, ordercode, currency, paytime)
-          VALUES ($1, $2, $3, $4, $5, 'VND', NOW())
-        `, [finance_id, user_id, finance.amount, finance.title, ordercode]);
+          INSERT INTO invoice (finance_id, amount, description, ordercode, currency, paytime)
+          VALUES ($1, $2, $3, $4, 'VND', NOW())
+        `, [userFinanceId, finance.amount, finance.title, ordercode]);
       }
 
     } else {
-      // 🔥 Delete invoice if marking as unpaid/cancelled
+      // Delete invoice (using user_finances.id)
       await client.query(
-        "DELETE FROM invoice WHERE finance_id = $1 AND user_id = $2",
-        [finance_id, user_id]
+        "DELETE FROM invoice WHERE finance_id = $1",
+        [userFinanceId]
       );
     }
 
@@ -461,10 +477,9 @@ router.post("/create", async (req, res) => {
     `, [target_rooms]);
 
     for (const row of userResult.rows) {
-      // 🔥 Just insert into user_finances, no status column
       await client.query(`
-        INSERT INTO user_finances (user_id, finance_id)
-        VALUES ($1, $2)
+        INSERT INTO user_finances (user_id, finance_id, status)
+        VALUES ($1, $2, 'chua_thanh_toan')
         ON CONFLICT DO NOTHING
       `, [row.user_id, newId]);
 
@@ -558,9 +573,8 @@ router.post("/create-utility-bulk", async (req, res) => {
       const fId = fRes.rows[0].id;
 
       for (const u of userRes.rows) {
-        // 🔥 Just insert into user_finances, no status
         await client.query(
-          "INSERT INTO user_finances (user_id, finance_id) VALUES ($1, $2) ON CONFLICT DO NOTHING",
+          "INSERT INTO user_finances (user_id, finance_id, status) VALUES ($1, $2, 'chua_thanh_toan') ON CONFLICT DO NOTHING",
           [u.user_id, fId]
         );
         if (u.fcm_token) {
