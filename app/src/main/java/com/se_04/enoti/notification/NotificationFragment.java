@@ -24,7 +24,7 @@ import androidx.recyclerview.widget.RecyclerView;
 import com.google.android.material.snackbar.Snackbar;
 import com.se_04.enoti.R;
 import com.se_04.enoti.account.UserItem;
-import com.se_04.enoti.utils.DataCacheManager; // 🔥 Import Cache Manager
+import com.se_04.enoti.utils.DataCacheManager;
 import com.se_04.enoti.utils.UserManager;
 
 import org.json.JSONArray;
@@ -58,7 +58,6 @@ public class NotificationFragment extends Fragment {
         @Override
         public void run() {
             if (isAdded()) {
-                // Log.d(TAG, "⏱ Refreshing notifications...");
                 loadNotificationsFromCurrentUser();
                 refreshHandler.postDelayed(this, REFRESH_INTERVAL);
             }
@@ -133,15 +132,23 @@ public class NotificationFragment extends Fragment {
         spinnerFilterTime.setAdapter(timeAdapter);
 
         AdapterView.OnItemSelectedListener filterListener = new AdapterView.OnItemSelectedListener() {
-            @Override public void onItemSelected(AdapterView<?> parent, View v, int pos, long id) { applyFiltersAndSearch(); }
+            @Override public void onItemSelected(AdapterView<?> parent, View v, int pos, long id) {
+                applyFiltersAndSearch();
+            }
             @Override public void onNothingSelected(AdapterView<?> parent) {}
         };
         spinnerFilterType.setOnItemSelectedListener(filterListener);
         spinnerFilterTime.setOnItemSelectedListener(filterListener);
 
         searchView.setOnQueryTextListener(new SearchView.OnQueryTextListener() {
-            @Override public boolean onQueryTextSubmit(String q) { applyFiltersAndSearch(); return true; }
-            @Override public boolean onQueryTextChange(String newText) { applyFiltersAndSearch(); return true; }
+            @Override public boolean onQueryTextSubmit(String q) {
+                applyFiltersAndSearch();
+                return true;
+            }
+            @Override public boolean onQueryTextChange(String newText) {
+                applyFiltersAndSearch();
+                return true;
+            }
         });
     }
 
@@ -198,7 +205,7 @@ public class NotificationFragment extends Fragment {
 
             @Override
             public void onError(String message) {
-                // Log.e(TAG, "Failed to load: " + message);
+                Log.e(TAG, "Failed to load notifications: " + message);
                 // Nếu lỗi mạng, UI vẫn hiển thị dữ liệu từ cache đã load trước đó
             }
         });
@@ -215,13 +222,14 @@ public class NotificationFragment extends Fragment {
                 obj.put("type", item.getType());
                 obj.put("sender", item.getSender());
                 obj.put("created_at", item.getDate());
-                // 🔥 Thêm trường này
                 obj.put("expired_date", item.getExpired_date());
                 obj.put("is_read", item.isRead());
                 array.put(obj);
             }
             DataCacheManager.getInstance(requireContext()).saveCache(cacheFileName, array.toString());
-        } catch (Exception e) { e.printStackTrace(); }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
     }
 
     // 🔥 Helper: Đọc từ Cache (Sửa lỗi 8 tham số)
@@ -239,7 +247,7 @@ public class NotificationFragment extends Fragment {
                             obj.optInt("notification_id"),      // 1. id
                             obj.optString("title"),             // 2. title
                             obj.optString("created_at"),        // 3. date (created_at)
-                            obj.optString("expired_date", ""),  // 4. expired_date (Mới thêm, mặc định rỗng nếu null)
+                            obj.optString("expired_date", ""),  // 4. expired_date (Mới thêm)
                             obj.optString("type"),              // 5. type
                             obj.optString("sender"),            // 6. sender
                             obj.optString("content"),           // 7. content
@@ -249,7 +257,9 @@ public class NotificationFragment extends Fragment {
                 originalList.clear();
                 originalList.addAll(cachedList);
                 applyFiltersAndSearch();
-            } catch (Exception e) { e.printStackTrace(); }
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
         }
     }
 

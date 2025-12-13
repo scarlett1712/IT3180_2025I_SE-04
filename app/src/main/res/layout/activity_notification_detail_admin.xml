@@ -9,6 +9,8 @@
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:background="@android:color/transparent"
+    app:theme="@style/ToolbarTheme"
+    app:popupTheme="@style/PopupOverlay"
     app:elevation="0dp">
 
     <com.google.android.material.appbar.MaterialToolbar

@@ -222,8 +222,5 @@ public class HomeFragment_User extends Fragment {
             }
         });
 
-        view.findViewById(R.id.layoutSupport).setOnClickListener(v ->
-                Snackbar.make(v, "Chức năng hỗ trợ đang phát triển.", Snackbar.LENGTH_SHORT).show()
-        );
     }
 }

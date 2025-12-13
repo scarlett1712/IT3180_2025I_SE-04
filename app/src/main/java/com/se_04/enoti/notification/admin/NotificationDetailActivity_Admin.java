@@ -152,7 +152,27 @@ public class NotificationDetailActivity_Admin extends BaseActivity {
     // 🔥 1. TẠO MENU (Sửa / Xóa)
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
-        getMenuInflater().inflate(R.menu.menu_notification_admin, menu);
+        getMenuInflater().inflate(R.menu.menu_notification_admin, menu); // Thay tên menu của bạn nếu khác
+
+        // --- THÊM ĐOẠN NÀY ĐỂ ÉP MÀU CHỮ THÀNH ĐEN ---
+        for (int i = 0; i < menu.size(); i++) {
+            android.view.MenuItem item = menu.getItem(i);
+
+            // Lấy tiêu đề hiện tại
+            CharSequence title = item.getTitle();
+            if (title != null) {
+                // Tạo một chuỗi Spannable để gắn màu
+                android.text.SpannableString spanString = new android.text.SpannableString(title);
+
+                // Gán màu ĐEN (Color.BLACK) cho toàn bộ chuỗi
+                spanString.setSpan(new android.text.style.ForegroundColorSpan(android.graphics.Color.BLACK), 0, spanString.length(), 0);
+
+                // Set lại tiêu đề mới đã có màu
+                item.setTitle(spanString);
+            }
+        }
+        // ----------------------------------------------
+
         return true;
     }
 

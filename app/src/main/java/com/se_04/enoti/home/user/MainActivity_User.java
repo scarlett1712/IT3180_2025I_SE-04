@@ -13,7 +13,6 @@ import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AlertDialog;
-import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.app.AppCompatDelegate;
 import androidx.core.app.NotificationManagerCompat;
 import androidx.core.content.ContextCompat;
@@ -21,7 +20,7 @@ import androidx.fragment.app.Fragment;
 import androidx.fragment.app.FragmentManager;
 import androidx.fragment.app.FragmentTransaction;
 
-import com.android.volley.DefaultRetryPolicy; // 🔥 Import RetryPolicy
+import com.android.volley.DefaultRetryPolicy;
 import com.android.volley.Request;
 import com.android.volley.toolbox.JsonObjectRequest;
 import com.android.volley.toolbox.Volley;
@@ -105,6 +104,7 @@ public class MainActivity_User extends BaseActivity {
         fragmentManager = getSupportFragmentManager();
 
         if (savedInstanceState == null) {
+            // --- Lần đầu chạy app ---
             homeFragmentUser = new HomeFragment_User();
             notificationFragment = new NotificationFragment();
             financeFragment = new FinanceFragment();
@@ -114,12 +114,13 @@ public class MainActivity_User extends BaseActivity {
 
             FragmentTransaction transaction = fragmentManager.beginTransaction();
 
+            // Thêm tất cả fragment nhưng ẩn đi, trừ home
             transaction.add(R.id.fragment_container, accountFragment, "account").hide(accountFragment);
-            transaction.add(R.id.fragment_container, financeFragment, "finance").hide(financeFragment);
-            transaction.add(R.id.fragment_container, notificationFragment, "notifications").hide(notificationFragment);
             transaction.add(R.id.fragment_container, feedbackFragment, "feedback").hide(feedbackFragment);
             transaction.add(R.id.fragment_container, assetFragment, "asset").hide(assetFragment);
-            transaction.add(R.id.fragment_container, homeFragmentUser, "home");
+            transaction.add(R.id.fragment_container, financeFragment, "finance").hide(financeFragment);
+            transaction.add(R.id.fragment_container, notificationFragment, "notifications").hide(notificationFragment);
+            transaction.add(R.id.fragment_container, homeFragmentUser, "home"); // Add cuối để hiển thị
 
             transaction.commit();
 
@@ -127,6 +128,7 @@ public class MainActivity_User extends BaseActivity {
             currentSelectedItemId = R.id.nav_home;
 
         } else {
+            // --- Khôi phục sau khi xoay màn hình ---
             currentSelectedItemId = savedInstanceState.getInt(SELECTED_ITEM_ID_KEY, R.id.nav_home);
             String activeTag = savedInstanceState.getString(ACTIVE_FRAGMENT_TAG_KEY, "home");
 
@@ -155,47 +157,102 @@ public class MainActivity_User extends BaseActivity {
             }
         }
 
+        // 🔥 Setup bottom navigation with animations
         bottomNavigationView.setOnItemSelectedListener(item -> {
             int itemId = item.getItemId();
             if (itemId == currentSelectedItemId) return true;
 
             Fragment targetFragment = null;
-            String targetTag = "";
 
             if (itemId == R.id.nav_home) {
                 targetFragment = homeFragmentUser;
-                targetTag = "home";
             } else if (itemId == R.id.nav_finance) {
                 targetFragment = financeFragment;
-                targetTag = "finance";
             } else if (itemId == R.id.nav_notifications) {
                 targetFragment = notificationFragment;
-                targetTag = "notifications";
             } else if (itemId == R.id.nav_asset) {
                 targetFragment = assetFragment;
-                targetTag = "asset";
             } else if (itemId == R.id.nav_account) {
                 targetFragment = accountFragment;
-                targetTag = "account";
             } else if (itemId == R.id.nav_feedback) {
                 targetFragment = feedbackFragment;
-                targetTag = "feedback";
             }
 
             if (targetFragment != null) {
-                FragmentTransaction transaction = fragmentManager.beginTransaction();
-                if (!targetFragment.isAdded()) {
-                    transaction.add(R.id.fragment_container, targetFragment, targetTag);
-                }
-                transaction.hide(activeFragment).show(targetFragment);
-                activeFragment = targetFragment;
-                currentSelectedItemId = itemId;
-                transaction.commit();
+                switchFragment(targetFragment, itemId);
+                return true;
             }
-            return true;
+            return false;
         });
 
         bottomNavigationView.setSelectedItemId(currentSelectedItemId);
+    }
+
+    /**
+     * Switch between fragments with slide animation
+     */
+    private void switchFragment(Fragment targetFragment, int itemId) {
+        if (targetFragment == activeFragment) return;
+
+        FragmentTransaction transaction = fragmentManager.beginTransaction();
+
+        // 🔥 ADD SLIDE ANIMATION
+        int currentPosition = getFragmentPosition(currentSelectedItemId);
+        int targetPosition = getFragmentPosition(itemId);
+
+        if (targetPosition > currentPosition) {
+            // Sliding left (next fragment)
+            transaction.setCustomAnimations(
+                    R.anim.slide_in_right,
+                    R.anim.slide_out_left,
+                    R.anim.slide_in_left,
+                    R.anim.slide_out_right
+            );
+        } else {
+            // Sliding right (previous fragment)
+            transaction.setCustomAnimations(
+                    R.anim.slide_in_left,
+                    R.anim.slide_out_right,
+                    R.anim.slide_in_right,
+                    R.anim.slide_out_left
+            );
+        }
+
+        if (!targetFragment.isAdded()) {
+            String tag = getTagForFragment(targetFragment);
+            transaction.add(R.id.fragment_container, targetFragment, tag);
+        }
+
+        transaction.hide(activeFragment).show(targetFragment);
+        activeFragment = targetFragment;
+        currentSelectedItemId = itemId;
+        transaction.commit();
+    }
+
+    /**
+     * Get fragment position for slide direction
+     */
+    private int getFragmentPosition(int menuItemId) {
+        if (menuItemId == R.id.nav_home) return 0;
+        else if (menuItemId == R.id.nav_finance) return 1;
+        else if (menuItemId == R.id.nav_notifications) return 2;
+        else if (menuItemId == R.id.nav_asset) return 3;
+        else if (menuItemId == R.id.nav_feedback) return 4;
+        else if (menuItemId == R.id.nav_account) return 5;
+        return 0;
+    }
+
+    /**
+     * Get tag for fragment
+     */
+    private String getTagForFragment(Fragment fragment) {
+        if (fragment == homeFragmentUser) return "home";
+        if (fragment == financeFragment) return "finance";
+        if (fragment == notificationFragment) return "notifications";
+        if (fragment == assetFragment) return "asset";
+        if (fragment == feedbackFragment) return "feedback";
+        if (fragment == accountFragment) return "account";
+        return "";
     }
 
     @Override
@@ -204,6 +261,8 @@ public class MainActivity_User extends BaseActivity {
         outState.putInt(SELECTED_ITEM_ID_KEY, currentSelectedItemId);
         if (activeFragment != null && activeFragment.getTag() != null) {
             outState.putString(ACTIVE_FRAGMENT_TAG_KEY, activeFragment.getTag());
+        } else {
+            outState.putString(ACTIVE_FRAGMENT_TAG_KEY, "home");
         }
     }
 
@@ -295,6 +354,13 @@ public class MainActivity_User extends BaseActivity {
                     Toast.makeText(this, "Đã kết nối hệ thống thông báo ✅", Toast.LENGTH_SHORT).show();
                 },
                 error -> {
+                    // 🔥 ADD 401 ERROR HANDLING
+                    if (error.networkResponse != null && error.networkResponse.statusCode == 401) {
+                        Log.e(TAG, "Token expired (401), forcing logout");
+                        UserManager.getInstance(this).checkAndForceLogout(error);
+                        return;
+                    }
+
                     String errorMsg = "Lỗi kết nối Server";
                     if (error.networkResponse != null && error.networkResponse.data != null) {
                         try {
@@ -309,9 +375,20 @@ public class MainActivity_User extends BaseActivity {
                     Log.e(TAG, "sendRegistrationToServer: Failed to update token: " + error.toString());
                     Toast.makeText(this, "Lỗi Server: " + errorMsg, Toast.LENGTH_LONG).show();
                 }
-        );
+        ) {
+            // 🔥🔥🔥 CRITICAL FIX: ADD AUTHORIZATION HEADER 🔥🔥🔥
+            @Override
+            public java.util.Map<String, String> getHeaders() {
+                java.util.Map<String, String> headers = new java.util.HashMap<>();
+                String authToken = UserManager.getInstance(getApplicationContext()).getAuthToken();
+                if (authToken != null && !authToken.isEmpty()) {
+                    headers.put("Authorization", "Bearer " + authToken);
+                }
+                return headers;
+            }
+        };
 
-        // 🔥 FIX: Áp dụng RetryPolicy (Tăng timeout lên 30s)
+        // 🔥 Apply RetryPolicy (Increase timeout to 30s)
         request.setRetryPolicy(new DefaultRetryPolicy(
                 MY_SOCKET_TIMEOUT_MS,
                 DefaultRetryPolicy.DEFAULT_MAX_RETRIES,

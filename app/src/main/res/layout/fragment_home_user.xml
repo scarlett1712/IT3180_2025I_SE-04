@@ -189,33 +189,7 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="Quỹ"
-                        android:textSize="13sp"
-                        android:layout_marginTop="8dp"
-                        android:textColor="#333333"/>
-                </LinearLayout>
-
-                <LinearLayout
-                    android:id="@+id/layoutSupport"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_columnWeight="1"
-                    android:orientation="vertical"
-                    android:gravity="center">
-
-                    <ImageView
-                        android:layout_width="56dp"
-                        android:layout_height="56dp"
-                        android:background="@drawable/bg_circle_red"
-                        android:src="@drawable/ic_support_light"
-                        android:padding="14dp"
-                        app:tint="@color/white"
-                        android:contentDescription="@string/support"/>
-
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="Phản hồi"
+                        android:text="@string/feedback"
                         android:textSize="13sp"
                         android:layout_marginTop="8dp"
                         android:textColor="#333333"/>
