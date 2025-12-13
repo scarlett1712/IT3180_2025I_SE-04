@@ -52,14 +52,37 @@ initSchemaWithRetry();
 
 // 🔥 HELPER: Hàm chuyển đổi Role ID sang tên Role
 const getRoleName = (roleId) => {
+    // ⚠️ IMPORTANT: Use == for type coercion (roleId might be string or number)
+    if (roleId == 1) return "USER";
     if (roleId == 2) return "ADMIN";
-    if (roleId == 3) return "ACCOUNTANT"; // ✅ Kế toán
-    if (roleId == 4) return "AGENCY";     // ✅ Cơ quan chức năng)
-    return "USER";
+    if (roleId == 3) return "ACCOUNTANT";
+    if (roleId == 4) return "AGENCY";
+    return "USER"; // Default fallback
+};
+
+// 🔥 NEW HELPER: Build complete user object
+const buildUserObject = (userRow, infoRow) => {
+    const roleName = getRoleName(userRow.role_id || 1);
+
+    return {
+        id: userRow.user_id.toString(),
+        familyId: infoRow.family_id ? infoRow.family_id.toString() : "0", // 🔥 ADD familyId
+        phone: userRow.phone,
+        role: roleName,
+        role_id: userRow.role_id || 1,
+        name: infoRow.full_name || userRow.phone,
+        gender: infoRow.gender || "Khác",
+        dob: infoRow.dob || "01-01-2000",
+        email: infoRow.email || "",
+        identity_card: infoRow.identity_card || "",
+        home_town: infoRow.home_town || "",
+        room: infoRow.room || 0,
+        relationship: infoRow.relationship || "",
+    };
 };
 
 /* ==========================================================
-   🔍 API: Lấy thông tin chi tiết (BẢO MẬT)
+   📋 API: Lấy thông tin chi tiết (BẢO MẬT)
 ========================================================== */
 router.get("/profile/:user_id", verifySession, async (req, res) => {
   try {
@@ -76,6 +99,7 @@ router.get("/profile/:user_id", verifySession, async (req, res) => {
         ui.relationship,
         ur.role_id,
         a.apartment_number as room,
+        a.apartment_id as family_id,
         r.relationship_with_the_head_of_household as relationship_name,
         r.is_head_of_household as is_head
       FROM users u
@@ -91,8 +115,6 @@ router.get("/profile/:user_id", verifySession, async (req, res) => {
     }
 
     const userData = result.rows[0];
-
-    // 🔥 Thêm thông tin Role vào response
     userData.role_name = getRoleName(userData.role_id);
 
     res.json({ success: true, user: userData });
@@ -126,66 +148,60 @@ router.post("/login", async (req, res) => {
         await pool.query("UPDATE users SET session_token = $1 WHERE user_id = $2", [request.temp_token, request.user_id]);
         await pool.query("DELETE FROM login_requests WHERE user_id = $1", [request.user_id]);
 
-        const userRes = await pool.query(`SELECT u.user_id, u.phone, ur.role_id FROM users u LEFT JOIN userrole ur ON u.user_id = ur.user_id WHERE u.user_id = $1`, [request.user_id]);
+        // 🔥 FIXED: Get complete user info with family_id
+        const userRes = await pool.query(`
+            SELECT u.user_id, u.phone, ur.role_id
+            FROM users u
+            LEFT JOIN userrole ur ON u.user_id = ur.user_id
+            WHERE u.user_id = $1
+        `, [request.user_id]);
         const user = userRes.rows[0];
 
-        // 🔥 Xác định Role
-        const roleName = getRoleName(user.role_id);
-
-        const infoRes = await pool.query(
-          `SELECT ui.full_name, ui.gender, TO_CHAR(ui.dob, 'DD-MM-YYYY') AS dob, ui.email,
-                  ui.identity_card, ui.home_town,
-                  r.relationship_with_the_head_of_household AS relationship, a.apartment_number AS room
-           FROM user_item ui
-           LEFT JOIN relationship r ON ui.relationship = r.relationship_id
-           LEFT JOIN apartment a ON r.apartment_id = a.apartment_id
-           WHERE ui.user_id = $1`, [user.user_id]
-        );
+        const infoRes = await pool.query(`
+            SELECT ui.full_name, ui.gender, TO_CHAR(ui.dob, 'DD-MM-YYYY') AS dob, ui.email,
+                   ui.identity_card, ui.home_town,
+                   r.relationship_with_the_head_of_household AS relationship,
+                   a.apartment_number AS room,
+                   a.apartment_id AS family_id
+            FROM user_item ui
+            LEFT JOIN relationship r ON ui.relationship = r.relationship_id
+            LEFT JOIN apartment a ON r.apartment_id = a.apartment_id
+            WHERE ui.user_id = $1
+        `, [user.user_id]);
         const info = infoRes.rows.length > 0 ? infoRes.rows[0] : {};
 
         return res.json({
             status: 'approved',
             message: "Đăng nhập thành công",
             session_token: request.temp_token,
-            user: {
-                id: user.user_id.toString(),
-                phone: user.phone,
-                role: roleName,        // String: ADMIN/USER/ACCOUNTANT
-                role_id: user.role_id, // 🔥 Integer: 1/2/3 (Quan trọng cho Java)
-                name: info.full_name || user.phone,
-                gender: info.gender || "Khác",
-                dob: info.dob || "01-01-2000",
-                email: info.email || "",
-                identity_card: info.identity_card || "",
-                home_town: info.home_town || "",
-                room: info.room || "",
-                relationship: info.relationship || "",
-            }
+            user: buildUserObject(user, info)
         });
     }
 
     // --- LOGIC ĐĂNG NHẬP CHÍNH ---
     if (!phone || !password) return res.status(400).json({ error: "Thiếu thông tin." });
 
-    const userRes = await pool.query(
-      `SELECT u.user_id, u.phone, u.password_hash, ur.role_id, u.session_token
-       FROM users u
-       LEFT JOIN userrole ur ON u.user_id = ur.user_id
-       WHERE u.phone = $1`, [phone]
-    );
+    const userRes = await pool.query(`
+        SELECT u.user_id, u.phone, u.password_hash, ur.role_id, u.session_token
+        FROM users u
+        LEFT JOIN userrole ur ON u.user_id = ur.user_id
+        WHERE u.phone = $1
+    `, [phone]);
 
     if (userRes.rows.length === 0) return res.status(404).json({ error: "Số điện thoại không tồn tại." });
 
     const user = userRes.rows[0];
 
-    // 🔥 Xác định Role
-    const roleName = getRoleName(user.role_id);
-
     const match = await bcrypt.compare(password, user.password_hash);
     if (!match) return res.status(401).json({ error: "Sai mật khẩu." });
 
-    await pool.query("DELETE FROM login_requests WHERE user_id = $1 AND created_at < NOW() - INTERVAL '5 minutes'", [user.user_id]);
+    // Clean up old requests
+    await pool.query(
+        "DELETE FROM login_requests WHERE user_id = $1 AND created_at < NOW() - INTERVAL '5 minutes'",
+        [user.user_id]
+    );
 
+    // Check if already logged in elsewhere
     if (user.session_token && !force_login) {
         const tempToken = crypto.randomBytes(32).toString('hex');
         const insertReq = await pool.query(
@@ -200,40 +216,32 @@ router.post("/login", async (req, res) => {
         });
     }
 
+    // Create new session
     const sessionToken = crypto.randomBytes(32).toString('hex');
     await pool.query("UPDATE users SET session_token = $1 WHERE user_id = $2", [sessionToken, user.user_id]);
     await pool.query("DELETE FROM login_requests WHERE user_id = $1", [user.user_id]);
 
-    const infoRes = await pool.query(
-      `SELECT ui.full_name, ui.gender, TO_CHAR(ui.dob, 'DD-MM-YYYY') AS dob, ui.email,
-              ui.identity_card, ui.home_town,
-              r.relationship_with_the_head_of_household AS relationship, a.apartment_number AS room
-       FROM user_item ui
-       LEFT JOIN relationship r ON ui.relationship = r.relationship_id
-       LEFT JOIN apartment a ON r.apartment_id = a.apartment_id
-       WHERE ui.user_id = $1`, [user.user_id]
-    );
+    // 🔥 FIXED: Get complete info with family_id
+    const infoRes = await pool.query(`
+        SELECT ui.full_name, ui.gender, TO_CHAR(ui.dob, 'DD-MM-YYYY') AS dob, ui.email,
+               ui.identity_card, ui.home_town,
+               r.relationship_with_the_head_of_household AS relationship,
+               a.apartment_number AS room,
+               a.apartment_id AS family_id
+        FROM user_item ui
+        LEFT JOIN relationship r ON ui.relationship = r.relationship_id
+        LEFT JOIN apartment a ON r.apartment_id = a.apartment_id
+        WHERE ui.user_id = $1
+    `, [user.user_id]);
 
     const info = infoRes.rows.length > 0 ? infoRes.rows[0] : {};
 
     return res.json({
-      message: "Đăng nhập thành công",
-      session_token: sessionToken,
-      user: {
-        id: user.user_id.toString(),
-        phone: user.phone,
-        role: roleName,        // String: ADMIN/USER/ACCOUNTANT
-        role_id: user.role_id, // 🔥 Integer: 1/2/3
-        name: info.full_name || user.phone,
-        gender: info.gender || "Khác",
-        dob: info.dob || "01-01-2000",
-        email: info.email || "",
-        identity_card: info.identity_card || "",
-        home_town: info.home_town || "",
-        room: info.room || "",
-        relationship: info.relationship || "",
-      },
+        message: "Đăng nhập thành công",
+        session_token: sessionToken,
+        user: buildUserObject(user, info)
     });
+
   } catch (err) {
     console.error("💥 [LOGIN ERROR]", err);
     res.status(500).json({ error: "Lỗi server khi đăng nhập." });
@@ -254,12 +262,12 @@ router.post("/auth/firebase", async (req, res) => {
 
     let dbPhone = firebasePhone.replace("+84", "0");
 
-    const userRes = await pool.query(
-        `SELECT u.user_id, u.phone, ur.role_id, u.session_token
-         FROM users u
-         LEFT JOIN userrole ur ON u.user_id = ur.user_id
-         WHERE u.phone = $1 OR u.phone = $2`, [dbPhone, firebasePhone]
-    );
+    const userRes = await pool.query(`
+        SELECT u.user_id, u.phone, ur.role_id, u.session_token
+        FROM users u
+        LEFT JOIN userrole ur ON u.user_id = ur.user_id
+        WHERE u.phone = $1 OR u.phone = $2
+    `, [dbPhone, firebasePhone]);
 
     if (userRes.rows.length === 0) {
         return res.status(404).json({ error: "Số điện thoại chưa được đăng ký.", phone: dbPhone });
@@ -285,43 +293,33 @@ router.post("/auth/firebase", async (req, res) => {
     await pool.query("DELETE FROM login_requests WHERE user_id = $1", [user.user_id]);
 
     if (fcm_token) {
-        await pool.query("UPDATE users SET session_token = $1, fcm_token = $2 WHERE user_id = $3", [sessionToken, fcm_token, user.user_id]);
+        await pool.query(
+            "UPDATE users SET session_token = $1, fcm_token = $2 WHERE user_id = $3",
+            [sessionToken, fcm_token, user.user_id]
+        );
     } else {
         await pool.query("UPDATE users SET session_token = $1 WHERE user_id = $2", [sessionToken, user.user_id]);
     }
 
-    const infoRes = await pool.query(
-      `SELECT ui.full_name, ui.gender, TO_CHAR(ui.dob, 'DD-MM-YYYY') AS dob, ui.email,
-              ui.identity_card, ui.home_town,
-              r.relationship_with_the_head_of_household AS relationship, a.apartment_number AS room
-       FROM user_item ui
-       LEFT JOIN relationship r ON ui.relationship = r.relationship_id
-       LEFT JOIN apartment a ON r.apartment_id = a.apartment_id
-       WHERE ui.user_id = $1`, [user.user_id]
-    );
+    // 🔥 FIXED: Get complete info with family_id
+    const infoRes = await pool.query(`
+        SELECT ui.full_name, ui.gender, TO_CHAR(ui.dob, 'DD-MM-YYYY') AS dob, ui.email,
+               ui.identity_card, ui.home_town,
+               r.relationship_with_the_head_of_household AS relationship,
+               a.apartment_number AS room,
+               a.apartment_id AS family_id
+        FROM user_item ui
+        LEFT JOIN relationship r ON ui.relationship = r.relationship_id
+        LEFT JOIN apartment a ON r.apartment_id = a.apartment_id
+        WHERE ui.user_id = $1
+    `, [user.user_id]);
 
     const info = infoRes.rows.length > 0 ? infoRes.rows[0] : {};
 
-    // 🔥 Xác định Role cho OTP Login
-    const roleName = getRoleName(user.role_id);
-
     return res.json({
-      message: "Xác thực Firebase thành công",
-      session_token: sessionToken,
-      user: {
-        id: user.user_id.toString(),
-        phone: user.phone,
-        role: roleName,        // String
-        role_id: user.role_id, // 🔥 Integer
-        name: info.full_name || user.phone,
-        gender: info.gender || "Khác",
-        dob: info.dob || "01-01-2000",
-        email: info.email || "",
-        identity_card: info.identity_card || "",
-        home_town: info.home_town || "",
-        room: info.room || "",
-        relationship: info.relationship || "",
-      },
+        message: "Xác thực Firebase thành công",
+        session_token: sessionToken,
+        user: buildUserObject(user, info)
     });
 
   } catch (error) {
@@ -401,9 +399,15 @@ router.post("/reset_password", async (req, res) => {
 router.get("/check_pending_login/:userId", async (req, res) => {
     try {
         const { userId } = req.params;
-        const result = await pool.query("SELECT * FROM login_requests WHERE user_id = $1 AND status = 'pending' ORDER BY created_at DESC LIMIT 1", [userId]);
+        const result = await pool.query(
+            "SELECT * FROM login_requests WHERE user_id = $1 AND status = 'pending' ORDER BY created_at DESC LIMIT 1",
+            [userId]
+        );
         res.json(result.rows);
-    } catch (err) { res.status(500).json({ error: "Lỗi server" }); }
+    } catch (err) {
+        console.error("Check pending login error:", err);
+        res.status(500).json({ error: "Lỗi server" });
+    }
 });
 
 router.post("/resolve_login", async (req, res) => {
@@ -411,7 +415,10 @@ router.post("/resolve_login", async (req, res) => {
         const { request_id, action } = req.body;
         await pool.query("UPDATE login_requests SET status = $1 WHERE id = $2", [action, request_id]);
         res.json({ success: true });
-    } catch (err) { res.status(500).json({ error: "Lỗi server" }); }
+    } catch (err) {
+        console.error("Resolve login error:", err);
+        res.status(500).json({ error: "Lỗi server" });
+    }
 });
 
 router.post("/logout", verifySession, async (req, res) => {
@@ -441,10 +448,10 @@ router.post("/update_fcm_token", verifySession, async (req, res) => {
         if (!fcm_token) return res.status(400).json({ error: "Thiếu thông tin." });
         await pool.query("UPDATE users SET fcm_token = $1 WHERE user_id = $2", [fcm_token, user_id]);
         res.json({ success: true, message: "Đã cập nhật token thông báo." });
-    } catch (err) { console.error("FCM Update Error:", err); res.status(500).json({ error: "Lỗi server." }); }
+    } catch (err) {
+        console.error("FCM Update Error:", err);
+        res.status(500).json({ error: "Lỗi server." });
+    }
 });
 
 export default router;
-
-
-

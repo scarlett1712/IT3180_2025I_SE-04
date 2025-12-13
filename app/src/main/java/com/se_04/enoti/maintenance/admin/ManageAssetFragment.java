@@ -20,6 +20,7 @@ import com.android.volley.toolbox.JsonArrayRequest;
 import com.android.volley.toolbox.Volley;
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
 import com.se_04.enoti.R;
+import com.se_04.enoti.account.Role; // Import Role
 import com.se_04.enoti.account.UserItem;
 import com.se_04.enoti.maintenance.AssetItem;
 import com.se_04.enoti.report.AdminReportBottomSheet;
@@ -41,6 +42,10 @@ public class ManageAssetFragment extends Fragment {
     private AssetAdapter adapter;
     private List<AssetItem> assetList = new ArrayList<>();
     private TextView txtEmptyAssets;
+    private FloatingActionButton btnAdd; // Khai báo biến toàn cục để ẩn hiện
+
+    // 🔥 Biến kiểm tra quyền Agency
+    private boolean isAgency = false;
 
     @Nullable
     @Override
@@ -48,33 +53,24 @@ public class ManageAssetFragment extends Fragment {
                              @Nullable Bundle savedInstanceState) {
         View view = inflater.inflate(R.layout.fragment_manage_asset, container, false);
 
-        setupWelcomeViews(view);
+        // 1. Kiểm tra Role ngay khi khởi tạo
+        UserItem currentUser = UserManager.getInstance(requireContext()).getCurrentUser();
+        if (currentUser != null && currentUser.getRole() == Role.AGENCY) {
+            isAgency = true;
+        }
+
+        setupWelcomeViews(view, currentUser);
         setupRecyclerView(view);
 
         txtEmptyAssets = view.findViewById(R.id.txtEmptyAssets);
+        btnAdd = view.findViewById(R.id.btnAddAsset);
 
-        View cardSchedule = view.findViewById(R.id.cardMaintenanceSchedule);
-        if (cardSchedule != null) {
-            cardSchedule.setOnClickListener(v -> {
-                Intent intent = new Intent(getActivity(), MaintenanceActivity.class);
-                startActivity(intent);
-            });
-        }
+        // 2. Setup các sự kiện click (Có kiểm tra quyền)
+        setupClickListeners(view);
 
-        View cardReports = view.findViewById(R.id.cardResidentReports);
-        if (cardReports != null) {
-            cardReports.setOnClickListener(v -> {
-                AdminReportBottomSheet bottomSheet = new AdminReportBottomSheet();
-                bottomSheet.show(getParentFragmentManager(), "AdminReportBottomSheet");
-            });
-        }
-
-        FloatingActionButton btnAdd = view.findViewById(R.id.btnAddAsset);
-        if (btnAdd != null) {
-            btnAdd.setOnClickListener(v -> {
-                Intent intent = new Intent(getActivity(), AddAssetActivity.class);
-                startActivity(intent);
-            });
+        // 3. Ẩn nút thêm nếu là Agency
+        if (isAgency && btnAdd != null) {
+            btnAdd.setVisibility(View.GONE);
         }
 
         return view;
@@ -86,12 +82,12 @@ public class ManageAssetFragment extends Fragment {
         loadAssets();
     }
 
-    private void setupWelcomeViews(View view) {
+    private void setupWelcomeViews(View view, UserItem currentUser) {
         TextView txtWelcome = view.findViewById(R.id.txtWelcome);
         TextView txtGreeting = view.findViewById(R.id.txtGreeting);
 
-        UserItem currentUser = UserManager.getInstance(requireContext()).getCurrentUser();
         String username = (currentUser != null) ? currentUser.getName() : "Quản trị viên";
+        if (isAgency) username = "Cán bộ (Agency)"; // Tùy chỉnh lời chào
 
         if (txtWelcome != null) txtWelcome.setText("Xin chào " + username + "!");
 
@@ -100,6 +96,45 @@ public class ManageAssetFragment extends Fragment {
             int hour = calendar.get(Calendar.HOUR_OF_DAY);
             String timeOfDay = (hour >= 5 && hour < 11) ? "sáng" : (hour >= 11 && hour < 14) ? "trưa" : (hour >= 14 && hour < 18) ? "chiều" : "tối";
             txtGreeting.setText("Chúc bạn buổi " + timeOfDay + " tốt lành!");
+        }
+    }
+
+    private void setupClickListeners(View view) {
+        // --- Card Lịch bảo trì ---
+        View cardSchedule = view.findViewById(R.id.cardMaintenanceSchedule);
+        if (cardSchedule != null) {
+            cardSchedule.setOnClickListener(v -> {
+                Intent intent = new Intent(getActivity(), MaintenanceActivity.class);
+                // Truyền cờ isAgency sang Activity tiếp theo nếu cần ẩn nút sửa lịch
+                intent.putExtra("IS_AGENCY", isAgency);
+                startActivity(intent);
+            });
+        }
+
+        // --- Card Báo cáo cư dân ---
+        View cardReports = view.findViewById(R.id.cardResidentReports);
+        if (cardReports != null) {
+            cardReports.setOnClickListener(v -> {
+                AdminReportBottomSheet bottomSheet = new AdminReportBottomSheet();
+
+                // 🔥 TRUYỀN CỜ AGENCY VÀO BOTTOM SHEET
+                // Để bên BottomSheet biết mà ẩn nút Duyệt/Từ chối
+                Bundle args = new Bundle();
+                args.putBoolean("IS_AGENCY", isAgency);
+                bottomSheet.setArguments(args);
+
+                bottomSheet.show(getParentFragmentManager(), "AdminReportBottomSheet");
+            });
+        }
+
+        // --- Nút Thêm Tài sản ---
+        if (btnAdd != null) {
+            btnAdd.setOnClickListener(v -> {
+                if (!isAgency) { // Chặn thêm lần nữa cho chắc
+                    Intent intent = new Intent(getActivity(), AddAssetActivity.class);
+                    startActivity(intent);
+                }
+            });
         }
     }
 
@@ -113,7 +148,12 @@ public class ManageAssetFragment extends Fragment {
             Intent intent = new Intent(getActivity(), com.se_04.enoti.maintenance.user.AssetDetailActivity.class);
             intent.putExtra("ASSET_ID", item.getId());
             intent.putExtra("ASSET_NAME", item.getName());
+
+            // 🔥 Nếu là Agency, ta vẫn gửi IS_ADMIN = true để xem giao diện Admin
+            // NHƯNG cần gửi thêm IS_AGENCY để bên Activity đó ẩn nút Sửa/Xóa
             intent.putExtra("IS_ADMIN", true);
+            intent.putExtra("IS_AGENCY", isAgency);
+
             startActivity(intent);
         });
 
@@ -135,7 +175,7 @@ public class ManageAssetFragment extends Fragment {
                 response -> {
                     if (getContext() == null) return;
 
-                    // 🔥 Lưu Cache
+                    // Lưu Cache
                     DataCacheManager.getInstance(requireContext())
                             .saveCache(DataCacheManager.CACHE_ASSETS, response.toString());
 
@@ -159,9 +199,10 @@ public class ManageAssetFragment extends Fragment {
 
         Volley.newRequestQueue(requireContext()).add(request);
     }
+
     private void parseAndDisplayData(String jsonString) {
         try {
-            JSONArray response = new JSONArray(jsonString); // Hoặc parse từ String nếu load từ cache
+            JSONArray response = new JSONArray(jsonString);
             assetList.clear();
             for (int i = 0; i < response.length(); i++) {
                 JSONObject obj = response.getJSONObject(i);
@@ -169,14 +210,13 @@ public class ManageAssetFragment extends Fragment {
             }
             adapter.notifyDataSetChanged();
 
-            // Xử lý empty view ...
             if (assetList.isEmpty() && txtEmptyAssets != null) {
                 txtEmptyAssets.setVisibility(View.VISIBLE);
             } else if (txtEmptyAssets != null) {
                 txtEmptyAssets.setVisibility(View.GONE);
+                recyclerView.setVisibility(View.VISIBLE);
             }
 
         } catch (JSONException e) { e.printStackTrace(); }
     }
-
 }

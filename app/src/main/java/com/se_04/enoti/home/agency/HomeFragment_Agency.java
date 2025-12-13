@@ -66,7 +66,7 @@ public class HomeFragment_Agency extends Fragment {
             }
         });
 
-        // Navigate to Report/Feedback Management
+        // Navigate to Asset Management
         view.findViewById(R.id.layoutManageAsset).setOnClickListener(v -> {
             if (getActivity() instanceof MainActivity_Agency) {
                 ((MainActivity_Agency) getActivity()).switchToManageAssetTab();
