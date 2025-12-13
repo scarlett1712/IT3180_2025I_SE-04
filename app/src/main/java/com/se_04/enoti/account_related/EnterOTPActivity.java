@@ -18,6 +18,7 @@ import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+
 import com.android.volley.Request;
 import com.android.volley.RequestQueue;
 import com.android.volley.toolbox.JsonObjectRequest;
@@ -53,7 +54,11 @@ public class EnterOTPActivity extends BaseActivity {
     public static final String FROM_FORGOT_PASSWORD = "from_forgot_password";
     public static final String FROM_FORCE_LOGIN = "from_force_login";
 
+    // 🔥 API URLs RIÊNG BIỆT CHO 3 ROLE
     private static final String API_CREATE_ADMIN_URL = ApiConfig.BASE_URL + "/api/users/create_admin";
+    private static final String API_CREATE_ACCOUNTANT_URL = ApiConfig.BASE_URL + "/api/users/create_accountant";
+    private static final String API_CREATE_AGENCY_URL = ApiConfig.BASE_URL + "/api/users/create_agency";
+
     private static final String API_FIREBASE_AUTH_URL = ApiConfig.BASE_URL + "/api/users/auth/firebase";
 
     private PinView pinView;
@@ -200,6 +205,7 @@ public class EnterOTPActivity extends BaseActivity {
                 });
     }
 
+    // 🔥 HÀM XỬ LÝ ĐIỀU HƯỚNG
     private void handleNextStep(String idToken) {
         Intent intent = getIntent();
         String previousActivity = intent.getStringExtra(EXTRA_PREVIOUS_ACTIVITY);
@@ -211,11 +217,66 @@ public class EnterOTPActivity extends BaseActivity {
             createPasswordIntent.putExtra("phone", mPhoneNumber);
             startActivity(createPasswordIntent);
             finish();
+
         } else if (FROM_REGISTER_PHONE.equals(previousActivity)) {
-            executorService.execute(() -> mainHandler.post(() -> createAdminAccount(idToken)));
+            // 🔥 LẤY TARGET ROLE ĐỂ CHỌN URL
+            String targetRole = intent.getStringExtra("target_role");
+            String apiUrl = API_CREATE_ADMIN_URL; // Mặc định là Admin nếu null
+
+            if ("ACCOUNTANT".equals(targetRole)) {
+                apiUrl = API_CREATE_ACCOUNTANT_URL;
+            } else if ("AGENCY".equals(targetRole)) {
+                apiUrl = API_CREATE_AGENCY_URL;
+            }
+
+            final String finalUrl = apiUrl;
+            executorService.execute(() -> mainHandler.post(() -> createStaffAccount(idToken, finalUrl)));
+
         } else if (FROM_FORCE_LOGIN.equals(previousActivity)) {
             performForceLogin(idToken, false);
         }
+    }
+
+    // 🔥 GỌI API TẠO TÀI KHOẢN (Chung cho cả 3 Role)
+    private void createStaffAccount(String idToken, String apiUrl) {
+        Intent intent = getIntent();
+        JSONObject requestBody = new JSONObject();
+        try {
+            requestBody.put("phone", intent.getStringExtra("phone"));
+            requestBody.put("password", intent.getStringExtra("password"));
+            requestBody.put("full_name", intent.getStringExtra("fullName"));
+            requestBody.put("dob", intent.getStringExtra("dob"));
+            requestBody.put("email", intent.getStringExtra("email"));
+
+            // Dữ liệu bổ sung
+            requestBody.put("identity_card", intent.getStringExtra("identity_card"));
+            requestBody.put("home_town", intent.getStringExtra("home_town"));
+
+            requestBody.put("idToken", idToken);
+            String gender = intent.getStringExtra("gender");
+            requestBody.put("gender", gender != null ? gender : "Khác");
+        } catch (JSONException e) { setLoading(false); return; }
+
+        RequestQueue queue = Volley.newRequestQueue(this);
+        JsonObjectRequest request = new JsonObjectRequest(Request.Method.POST, apiUrl, requestBody,
+                response -> {
+                    setLoading(false);
+                    Toast.makeText(this, "Đăng ký thành công! Vui lòng đăng nhập.", Toast.LENGTH_LONG).show();
+                    Intent loginIntent = new Intent(this, LogInActivity.class);
+                    loginIntent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_NEW_TASK);
+                    startActivity(loginIntent);
+                    finish();
+                },
+                error -> {
+                    setLoading(false);
+                    String errorMsg = "Đăng ký thất bại.";
+                    // Xử lý lỗi trùng SĐT (Code 409 từ Backend)
+                    if (error.networkResponse != null && error.networkResponse.statusCode == 409) {
+                        errorMsg = "Số điện thoại này đã được đăng ký!";
+                    }
+                    Toast.makeText(this, errorMsg, Toast.LENGTH_LONG).show();
+                });
+        queue.add(request);
     }
 
     private void performForceLogin(String idToken, boolean forceLogin) {
@@ -239,7 +300,6 @@ public class EnterOTPActivity extends BaseActivity {
 
                         if (response.has("user")) {
                             setLoading(false);
-                            
                             String sessionToken = response.optString("session_token", null);
                             if (sessionToken == null || sessionToken.isEmpty() || sessionToken.equals("null")) {
                                 Toast.makeText(this, "Lỗi nghiêm trọng: Server không trả về token.", Toast.LENGTH_LONG).show();
@@ -254,69 +314,27 @@ public class EnterOTPActivity extends BaseActivity {
 
                             Toast.makeText(this, "Đăng nhập thành công!", Toast.LENGTH_SHORT).show();
 
-                            // --- 🔥 LOGIC ĐIỀU HƯỚNG ĐÃ SỬA LỖI ---
                             Intent intent;
                             Role userRole = user.getRole();
-
-                            if (userRole == Role.ADMIN) {
-                                intent = new Intent(this, MainActivity_Admin.class);
-                            } else if (userRole == Role.ACCOUNTANT) {
-                                intent = new Intent(this, MainActivity_Accountant.class);
-                            } else if (userRole == Role.AGENCY) {
-                                intent = new Intent(this, MainActivity_Agency.class);
-                            } else {
-                                intent = new Intent(this, MainActivity_User.class);
-                            }
+                            if (userRole == Role.ADMIN) intent = new Intent(this, MainActivity_Admin.class);
+                            else if (userRole == Role.ACCOUNTANT) intent = new Intent(this, MainActivity_Accountant.class);
+                            else if (userRole == Role.AGENCY) intent = new Intent(this, MainActivity_Agency.class);
+                            else intent = new Intent(this, MainActivity_User.class);
 
                             intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TASK | Intent.FLAG_ACTIVITY_NEW_TASK);
                             startActivity(intent);
                             finish();
-
                         } else {
                             setLoading(false);
                             Toast.makeText(this, "Lỗi dữ liệu từ server.", Toast.LENGTH_SHORT).show();
                         }
-                    } catch (Exception e) {
-                        setLoading(false);
-                        e.printStackTrace();
-                    }
+                    } catch (Exception e) { setLoading(false); e.printStackTrace(); }
                 },
                 error -> {
                     setLoading(false);
                     Toast.makeText(this, "Đăng nhập thất bại.", Toast.LENGTH_LONG).show();
                 }
         );
-        queue.add(request);
-    }
-
-    private void createAdminAccount(String idToken) {
-        Intent intent = getIntent();
-        JSONObject requestBody = new JSONObject();
-        try {
-            requestBody.put("phone", intent.getStringExtra("phone"));
-            requestBody.put("password", intent.getStringExtra("password"));
-            requestBody.put("full_name", intent.getStringExtra("fullName"));
-            requestBody.put("dob", intent.getStringExtra("dob"));
-            requestBody.put("email", intent.getStringExtra("email"));
-            requestBody.put("idToken", idToken);
-            String gender = intent.getStringExtra("gender");
-            requestBody.put("gender", gender != null ? gender : "Khác");
-        } catch (JSONException e) { setLoading(false); return; }
-
-        RequestQueue queue = Volley.newRequestQueue(this);
-        JsonObjectRequest request = new JsonObjectRequest(Request.Method.POST, API_CREATE_ADMIN_URL, requestBody,
-                response -> {
-                    setLoading(false);
-                    Toast.makeText(this, "Đăng ký thành công! Vui lòng đăng nhập.", Toast.LENGTH_LONG).show();
-                    Intent loginIntent = new Intent(this, LogInActivity.class);
-                    loginIntent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_NEW_TASK);
-                    startActivity(loginIntent);
-                    finish();
-                },
-                error -> {
-                    setLoading(false);
-                    Toast.makeText(this, "Đăng ký thất bại.", Toast.LENGTH_LONG).show();
-                });
         queue.add(request);
     }
 
@@ -331,29 +349,16 @@ public class EnterOTPActivity extends BaseActivity {
         dialog.requestWindowFeature(Window.FEATURE_NO_TITLE);
         dialog.setContentView(R.layout.dialog_warning_login);
         dialog.setCancelable(false);
-
-        if (dialog.getWindow() != null) {
-            dialog.getWindow().setBackgroundDrawable(new ColorDrawable(Color.TRANSPARENT));
-        }
+        if (dialog.getWindow() != null) dialog.getWindow().setBackgroundDrawable(new ColorDrawable(Color.TRANSPARENT));
 
         TextView tvMessage = dialog.findViewById(R.id.tvMessage);
         Button btnCancel = dialog.findViewById(R.id.btnCancel);
         Button btnForce = dialog.findViewById(R.id.btnForceLogin);
 
-        if (message != null && !message.isEmpty()) {
-            tvMessage.setText(message);
-        }
+        if (message != null && !message.isEmpty()) tvMessage.setText(message);
 
-        btnCancel.setOnClickListener(v -> {
-            dialog.dismiss();
-            setLoading(false);
-        });
-
-        btnForce.setOnClickListener(v -> {
-            dialog.dismiss();
-            performForceLogin(idToken, true);
-        });
-
+        btnCancel.setOnClickListener(v -> { dialog.dismiss(); setLoading(false); });
+        btnForce.setOnClickListener(v -> { dialog.dismiss(); performForceLogin(idToken, true); });
         dialog.show();
     }
 }
