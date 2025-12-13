@@ -6,7 +6,6 @@ import android.text.TextUtils;
 import android.util.Log;
 import android.view.MenuItem;
 import android.view.View;
-import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
 import android.widget.AutoCompleteTextView;
 import android.widget.CheckBox;
@@ -14,10 +13,10 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.annotation.Nullable;
-import androidx.appcompat.app.AppCompatActivity;
 import androidx.recyclerview.widget.GridLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
+import com.android.volley.AuthFailureError; // Import thêm
 import com.android.volley.Request;
 import com.android.volley.RequestQueue;
 import com.android.volley.toolbox.JsonArrayRequest;
@@ -46,7 +45,6 @@ import java.util.Set;
 
 public class CreateFinanceActivity extends BaseActivity {
 
-    // 🔥 Thay Spinner bằng AutoCompleteTextView
     private AutoCompleteTextView spinnerFloor, spinnerType;
     private TextInputEditText edtFinanceTitle, edtFinanceContent, edtAmount, edtDueDate;
     private MaterialButton btnCreateFee;
@@ -73,37 +71,31 @@ public class CreateFinanceActivity extends BaseActivity {
         setupTypeDropdown();
         setupSelectAllCheckbox();
 
-        // Setup RecyclerView (Grid 3 cột cho đẹp mắt)
         recyclerRooms.setLayoutManager(new GridLayoutManager(this, 3));
         roomAdapter = new RoomAdapter(new ArrayList<>(), selected -> {
             selectedRooms = selected;
             updateSelectedRoomsDisplay();
 
-            // Nếu người dùng bỏ chọn 1 phòng thủ công, bỏ check "Chọn tất cả"
             if (selectedRooms.size() < allRooms.size() && chkSelectAllRooms.isChecked()) {
-                chkSelectAllRooms.setOnCheckedChangeListener(null); // Tạm ngắt listener để không trigger logic
+                chkSelectAllRooms.setOnCheckedChangeListener(null);
                 chkSelectAllRooms.setChecked(false);
-                chkSelectAllRooms.setOnCheckedChangeListener(this::onSelectAllChanged); // Gắn lại
+                chkSelectAllRooms.setOnCheckedChangeListener(this::onSelectAllChanged);
             }
         });
         recyclerRooms.setAdapter(roomAdapter);
 
         btnCreateFee.setOnClickListener(v -> createFee());
 
-        // Tải dữ liệu phòng
         fetchRoomsFromAPI();
     }
 
     private void initViews() {
-        // Ánh xạ ID theo layout mới
         edtFinanceTitle = findViewById(R.id.edtFinanceTitle);
         edtFinanceContent = findViewById(R.id.edtFinanceContent);
         edtAmount = findViewById(R.id.edtAmount);
         edtDueDate = findViewById(R.id.edtDueDate);
-
         spinnerFloor = findViewById(R.id.spinnerFloor);
         spinnerType = findViewById(R.id.spinnerType);
-
         btnCreateFee = findViewById(R.id.btnCreateFee);
         recyclerRooms = findViewById(R.id.recyclerRooms);
         txtSelectedRooms = findViewById(R.id.txtSelectedRooms);
@@ -120,9 +112,6 @@ public class CreateFinanceActivity extends BaseActivity {
         toolbar.setNavigationOnClickListener(v -> finish());
     }
 
-    // -----------------------------
-    // Date picker setup
-    // -----------------------------
     private void setupDueDate() {
         edtDueDate.setOnClickListener(v -> {
             Calendar calendar = Calendar.getInstance();
@@ -137,48 +126,33 @@ public class CreateFinanceActivity extends BaseActivity {
         });
     }
 
-    // -----------------------------
-    // Dropdown Loại khoản thu
-    // -----------------------------
     private void setupTypeDropdown() {
         String[] types = {"Phí dịch vụ", "Tiền điện", "Tiền nước", "Phí gửi xe", "Tự nguyện", "Khác"};
         ArrayAdapter<String> adapter = new ArrayAdapter<>(this, android.R.layout.simple_dropdown_item_1line, types);
         spinnerType.setAdapter(adapter);
-        spinnerType.setText(types[0], false); // Mặc định chọn cái đầu
+        spinnerType.setText(types[0], false);
     }
 
-    // -----------------------------
-    // Checkbox Chọn tất cả
-    // -----------------------------
     private void setupSelectAllCheckbox() {
         chkSelectAllRooms.setOnCheckedChangeListener(this::onSelectAllChanged);
     }
 
     private void onSelectAllChanged(android.widget.CompoundButton buttonView, boolean isChecked) {
         if (isChecked) {
-            // Chọn tất cả
             selectedRooms.clear();
             selectedRooms.addAll(allRooms);
-            roomAdapter.selectAll(true); // Cần method này trong Adapter hoặc update logic
-
-            // UI Feedback
+            roomAdapter.selectAll(true);
             recyclerRooms.setAlpha(0.5f);
             recyclerRooms.setEnabled(false);
         } else {
-            // Bỏ chọn tất cả
             selectedRooms.clear();
             roomAdapter.selectAll(false);
-
-            // UI Feedback
             recyclerRooms.setAlpha(1.0f);
             recyclerRooms.setEnabled(true);
         }
         updateSelectedRoomsDisplay();
     }
 
-    // -----------------------------
-    // Fetch rooms from API
-    // -----------------------------
     private void fetchRoomsFromAPI() {
         RequestQueue queue = Volley.newRequestQueue(this);
         JsonArrayRequest request = new JsonArrayRequest(Request.Method.GET, API_GET_RESIDENTS_URL, null,
@@ -186,21 +160,17 @@ public class CreateFinanceActivity extends BaseActivity {
                     try {
                         allRooms.clear();
                         roomsByFloor.clear();
-
                         Set<String> uniqueRooms = new HashSet<>();
 
                         for (int i = 0; i < response.length(); i++) {
                             JSONObject obj = response.getJSONObject(i);
                             String room = obj.optString("apartment_number", "").trim();
-                            if (!TextUtils.isEmpty(room)) {
-                                uniqueRooms.add(room);
-                            }
+                            if (!TextUtils.isEmpty(room)) uniqueRooms.add(room);
                         }
 
                         allRooms.addAll(uniqueRooms);
-                        Collections.sort(allRooms); // Sắp xếp phòng
+                        Collections.sort(allRooms);
 
-                        // Gom phòng theo tầng
                         for (String room : allRooms) {
                             String floor = extractFloorFromRoom(room);
                             roomsByFloor.putIfAbsent(floor, new ArrayList<>());
@@ -208,23 +178,33 @@ public class CreateFinanceActivity extends BaseActivity {
                                 roomsByFloor.get(floor).add(room);
                             }
                         }
-
                         setupFloorDropdown();
-
-                        // Mặc định load tất cả phòng vào list
                         roomAdapter.updateRooms(allRooms);
 
                     } catch (Exception e) {
                         Log.e("CreateFinanceActivity", "Error parsing rooms", e);
                     }
                 },
-                error -> Toast.makeText(this, "Lỗi tải danh sách phòng", Toast.LENGTH_SHORT).show());
+                error -> {
+                    if (error.networkResponse != null && error.networkResponse.statusCode == 401) {
+                        // Xử lý logout nếu cần hoặc thông báo
+                        Toast.makeText(this, "Phiên đăng nhập hết hạn", Toast.LENGTH_SHORT).show();
+                    } else {
+                        Toast.makeText(this, "Lỗi tải danh sách phòng", Toast.LENGTH_SHORT).show();
+                    }
+                }) {
+            // 🔥 THÊM HEADER AUTH
+            @Override
+            public Map<String, String> getHeaders() throws AuthFailureError {
+                Map<String, String> headers = new HashMap<>();
+                String token = UserManager.getInstance(getApplicationContext()).getAuthToken();
+                if (token != null) headers.put("Authorization", "Bearer " + token);
+                return headers;
+            }
+        };
         queue.add(request);
     }
 
-    // -----------------------------
-    // Dropdown Tầng
-    // -----------------------------
     private void setupFloorDropdown() {
         List<String> floors = new ArrayList<>(roomsByFloor.keySet());
         Collections.sort(floors);
@@ -234,17 +214,13 @@ public class CreateFinanceActivity extends BaseActivity {
         spinnerFloor.setAdapter(floorAdapter);
         spinnerFloor.setText(floors.get(0), false);
 
-        // Xử lý sự kiện chọn item
         spinnerFloor.setOnItemClickListener((parent, view, position, id) -> {
             String selectedFloor = (String) parent.getItemAtPosition(position);
-
             if (selectedFloor.equals("Tất cả các tầng")) {
                 roomAdapter.updateRooms(allRooms);
             } else {
                 roomAdapter.updateRooms(roomsByFloor.getOrDefault(selectedFloor, new ArrayList<>()));
             }
-
-            // Nếu đang check "Tất cả", khi lọc phòng vẫn giữ nguyên logic chọn tất cả
             if (!chkSelectAllRooms.isChecked()) {
                 selectedRooms.clear();
                 updateSelectedRoomsDisplay();
@@ -252,14 +228,10 @@ public class CreateFinanceActivity extends BaseActivity {
         });
     }
 
-    // Helper - tách tầng từ số phòng
     private String extractFloorFromRoom(String room) {
         if (room.length() <= 2) return "Tầng 0";
         try {
-            // Giả định phòng P101 -> Tầng 1, P1205 -> Tầng 12
-            // Logic này tùy thuộc quy ước đặt tên phòng của bạn
             String floorPart = room.substring(0, room.length() - 2);
-            // Xóa chữ cái nếu có (ví dụ A101)
             floorPart = floorPart.replaceAll("\\D+", "");
             return "Tầng " + floorPart;
         } catch (Exception e) {
@@ -277,51 +249,33 @@ public class CreateFinanceActivity extends BaseActivity {
         }
     }
 
-    // -----------------------------
-    // Gửi yêu cầu tạo khoản thu
-    // -----------------------------
     private void createFee() {
         String title = edtFinanceTitle.getText().toString().trim();
         String content = edtFinanceContent.getText().toString().trim();
         String amountStr = edtAmount.getText().toString().trim();
         String dueDateRaw = edtDueDate.getText().toString().trim();
-        String type = spinnerType.getText().toString().trim(); // AutoCompleteTextView dùng getText()
+        String type = spinnerType.getText().toString().trim();
 
         if (TextUtils.isEmpty(title)) {
             Toast.makeText(this, "Vui lòng nhập Tiêu đề", Toast.LENGTH_SHORT).show();
             return;
         }
 
-        // Logic xử lý số tiền (Cho phép null nếu là Tự nguyện)
         Double amount = null;
-
         if (type.equalsIgnoreCase("Tự nguyện")) {
             if (!TextUtils.isEmpty(amountStr)) {
-                try {
-                    amount = Double.parseDouble(amountStr);
-                } catch (NumberFormatException e) {
-                    Toast.makeText(this, "Số tiền không hợp lệ", Toast.LENGTH_SHORT).show();
-                    return;
-                }
+                try { amount = Double.parseDouble(amountStr); } catch (NumberFormatException e) { return; }
             }
         } else {
-            // Các loại khác bắt buộc nhập tiền
             if (TextUtils.isEmpty(amountStr)) {
                 Toast.makeText(this, "Vui lòng nhập số tiền", Toast.LENGTH_SHORT).show();
                 return;
             }
-            try {
-                amount = Double.parseDouble(amountStr);
-            } catch (NumberFormatException e) {
-                Toast.makeText(this, "Số tiền không hợp lệ", Toast.LENGTH_SHORT).show();
-                return;
-            }
+            try { amount = Double.parseDouble(amountStr); } catch (NumberFormatException e) { return; }
         }
 
         try {
             JSONArray targetRooms = new JSONArray();
-
-            // Nếu chọn "Tất cả" hoặc danh sách chọn rỗng (mặc định gửi hết nếu chưa lọc)
             if (chkSelectAllRooms.isChecked() || (selectedRooms.isEmpty() && spinnerFloor.getText().toString().equals("Tất cả các tầng"))) {
                 for (String room : allRooms) targetRooms.put(room);
             } else {
@@ -333,7 +287,6 @@ public class CreateFinanceActivity extends BaseActivity {
             }
 
             String adminId = UserManager.getInstance(this).getID();
-
             JSONObject body = new JSONObject();
             body.put("title", title);
             body.put("content", content.isEmpty() ? JSONObject.NULL : content);
@@ -343,9 +296,6 @@ public class CreateFinanceActivity extends BaseActivity {
             body.put("target_rooms", targetRooms);
             body.put("created_by", adminId);
 
-            Log.d("CreateFinanceActivity", "Body: " + body.toString());
-
-            // Gửi API
             btnCreateFee.setEnabled(false);
             btnCreateFee.setText("Đang xử lý...");
 
@@ -358,9 +308,17 @@ public class CreateFinanceActivity extends BaseActivity {
                     error -> {
                         btnCreateFee.setEnabled(true);
                         btnCreateFee.setText("Tạo khoản thu");
-                        Log.e("CreateFinanceActivity", "Error: " + error.toString());
                         Toast.makeText(this, "Lỗi khi tạo khoản thu", Toast.LENGTH_SHORT).show();
-                    });
+                    }) {
+                // 🔥 THÊM HEADER AUTH CHO API POST
+                @Override
+                public Map<String, String> getHeaders() throws AuthFailureError {
+                    Map<String, String> headers = new HashMap<>();
+                    String token = UserManager.getInstance(getApplicationContext()).getAuthToken();
+                    if (token != null) headers.put("Authorization", "Bearer " + token);
+                    return headers;
+                }
+            };
 
             queue.add(request);
 

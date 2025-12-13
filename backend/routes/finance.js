@@ -7,6 +7,9 @@ import { sendNotification } from "../utils/firebaseHelper.js";
 const router = express.Router();
 const query = (text, params) => pool.query(text, params);
 
+// ==================================================================
+// 🛠️ KHỞI TẠO BẢNG (Đã cập nhật constraint cho cài đặt mới)
+// ==================================================================
 export const createFinanceTables = async () => {
   try {
     await query(`
@@ -38,7 +41,8 @@ export const createFinanceTables = async () => {
         min_usage integer DEFAULT 0,
         max_usage integer,
         price numeric(10, 2) NOT NULL,
-        updated_at timestamp without time zone DEFAULT now()
+        updated_at timestamp without time zone DEFAULT now(),
+        CONSTRAINT unique_rate_tier UNIQUE (type, min_usage, max_usage) -- 🔥 Chống trùng lặp
       );
     `);
     console.log("✅ Finance tables verified.");
@@ -46,7 +50,7 @@ export const createFinanceTables = async () => {
 };
 
 // ==================================================================
-// 🟢 [GET] LẤY DANH SÁCH (QUAN TRỌNG: Đã thêm tính tổng tiền thực)
+// 🟢 [GET] LẤY DANH SÁCH CÁC KHOẢN THU (ADMIN)
 // ==================================================================
 router.get("/admin", async (req, res) => {
   try {
@@ -64,7 +68,7 @@ router.get("/admin", async (req, res) => {
         COUNT(DISTINCT a.apartment_number) FILTER (WHERE f.type != 'chi_phi') AS total_rooms,
         COUNT(DISTINCT CASE WHEN uf.status = 'da_thanh_toan' THEN a.apartment_number END) FILTER (WHERE f.type != 'chi_phi') AS paid_rooms,
 
-        -- 🔥 TÍNH TỔNG TIỀN THỰC TẾ TỪ BẢNG INVOICE (Fix lỗi khoản thu tự nguyện)
+        -- Tính tổng thực thu từ Invoice
         COALESCE((
             SELECT SUM(i.amount)
             FROM invoice i
@@ -86,7 +90,7 @@ router.get("/admin", async (req, res) => {
   }
 });
 
-// ... (Các API khác giữ nguyên như cũ) ...
+// ... (Các API GET khác giữ nguyên) ...
 
 router.get("/all", async (req, res) => {
   try { const result = await query(`SELECT id, title, content, amount, type, TO_CHAR(due_date, 'YYYY-MM-DD') AS due_date, created_by FROM finances ORDER BY due_date ASC NULLS LAST`); res.json(result.rows); } catch (e) { res.status(500).json({error:"Lỗi"}); }
@@ -99,6 +103,8 @@ router.get("/user/:userId", async (req, res) => {
 router.get("/:financeId/users", async (req, res) => {
   try { const result = await query(`SELECT ui.full_name, uf.user_id, a.apartment_number AS room, uf.status FROM user_finances uf JOIN user_item ui ON uf.user_id=ui.user_id JOIN relationship r ON ui.relationship=r.relationship_id JOIN apartment a ON r.apartment_id=a.apartment_id WHERE uf.finance_id=$1 ORDER BY a.apartment_number ASC`, [req.params.financeId]); res.json(result.rows); } catch (e) { res.status(500).json({error:"Lỗi"}); }
 });
+
+// ... (Các API Update/Create giữ nguyên) ...
 
 router.put("/update-status", async (req, res) => {
   const { room, finance_id, status } = req.body;
@@ -221,16 +227,54 @@ router.get("/statistics", async (req, res) => {
   } catch (e) { res.status(500).json({error:"Lỗi"}); }
 });
 
+// ==================================================================
+// 🔄 [POST] CẬP NHẬT ĐỊNH MỨC GIÁ (Đã Fix trùng lặp)
+// ==================================================================
 router.post("/update-rates", async (req, res) => {
   const { type, tiers } = req.body;
+
+  // 1. Kiểm tra đầu vào
+  if (!tiers || !Array.isArray(tiers)) {
+      return res.status(400).json({ error: "Dữ liệu tiers không hợp lệ" });
+  }
+
+  // 2. Lọc bỏ trùng lặp từ Client (Dựa trên min-max usage)
+  const uniqueTiers = [];
+  const seen = new Set();
+  for (const t of tiers) {
+      const key = `${t.min}-${t.max}`;
+      if (!seen.has(key)) {
+          seen.add(key);
+          uniqueTiers.push(t);
+      }
+  }
+
   const client = await pool.connect();
   try {
     await client.query("BEGIN");
+
+    // 3. Xóa định mức cũ của loại dịch vụ này
     await client.query("DELETE FROM utility_rates WHERE type=$1", [type]);
-    for (const t of tiers) await client.query("INSERT INTO utility_rates (type, tier_name, min_usage, max_usage, price) VALUES ($1, $2, $3, $4, $5)", [type, t.tier_name, t.min, t.max, t.price]);
+
+    // 4. Thêm định mức mới (đã lọc trùng)
+    for (const t of uniqueTiers) {
+        await client.query(
+            "INSERT INTO utility_rates (type, tier_name, min_usage, max_usage, price) VALUES ($1, $2, $3, $4, $5)",
+            [type, t.tier_name, t.min, t.max, t.price]
+        );
+    }
+
     await client.query("COMMIT");
     res.json({ success: true });
-  } catch (e) { await client.query("ROLLBACK"); res.status(500).json({ error: "Lỗi" }); } finally { client.release(); }
+  } catch (e) {
+    await client.query("ROLLBACK");
+    // Bắt lỗi Unique Constraint nếu vẫn xảy ra
+    if (e.code === '23505') {
+        res.status(400).json({ error: "Dữ liệu bậc giá bị trùng lặp trong hệ thống." });
+    } else {
+        res.status(500).json({ error: "Lỗi server khi cập nhật định mức giá." });
+    }
+  } finally { client.release(); }
 });
 
 router.get("/utility-rates", async (req, res) => {
