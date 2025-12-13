@@ -5,7 +5,7 @@
         android:icon="@drawable/ic_home"
         android:title="Trang chủ" />
     <item
-        android:id="@+id/nav_manage_finance"
+        android:id="@+id/nav_manage_residents"
         android:icon="@drawable/ic_search"
         android:title="Danh sách cư dân" />
     <item

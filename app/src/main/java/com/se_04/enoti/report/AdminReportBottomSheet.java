@@ -34,15 +34,25 @@ public class AdminReportBottomSheet extends BottomSheetDialogFragment {
     private List<ReportItem> reportList = new ArrayList<>();
     private TextView txtEmpty;
 
+    // 🔥 Biến kiểm tra quyền Agency
+    private boolean isAgency = false;
+
     @Nullable
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container, @Nullable Bundle savedInstanceState) {
         View view = inflater.inflate(R.layout.fragment_admin_report_bottom_sheet, container, false);
 
+        // 🔥 1. NHẬN CỜ IS_AGENCY TỪ FRAGMENT CHA GỬI SANG
+        if (getArguments() != null) {
+            isAgency = getArguments().getBoolean("IS_AGENCY", false);
+        }
+
         recyclerView = view.findViewById(R.id.recyclerViewReports);
         txtEmpty = view.findViewById(R.id.txtEmpty);
 
         recyclerView.setLayoutManager(new LinearLayoutManager(getContext()));
+
+        // Truyền hàm showActionDialog vào Adapter
         adapter = new AdminReportAdapter(reportList, this::showActionDialog);
         recyclerView.setAdapter(adapter);
 
@@ -78,6 +88,12 @@ public class AdminReportBottomSheet extends BottomSheetDialogFragment {
     }
 
     private void showActionDialog(ReportItem item) {
+        // 🔥 2. CHẶN AGENCY CẬP NHẬT TRẠNG THÁI
+        if (isAgency) {
+            Toast.makeText(requireContext(), "Cán bộ chỉ có quyền xem, không được thay đổi trạng thái.", Toast.LENGTH_SHORT).show();
+            return; // Dừng lại, không hiện Dialog
+        }
+
         String[] actions = {"Đang xử lý", "Hoàn thành", "Từ chối"};
         new AlertDialog.Builder(requireContext())
                 .setTitle("Xử lý: " + item.getDescription())

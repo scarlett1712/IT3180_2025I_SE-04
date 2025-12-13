@@ -24,6 +24,8 @@ import com.android.volley.toolbox.JsonObjectRequest;
 import com.android.volley.toolbox.Volley;
 import com.google.android.material.appbar.MaterialToolbar;
 import com.se_04.enoti.R;
+import com.se_04.enoti.account.Role; // Import Role enum
+import com.se_04.enoti.account.UserItem; // Import UserItem
 import com.se_04.enoti.utils.ApiConfig;
 import com.se_04.enoti.utils.BaseActivity;
 import com.se_04.enoti.utils.UserManager;
@@ -47,6 +49,9 @@ public class ResidentDetailActivity extends BaseActivity {
     private int userId;
     private boolean isLiving;
 
+    // 🔥 BIẾN KIỂM TRA QUYỀN AGENCY
+    private boolean isAgency = false;
+
     // API URLs
     private static final String API_UPDATE = ApiConfig.BASE_URL + "/api/residents/update/";
     private static final String API_DELETE = ApiConfig.BASE_URL + "/api/residents/delete/";
@@ -56,6 +61,12 @@ public class ResidentDetailActivity extends BaseActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_resident_detail);
+
+        // 🔥 KIỂM TRA ROLE NGAY KHI KHỞI TẠO
+        UserItem currentUser = UserManager.getInstance(this).getCurrentUser();
+        if (currentUser != null && currentUser.getRole() == Role.AGENCY) {
+            isAgency = true;
+        }
 
         setupToolbar();
         initViews();
@@ -97,14 +108,11 @@ public class ResidentDetailActivity extends BaseActivity {
 
         tvRoom = setupRow(R.id.rowRoom, "Căn hộ");
         tvRelationship = setupRow(R.id.rowRelationship, "Quan hệ chủ hộ");
-        tvRole = setupRow(R.id.rowRole, "Vai trò"); // Nếu bundle không có thì ẩn hoặc set default
+        tvRole = setupRow(R.id.rowRole, "Vai trò");
     }
 
     /**
      * Hàm hỗ trợ tìm View trong layout <include>
-     * @param includeId ID của thẻ include (VD: R.id.rowGender)
-     * @param labelText Nhãn muốn hiển thị (VD: "Giới tính")
-     * @return TextView dùng để hiển thị giá trị
      */
     private TextView setupRow(int includeId, String labelText) {
         View rowView = findViewById(includeId);
@@ -112,7 +120,7 @@ public class ResidentDetailActivity extends BaseActivity {
             TextView lbl = rowView.findViewById(R.id.txtLabel);
             TextView val = rowView.findViewById(R.id.txtValue);
             if (lbl != null) lbl.setText(labelText);
-            return val; // Trả về TextView giá trị để set text sau
+            return val;
         }
         return null;
     }
@@ -138,7 +146,7 @@ public class ResidentDetailActivity extends BaseActivity {
         if (tvRoom != null) tvRoom.setText(bundle.getString("room", ""));
         if (tvRelationship != null) tvRelationship.setText(bundle.getString("relationship", ""));
 
-        // Vai trò (Giả sử lấy từ bundle hoặc set mặc định)
+        // Vai trò
         if (tvRole != null) tvRole.setText("Cư dân");
 
         // Trạng thái sinh sống
@@ -151,9 +159,53 @@ public class ResidentDetailActivity extends BaseActivity {
         }
     }
 
-    // --- Các hàm Logic (Edit, Delete, Avatar) giữ nguyên, chỉ sửa ID lấy dữ liệu ---
+    // --- XỬ LÝ MENU ---
+
+    @Override
+    public boolean onCreateOptionsMenu(Menu menu) {
+        // 🔥 NẾU LÀ AGENCY THÌ KHÔNG HIỆN MENU EDIT/DELETE
+        if (!isAgency) {
+            getMenuInflater().inflate(R.menu.menu_resident_options, menu);
+            MenuItem statusItem = menu.findItem(R.id.action_toggle_status);
+            if (statusItem != null) {
+                statusItem.setTitle(isLiving ? "Ẩn cư dân" : "Kích hoạt lại");
+            }
+            return true;
+        }
+        // Nếu là Agency, trả về true để hiện menu trống (chỉ có nút Back)
+        return true;
+    }
+
+    @Override
+    public boolean onOptionsItemSelected(@NonNull MenuItem item) {
+        // 🔥 CHẶN AGENCY THỰC HIỆN HÀNH ĐỘNG (Dù menu ẩn, chặn thêm cho chắc)
+        if (isAgency) {
+            if (item.getItemId() == android.R.id.home) {
+                onBackPressed();
+                return true;
+            }
+            return false;
+        }
+
+        int id = item.getItemId();
+        if (id == R.id.action_edit) {
+            showEditDialog();
+            return true;
+        } else if (id == R.id.action_delete) {
+            showDeleteConfirmDialog();
+            return true;
+        } else if (id == R.id.action_toggle_status) {
+            toggleResidentStatus();
+            return true;
+        }
+        return super.onOptionsItemSelected(item);
+    }
+
+    // --- CÁC HÀM UPDATE/DELETE (Giữ nguyên logic cũ, chỉ được gọi nếu !isAgency) ---
 
     private void showEditDialog() {
+        if (isAgency) return; // Bảo vệ thêm
+
         AlertDialog.Builder builder = new AlertDialog.Builder(this);
         LayoutInflater inflater = getLayoutInflater();
         View dialogView = inflater.inflate(R.layout.dialog_edit_resident, null);
@@ -246,35 +298,9 @@ public class ResidentDetailActivity extends BaseActivity {
         Volley.newRequestQueue(this).add(request);
     }
 
-    // --- Các hàm Menu, Delete, Toggle Status giữ nguyên ---
-
-    @Override
-    public boolean onCreateOptionsMenu(Menu menu) {
-        getMenuInflater().inflate(R.menu.menu_resident_options, menu);
-        MenuItem statusItem = menu.findItem(R.id.action_toggle_status);
-        if (statusItem != null) {
-            statusItem.setTitle(isLiving ? "Ẩn cư dân" : "Kích hoạt lại");
-        }
-        return true;
-    }
-
-    @Override
-    public boolean onOptionsItemSelected(@NonNull MenuItem item) {
-        int id = item.getItemId();
-        if (id == R.id.action_edit) {
-            showEditDialog();
-            return true;
-        } else if (id == R.id.action_delete) {
-            showDeleteConfirmDialog();
-            return true;
-        } else if (id == R.id.action_toggle_status) {
-            toggleResidentStatus();
-            return true;
-        }
-        return super.onOptionsItemSelected(item);
-    }
-
     private void showDeleteConfirmDialog() {
+        if (isAgency) return;
+
         new AlertDialog.Builder(this)
                 .setTitle("Xóa cư dân?")
                 .setMessage("Hành động này không thể hoàn tác. Bạn có chắc chắn muốn xóa cư dân này vĩnh viễn?")
@@ -310,6 +336,8 @@ public class ResidentDetailActivity extends BaseActivity {
     }
 
     private void toggleResidentStatus() {
+        if (isAgency) return;
+
         boolean newStatus = !isLiving;
         JSONObject body = new JSONObject();
         try {

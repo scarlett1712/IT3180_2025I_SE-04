@@ -43,10 +43,16 @@ public class MaintenanceActivity extends BaseActivity {
     private TextView txtEmpty;
     private FloatingActionButton fabAdd;
 
+    // 🔥 Biến kiểm tra quyền Agency
+    private boolean isAgency = false;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_maintenance);
+
+        // 1. Nhận cờ IS_AGENCY từ Intent
+        isAgency = getIntent().getBooleanExtra("IS_AGENCY", false);
 
         MaterialToolbar toolbar = findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
@@ -65,23 +71,37 @@ public class MaintenanceActivity extends BaseActivity {
 
         recyclerView.setLayoutManager(new LinearLayoutManager(this));
 
-        // Khi click vào item thì hiện dialog cập nhật
-        adapter = new MaintenanceAdapter(list, this::showUpdateStatusDialog);
+        // 2. Xử lý sự kiện Click vào Item
+        adapter = new MaintenanceAdapter(list, item -> {
+            if (isAgency) {
+                // 🔥 Nếu là Agency thì không làm gì cả (Không hiện dialog update)
+                // Có thể hiện Toast thông báo nếu muốn:
+                // Toast.makeText(this, "Chỉ có quyền xem thông tin.", Toast.LENGTH_SHORT).show();
+                return;
+            }
+            // Nếu là Admin thì hiện dialog cập nhật
+            showUpdateStatusDialog(item);
+        });
         recyclerView.setAdapter(adapter);
 
-        fabAdd.setOnClickListener(v -> {
-            // Chuyển sang màn hình tạo mới
-            Intent intent = new Intent(this, CreateMaintenanceActivity.class);
-            startActivity(intent);
-        });
+        // 3. Xử lý nút Thêm (FAB)
+        if (isAgency) {
+            // 🔥 Nếu là Agency thì ẩn nút thêm đi
+            fabAdd.setVisibility(View.GONE);
+        } else {
+            fabAdd.setVisibility(View.VISIBLE);
+            fabAdd.setOnClickListener(v -> {
+                Intent intent = new Intent(this, CreateMaintenanceActivity.class);
+                startActivity(intent);
+            });
+        }
 
         fetchMaintenanceSchedule();
     }
 
     public boolean onOptionsItemSelected(MenuItem item) {
-        // Handle arrow click here
         if (item.getItemId() == android.R.id.home) {
-            finish(); // Close this activity and return to previous one
+            finish();
             return true;
         }
         return super.onOptionsItemSelected(item);
@@ -90,7 +110,7 @@ public class MaintenanceActivity extends BaseActivity {
     @Override
     protected void onResume() {
         super.onResume();
-        fetchMaintenanceSchedule(); // Reload khi quay lại
+        fetchMaintenanceSchedule();
     }
 
     private void fetchMaintenanceSchedule() {
@@ -128,7 +148,6 @@ public class MaintenanceActivity extends BaseActivity {
         TextInputEditText edtNote = view.findViewById(R.id.edtResultNote);
         Button btnSave = view.findViewById(R.id.btnSaveStatus);
 
-        // Set giá trị hiện tại
         if ("Completed".equals(item.getStatus())) rbCompleted.setChecked(true);
         else if ("In Progress".equals(item.getStatus())) rbInProgress.setChecked(true);
 
@@ -156,7 +175,7 @@ public class MaintenanceActivity extends BaseActivity {
                 response -> {
                     Toast.makeText(this, "Cập nhật thành công!", Toast.LENGTH_SHORT).show();
                     dialog.dismiss();
-                    fetchMaintenanceSchedule(); // Reload lại danh sách
+                    fetchMaintenanceSchedule();
                 },
                 error -> Toast.makeText(this, "Lỗi cập nhật", Toast.LENGTH_SHORT).show()
         );
