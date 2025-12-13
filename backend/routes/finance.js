@@ -54,6 +54,8 @@ export const createFinanceTables = async () => {
 // ==================================================================
 router.get("/admin", async (req, res) => {
   try {
+    console.log("📊 Fetching all finances (admin view)");
+
     const result = await query(`
       SELECT
         f.id,
@@ -63,6 +65,8 @@ router.get("/admin", async (req, res) => {
         f.type,
         TO_CHAR(f.due_date, 'DD-MM-YYYY') AS due_date,
         f.created_at,
+        f.created_by,
+        COALESCE(ui.full_name, 'Ban quản lý') AS sender,
 
         -- Count distinct rooms
         COUNT(DISTINCT a.apartment_number) FILTER (WHERE f.type != 'chi_phi') AS total_rooms,
@@ -86,16 +90,22 @@ router.get("/admin", async (req, res) => {
 
       FROM finances f
       LEFT JOIN user_finances uf ON f.id = uf.finance_id
-      LEFT JOIN user_item ui ON uf.user_id = ui.user_id
+      LEFT JOIN user_item ui ON f.created_by = ui.user_id
       LEFT JOIN relationship r ON ui.relationship = r.relationship_id
       LEFT JOIN apartment a ON r.apartment_id = a.apartment_id
-      GROUP BY f.id, f.title, f.content, f.amount, f.type, f.due_date, f.created_at
+      GROUP BY f.id, f.title, f.content, f.amount, f.type, f.due_date, f.created_at, f.created_by, ui.full_name
       ORDER BY f.created_at DESC;
     `);
+
+    console.log(`✅ Found ${result.rows.length} finance records`);
     res.json(result.rows);
   } catch (err) {
-    console.error(err);
-    res.status(500).json({error:"Lỗi server"});
+    console.error("❌ Error fetching admin finances:", err);
+    console.error("Stack trace:", err.stack);
+    res.status(500).json({
+      error: "Lỗi server",
+      detail: err.message
+    });
   }
 });
 
@@ -121,6 +131,8 @@ router.get("/all", async (req, res) => {
 // ==================================================================
 router.get("/user/:userId", async (req, res) => {
   try {
+    console.log(`📊 Fetching finances for user: ${req.params.userId}`);
+
     // 🔥 Use invoice table to determine status
     const result = await query(`
       SELECT
@@ -130,6 +142,8 @@ router.get("/user/:userId", async (req, res) => {
         f.amount AS price,
         f.type,
         TO_CHAR(f.due_date, 'DD-MM-YYYY') AS due_date,
+        f.created_by,
+        COALESCE(ui.full_name, 'Ban quản lý') AS sender,
         CASE
           WHEN EXISTS (
             SELECT 1 FROM invoice i
@@ -141,13 +155,20 @@ router.get("/user/:userId", async (req, res) => {
         END AS status
       FROM finances f
       JOIN user_finances uf ON f.id = uf.finance_id
+      LEFT JOIN user_item ui ON f.created_by = ui.user_id
       WHERE uf.user_id = $1 AND f.type != 'chi_phi'
-      ORDER BY f.due_date ASC
+      ORDER BY f.due_date ASC NULLS LAST
     `, [req.params.userId]);
+
+    console.log(`✅ Found ${result.rows.length} finance records for user ${req.params.userId}`);
     res.json(result.rows);
   } catch (e) {
-    console.error("Error fetching user finances:", e);
-    res.status(500).json({error:"Lỗi"});
+    console.error("❌ Error fetching user finances:", e);
+    console.error("Stack trace:", e.stack);
+    res.status(500).json({
+      error: "Lỗi server khi lấy dữ liệu khoản thu",
+      detail: e.message
+    });
   }
 });
 

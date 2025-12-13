@@ -113,8 +113,10 @@ public class FinanceDetailActivity extends BaseActivity {
         super.onResume();
         Log.d(TAG, "🔄 onResume - Refreshing payment status");
 
-        // 🔥 Refresh payment status every time we return to this activity
-        refreshPaymentStatus();
+        // 🔥 Add a small delay to ensure server has processed the payment
+        new android.os.Handler().postDelayed(() -> {
+            refreshPaymentStatus();
+        }, 500);
     }
 
     @Override
@@ -156,7 +158,6 @@ public class FinanceDetailActivity extends BaseActivity {
         }
     }
 
-    // 🔥 NEW METHOD: Refresh payment status from server
     private void refreshPaymentStatus() {
         String url = ApiConfig.BASE_URL + "/api/finance/user/payment-status/" + financeId;
 
@@ -182,9 +183,12 @@ public class FinanceDetailActivity extends BaseActivity {
                         paymentStatus = status;
                         updatePaymentUI();
 
-                        // If paid, fetch invoice
+                        // If paid, fetch invoice with a small delay
                         if ("da_thanh_toan".equalsIgnoreCase(status)) {
-                            fetchInvoice();
+                            // 🔥 Add delay to ensure invoice is created
+                            new android.os.Handler().postDelayed(() -> {
+                                fetchInvoice();
+                            }, 1000);
                         }
                     } catch (Exception e) {
                         Log.e(TAG, "Error parsing payment status", e);
@@ -285,7 +289,6 @@ public class FinanceDetailActivity extends BaseActivity {
             return;
         }
 
-        // 🔥 Add user_id to the request
         String url = ApiConfig.BASE_URL + "/api/invoice/by-finance/" + financeId + "?user_id=" + userId;
 
         Log.d(TAG, "🔍 Fetching invoice from: " + url);
@@ -300,20 +303,25 @@ public class FinanceDetailActivity extends BaseActivity {
                         String desc = response.getString("description");
                         String rawPayTime = response.optString("pay_time_formatted", "");
 
-                        txtOrderCode.setText(ordercode);
-                        txtAmount.setText(new DecimalFormat("#,###,###").format(amount) + " đ");
-                        txtAmountInText.setText(convertNumberToWords(amount));
-                        txtDetail.setText(desc);
-                        txtPayDate.setText(convertUtcToLocal(rawPayTime));
+                        // 🔥 Update UI on main thread
+                        runOnUiThread(() -> {
+                            txtOrderCode.setText(ordercode);
+                            txtAmount.setText(new DecimalFormat("#,###,###").format(amount) + " đ");
+                            txtAmountInText.setText(convertNumberToWords(amount));
+                            txtDetail.setText(desc);
+                            txtPayDate.setText(rawPayTime.isEmpty() ? "Vừa xong" : rawPayTime);
 
-                        invoiceDetailView.setVisibility(View.VISIBLE);
+                            invoiceDetailView.setVisibility(View.VISIBLE);
 
-                        Log.d(TAG, "✅ Invoice displayed successfully");
-                        Log.d(TAG, "📋 Order: " + ordercode + ", Amount: " + amount);
+                            Log.d(TAG, "✅ Invoice displayed successfully");
+                            Log.d(TAG, "📋 Order: " + ordercode + ", Amount: " + amount);
+                        });
 
                     } catch (Exception e) {
                         Log.e(TAG, "❌ Error parsing invoice: " + e.getMessage(), e);
-                        Toast.makeText(this, "Lỗi hiển thị hóa đơn", Toast.LENGTH_SHORT).show();
+                        runOnUiThread(() ->
+                                Toast.makeText(this, "Lỗi hiển thị hóa đơn: " + e.getMessage(), Toast.LENGTH_LONG).show()
+                        );
                     }
                 },
                 error -> {
@@ -322,18 +330,32 @@ public class FinanceDetailActivity extends BaseActivity {
                     if (error.networkResponse != null) {
                         Log.e(TAG, "Status code: " + error.networkResponse.statusCode);
 
+                        // 🔥 Log full error response
+                        if (error.networkResponse.data != null) {
+                            String errorBody = new String(error.networkResponse.data);
+                            Log.e(TAG, "Error body: " + errorBody);
+                        }
+
                         if (error.networkResponse.statusCode == 401) {
                             UserManager.getInstance(this).checkAndForceLogout(error);
                             return;
                         }
 
-                        if (error.networkResponse.data != null) {
-                            String errorBody = new String(error.networkResponse.data);
-                            Log.e(TAG, "Error body: " + errorBody);
+                        // 🔥 Show specific error message
+                        if (error.networkResponse.statusCode == 404) {
+                            runOnUiThread(() ->
+                                    Toast.makeText(this, "Hóa đơn chưa được tạo. Vui lòng thử lại sau.", Toast.LENGTH_LONG).show()
+                            );
+
+                            // Retry after 2 seconds
+                            new android.os.Handler().postDelayed(this::fetchInvoice, 2000);
+                            return;
                         }
                     }
 
-                    Toast.makeText(this, "Không lấy được hóa đơn!", Toast.LENGTH_SHORT).show();
+                    runOnUiThread(() ->
+                            Toast.makeText(this, "Không lấy được hóa đơn!", Toast.LENGTH_SHORT).show()
+                    );
                 }
         ) {
             @Override
