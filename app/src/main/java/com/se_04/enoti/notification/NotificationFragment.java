@@ -37,7 +37,7 @@ import java.util.List;
 public class NotificationFragment extends Fragment {
 
     private static final String TAG = "NotificationFragment";
-    private static final int REFRESH_INTERVAL = 10000; // 10 seconds
+    private static final int REFRESH_INTERVAL = 30000; // 🔥 Increased to 30 seconds to reduce conflicts
 
     private NotificationAdapter adapter;
     private final List<NotificationItem> originalList = new ArrayList<>();
@@ -46,21 +46,19 @@ public class NotificationFragment extends Fragment {
     private Spinner spinnerFilterType, spinnerFilterTime;
     private SearchView searchView;
     private TextView txtEmpty;
+    private RecyclerView recyclerView;
 
-    // 1. Declare the repository here, but DO NOT initialize it.
     private NotificationRepository repository;
 
     private boolean isFirstLoad = true;
-    private String cacheFileName; // Cache filename specific to the user
+    private String cacheFileName;
 
     private final Handler refreshHandler = new Handler(Looper.getMainLooper());
     private final Runnable refreshRunnable = new Runnable() {
         @Override
         public void run() {
-            // Ensure the fragment is still attached before refreshing
             if (isAdded()) {
                 loadNotificationsFromCurrentUser();
-                // Schedule the next refresh
                 refreshHandler.postDelayed(this, REFRESH_INTERVAL);
             }
         }
@@ -69,7 +67,6 @@ public class NotificationFragment extends Fragment {
     @Override
     public void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        // 2. Initialize the repository here, where the context is safely available.
         repository = NotificationRepository.getInstance(requireContext());
     }
 
@@ -87,6 +84,7 @@ public class NotificationFragment extends Fragment {
         spinnerFilterType = view.findViewById(R.id.spinnerFilterType);
         spinnerFilterTime = view.findViewById(R.id.spinnerFilterTime);
         txtEmpty = view.findViewById(R.id.txtEmpty);
+        recyclerView = view.findViewById(R.id.recyclerViewNotifications);
 
         // Set up welcome message
         UserItem currentUser = UserManager.getInstance(requireContext()).getCurrentUser();
@@ -103,13 +101,28 @@ public class NotificationFragment extends Fragment {
         else timeOfDay = "tối";
         txtGreeting.setText(getString(R.string.greeting, timeOfDay));
 
-        // Set up RecyclerView
-        RecyclerView recyclerView = view.findViewById(R.id.recyclerViewNotifications);
-        recyclerView.setLayoutManager(new LinearLayoutManager(requireContext()));
-        adapter = new NotificationAdapter(filteredList, NotificationAdapter.VIEW_TYPE_NORMAL);
-        recyclerView.setAdapter(adapter);
+        // 🔥 Set up RecyclerView with CORRECT ID
+        if (recyclerView != null) {
+            recyclerView.setLayoutManager(new LinearLayoutManager(requireContext()));
+            recyclerView.setHasFixedSize(true);
 
-        // Set up spinners and search view
+            // 🔥 Create adapter with callback to handle read status updates
+            adapter = new NotificationAdapter(filteredList, NotificationAdapter.VIEW_TYPE_NORMAL);
+            adapter.setOnNotificationClickListener(new NotificationAdapter.OnNotificationClickListener() {
+                @Override
+                public void onNotificationClicked(long notificationId) {
+                    Log.d(TAG, "🔔 Fragment received click callback for notification: " + notificationId);
+                    // When a notification is clicked and marked as read, update it locally
+                    updateNotificationReadStatus(notificationId, true);
+                }
+            });
+            recyclerView.setAdapter(adapter);
+
+            Log.d(TAG, "✅ RecyclerView initialized successfully with adapter callback");
+        } else {
+            Log.e(TAG, "❌ RecyclerView is NULL!");
+        }
+
         setupControls();
 
         return view;
@@ -119,16 +132,16 @@ public class NotificationFragment extends Fragment {
     public void onResume() {
         super.onResume();
         isFirstLoad = true;
-        // Start the refresh cycle
-        refreshHandler.removeCallbacks(refreshRunnable); // Remove any old callbacks
-        refreshHandler.post(refreshRunnable); // Start immediately, then it will schedule itself
+        refreshHandler.removeCallbacks(refreshRunnable);
+        refreshHandler.post(refreshRunnable);
     }
 
     @Override
     public void onPause() {
         super.onPause();
-        // Stop the refresh cycle to save resources
         refreshHandler.removeCallbacks(refreshRunnable);
+        // 🔥 Save cache when leaving to preserve read states
+        saveListToCache(originalList);
     }
 
     private void setupControls() {
@@ -148,7 +161,6 @@ public class NotificationFragment extends Fragment {
         timeAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
         spinnerFilterTime.setAdapter(timeAdapter);
 
-        // Listener for both spinners
         AdapterView.OnItemSelectedListener filterListener = new AdapterView.OnItemSelectedListener() {
             @Override
             public void onItemSelected(AdapterView<?> parent, View v, int pos, long id) {
@@ -162,12 +174,11 @@ public class NotificationFragment extends Fragment {
         spinnerFilterType.setOnItemSelectedListener(filterListener);
         spinnerFilterTime.setOnItemSelectedListener(filterListener);
 
-        // Listener for search view
         searchView.setOnQueryTextListener(new SearchView.OnQueryTextListener() {
             @Override
             public boolean onQueryTextSubmit(String query) {
                 applyFiltersAndSearch();
-                return false; // Let the system handle default behavior
+                return false;
             }
 
             @Override
@@ -187,15 +198,13 @@ public class NotificationFragment extends Fragment {
             return;
         }
 
-        // 1. Define cache filename and load from cache first
         cacheFileName = "cache_notifs_" + currentUser.getId() + ".json";
 
-        // Only load from cache if the list is empty to avoid UI flicker on auto-refresh
+        // Only load from cache if the list is empty
         if (originalList.isEmpty()) {
             loadFromCache();
         }
 
-        // 2. Fetch fresh data from the network
         try {
             long userId = Long.parseLong(currentUser.getId());
             loadNotifications(userId);
@@ -208,24 +217,22 @@ public class NotificationFragment extends Fragment {
         repository.fetchNotifications(userId, new NotificationRepository.NotificationsCallback() {
             @Override
             public void onSuccess(List<NotificationItem> items) {
-                if (!isAdded()) return; // Check if fragment is still attached
+                if (!isAdded()) return;
 
-                // Save the fresh data to cache
-                saveListToCache(items);
+                Log.d(TAG, "📥 Received " + items.size() + " notifications from server");
+
+                // 🔥 Merge server data with local read states
+                mergeReadStates(items);
 
                 int oldSize = originalList.size();
                 int newSize = items.size();
 
-                originalList.clear();
-                originalList.addAll(items);
                 applyFiltersAndSearch();
 
-                // Show a Snackbar for new notifications
                 if (!isFirstLoad && newSize > oldSize && getView() != null) {
                     Snackbar.make(getView(), "Bạn có thông báo mới!", Snackbar.LENGTH_SHORT)
                             .setAction("Xem", v -> {
-                                RecyclerView rv = getView().findViewById(R.id.recyclerViewNotifications);
-                                if (rv != null) rv.smoothScrollToPosition(0);
+                                if (recyclerView != null) recyclerView.smoothScrollToPosition(0);
                             })
                             .show();
                 }
@@ -236,10 +243,74 @@ public class NotificationFragment extends Fragment {
             public void onError(String message) {
                 if (isAdded()) {
                     Log.e(TAG, "Failed to load notifications: " + message);
-                    // On network error, the UI will continue to show data from the cache.
                 }
             }
         });
+    }
+
+    // 🔥 NEW METHOD: Update a specific notification's read status
+    private void updateNotificationReadStatus(long notificationId, boolean isRead) {
+        Log.d(TAG, "🔄 updateNotificationReadStatus called for ID: " + notificationId + ", isRead: " + isRead);
+        Log.d(TAG, "📊 Current originalList size: " + originalList.size());
+
+        boolean found = false;
+
+        // Update in original list
+        for (NotificationItem item : originalList) {
+            if (item.getId() == notificationId) {
+                Log.d(TAG, "🔍 Found notification in originalList. Current isRead: " + item.isRead());
+                item.setRead(isRead);
+                found = true;
+                Log.d(TAG, "✅ Updated notification " + notificationId + " to isRead=" + isRead);
+                break;
+            }
+        }
+
+        if (!found) {
+            Log.e(TAG, "❌ WARNING: Notification " + notificationId + " NOT FOUND in originalList!");
+            // Print all IDs for debugging
+            StringBuilder ids = new StringBuilder("Available IDs: ");
+            for (NotificationItem item : originalList) {
+                ids.append(item.getId()).append(", ");
+            }
+            Log.d(TAG, ids.toString());
+        }
+
+        if (found) {
+            // Save to cache immediately
+            Log.d(TAG, "💾 Saving to cache...");
+            saveListToCache(originalList);
+
+            // Update filtered list and refresh UI
+            Log.d(TAG, "🎨 Refreshing UI...");
+            applyFiltersAndSearch();
+
+            Log.d(TAG, "✅ Update completed successfully");
+        }
+    }
+
+    // 🔥 NEW METHOD: Merge server data while preserving local read states
+    private void mergeReadStates(List<NotificationItem> serverItems) {
+        List<NotificationItem> updatedList = new ArrayList<>();
+
+        for (NotificationItem serverItem : serverItems) {
+            // Check if we already have this notification locally with read status
+            for (NotificationItem localItem : originalList) {
+                if (localItem.getId() == serverItem.getId() && localItem.isRead()) {
+                    // Preserve local read state if it was marked as read
+                    serverItem.setRead(true);
+                    Log.d(TAG, "🔄 Preserved read state for notification " + serverItem.getId());
+                    break;
+                }
+            }
+            updatedList.add(serverItem);
+        }
+
+        originalList.clear();
+        originalList.addAll(updatedList);
+
+        // Save the merged data
+        saveListToCache(originalList);
     }
 
     private void saveListToCache(List<NotificationItem> items) {
@@ -259,6 +330,7 @@ public class NotificationFragment extends Fragment {
                 array.put(obj);
             }
             DataCacheManager.getInstance(requireContext()).saveCache(cacheFileName, array.toString());
+            Log.d(TAG, "💾 Cache saved with " + items.size() + " items");
         } catch (Exception e) {
             Log.e(TAG, "Failed to save cache", e);
         }
@@ -274,9 +346,8 @@ public class NotificationFragment extends Fragment {
                 for (int i = 0; i < array.length(); i++) {
                     JSONObject obj = array.getJSONObject(i);
 
-                    // Create object with all 8 parameters in the correct constructor order
                     cachedList.add(new NotificationItem(
-                            obj.optInt("notification_id"),
+                            obj.optLong("notification_id"),
                             obj.optString("title"),
                             obj.optString("created_at"),
                             obj.optString("expired_date", ""),
@@ -289,6 +360,7 @@ public class NotificationFragment extends Fragment {
                 originalList.clear();
                 originalList.addAll(cachedList);
                 applyFiltersAndSearch();
+                Log.d(TAG, "📂 Loaded " + cachedList.size() + " items from cache");
             } catch (Exception e) {
                 Log.e(TAG, "Failed to load from cache", e);
             }
@@ -318,14 +390,12 @@ public class NotificationFragment extends Fragment {
             }
         }
 
-        // Sort based on time selection
         if (selectedTime.equals("Mới nhất")) {
             Collections.sort(filteredList, (a, b) -> b.getDate().compareTo(a.getDate()));
         } else {
             Collections.sort(filteredList, Comparator.comparing(NotificationItem::getDate));
         }
 
-        // Update adapter and empty text view
         if (adapter != null) {
             adapter.updateList(filteredList);
         }
@@ -336,6 +406,8 @@ public class NotificationFragment extends Fragment {
                 txtEmpty.setText(originalList.isEmpty() ? "Chưa có thông báo nào." : "Không tìm thấy kết quả.");
             }
         }
+
+        Log.d(TAG, "🔍 Applied filters: " + filteredList.size() + " items displayed");
     }
 
     private String convertTypeToEnglish(String typeVi) {

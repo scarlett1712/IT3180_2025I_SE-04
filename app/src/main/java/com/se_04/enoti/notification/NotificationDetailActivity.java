@@ -17,14 +17,14 @@ import com.se_04.enoti.utils.UserManager;
 
 public class NotificationDetailActivity extends BaseActivity {
 
-    // 1. Declare the repository, but DO NOT initialize it here.
     private NotificationRepository repository;
+    private long notificationId;
+    private boolean wasMarkedAsRead = false; // 🔥 Track if we marked this as read
 
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
-        // 2. Initialize the repository here, where the context ('this') is valid.
         repository = NotificationRepository.getInstance(this);
 
         setContentView(R.layout.activity_notification_detail);
@@ -44,50 +44,31 @@ public class NotificationDetailActivity extends BaseActivity {
             getSupportActionBar().setTitle("Chi tiết thông báo");
         }
 
-        long notificationId = getIntent().getLongExtra("notification_id", -1);
+        notificationId = getIntent().getLongExtra("notification_id", -1);
         String title = getIntent().getStringExtra("title");
-        String date = getIntent().getStringExtra("expired_date");
-        // You have a duplicate variable here, which is harmless but can be cleaned up.
         String expired_date = getIntent().getStringExtra("expired_date");
         String content = getIntent().getStringExtra("content");
         String sender = getIntent().getStringExtra("sender");
         boolean isRead = getIntent().getBooleanExtra("is_read", false);
 
         if (title != null) txtTitle.setText(title);
-        if (date != null) txtDate.setText(expired_date);
+        if (expired_date != null) txtDate.setText(expired_date);
         if (content != null) txtContent.setText(content);
         if (sender != null) txtSender.setText(getString(R.string.notification_sender, sender));
 
+        // 🔥 Mark as read if it hasn't been read yet
         if (notificationId != -1 && !isRead) {
             Log.d("NotificationDetail", "Auto marking notification " + notificationId + " as read");
-            repository.markAsRead(notificationId);
-        }
-
-        if (!isRead && notificationId > 0) {
-            long userId = 0;
-            try {
-                userId = Long.parseLong(
-                        UserManager.getInstance(this).getCurrentUser().getId()
-                );
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
-
-            repository.markAsRead(notificationId, userId, new NotificationRepository.SimpleCallback() {
+            repository.markAsRead(notificationId, new NotificationRepository.SimpleCallback() {
                 @Override
                 public void onSuccess() {
-                    Log.d("NotificationDetail", "Đánh dấu đã đọc thành công trên server.");
-                    // 🔥 BƯỚC QUAN TRỌNG: Tạo một Intent kết quả
-                    Intent resultIntent = new Intent();
-                    resultIntent.putExtra("UPDATED_NOTIFICATION_ID", notificationId);
-                    // Đặt kết quả là OK và gửi Intent đi
-                    setResult(RESULT_OK, resultIntent);
-                    // (Không cần finish() ở đây, người dùng sẽ tự back)
+                    Log.d("NotificationDetail", "✅ Successfully marked as read");
+                    wasMarkedAsRead = true; // 🔥 Set flag when successful
                 }
 
                 @Override
                 public void onError(String message) {
-                    Log.e("Notification", "Mark read failed: " + message);
+                    Log.e("NotificationDetail", "❌ Failed to mark as read: " + message);
                 }
             });
         }
@@ -119,7 +100,17 @@ public class NotificationDetailActivity extends BaseActivity {
         return super.onOptionsItemSelected(item);
     }
 
-    // onResume is fine as is.
+    @Override
+    public void finish() {
+        // 🔥 If we marked this notification as read, tell the previous activity to refresh
+        if (wasMarkedAsRead) {
+            Intent resultIntent = new Intent();
+            resultIntent.putExtra("notification_marked_read", notificationId);
+            setResult(RESULT_OK, resultIntent);
+        }
+        super.finish();
+    }
+
     @Override
     protected void onResume() {
         super.onResume();

@@ -200,47 +200,76 @@ public class NotificationRepository {
         });
     }
 
-    public void markAsRead(long notificationId, long userId, SimpleCallback callback) {
+    public void markAsRead(long notificationId, SimpleCallback callback) {
         executor.execute(() -> {
-            HttpURLConnection conn = null;
+            HttpURLConnection urlConnection = null;
             try {
+                // 1. Tự động lấy User ID từ hệ thống
+                UserItem user = UserManager.getInstance(context).getCurrentUser();
+                if (user == null) {
+                    String msg = "User chưa đăng nhập, không thể đánh dấu đã đọc";
+                    Log.e(TAG, "❌ " + msg);
+                    if (callback != null) mainHandler.post(() -> callback.onError(msg));
+                    return;
+                }
+
+                // Parse ID sang số (đề phòng ID là chuỗi)
+                long userId;
+                try {
+                    userId = Long.parseLong(user.getId());
+                } catch (NumberFormatException e) {
+                    if (callback != null) mainHandler.post(() -> callback.onError("ID người dùng không hợp lệ"));
+                    return;
+                }
+
+                // 2. Cấu hình URL và Connection
                 URL url = new URL(BASE_URL + "/api/notification/" + notificationId + "/read");
-                conn = (HttpURLConnection) url.openConnection();
-                conn.setRequestMethod("PUT");
-                conn.setDoOutput(true);
-                conn.setConnectTimeout(CONNECT_TIMEOUT);
-                conn.setReadTimeout(READ_TIMEOUT);
-                conn.setRequestProperty("Accept", "application/json");
-                conn.setRequestProperty("Content-Type", "application/json; charset=utf-8");
+                Log.d(TAG, "⚡ Marking read: " + url);
 
-                // 🔥 ADD AUTHORIZATION HEADER
-                if (context != null) {
-                    String token = UserManager.getInstance(context).getAuthToken();
-                    if (token != null && !token.isEmpty()) {
-                        conn.setRequestProperty("Authorization", "Bearer " + token);
-                    }
+                urlConnection = (HttpURLConnection) url.openConnection();
+                urlConnection.setRequestMethod("PUT");
+                urlConnection.setRequestProperty("Content-Type", "application/json; charset=UTF-8");
+                urlConnection.setRequestProperty("Accept", "application/json");
+                urlConnection.setDoOutput(true);
+
+                // Thêm Token
+                String token = UserManager.getInstance(context).getAuthToken();
+                if (token != null) {
+                    urlConnection.setRequestProperty("Authorization", "Bearer " + token);
                 }
 
-                JSONObject body = new JSONObject();
-                body.put("user_id", userId);
-                byte[] input = body.toString().getBytes("utf-8");
-                try (OutputStream os = conn.getOutputStream()) {
-                    os.write(input, 0, input.length);
-                }
+                // 3. Gửi Body JSON
+                JSONObject jsonBody = new JSONObject();
+                jsonBody.put("user_id", userId);
 
-                int code = conn.getResponseCode();
-                if (code >= 200 && code < 300) {
-                    mainHandler.post(callback::onSuccess);
+                OutputStream os = urlConnection.getOutputStream();
+                os.write(jsonBody.toString().getBytes("UTF-8"));
+                os.close();
+
+                // 4. Xử lý phản hồi
+                int responseCode = urlConnection.getResponseCode();
+                if (responseCode >= 200 && responseCode < 300) {
+                    Log.d(TAG, "✅ Marked notification " + notificationId + " as read success.");
+                    if (callback != null) mainHandler.post(callback::onSuccess);
                 } else {
-                    Log.e(TAG, "markAsRead HTTP " + code);
-                    mainHandler.post(() -> callback.onError("Không thể đánh dấu là đã đọc"));
+                    // Đọc lỗi chi tiết từ Server
+                    InputStream errorStream = urlConnection.getErrorStream();
+                    String errorMsg = "Lỗi không xác định";
+                    if (errorStream != null) {
+                        BufferedReader reader = new BufferedReader(new InputStreamReader(errorStream));
+                        errorMsg = reader.readLine();
+                    }
+                    Log.e(TAG, "❌ Failed to mark read. Code: " + responseCode + " - " + errorMsg);
+
+                    String finalMsg = errorMsg;
+                    if (callback != null) mainHandler.post(() -> callback.onError("Lỗi " + responseCode + ": " + finalMsg));
                 }
 
             } catch (Exception e) {
-                Log.e(TAG, "markAsRead exception", e);
-                mainHandler.post(() -> callback.onError("Kết nối thất bại"));
+                Log.e(TAG, "❌ Exception marking as read", e);
+                if (callback != null) mainHandler.post(() -> callback.onError("Lỗi kết nối"));
             } finally {
-                if (conn != null) conn.disconnect();
+                if (urlConnection != null) urlConnection.disconnect();
             }
         });
     }
@@ -448,64 +477,6 @@ public class NotificationRepository {
     }
 
     public void markAsRead(long notificationId) {
-        executor.execute(() -> {
-            HttpURLConnection urlConnection = null;
-            try {
-                // 1. Lấy User ID
-                UserItem user = UserManager.getInstance(context).getCurrentUser();
-                if (user == null) {
-                    Log.e(TAG, "❌ User is null, cannot mark as read");
-                    return;
-                }
-                int userId = Integer.parseInt(user.getId());
-
-                // 2. SỬA ĐƯỜNG DẪN URL: /api/notification/ (số ít) thay vì /api/notifications/
-                URL url = new URL(BASE_URL + "/api/notification/" + notificationId + "/read");
-
-                Log.d(TAG, "⚡ Marking read: " + url.toString());
-
-                urlConnection = (HttpURLConnection) url.openConnection();
-                urlConnection.setRequestMethod("PUT");
-
-                // 3. QUAN TRỌNG: Header để Backend đọc được JSON Body
-                urlConnection.setRequestProperty("Content-Type", "application/json; charset=UTF-8");
-                urlConnection.setDoOutput(true);
-
-                // Thêm Token xác thực
-                String token = UserManager.getInstance(context).getAuthToken();
-                if (token != null) {
-                    urlConnection.setRequestProperty("Authorization", "Bearer " + token);
-                }
-
-                // 4. Tạo JSON Body chứa user_id
-                JSONObject jsonBody = new JSONObject();
-                jsonBody.put("user_id", userId);
-
-                // Gửi dữ liệu đi
-                OutputStream os = urlConnection.getOutputStream();
-                os.write(jsonBody.toString().getBytes("UTF-8"));
-                os.close();
-
-                // 5. Kiểm tra kết quả
-                int responseCode = urlConnection.getResponseCode();
-                if (responseCode == HttpURLConnection.HTTP_OK) {
-                    Log.d(TAG, "✅ Success! Notification " + notificationId + " marked as read.");
-                } else {
-                    // Đọc lỗi từ Server nếu có
-                    InputStream errorStream = urlConnection.getErrorStream();
-                    String errorMsg = "";
-                    if (errorStream != null) {
-                        BufferedReader reader = new BufferedReader(new InputStreamReader(errorStream));
-                        errorMsg = reader.readLine();
-                    }
-                    Log.e(TAG, "❌ Failed to mark read. Code: " + responseCode + ", Error: " + errorMsg);
-                }
-
-            } catch (Exception e) {
-                Log.e(TAG, "❌ Exception marking as read", e);
-            } finally {
-                if (urlConnection != null) urlConnection.disconnect();
-            }
-        });
+        markAsRead(notificationId, null);
     }
 }
