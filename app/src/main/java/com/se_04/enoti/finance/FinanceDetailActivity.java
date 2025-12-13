@@ -46,6 +46,7 @@ public class FinanceDetailActivity extends BaseActivity {
 
     // INVOICE UI
     private TextView txtOrderCode, txtAmount, txtAmountInText, txtDetail, txtPayDate;
+    private View invoiceDetailView;
 
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
@@ -62,6 +63,7 @@ public class FinanceDetailActivity extends BaseActivity {
         txtPaymentStatus = findViewById(R.id.txtPaymentStatus);
 
         // Invoice UI
+        invoiceDetailView = findViewById(R.id.invoiceDetail);
         txtOrderCode = findViewById(R.id.txtOrderCode);
         txtAmount = findViewById(R.id.txtAmount);
         txtAmountInText = findViewById(R.id.txtAmountInText);
@@ -92,11 +94,9 @@ public class FinanceDetailActivity extends BaseActivity {
             txtPrice.setText("Khoản tự nguyện");
         }
 
-        updatePaymentUI();
+        Log.d(TAG, "📋 onCreate - financeId: " + financeId + ", paymentStatus: " + paymentStatus);
 
-        if (Objects.equals(paymentStatus, "da_thanh_toan")) {
-            fetchInvoice();
-        }
+        updatePaymentUI();
 
         btnPay.setOnClickListener(v -> {
             Intent payIntent = new Intent(FinanceDetailActivity.this, PayActivity.class);
@@ -106,6 +106,15 @@ public class FinanceDetailActivity extends BaseActivity {
             payIntent.putExtra("is_mandatory", price > 0);
             startActivity(payIntent);
         });
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        Log.d(TAG, "🔄 onResume - Refreshing payment status");
+
+        // 🔥 Refresh payment status every time we return to this activity
+        refreshPaymentStatus();
     }
 
     @Override
@@ -147,15 +156,76 @@ public class FinanceDetailActivity extends BaseActivity {
         }
     }
 
+    // 🔥 NEW METHOD: Refresh payment status from server
+    private void refreshPaymentStatus() {
+        String url = ApiConfig.BASE_URL + "/api/finance/user/payment-status/" + financeId;
+
+        int userId;
+        try {
+            userId = Integer.parseInt(UserManager.getInstance(getApplicationContext()).getID());
+        } catch (Exception e) {
+            Log.e(TAG, "Failed to get user ID", e);
+            return;
+        }
+
+        url += "?user_id=" + userId;
+
+        Log.d(TAG, "🔍 Checking payment status: " + url);
+
+        JsonObjectRequest request = new JsonObjectRequest(
+                Request.Method.GET, url, null,
+                response -> {
+                    try {
+                        String status = response.optString("status", "chua_thanh_toan");
+                        Log.d(TAG, "✅ Current payment status: " + status);
+
+                        paymentStatus = status;
+                        updatePaymentUI();
+
+                        // If paid, fetch invoice
+                        if ("da_thanh_toan".equalsIgnoreCase(status)) {
+                            fetchInvoice();
+                        }
+                    } catch (Exception e) {
+                        Log.e(TAG, "Error parsing payment status", e);
+                    }
+                },
+                error -> {
+                    Log.e(TAG, "❌ Error fetching payment status: " + error.toString());
+
+                    if (error.networkResponse != null && error.networkResponse.statusCode == 401) {
+                        UserManager.getInstance(this).checkAndForceLogout(error);
+                    }
+                }
+        ) {
+            @Override
+            public Map<String, String> getHeaders() {
+                Map<String, String> headers = new HashMap<>();
+                String token = UserManager.getInstance(getApplicationContext()).getAuthToken();
+                if (token != null && !token.isEmpty()) {
+                    headers.put("Authorization", "Bearer " + token);
+                }
+                return headers;
+            }
+        };
+
+        Volley.newRequestQueue(this).add(request);
+    }
+
     private void updatePaymentUI() {
-        if (Objects.equals(paymentStatus, "da_thanh_toan")) {
+        Log.d(TAG, "🎨 Updating UI - paymentStatus: " + paymentStatus);
+
+        if ("da_thanh_toan".equalsIgnoreCase(paymentStatus)) {
             btnPay.setVisibility(View.GONE);
             txtPaymentStatus.setVisibility(View.VISIBLE);
-            findViewById(R.id.invoiceDetail).setVisibility(View.VISIBLE);
+            txtPaymentStatus.setText("✅ Đã thanh toán");
+            invoiceDetailView.setVisibility(View.VISIBLE);
+            Log.d(TAG, "✅ Showing invoice section");
         } else {
             btnPay.setVisibility(View.VISIBLE);
             txtPaymentStatus.setVisibility(View.GONE);
-            findViewById(R.id.invoiceDetail).setVisibility(View.GONE);
+            invoiceDetailView.setVisibility(View.GONE);
+            Log.d(TAG, "💳 Showing payment button");
         }
     }
 
@@ -191,7 +261,6 @@ public class FinanceDetailActivity extends BaseActivity {
                     Toast.makeText(this, "Lỗi API cập nhật", Toast.LENGTH_SHORT).show();
                 }
         ) {
-            // 🔥 ADD AUTHORIZATION HEADER
             @Override
             public Map<String, String> getHeaders() {
                 Map<String, String> headers = new HashMap<>();
@@ -207,7 +276,17 @@ public class FinanceDetailActivity extends BaseActivity {
     }
 
     private void fetchInvoice() {
-        String url = ApiConfig.BASE_URL + "/api/invoice/by-finance/" + financeId;
+        int userId;
+        try {
+            userId = Integer.parseInt(UserManager.getInstance(getApplicationContext()).getID());
+        } catch (Exception e) {
+            Log.e(TAG, "Failed to get user ID", e);
+            Toast.makeText(this, "Lỗi lấy thông tin người dùng", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        // 🔥 Add user_id to the request
+        String url = ApiConfig.BASE_URL + "/api/invoice/by-finance/" + financeId + "?user_id=" + userId;
 
         Log.d(TAG, "🔍 Fetching invoice from: " + url);
 
@@ -225,13 +304,12 @@ public class FinanceDetailActivity extends BaseActivity {
                         txtAmount.setText(new DecimalFormat("#,###,###").format(amount) + " đ");
                         txtAmountInText.setText(convertNumberToWords(amount));
                         txtDetail.setText(desc);
-
-                        // 🔥 FIX: Gọi hàm chuyển đổi múi giờ tại Client
                         txtPayDate.setText(convertUtcToLocal(rawPayTime));
 
-                        findViewById(R.id.invoiceDetail).setVisibility(View.VISIBLE);
+                        invoiceDetailView.setVisibility(View.VISIBLE);
 
                         Log.d(TAG, "✅ Invoice displayed successfully");
+                        Log.d(TAG, "📋 Order: " + ordercode + ", Amount: " + amount);
 
                     } catch (Exception e) {
                         Log.e(TAG, "❌ Error parsing invoice: " + e.getMessage(), e);
@@ -258,14 +336,13 @@ public class FinanceDetailActivity extends BaseActivity {
                     Toast.makeText(this, "Không lấy được hóa đơn!", Toast.LENGTH_SHORT).show();
                 }
         ) {
-            // 🔥🔥🔥 CRITICAL FIX: ADD AUTHORIZATION HEADER 🔥🔥🔥
             @Override
             public Map<String, String> getHeaders() {
                 Map<String, String> headers = new HashMap<>();
                 String token = UserManager.getInstance(getApplicationContext()).getAuthToken();
                 if (token != null && !token.isEmpty()) {
                     headers.put("Authorization", "Bearer " + token);
-                    Log.d(TAG, "✅ Sending token: " + token.substring(0, 10) + "...");
+                    Log.d(TAG, "✅ Sending token: " + token.substring(0, Math.min(10, token.length())) + "...");
                 } else {
                     Log.e(TAG, "⚠️ WARNING: No token available!");
                 }
@@ -276,24 +353,21 @@ public class FinanceDetailActivity extends BaseActivity {
         Volley.newRequestQueue(this).add(request);
     }
 
-    // 🔥 HÀM MỚI: Chuyển đổi giờ UTC (Server) sang giờ Local (Điện thoại)
     private String convertUtcToLocal(String utcTime) {
         if (utcTime == null || utcTime.isEmpty()) return "Vừa xong";
         try {
-            // 1. Định dạng đầu vào (Server trả về dd/MM/yyyy HH:mm ở múi giờ UTC)
             SimpleDateFormat inputFormat = new SimpleDateFormat("dd/MM/yyyy HH:mm");
             inputFormat.setTimeZone(TimeZone.getTimeZone("UTC"));
 
             java.util.Date date = inputFormat.parse(utcTime);
 
-            // 2. Định dạng đầu ra (Hiển thị theo múi giờ của điện thoại người dùng)
             SimpleDateFormat outputFormat = new SimpleDateFormat("dd/MM/yyyy HH:mm");
-            outputFormat.setTimeZone(TimeZone.getDefault()); // Lấy timezone của máy (VD: Asia/Ho_Chi_Minh)
+            outputFormat.setTimeZone(TimeZone.getDefault());
 
             return outputFormat.format(date);
         } catch (Exception e) {
             Log.e(TAG, "Error converting UTC time: " + e.getMessage());
-            return utcTime; // Nếu lỗi, hiển thị nguyên gốc
+            return utcTime;
         }
     }
 
