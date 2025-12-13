@@ -308,6 +308,13 @@ public class AccountFragment extends Fragment {
                 txtApartment.setVisibility(View.VISIBLE);
                 relationship.setVisibility(View.VISIBLE);
                 break;
+            case AGENCY:
+                txtApartment.setText("Cơ quan chức năng");
+                relationship.setText("Quản lý");
+                // Ẩn hoặc hiện các view tương ứng
+                txtApartment.setVisibility(View.VISIBLE);
+                relationship.setVisibility(View.VISIBLE);
+                break;
             case USER:
             default: // Mặc định là USER
                 txtApartment.setText("Căn hộ: " + user.getRoom());

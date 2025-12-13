@@ -6,8 +6,13 @@
         android:title="Trang chủ" />
     <item
         android:id="@+id/nav_manage_finance"
-        android:icon="@drawable/ic_bill"
-        android:title="Quản lý tài chính" />
+        android:icon="@drawable/ic_search"
+        android:title="Danh sách cư dân" />
+    <item
+        android:id="@+id/nav_manage_asset"
+        android:icon="@drawable/ic_support_dark"
+        android:title="Danh sách cơ sở vật chất" />
+
     <item
         android:id="@+id/nav_profile"
         android:icon="@drawable/ic_person"

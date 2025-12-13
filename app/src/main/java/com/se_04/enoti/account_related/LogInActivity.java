@@ -258,6 +258,8 @@ public class LogInActivity extends BaseActivity {
                 intent = new Intent(this, MainActivity_Admin.class);
             } else if (userRole == Role.ACCOUNTANT) {
                 intent = new Intent(this, MainActivity_Accountant.class);
+            } else if (userRole == Role.AGENCY) {
+                intent = new Intent(this, MainActivity_Agency.class);
             } else {
                 intent = new Intent(this, MainActivity_User.class);
             }

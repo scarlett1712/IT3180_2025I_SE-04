@@ -8,13 +8,16 @@ import com.android.volley.RequestQueue;
 import com.android.volley.toolbox.JsonArrayRequest;
 import com.android.volley.toolbox.Volley;
 import com.se_04.enoti.utils.ApiConfig;
+import com.se_04.enoti.utils.UserManager;
 
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 public class FinanceRepository {
 
@@ -52,15 +55,19 @@ public class FinanceRepository {
                 error -> {
                     Log.e("FinanceRepo", "Error fetching user finances", error);
                     callback.onError("Không thể tải dữ liệu khoản thu của cư dân");
-                });
+                }) {
+            @Override
+            public Map<String, String> getHeaders() {
+                return getAuthHeaders(context);
+            }
+        };
 
         getRequestQueue(context).add(request);
     }
 
     // 🧮 Dành cho admin
     public void fetchAdminFinances(Context context, FinanceCallback callback) {
-        String url = ApiConfig.BASE_URL + "/api/finance/admin"; // 🔥 bỏ adminId
-
+        String url = ApiConfig.BASE_URL + "/api/finance/admin";
         Log.d("FinanceRepo", "Fetching all finances (admin view): " + url);
 
         JsonArrayRequest request = new JsonArrayRequest(Request.Method.GET, url, null,
@@ -68,11 +75,16 @@ public class FinanceRepository {
                 error -> {
                     Log.e("FinanceRepo", "Error fetching admin finances", error);
                     callback.onError("Không thể tải dữ liệu khoản thu (admin)");
-                });
+                }) {
+            // 🔥 THÊM HEADER ĐỂ GỬI TOKEN (Tránh lỗi 401)
+            @Override
+            public Map<String, String> getHeaders() {
+                return getAuthHeaders(context);
+            }
+        };
 
         getRequestQueue(context).add(request);
     }
-
 
     // ✅ Hàm dùng chung — tự động nhận biết role (user/admin)
     public void fetchFinances(Context context, int id, boolean isAdmin, FinanceCallback callback) {
@@ -84,8 +96,19 @@ public class FinanceRepository {
     }
 
     /**
+     * Helper để lấy Header chứa Token
+     */
+    private Map<String, String> getAuthHeaders(Context context) {
+        Map<String, String> headers = new HashMap<>();
+        String token = UserManager.getInstance(context).getAuthToken();
+        if (token != null && !token.isEmpty()) {
+            headers.put("Authorization", "Bearer " + token);
+        }
+        return headers;
+    }
+
+    /**
      * 🔥 HÀM QUAN TRỌNG: Parse JSON response sang danh sách FinanceItem.
-     * Hàm này giờ sẽ đọc các trường liên quan đến phòng và trạng thái.
      */
     private List<FinanceItem> parseFinanceList(JSONArray response) {
         List<FinanceItem> list = new ArrayList<>();
@@ -103,18 +126,24 @@ public class FinanceRepository {
                 item.setDate(obj.optString("due_date", ""));
                 item.setSender(obj.optString("sender", "Ban quản lý"));
 
-                // 💰 Giá trị khoản thu
-                if (obj.has("price") && !obj.isNull("price")) {
-                    item.setPrice(obj.optLong("price", 0L));
+                // 💰 Giá trị khoản thu (Giá gốc/Định mức)
+                if (obj.isNull("price") || obj.optDouble("price") == 0) {
+                    item.setPrice(null);
+                } else {
+                    item.setPrice(obj.optLong("price"));
                 }
 
-                // 👇 THAY ĐỔI: Đọc dữ liệu trạng thái và phòng
+                // 👇 Đọc dữ liệu trạng thái và phòng
                 item.setStatus(obj.optString("status", "chua_thanh_toan"));
                 item.setRoom(obj.optString("room", null));
 
-                // 👇 THAY ĐỔI: Đọc dữ liệu thống kê theo phòng (nếu có)
+                // 👇 Đọc dữ liệu thống kê theo phòng
                 item.setPaidRooms(obj.optInt("paid_rooms", 0));
                 item.setTotalRooms(obj.optInt("total_rooms", 0));
+
+                // 🔥 QUAN TRỌNG NHẤT: Đọc số tiền thực tế (cho khoản thu 20k)
+                double realRev = obj.optDouble("total_collected_real", 0);
+                item.setRealRevenue(realRev);
 
                 list.add(item);
             }

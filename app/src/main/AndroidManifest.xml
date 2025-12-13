@@ -56,6 +56,7 @@
         <activity android:name=".home.user.MainActivity_User" />
         <activity android:name=".home.admin.MainActivity_Admin" />
         <activity android:name=".home.accountant.MainActivity_Accountant" />
+        <activity android:name=".home.agency.MainActivity_Agency" />
         <activity android:name=".notification.NotificationDetailActivity" />
         <activity android:name=".feedback.FeedbackDetailActivity" />
         <activity android:name=".feedback.FeedbackActivity" />
