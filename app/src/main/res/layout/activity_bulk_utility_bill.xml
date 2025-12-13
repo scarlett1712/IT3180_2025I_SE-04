@@ -1,99 +1,178 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<androidx.coordinatorlayout.widget.CoordinatorLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:orientation="vertical"
-    android:background="#F5F5F5"
-    android:padding="16dp">
+    android:background="#F5F7FA"> <com.google.android.material.appbar.AppBarLayout
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:background="@android:color/transparent"
+    app:elevation="0dp">
 
-    <LinearLayout
+    <com.google.android.material.appbar.MaterialToolbar
+        android:id="@+id/toolbar"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:gravity="center_vertical"
-        android:layout_marginBottom="16dp">
+        android:layout_height="?attr/actionBarSize"
+        app:title="Chốt số hàng loạt"
+        app:titleTextColor="@color/white"
+        app:navigationIcon="@drawable/ic_arrow_back" />
+</com.google.android.material.appbar.AppBarLayout>
 
-        <TextView
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:text="Chốt số Hàng loạt"
-            android:textSize="22sp"
-            android:textStyle="bold"
-            android:textColor="@android:color/black"/>
-
-        <RadioGroup
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:orientation="horizontal">
-            <RadioButton
-                android:id="@+id/radElectricity"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="Điện"
-                android:checked="true"
-                android:layout_marginEnd="10dp"/>
-            <RadioButton
-                android:id="@+id/radWater"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="Nước"/>
-        </RadioGroup>
-    </LinearLayout>
-
-    <LinearLayout
+    <androidx.constraintlayout.widget.ConstraintLayout
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:padding="16dp"
-        android:background="#E0E0E0"
-        android:weightSum="3">
-        <TextView
-            android:layout_width="0dp"
+        android:layout_height="match_parent"
+        app:layout_behavior="@string/appbar_scrolling_view_behavior">
+
+        <com.google.android.material.card.MaterialCardView
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_marginHorizontal="16dp"
+            android:layout_marginTop="20dp"
+            android:layout_marginBottom="16dp"
+            app:cardBackgroundColor="@color/white"
+            app:cardCornerRadius="16dp"
+            app:cardElevation="4dp"
+            app:layout_constraintBottom_toTopOf="@+id/layoutBottomActions"
+            app:layout_constraintTop_toTopOf="parent"
+            tools:layout_editor_absoluteX="16dp">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:orientation="vertical">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:background="@color/white"
+                    android:orientation="vertical"
+                    android:padding="16dp">
+
+                    <com.google.android.material.button.MaterialButtonToggleGroup
+                        android:id="@+id/toggleGroupService"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginBottom="16dp"
+                        app:checkedButton="@+id/btnElectricity"
+                        app:selectionRequired="true"
+                        app:singleSelection="true">
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/btnElectricity"
+                            style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:text="Điện"
+                            android:textStyle="bold"
+                            app:icon="@drawable/ic_electric" />
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/btnWater"
+                            style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:text="Nước"
+                            android:textStyle="bold"
+                            app:icon="@drawable/ic_water_drop" />
+                    </com.google.android.material.button.MaterialButtonToggleGroup>
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:background="#F5F5F5"
+                        android:orientation="horizontal"
+                        android:paddingVertical="10dp"
+                        android:weightSum="10">
+
+                        <TextView
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="2"
+                            android:gravity="center"
+                            android:text="Phòng"
+                            android:textColor="#333"
+                            android:textStyle="bold" />
+
+                        <TextView
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="4"
+                            android:gravity="center"
+                            android:text="Chỉ số Cũ"
+                            android:textColor="#555"
+                            android:textStyle="bold" />
+
+                        <TextView
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="4"
+                            android:gravity="center"
+                            android:text="Chỉ số Mới"
+                            android:textColor="?attr/colorPrimary"
+                            android:textStyle="bold" />
+                    </LinearLayout>
+                </LinearLayout>
+
+                <View
+                    android:layout_width="match_parent"
+                    android:layout_height="1dp"
+                    android:background="#E0E0E0" />
+
+                <androidx.recyclerview.widget.RecyclerView
+                    android:id="@+id/recyclerBulkInput"
+                    android:layout_width="match_parent"
+                    android:layout_height="0dp"
+                    android:layout_weight="1"
+                    android:clipToPadding="false"
+                    android:paddingBottom="16dp"
+                    tools:listitem="@layout/item_bulk_meter" />
+
+            </LinearLayout>
+        </com.google.android.material.card.MaterialCardView>
+
+        <LinearLayout
+            android:id="@+id/layoutBottomActions"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_weight="0.6"
-            android:text="Phòng"
-            android:textStyle="bold"/>
-        <TextView
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1.2"
-            android:text="Chỉ số Cũ"
-            android:textStyle="bold"/>
-        <TextView
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1.2"
-            android:text="Chỉ số Mới"
-            android:textStyle="bold"/>
-    </LinearLayout>
+            android:orientation="horizontal"
+            android:padding="16dp"
+            app:layout_constraintBottom_toBottomOf="parent"
+            android:background="#F5F7FA">
 
-    <androidx.recyclerview.widget.RecyclerView
-        android:id="@+id/recyclerBulkInput"
-        android:layout_width="match_parent"
-        android:layout_height="0dp"
-        android:layout_weight="1"
-        android:padding="12dp"
-        android:background="@android:color/white"/>
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnCheckRates"
+                style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                android:layout_width="0dp"
+                android:layout_height="56dp"
+                android:layout_weight="0.8"
+                android:text="Đơn giá"
+                android:textColor="?attr/colorPrimary"
+                app:strokeColor="?attr/colorPrimary"
+                app:icon="@drawable/ic_search"
+                app:iconTint="?attr/colorPrimary"
+                app:cornerRadius="12dp"
+                android:layout_marginEnd="8dp"/>
 
-    <Button
-        android:id="@+id/btnCheckAndConfigRates"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="Tra cứu &amp; kiểm tra đơn giá"
-        android:textSize="16sp"
-        android:backgroundTint="#183636"
-        android:layout_marginTop="12dp"
-        android:padding="12dp"/>
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnSaveAll"
+                android:layout_width="0dp"
+                android:layout_height="56dp"
+                android:layout_weight="1.2"
+                android:text="Lưu &amp; Tính tiền"
+                android:textSize="16sp"
+                android:textStyle="bold"
+                android:textColor="@color/white"
+                app:backgroundTint="?attr/colorPrimary"
+                app:cornerRadius="12dp"
+                app:icon="@drawable/ic_save"
+                app:iconGravity="textStart"
+                android:layout_marginStart="8dp"/>
+        </LinearLayout>
 
-    <Button
-        android:id="@+id/btnSaveAll"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="Lưu &amp; Tạo hóa đơn"
-        android:textSize="16sp"
-        android:backgroundTint="#2196F3"
-        android:layout_marginTop="12dp"
-        android:padding="12dp"/>
+    </androidx.constraintlayout.widget.ConstraintLayout>
 
-</LinearLayout>
+</androidx.coordinatorlayout.widget.CoordinatorLayout>

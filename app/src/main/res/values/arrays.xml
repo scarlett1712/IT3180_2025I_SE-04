@@ -21,4 +21,12 @@
         <item>Tháng 12</item>
     </string-array>
 
+    <string-array name="report_status_options">
+        <item>Tất cả trạng thái</item>
+        <item>Mới gửi (Chờ xử lý)</item>
+        <item>Đang xử lý</item>
+        <item>Đã hoàn thành</item>
+        <item>Đã hủy</item>
+    </string-array>
+
 </resources>

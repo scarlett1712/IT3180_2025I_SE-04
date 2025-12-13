@@ -2,48 +2,51 @@
 <androidx.coordinatorlayout.widget.CoordinatorLayout
     xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@color/white">
+    android:background="#F5F7FA"> <com.google.android.material.appbar.AppBarLayout
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:background="?attr/colorPrimary">
 
-    <!-- Thanh AppBar -->
-    <com.google.android.material.appbar.AppBarLayout
+    <com.google.android.material.appbar.MaterialToolbar
+        android:id="@+id/toolbar_resident_detail"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:background="?attr/colorPrimary"
-        android:fitsSystemWindows="true">
+        android:layout_height="?attr/actionBarSize"
+        android:title="Chi tiết cư dân"
+        app:titleTextColor="@color/white"
+        android:theme="@style/ThemeOverlay.AppCompat.Dark.ActionBar" />
+</com.google.android.material.appbar.AppBarLayout>
 
-        <com.google.android.material.appbar.MaterialToolbar
-            android:id="@+id/toolbar_resident_detail"
-            android:layout_width="match_parent"
-            android:layout_height="?attr/actionBarSize"
-            android:title="Chi tiết cư dân"
-            android:titleTextColor="@android:color/white" />
-    </com.google.android.material.appbar.AppBarLayout>
-
-    <!-- Nội dung -->
-    <ScrollView
+    <androidx.core.widget.NestedScrollView
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:padding="16dp"
         app:layout_behavior="@string/appbar_scrolling_view_behavior">
 
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="vertical"
+            android:padding="16dp"
             android:gravity="center_horizontal">
 
-            <!-- Ảnh cư dân -->
-            <ImageView
-                android:id="@+id/imgResident"
-                android:layout_width="120dp"
-                android:layout_height="120dp"
-                android:src="@drawable/ic_person"
-                android:scaleType="centerCrop"
-                android:layout_marginBottom="4dp" />
+            <androidx.cardview.widget.CardView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                app:cardCornerRadius="60dp"
+                app:cardElevation="8dp"
+                android:layout_marginTop="8dp">
 
-            <!-- Họ và tên -->
+                <ImageView
+                    android:id="@+id/imgResident"
+                    android:layout_width="120dp"
+                    android:layout_height="120dp"
+                    android:src="@drawable/ic_person"
+                    android:scaleType="centerCrop"
+                    tools:ignore="ContentDescription" />
+            </androidx.cardview.widget.CardView>
+
             <TextView
                 android:id="@+id/txtResidentName"
                 android:layout_width="match_parent"
@@ -52,93 +55,130 @@
                 android:textStyle="bold"
                 android:textSize="22sp"
                 android:gravity="center"
-                android:layout_marginTop="12dp"
+                android:layout_marginTop="16dp"
+                android:layout_marginBottom="12dp"
                 android:textColor="@color/black" />
 
             <View
                 android:layout_width="match_parent"
                 android:layout_height="1dp"
-                android:background="@color/dark_gray"
-                android:layout_marginTop="12dp"
-                android:layout_marginBottom="12dp" />
+                android:background="#DDDDDD"
+                android:layout_marginBottom="24dp" />
 
-            <!-- Thông tin chi tiết -->
-            <LinearLayout
+            <com.google.android.material.card.MaterialCardView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:orientation="vertical">
+                android:layout_marginBottom="16dp"
+                app:cardCornerRadius="12dp"
+                app:cardElevation="4dp">
 
-                <TextView
-                    android:text="Giới tính:"
-                    style="@style/ResidentLabel" />
-                <TextView
-                    android:id="@+id/txtResidentGender"
-                    style="@style/ResidentValue" />
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:padding="16dp">
 
-                <TextView
-                    android:text="Ngày sinh:"
-                    style="@style/ResidentLabel" />
-                <TextView
-                    android:id="@+id/txtResidentDob"
-                    style="@style/ResidentValue" />
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="THÔNG TIN CÁ NHÂN"
+                        android:textSize="14sp"
+                        android:textStyle="bold"
+                        android:textColor="?attr/colorPrimary"
+                        android:layout_marginBottom="12dp"/>
 
-                <TextView
-                    android:text="Email:"
-                    style="@style/ResidentLabel" />
-                <TextView
-                    android:id="@+id/txtResidentEmail"
-                    style="@style/ResidentValue" />
+                    <include layout="@layout/item_detail_row" android:id="@+id/rowGender"/>
+                    <include layout="@layout/item_detail_row" android:id="@+id/rowDob"/>
+                    <include layout="@layout/item_detail_row" android:id="@+id/rowIdentity"/>
+                    <include layout="@layout/item_detail_row" android:id="@+id/rowHomeTown"/>
 
-                <TextView
-                    android:text="Số điện thoại:"
-                    style="@style/ResidentLabel" />
-                <TextView
-                    android:id="@+id/txtResidentPhone"
-                    style="@style/ResidentValue" />
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
 
-                <TextView
-                    android:text="Số CCCD/CMND:"
-                    style="@style/ResidentLabel" />
-                <TextView
-                    android:id="@+id/txtResidentIdentity"
-                    style="@style/ResidentValue" />
+            <com.google.android.material.card.MaterialCardView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="16dp"
+                app:cardCornerRadius="12dp"
+                app:cardElevation="4dp">
 
-                <TextView
-                    android:text="Quê quán:"
-                    style="@style/ResidentLabel" />
-                <TextView
-                    android:id="@+id/txtResidentHomeTown"
-                    style="@style/ResidentValue" />
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:padding="16dp">
 
-                <TextView
-                    android:text="Quan hệ với chủ hộ:"
-                    style="@style/ResidentLabel" />
-                <TextView
-                    android:id="@+id/txtResidentRelationship"
-                    style="@style/ResidentValue" />
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="THÔNG TIN LIÊN HỆ"
+                        android:textSize="14sp"
+                        android:textStyle="bold"
+                        android:textColor="?attr/colorPrimary"
+                        android:layout_marginBottom="12dp"/>
 
-                <TextView
-                    android:text="Vai trò:"
-                    style="@style/ResidentLabel" />
-                <TextView
-                    android:id="@+id/txtResidentRole"
-                    style="@style/ResidentValue" />
+                    <include layout="@layout/item_detail_row" android:id="@+id/rowEmail"/>
+                    <include layout="@layout/item_detail_row" android:id="@+id/rowPhone"/>
 
-                <TextView
-                    android:text="Tình trạng cư trú:"
-                    style="@style/ResidentLabel" />
-                <TextView
-                    android:id="@+id/txtResidentLiving"
-                    style="@style/ResidentValue" />
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
 
-                <TextView
-                    android:text="Căn hộ sinh sống:"
-                    style="@style/ResidentLabel" />
-                <TextView
-                    android:id="@+id/txtRoom"
-                    style="@style/ResidentValue" />
+            <com.google.android.material.card.MaterialCardView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="16dp"
+                app:cardCornerRadius="12dp"
+                app:cardElevation="4dp">
 
-            </LinearLayout>
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:padding="16dp">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="TÌNH TRẠNG CƯ TRÚ"
+                        android:textSize="14sp"
+                        android:textStyle="bold"
+                        android:textColor="?attr/colorPrimary"
+                        android:layout_marginBottom="12dp"/>
+
+                    <include layout="@layout/item_detail_row" android:id="@+id/rowRoom"/>
+                    <include layout="@layout/item_detail_row" android:id="@+id/rowRelationship"/>
+                    <include layout="@layout/item_detail_row" android:id="@+id/rowRole"/>
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:paddingVertical="8dp"
+                        android:background="@drawable/bg_status_rounded"
+                        android:layout_marginTop="8dp">
+
+                        <TextView
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:text="Tình trạng cư trú:"
+                            android:textSize="16sp"
+                            android:textColor="@color/black" />
+
+                        <TextView
+                            android:id="@+id/txtResidentLiving"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Đang sinh sống"
+                            android:textSize="16sp"
+                            android:textStyle="bold"
+                            android:textColor="#388E3C"
+                            tools:ignore="HardcodedText" />
+                    </LinearLayout>
+
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
         </LinearLayout>
-    </ScrollView>
+    </androidx.core.widget.NestedScrollView>
 </androidx.coordinatorlayout.widget.CoordinatorLayout>

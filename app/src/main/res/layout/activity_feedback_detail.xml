@@ -1,112 +1,208 @@
 <?xml version="1.0" encoding="utf-8"?>
-<androidx.coordinatorlayout.widget.CoordinatorLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<androidx.coordinatorlayout.widget.CoordinatorLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@color/white">
+    android:background="#F5F7FA"> <com.google.android.material.appbar.AppBarLayout
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:background="@android:color/transparent"
+    app:elevation="0dp">
 
-    <!-- Thanh AppBar -->
-    <com.google.android.material.appbar.AppBarLayout
+    <com.google.android.material.appbar.MaterialToolbar
+        android:id="@+id/toolbar"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:fitsSystemWindows="true"
-        android:background="?attr/colorPrimary">
+        android:layout_height="?attr/actionBarSize"
+        app:title="Chi tiết phản hồi"
+        app:titleTextColor="@color/white"
+        app:navigationIcon="@drawable/ic_arrow_back"/>
+</com.google.android.material.appbar.AppBarLayout>
 
-        <com.google.android.material.appbar.MaterialToolbar
-            android:id="@+id/toolbar"
-            android:layout_width="match_parent"
-            android:layout_height="?attr/actionBarSize"
-            android:titleTextColor="@android:color/white" />
-    </com.google.android.material.appbar.AppBarLayout>
-
-    <!-- Nội dung -->
-    <ScrollView
+    <androidx.core.widget.NestedScrollView
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:padding="16dp"
         app:layout_behavior="@string/appbar_scrolling_view_behavior">
 
-        <LinearLayout
+        <androidx.constraintlayout.widget.ConstraintLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:orientation="vertical">
+            android:paddingBottom="24dp">
 
-            <!-- Tiêu đề -->
-            <TextView
-                android:id="@+id/txtDetailTitle"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:textSize="24sp"
-                android:textStyle="bold"
-                android:textColor="@android:color/black"
-                android:layout_marginBottom="8dp" />
-
-            <!-- Ngày -->
-            <TextView
-                android:id="@+id/txtDetailDate"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:textSize="16sp"
-                android:textColor="@android:color/darker_gray"
-                android:layout_marginBottom="12dp" />
-
-            <!-- Thông báo liên quan -->
-            <TextView
-                android:id="@+id/txtDetailRepliedNotification"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="@string/replied_notification"
-                android:textSize="18sp"
-                android:textColor="@android:color/black"
-                android:layout_marginBottom="12dp" />
-
-            <!-- Nội dung phản hồi -->
-            <TextView
-                android:id="@+id/txtDetailContent"
+            <com.google.android.material.card.MaterialCardView
+                android:id="@+id/cardUserFeedback"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:textSize="18sp"
-                android:textColor="@android:color/black"
-                android:layout_marginBottom="24dp" />
+                android:layout_marginHorizontal="16dp"
+                android:layout_marginTop="20dp"
+                app:cardBackgroundColor="@color/white"
+                app:cardCornerRadius="16dp"
+                app:cardElevation="6dp"
+                app:layout_constraintTop_toTopOf="parent"
+                tools:layout_editor_absoluteX="16dp">
 
-            <!-- Phản hồi của quản trị viên -->
-            <LinearLayout
-                android:id="@+id/adminReplySection"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="vertical"
-                android:padding="16dp"
-                android:background="@drawable/bg_admin_reply"
-                android:layout_marginTop="16dp">
-
-                <TextView
-                    android:id="@+id/txtAdminReplyTitle"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="Phản hồi của quản trị viên"
-                    android:textStyle="bold"
-                    android:textSize="20sp"
-                    android:textColor="@android:color/black"
-                    android:layout_marginBottom="8dp" />
-
-                <TextView
-                    android:id="@+id/txtAdminReplyDate"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="[DD/MM/YYYY]"
-                    android:textSize="14sp"
-                    android:textColor="@android:color/darker_gray"
-                    android:layout_marginBottom="8dp" />
-
-                <TextView
-                    android:id="@+id/txtAdminReplyContent"
+                <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:text="(Chưa có phản hồi)"
-                    android:textSize="16sp"
-                    android:textColor="@android:color/black" />
-            </LinearLayout>
+                    android:orientation="vertical"
+                    android:padding="24dp">
 
-        </LinearLayout>
-    </ScrollView>
+                    <LinearLayout
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginBottom="12dp"
+                        android:background="@drawable/bg_status_rounded"
+                        android:backgroundTint="#F5F5F5"
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal"
+                        android:paddingHorizontal="8dp"
+                        android:paddingVertical="4dp">
+
+                        <ImageView
+                            android:layout_width="14dp"
+                            android:layout_height="14dp"
+                            android:layout_marginEnd="6dp"
+                            android:src="@drawable/ic_calendar"
+                            app:tint="#757575" />
+
+                        <TextView
+                            android:id="@+id/txtDetailDate"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:textColor="#757575"
+                            android:textSize="12sp"
+                            android:textStyle="bold"
+                            tools:text="10/12/2025" />
+                    </LinearLayout>
+
+                    <TextView
+                        android:id="@+id/txtDetailTitle"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginBottom="8dp"
+                        android:textColor="@color/black"
+                        android:textSize="22sp"
+                        android:textStyle="bold"
+                        tools:text="Thang máy rung lắc mạnh" />
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginBottom="16dp"
+                        android:orientation="horizontal">
+
+                        <ImageView
+                            android:layout_width="16dp"
+                            android:layout_height="16dp"
+                            android:layout_marginTop="2dp"
+                            android:layout_marginEnd="8dp"
+                            android:src="@drawable/ic_notification_dark"
+                            app:tint="?attr/colorPrimary" />
+
+                        <TextView
+                            android:id="@+id/txtDetailRepliedNotification"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:textColor="?attr/colorPrimary"
+                            android:textSize="14sp"
+                            android:textStyle="italic"
+                            tools:text="Phản hồi cho: Thông báo bảo trì T12" />
+                    </LinearLayout>
+
+                    <View
+                        android:layout_width="match_parent"
+                        android:layout_height="1dp"
+                        android:layout_marginBottom="16dp"
+                        android:background="#EEEEEE" />
+
+                    <TextView
+                        android:id="@+id/txtDetailContent"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:lineSpacingExtra="4dp"
+                        android:textColor="#333333"
+                        android:textSize="16sp"
+                        tools:text="Sáng nay tôi đi thang máy số 1 thấy rung rất mạnh..." />
+
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+            <com.google.android.material.card.MaterialCardView
+                android:id="@+id/cardAdminReply"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginHorizontal="16dp"
+                android:layout_marginTop="16dp"
+                app:cardCornerRadius="16dp"
+                app:cardElevation="4dp"
+                app:cardBackgroundColor="#E3F2FD"
+                app:layout_constraintTop_toBottomOf="@+id/cardUserFeedback">
+                <LinearLayout
+                    android:id="@+id/adminReplySection"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:padding="20dp">
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:gravity="center_vertical"
+                        android:layout_marginBottom="12dp">
+
+                        <ImageView
+                            android:layout_width="32dp"
+                            android:layout_height="32dp"
+                            android:src="@drawable/ic_support_dark"
+                            app:tint="#1976D2"
+                            android:layout_marginEnd="12dp"/>
+                        <LinearLayout
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:orientation="vertical">
+
+                            <TextView
+                                android:id="@+id/txtAdminReplyTitle"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="Phản hồi từ Quản trị viên"
+                                android:textStyle="bold"
+                                android:textSize="16sp"
+                                android:textColor="#1565C0" />
+
+                            <TextView
+                                android:id="@+id/txtAdminReplyDate"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                tools:text="10/12/2025 - 10:30"
+                                android:textSize="12sp"
+                                android:textColor="#546E7A" />
+                        </LinearLayout>
+                    </LinearLayout>
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:background="@drawable/bg_white_rounded_16"
+                        android:padding="16dp">
+
+                        <TextView
+                            android:id="@+id/txtAdminReplyContent"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            tools:text="Cảm ơn quý cư dân đã báo tin. Kỹ thuật viên đang kiểm tra."
+                            android:textSize="16sp"
+                            android:textColor="#333333"
+                            android:lineSpacingExtra="4dp"/>
+                    </LinearLayout>
+
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+        </androidx.constraintlayout.widget.ConstraintLayout>
+    </androidx.core.widget.NestedScrollView>
+
 </androidx.coordinatorlayout.widget.CoordinatorLayout>

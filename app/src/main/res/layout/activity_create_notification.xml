@@ -2,323 +2,360 @@
 <androidx.coordinatorlayout.widget.CoordinatorLayout
     xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@android:color/white">
+    android:background="#F5F7FA"> <com.google.android.material.appbar.AppBarLayout
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:background="@android:color/transparent"
+    app:elevation="0dp">
 
-    <!-- Thanh AppBar -->
-    <com.google.android.material.appbar.AppBarLayout
+    <com.google.android.material.appbar.MaterialToolbar
+        android:id="@+id/toolbar"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:background="?attr/colorPrimary"
-        android:fitsSystemWindows="true">
+        android:layout_height="?attr/actionBarSize"
+        app:title="Tạo thông báo mới"
+        app:titleTextColor="@color/white"
+        app:navigationIcon="@drawable/ic_arrow_back" />
+</com.google.android.material.appbar.AppBarLayout>
 
-        <com.google.android.material.appbar.MaterialToolbar
-            android:id="@+id/toolbar_feedback"
-            android:layout_width="match_parent"
-            android:layout_height="?attr/actionBarSize"
-            android:titleTextColor="@android:color/white" />
-    </com.google.android.material.appbar.AppBarLayout>
-
-    <!-- Nội dung chính có thể cuộn -->
-    <ScrollView
-        android:id="@+id/scrollView_feedback"
+    <androidx.core.widget.NestedScrollView
+        android:id="@+id/scrollView"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:padding="16dp"
-        android:layout_marginBottom="72dp"
+        android:fillViewport="true"
+        android:paddingBottom="90dp"
         app:layout_behavior="@string/appbar_scrolling_view_behavior">
 
-        <LinearLayout
+        <androidx.constraintlayout.widget.ConstraintLayout
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="vertical">
+            android:layout_height="wrap_content">
 
-            <!-- Tiêu đề thông báo -->
-
-            <LinearLayout
+            <com.google.android.material.card.MaterialCardView
+                android:id="@+id/cardGeneralInfo"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:orientation="horizontal"
-                android:gravity="center_vertical"
-                android:layout_weight="1"
-                android:layout_marginTop="0dp">
+                android:layout_marginHorizontal="16dp"
+                android:layout_marginTop="20dp"
+                app:layout_constraintTop_toTopOf="parent"
+                app:cardBackgroundColor="@color/white"
+                app:cardCornerRadius="16dp"
+                app:cardElevation="4dp"
+                tools:layout_editor_absoluteX="16dp"
+                tools:layout_editor_absoluteY="60dp">
 
-                <TextView
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="0.2"
-                    android:text="Tiêu đề:"
-                    android:textSize="18sp"
-                    android:textStyle="bold">
-                </TextView>
-
-                <com.google.android.material.textfield.TextInputLayout
-                    android:id="@+id/inputLayoutNotificationTitle"
-                    android:layout_weight="0.8"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:hint="@string/inputNotificationTitle">
-
-                    <com.google.android.material.textfield.TextInputEditText
-                        android:id="@+id/edtNotificationTitle"
-                        android:layout_width="match_parent"
-                        android:layout_height="40dp"
-                        android:gravity="top|start"
-                        android:singleLine="true"
-                        android:maxLines="1"
-                        android:ellipsize="end"
-                        android:paddingVertical="8dp"
-                        android:textSize="18sp"
-                        android:textStyle="bold" />
-                </com.google.android.material.textfield.TextInputLayout>
-
-            </LinearLayout>
-
-            <!-- Loại thông báo & Người nhận -->
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="horizontal"
-                android:gravity="center_vertical"
-                android:layout_marginTop="8dp"
-                android:layout_marginBottom="4dp">
-
-                <!-- Cột 1: Loại thông báo -->
                 <LinearLayout
-                    android:layout_width="0dp"
+                    android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_weight="0.7"
                     android:orientation="vertical"
-                    android:layout_marginEnd="8dp">
+                    android:padding="20dp">
 
                     <TextView
-                        android:id="@+id/tvNotificationTypeLabel"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="Loại thông báo"
-                        android:textStyle="bold"
-                        android:layout_marginBottom="4dp" />
-
-                    <Spinner
-                        android:id="@+id/spinnerNotificationType"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:spinnerMode="dropdown"
-                        android:background="@drawable/spinner_background"
-                        android:padding="8dp" />
-                </LinearLayout>
-
-                <!-- Cột 2: Người nhận -->
-                <LinearLayout
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:orientation="vertical"
-                    android:layout_marginStart="8dp">
-
-                    <TextView
-                        android:id="@+id/tvTargetLabel"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="Ngày hết hạn"
+                        android:layout_marginBottom="16dp"
+                        android:text="THÔNG TIN CHUNG"
+                        android:textColor="?attr/colorPrimary"
+                        android:textSize="14sp"
                         android:textStyle="bold" />
 
                     <com.google.android.material.textfield.TextInputLayout
-                        android:id="@+id/inputLayoutExpirationDate"
+                        android:id="@+id/inputLayoutNotificationTitle"
+                        style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:layout_marginTop="-1dp"
-                        android:hint="Ngày hết hạn">
+                        android:layout_marginBottom="16dp"
+                        android:hint="@string/inputNotificationTitle"
+                        app:boxCornerRadiusBottomEnd="12dp"
+                        app:boxCornerRadiusBottomStart="12dp"
+                        app:boxCornerRadiusTopEnd="12dp"
+                        app:boxCornerRadiusTopStart="12dp">
 
                         <com.google.android.material.textfield.TextInputEditText
-                            android:id="@+id/edtExpirationDate"
+                            android:id="@+id/edtNotificationTitle"
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
-                            android:focusable="false"
-                            android:clickable="true"
-                            android:background="@drawable/spinner_background"
-                            android:inputType="none"
-                            android:drawableEnd="@drawable/ic_calendar"
-                            android:padding="7dp" />
+                            android:inputType="textCapSentences"
+                            android:maxLines="1" />
                     </com.google.android.material.textfield.TextInputLayout>
 
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal">
+
+                        <com.google.android.material.textfield.TextInputLayout
+                            style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox.ExposedDropdownMenu"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_marginEnd="8dp"
+                            android:layout_weight="1"
+                            android:hint="Loại tin"
+                            app:boxCornerRadiusBottomEnd="12dp"
+                            app:boxCornerRadiusBottomStart="12dp"
+                            app:boxCornerRadiusTopEnd="12dp"
+                            app:boxCornerRadiusTopStart="12dp">
+
+                            <AutoCompleteTextView
+                                android:id="@+id/spinnerNotificationType"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:inputType="none"
+                                android:text="Thông báo" />
+                        </com.google.android.material.textfield.TextInputLayout>
+
+                        <com.google.android.material.textfield.TextInputLayout
+                            android:id="@+id/inputLayoutExpirationDate"
+                            style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:hint="Hết hạn"
+                            app:boxCornerRadiusBottomEnd="12dp"
+                            app:boxCornerRadiusBottomStart="12dp"
+                            app:boxCornerRadiusTopEnd="12dp"
+                            app:boxCornerRadiusTopStart="12dp"
+                            app:endIconDrawable="@drawable/ic_calendar"
+                            app:endIconMode="custom">
+
+                            <com.google.android.material.textfield.TextInputEditText
+                                android:id="@+id/edtExpirationDate"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:clickable="true"
+                                android:focusable="false"
+                                android:inputType="none" />
+                        </com.google.android.material.textfield.TextInputLayout>
+                    </LinearLayout>
                 </LinearLayout>
-            </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
 
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="match_parent"
-                android:text="Người nhận"
-                android:textStyle="bold"
-                android:layout_weight="0.5"
-                android:layout_marginBottom="8dp">
-            </TextView>
-
-            <CheckBox
-                android:id="@+id/chkSendAll"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="Gửi cho tất cả cư dân"
-                android:layout_marginBottom="8dp"
-                android:textSize="16sp"
-                android:buttonTint="@color/black" />
-
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="40dp"
-                android:orientation="horizontal"
-                android:layout_weight="1"
-                android:gravity="center_vertical"
-                android:layout_marginBottom="4dp">
-
-                <Spinner
-                    android:id="@+id/spinnerReceiverFloor"
-                    android:layout_width="0dp"
-                    android:layout_height="match_parent"
-                    android:layout_weight="0.4"
-                    android:layout_marginRight="7dp"
-                    android:background="@drawable/spinner_background"
-                    android:padding="8dp"
-                    android:spinnerMode="dropdown" />
-
-                <Spinner
-                    android:id="@+id/spinnerReceiverRoom"
-                    android:layout_width="0dp"
-                    android:layout_height="match_parent"
-                    android:layout_weight="0.4"
-                    android:background="@drawable/spinner_background"
-                    android:padding="8dp"
-                    android:spinnerMode="dropdown" />
-
-            </LinearLayout>
-
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="40dp"
-                android:orientation="horizontal"
-                android:layout_weight="1"
-                android:gravity="center_vertical"
-                android:layout_marginBottom="4dp">
-
-                <androidx.appcompat.widget.SearchView
-                    android:id="@+id/search_view"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="0.5"
-                    android:layout_marginEnd="7dp"
-                    app:queryHint="Tìm theo tên cư dân"
-                    app:iconifiedByDefault="false"
-                    android:background="@drawable/search_view_background" />
-
-                <ImageButton
-                    android:id="@+id/btnReceiverList"
-                    android:layout_width="0dp"
-                    android:layout_height="match_parent"
-                    android:layout_weight="0.1"
-                    android:src="@drawable/ic_list_light"
-                    android:background="@drawable/bg_round_button"
-                    android:contentDescription="Danh sách người nhận" />
-
-            </LinearLayout>
-
-            <androidx.recyclerview.widget.RecyclerView
-                android:id="@+id/recyclerResidents"
+            <com.google.android.material.card.MaterialCardView
+                android:id="@+id/cardRecipients"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="4dp"
-                android:visibility="gone"/>
-
-            <TextView
-                android:id="@+id/txtSelectedResidents"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:text="Chưa chọn cư dân nào"
-                android:textColor="@android:color/darker_gray"
-                android:textStyle="italic"
-                android:padding="8dp"
-                android:layout_marginTop="8dp" />
-
-            <!-- Ô nhập nội dung -->
-
-            <com.google.android.material.textfield.TextInputLayout
-                android:id="@+id/inputLayoutNotification"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:hint="@string/inputNotificationDetails"
-                android:layout_marginTop="4dp">
-
-                <com.google.android.material.textfield.TextInputEditText
-                    android:id="@+id/edtNotificationContent"
-                    android:layout_width="match_parent"
-                    android:layout_height="300dp"
-                    android:gravity="top|start"
-                    android:inputType="textMultiLine"
-                    android:padding="8dp"/>
-            </com.google.android.material.textfield.TextInputLayout>
-
-            <!-- Đính kèm -->
-            <com.google.android.material.button.MaterialButton
-                android:id="@+id/btnAttach"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="Đính kèm"
-                android:icon="@drawable/ic_attach_file"
-                app:iconGravity="textStart"
-                android:layout_marginTop="12dp"
-                android:layout_marginBottom="12dp"
-                app:backgroundTint="@color/teal_700"
-                android:textColor="@android:color/white" />
-
-            <ImageView
-                android:id="@+id/imgPreview"
-                android:layout_width="200dp"
-                android:layout_height="200dp"
+                android:layout_marginHorizontal="16dp"
                 android:layout_marginTop="16dp"
-                android:scaleType="centerCrop"
-                android:visibility="gone" />
-        </LinearLayout>
-    </ScrollView>
+                app:cardCornerRadius="16dp"
+                app:cardElevation="4dp"
+                app:cardBackgroundColor="@color/white"
+                app:layout_constraintTop_toBottomOf="@+id/cardGeneralInfo">
 
-    <!-- Thanh chứa 2 nút hành động -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:padding="20dp">
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:gravity="center_vertical"
+                        android:layout_marginBottom="12dp">
+
+                        <TextView
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:text="NGƯỜI NHẬN"
+                            android:textSize="14sp"
+                            android:textStyle="bold"
+                            android:textColor="?attr/colorPrimary"/>
+
+                        <CheckBox
+                            android:id="@+id/chkSendAll"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Gửi tất cả"
+                            android:textSize="14sp"
+                            android:layout_marginStart="8dp"/>
+                    </LinearLayout>
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:layout_marginBottom="12dp">
+
+                        <com.google.android.material.textfield.TextInputLayout
+                            style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox.ExposedDropdownMenu"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:hint="Tầng"
+                            app:boxCornerRadiusTopStart="12dp"
+                            app:boxCornerRadiusTopEnd="12dp"
+                            app:boxCornerRadiusBottomStart="12dp"
+                            app:boxCornerRadiusBottomEnd="12dp"
+                            android:layout_marginEnd="8dp">
+                            <AutoCompleteTextView
+                                android:id="@+id/spinnerReceiverFloor"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:inputType="none"
+                                android:text="Tất cả" />
+                        </com.google.android.material.textfield.TextInputLayout>
+
+                        <com.google.android.material.textfield.TextInputLayout
+                            style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox.ExposedDropdownMenu"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:hint="Phòng"
+                            app:boxCornerRadiusTopStart="12dp"
+                            app:boxCornerRadiusTopEnd="12dp"
+                            app:boxCornerRadiusBottomStart="12dp"
+                            app:boxCornerRadiusBottomEnd="12dp">
+                            <AutoCompleteTextView
+                                android:id="@+id/spinnerReceiverRoom"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:inputType="none"
+                                android:text="Tất cả" />
+                        </com.google.android.material.textfield.TextInputLayout>
+                    </LinearLayout>
+
+                    <androidx.appcompat.widget.SearchView
+                        android:id="@+id/search_view"
+                        android:layout_width="match_parent"
+                        android:layout_height="40dp"
+                        app:queryHint="Tìm tên cư dân..."
+                        app:iconifiedByDefault="false"
+                        android:background="@drawable/bg_input_rounded"
+                        app:queryBackground="@null"
+                        android:layout_marginBottom="12dp"/>
+
+                    <androidx.recyclerview.widget.RecyclerView
+                        android:id="@+id/recyclerResidents"
+                        android:layout_width="match_parent"
+                        android:layout_height="150dp"
+                        android:layout_marginBottom="8dp"
+                        android:background="#FAFAFA"
+                        android:visibility="gone"/>
+
+                    <TextView
+                        android:id="@+id/txtSelectedResidents"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="Chưa chọn cư dân nào"
+                        android:textColor="#757575"
+                        android:textSize="13sp"
+                        android:textStyle="italic"
+                        android:padding="8dp"
+                        android:background="#F5F5F5" />
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+            <com.google.android.material.card.MaterialCardView
+                android:id="@+id/cardContent"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginHorizontal="16dp"
+                android:layout_marginTop="16dp"
+                app:cardCornerRadius="16dp"
+                app:cardElevation="4dp"
+                app:cardBackgroundColor="@color/white"
+                app:layout_constraintTop_toBottomOf="@+id/cardRecipients">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:padding="20dp">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="NỘI DUNG &amp; ĐÍNH KÈM"
+                        android:textSize="14sp"
+                        android:textStyle="bold"
+                        android:textColor="?attr/colorPrimary"
+                        android:layout_marginBottom="16dp"/>
+
+                    <com.google.android.material.textfield.TextInputLayout
+                        android:id="@+id/inputLayoutNotification"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:hint="@string/inputNotificationDetails"
+                        style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
+                        app:boxCornerRadiusTopStart="12dp"
+                        app:boxCornerRadiusTopEnd="12dp"
+                        app:boxCornerRadiusBottomStart="12dp"
+                        app:boxCornerRadiusBottomEnd="12dp"
+                        android:layout_marginBottom="16dp">
+
+                        <com.google.android.material.textfield.TextInputEditText
+                            android:id="@+id/edtNotificationContent"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:gravity="top|start"
+                            android:inputType="textMultiLine"
+                            android:minLines="6" />
+                    </com.google.android.material.textfield.TextInputLayout>
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/btnAttach"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Thêm đính kèm"
+                        android:textColor="?attr/colorPrimary"
+                        app:icon="@drawable/ic_attach_file"
+                        app:iconTint="?attr/colorPrimary"
+                        style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                        app:strokeColor="?attr/colorPrimary"
+                        app:cornerRadius="8dp" />
+
+                    <ImageView
+                        android:id="@+id/imgPreview"
+                        android:layout_width="match_parent"
+                        android:layout_height="200dp"
+                        android:layout_marginTop="16dp"
+                        android:scaleType="centerCrop"
+                        android:background="#EEEEEE"
+                        android:visibility="gone" />
+
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+        </androidx.constraintlayout.widget.ConstraintLayout>
+    </androidx.core.widget.NestedScrollView>
+
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="horizontal"
         android:padding="16dp"
         android:gravity="center"
-        android:layout_gravity="bottom">
+        android:layout_gravity="bottom"
+        android:background="#F5F7FA">
 
-        <!-- Nút Gửi ngay -->
-        <com.google.android.material.button.MaterialButton
-            android:id="@+id/btnSendNow"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:text="Gửi ngay"
-            android:textSize="16sp"
-            android:textColor="@android:color/white"
-            app:iconGravity="textStart"
-            app:iconTint="@android:color/white"
-            app:cornerRadius="12dp"
-            android:layout_marginEnd="8dp"
-            android:backgroundTint="?attr/colorPrimary" />
-
-        <!-- Nút Gửi sau -->
         <com.google.android.material.button.MaterialButton
             android:id="@+id/btnSendLater"
             android:layout_width="0dp"
-            android:layout_height="wrap_content"
+            android:layout_height="56dp"
             android:layout_weight="1"
             android:text="Gửi sau"
             android:textSize="16sp"
-            android:textColor="@android:color/white"
-            app:iconGravity="textStart"
-            app:iconTint="@android:color/white"
+            android:textColor="?attr/colorPrimary"
+            style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+            app:strokeColor="?attr/colorPrimary"
+            app:cornerRadius="12dp"
+            android:layout_marginEnd="8dp"/>
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnSendNow"
+            android:layout_width="0dp"
+            android:layout_height="56dp"
+            android:layout_weight="1"
+            android:text="Gửi ngay"
+            android:textSize="16sp"
+            android:textStyle="bold"
+            android:textColor="@color/white"
             app:cornerRadius="12dp"
             android:layout_marginStart="8dp"
-            android:backgroundTint="@color/teal_700" />
+            app:backgroundTint="?attr/colorPrimary" />
     </LinearLayout>
-
 
 </androidx.coordinatorlayout.widget.CoordinatorLayout>

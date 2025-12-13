@@ -1,14 +1,9 @@
 package com.se_04.enoti.residents;
 
 import android.Manifest;
-import android.content.ContentResolver;
-import android.content.ContentValues;
 import android.content.Intent;
 import android.content.pm.PackageManager;
-import android.net.Uri;
 import android.os.Bundle;
-import android.os.Environment;
-import android.provider.MediaStore;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -21,46 +16,39 @@ import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
-import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.SearchView;
-import androidx.core.app.ActivityCompat;
-import androidx.core.content.ContextCompat;
 import androidx.fragment.app.Fragment;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
+import com.android.volley.AuthFailureError; // 🔥 Import này
 import com.android.volley.Request;
 import com.android.volley.RequestQueue;
 import com.android.volley.toolbox.JsonArrayRequest;
 import com.android.volley.toolbox.Volley;
-import com.google.android.material.floatingactionbutton.ExtendedFloatingActionButton; // 🔥 Import mới
+import com.google.android.material.floatingactionbutton.ExtendedFloatingActionButton;
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
 import com.se_04.enoti.R;
 import com.se_04.enoti.account.UserItem;
-import com.se_04.enoti.account.admin.ApproveRequestsActivity; // 🔥 Import Activity Duyệt (đã tạo trước đó)
+import com.se_04.enoti.account.admin.ApproveRequestsActivity;
 import com.se_04.enoti.utils.ApiConfig;
 import com.se_04.enoti.utils.BaseActivity;
-import com.se_04.enoti.utils.DataCacheManager;
+import com.se_04.enoti.utils.DataCacheManager; // Import Cache Manager
 import com.se_04.enoti.utils.UserManager;
 
-import org.apache.poi.ss.usermodel.Cell;
-import org.apache.poi.ss.usermodel.Row;
-import org.apache.poi.ss.usermodel.Sheet;
-import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
-import java.io.OutputStream;
-import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Collections;
 import java.util.Comparator;
-import java.util.Date;
-import java.util.HashSet;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Set;
+import java.util.HashSet;
 
 public class ManageResidentFragment extends Fragment {
 
@@ -68,8 +56,6 @@ public class ManageResidentFragment extends Fragment {
     private SearchView searchView;
     private Spinner spinnerFilterFloor, spinnerFilterRoom;
     private FloatingActionButton btnExportExcel, btnAddResident;
-    private static final String CACHE_FILE_RESIDENTS = "cache_residents.json";
-    // 🔥 Khai báo nút Duyệt hồ sơ
     private ExtendedFloatingActionButton btnApproveRequests;
 
     private ResidentAdapter adapter;
@@ -81,11 +67,9 @@ public class ManageResidentFragment extends Fragment {
     private final List<String> allRooms = new ArrayList<>();
 
     private static final int REQUEST_WRITE_PERMISSION = 1001;
-
-    // ⚙️ API endpoint
     private static final String API_URL = ApiConfig.BASE_URL + "/api/residents";
-    // 🔥 API lấy danh sách yêu cầu (để đếm số lượng)
     private static final String API_PENDING_REQUESTS = ApiConfig.BASE_URL + "/api/profile-requests/pending";
+    private static final String CACHE_FILE_RESIDENTS = DataCacheManager.CACHE_RESIDENTS;
 
     @Nullable
     @Override
@@ -103,26 +87,17 @@ public class ManageResidentFragment extends Fragment {
         recyclerViewResidents = view.findViewById(R.id.recyclerViewResidents);
         btnExportExcel = view.findViewById(R.id.btnExportExcel);
         btnAddResident = view.findViewById(R.id.btnAddResident);
-
-        // 🔥 Ánh xạ nút duyệt (Đảm bảo trong XML đã có ExtendedFloatingActionButton id là btnApproveRequests)
         btnApproveRequests = view.findViewById(R.id.btnApproveRequests);
 
-        // Hiển thị lời chào
         UserItem currentUser = UserManager.getInstance(requireContext()).getCurrentUser();
         String username = (currentUser != null) ? currentUser.getName() : "Người dùng";
         txtWelcome.setText("Xin chào " + username + "!");
 
-        // Chào theo buổi
         Calendar calendar = Calendar.getInstance();
         int hour = calendar.get(Calendar.HOUR_OF_DAY);
-        String timeOfDay;
-        if (hour >= 5 && hour < 11) timeOfDay = "sáng";
-        else if (hour >= 11 && hour < 14) timeOfDay = "trưa";
-        else if (hour >= 14 && hour < 18) timeOfDay = "chiều";
-        else timeOfDay = "tối";
+        String timeOfDay = (hour >= 5 && hour < 11) ? "sáng" : (hour >= 11 && hour < 14) ? "trưa" : (hour >= 14 && hour < 18) ? "chiều" : "tối";
         txtGreeting.setText(getString(R.string.greeting, timeOfDay));
 
-        // RecyclerView setup
         recyclerViewResidents.setLayoutManager(new LinearLayoutManager(requireContext()));
         fullList = new ArrayList<>();
         filteredList = new ArrayList<>();
@@ -131,16 +106,19 @@ public class ManageResidentFragment extends Fragment {
 
         setupFloorSpinner();
         setupListeners();
+
+        // 🔥 Gọi hàm tải dữ liệu (đã sửa để thêm Header)
         fetchResidentsFromAPI();
 
         return view;
     }
 
-    // 🔥 Kiểm tra số lượng yêu cầu mỗi khi màn hình hiện lên (Resume)
     @Override
     public void onResume() {
         super.onResume();
         checkPendingRequests();
+        // Load lại dữ liệu khi quay lại màn hình (ví dụ sau khi thêm/sửa/xóa)
+        fetchResidentsFromAPI();
     }
 
     private void setupListeners() {
@@ -165,7 +143,7 @@ public class ManageResidentFragment extends Fragment {
         });
 
         btnExportExcel.setOnClickListener(v -> {
-            exportResidentsToXLS(filteredList);
+            exportResidentsToXLS(filteredList); // (Giữ nguyên hàm này nếu bạn có)
         });
 
         btnAddResident.setOnClickListener(v -> {
@@ -173,7 +151,6 @@ public class ManageResidentFragment extends Fragment {
             startActivityForResult(intent, 101);
         });
 
-        // 🔥 Sự kiện click nút Duyệt: Mở màn hình ApproveRequestsActivity
         if (btnApproveRequests != null) {
             btnApproveRequests.setOnClickListener(v -> {
                 Intent intent = new Intent(requireContext(), ApproveRequestsActivity.class);
@@ -182,7 +159,6 @@ public class ManageResidentFragment extends Fragment {
         }
     }
 
-    // 🔥 Hàm gọi API đếm số lượng yêu cầu chờ duyệt
     private void checkPendingRequests() {
         if (getContext() == null) return;
         RequestQueue queue = Volley.newRequestQueue(requireContext());
@@ -195,20 +171,16 @@ public class ManageResidentFragment extends Fragment {
                             btnApproveRequests.setVisibility(View.VISIBLE);
                             btnApproveRequests.setText("Duyệt hồ sơ (" + count + ")");
                         } else {
-                            // Ẩn nút nếu không có yêu cầu nào
                             btnApproveRequests.setVisibility(View.GONE);
                         }
                     }
                 },
-                error -> {
-                    // Nếu lỗi mạng hoặc server, ẩn nút đi cho gọn
-                    if (btnApproveRequests != null) btnApproveRequests.setVisibility(View.GONE);
-                }
+                error -> { if (btnApproveRequests != null) btnApproveRequests.setVisibility(View.GONE); }
         );
         queue.add(request);
     }
 
-    // SỬA HÀM fetchResidentsFromAPI
+    // 🔥 SỬA LỖI 401 TẠI ĐÂY: Thêm getHeaders()
     private void fetchResidentsFromAPI() {
         // 1. Load từ Cache trước
         loadFromCache();
@@ -218,19 +190,40 @@ public class ManageResidentFragment extends Fragment {
         JsonArrayRequest request = new JsonArrayRequest(
                 Request.Method.GET, API_URL, null,
                 response -> {
-                    // Khi có mạng: Lưu cache + Hiển thị
                     if (getContext() != null) {
+                        // Lưu cache
                         DataCacheManager.getInstance(getContext())
                                 .saveCache(CACHE_FILE_RESIDENTS, response.toString());
+                        // Parse và hiển thị
                         parseResidents(response);
                     }
                 },
-                error -> Toast.makeText(getContext(), "Lỗi kết nối, đang hiển thị dữ liệu cũ", Toast.LENGTH_SHORT).show()
-        );
+                error -> {
+                    // Check lỗi 401
+                    if (getContext() != null) {
+                        if (error.networkResponse != null && error.networkResponse.statusCode == 401) {
+                            UserManager.getInstance(requireContext()).checkAndForceLogout(error);
+                        } else {
+                            // Log.e("ManageResident", "Lỗi tải: " + error.getMessage());
+                            // Không show Toast lỗi nếu đã có cache hiển thị rồi để đỡ phiền
+                        }
+                    }
+                }
+        ) {
+            // 🔥 QUAN TRỌNG: Gửi Token lên Server
+            @Override
+            public Map<String, String> getHeaders() throws AuthFailureError {
+                Map<String, String> headers = new HashMap<>();
+                String token = UserManager.getInstance(requireContext()).getAuthToken();
+                if (token != null) {
+                    headers.put("Authorization", "Bearer " + token);
+                }
+                return headers;
+            }
+        };
         queue.add(request);
     }
 
-    // HÀM MỚI: Đọc cache
     private void loadFromCache() {
         if (getContext() == null) return;
         String data = DataCacheManager.getInstance(getContext()).readCache(CACHE_FILE_RESIDENTS);
@@ -249,10 +242,8 @@ public class ManageResidentFragment extends Fragment {
             fullList.clear();
             for (int i = 0; i < response.length(); i++) {
                 JSONObject obj = response.getJSONObject(i);
-
-                // Sử dụng constructor đầy đủ (đã có CCCD và Quê quán)
                 fullList.add(new ResidentItem(
-                        obj.optInt("user_item_id"),
+                        obj.optInt("user_item_id"), // Đảm bảo key khớp với JSON từ API
                         obj.optInt("user_id"),
                         obj.optString("full_name"),
                         obj.optString("gender"),
@@ -295,18 +286,17 @@ public class ManageResidentFragment extends Fragment {
         allFloors.add("Tất cả tầng");
         for (ResidentItem item : fullList) {
             String floor = item.getFloor();
-            if (!allFloors.contains(floor)) allFloors.add(floor);
+            if (floor != null && !allFloors.contains(floor)) allFloors.add(floor);
         }
 
         ArrayAdapter<String> floorAdapter = new ArrayAdapter<>(requireContext(),
                 android.R.layout.simple_spinner_item, allFloors);
         floorAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
         spinnerFilterFloor.setAdapter(floorAdapter);
-        spinnerFilterRoom.setEnabled(false);
     }
 
     private void updateRoomSpinner() {
-        String selectedFloor = spinnerFilterFloor.getSelectedItem().toString();
+        String selectedFloor = spinnerFilterFloor.getSelectedItem() != null ? spinnerFilterFloor.getSelectedItem().toString() : "Tất cả tầng";
         allRooms.clear();
 
         if (selectedFloor.equals("Tất cả tầng")) {

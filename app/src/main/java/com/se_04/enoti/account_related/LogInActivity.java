@@ -1,16 +1,14 @@
 package com.se_04.enoti.account_related;
 
-import androidx.appcompat.app.AlertDialog;
-import androidx.appcompat.app.AppCompatActivity;
-
-import android.app.Dialog; // 🔥 Import Dialog
+import android.app.Dialog;
+import android.content.Intent;
 import android.graphics.Color;
 import android.graphics.drawable.ColorDrawable;
-import android.content.Intent;
 import android.os.Bundle;
 import android.os.CountDownTimer;
 import android.os.Handler;
 import android.os.Looper;
+import android.util.Log;
 import android.view.View;
 import android.view.Window;
 import android.widget.Button;
@@ -24,8 +22,11 @@ import com.android.volley.RequestQueue;
 import com.android.volley.toolbox.JsonObjectRequest;
 import com.android.volley.toolbox.Volley;
 import com.se_04.enoti.R;
+import com.se_04.enoti.account.Role;
 import com.se_04.enoti.account.UserItem;
+import com.se_04.enoti.home.accountant.MainActivity_Accountant;
 import com.se_04.enoti.home.admin.MainActivity_Admin;
+import com.se_04.enoti.home.agency.MainActivity_Agency;
 import com.se_04.enoti.home.user.MainActivity_User;
 import com.se_04.enoti.utils.ApiConfig;
 import com.se_04.enoti.utils.BaseActivity;
@@ -43,13 +44,11 @@ import static com.se_04.enoti.utils.ValidatePhoneNumberUtil.normalizePhoneNumber
 public class LogInActivity extends BaseActivity {
 
     private static final String API_LOGIN_URL = ApiConfig.BASE_URL + "/api/users/login";
-    private static final String TAG = "LogInActivity";
 
     private Handler pollingHandler;
     private Runnable pollingRunnable;
     private boolean isPolling = false;
 
-    // 🔥 Thay đổi loại Dialog
     private Dialog customWaitingDialog;
     private CountDownTimer countDownTimer;
 
@@ -69,15 +68,13 @@ public class LogInActivity extends BaseActivity {
                 editTextPassword.getText().toString().trim()
         ));
 
-        textViewForgotPassword.setOnClickListener(v -> {
-            Intent intent = new Intent(LogInActivity.this, ForgetPasswordEnterPhoneActivity.class);
-            startActivity(intent);
-        });
+        textViewForgotPassword.setOnClickListener(v ->
+                startActivity(new Intent(LogInActivity.this, ForgetPasswordEnterPhoneActivity.class))
+        );
 
-        textViewRegister.setOnClickListener(v -> {
-            Intent intent = new Intent(LogInActivity.this, RegisterActivity.class);
-            startActivity(intent);
-        });
+        textViewRegister.setOnClickListener(v ->
+                startActivity(new Intent(LogInActivity.this, RegisterActivity.class))
+        );
     }
 
     private void handleLogin(String phone, String password) {
@@ -92,8 +89,6 @@ public class LogInActivity extends BaseActivity {
             return;
         }
 
-        showLoadingDialog();
-
         JSONObject requestBody = new JSONObject();
         try {
             requestBody.put("phone", normalizedPhone);
@@ -106,20 +101,13 @@ public class LogInActivity extends BaseActivity {
                 Request.Method.POST, API_LOGIN_URL, requestBody,
                 response -> {
                     try {
-                        // 1. TRƯỜNG HỢP CẦN DUYỆT
                         if (response.has("require_approval") && response.getBoolean("require_approval")) {
                             int requestId = response.getInt("request_id");
-
-                            // Ẩn loading cũ đi
                             if (customWaitingDialog != null) customWaitingDialog.dismiss();
-
-                            // Hiện Dialog đẹp
                             showWaitingForApprovalDialog(requestId, normalizedPhone);
                             startPolling(requestId);
                             return;
                         }
-
-                        // 2. ĐĂNG NHẬP THÀNH CÔNG
                         if (customWaitingDialog != null) customWaitingDialog.dismiss();
                         processLoginSuccess(response);
 
@@ -144,39 +132,29 @@ public class LogInActivity extends BaseActivity {
         queue.add(jsonObjectRequest);
     }
 
-    // Hàm hiện loading đơn giản
-    private void showLoadingDialog() {
-        // Bạn có thể dùng ProgressBar hoặc Dialog đơn giản ở đây
-    }
-
-    // 🔥 HÀM MỚI: HIỂN THỊ DIALOG CHỜ DUYỆT (CUSTOM UI)
     private void showWaitingForApprovalDialog(int requestId, String phone) {
         if (customWaitingDialog != null && customWaitingDialog.isShowing()) customWaitingDialog.dismiss();
 
         customWaitingDialog = new Dialog(this);
         customWaitingDialog.requestWindowFeature(Window.FEATURE_NO_TITLE);
-        customWaitingDialog.setContentView(R.layout.dialog_waiting_approval); // Layout mới
+        customWaitingDialog.setContentView(R.layout.dialog_waiting_approval);
         customWaitingDialog.setCancelable(false);
 
-        // Làm nền trong suốt để thấy bo góc
         if (customWaitingDialog.getWindow() != null) {
             customWaitingDialog.getWindow().setBackgroundDrawable(new ColorDrawable(Color.TRANSPARENT));
         }
 
-        // Ánh xạ View
         TextView tvMessage = customWaitingDialog.findViewById(R.id.tvMessage);
         TextView tvTimer = customWaitingDialog.findViewById(R.id.tvTimer);
         ProgressBar progressBar = customWaitingDialog.findViewById(R.id.progressBarWaiting);
         Button btnCancel = customWaitingDialog.findViewById(R.id.btnCancel);
         Button btnLostDevice = customWaitingDialog.findViewById(R.id.btnLostDevice);
 
-        // 1. Xử lý nút Hủy
         btnCancel.setOnClickListener(v -> {
             stopPolling();
             customWaitingDialog.dismiss();
         });
 
-        // 2. Xử lý nút Mất máy (Force Login)
         btnLostDevice.setOnClickListener(v -> {
             stopPolling();
             customWaitingDialog.dismiss();
@@ -188,7 +166,6 @@ public class LogInActivity extends BaseActivity {
 
         customWaitingDialog.show();
 
-        // 3. Đếm ngược 30s
         countDownTimer = new CountDownTimer(30000, 1000) {
             @Override
             public void onTick(long millisUntilFinished) {
@@ -203,8 +180,6 @@ public class LogInActivity extends BaseActivity {
                     tvTimer.setText("Không có phản hồi!");
                     tvMessage.setText("Không nhận được phản hồi từ thiết bị cũ.\nBạn có thể đăng nhập bằng mã OTP.");
                     progressBar.setVisibility(View.GONE);
-
-                    // Hiện nút Mất máy
                     btnLostDevice.setVisibility(View.VISIBLE);
                 }
             }
@@ -253,34 +228,53 @@ public class LogInActivity extends BaseActivity {
                         Toast.makeText(this, "Yêu cầu đăng nhập bị từ chối.", Toast.LENGTH_LONG).show();
                     }
                 },
-                error -> { }
+                error -> {}
         );
         Volley.newRequestQueue(this).add(request);
     }
 
+    // Trong LogInActivity.java
     private void processLoginSuccess(JSONObject response) {
         try {
-            if (!response.has("user")) {
-                Toast.makeText(this, "Lỗi dữ liệu server.", Toast.LENGTH_SHORT).show();
-                return;
-            }
+            // ... (lưu token như cũ)
             String sessionToken = response.optString("session_token", "");
-            if (!sessionToken.isEmpty()) UserManager.getInstance(getApplicationContext()).saveAuthToken(sessionToken);
+            UserManager.getInstance(getApplicationContext()).saveAuthToken(sessionToken);
 
+            // TẠO USER MỚI VỚI LOGIC ĐÃ SỬA CỦA BẠN
             JSONObject userJson = response.getJSONObject("user");
             UserItem user = UserItem.fromJson(userJson);
+
+            // LƯU USER MỚI NÀY XUỐNG SharedPreferences
             UserManager.getInstance(getApplicationContext()).saveCurrentUser(user);
             UserManager.getInstance(getApplicationContext()).setLoggedIn(true);
 
             Toast.makeText(this, "Đăng nhập thành công!", Toast.LENGTH_SHORT).show();
 
-            Intent intent = user.getRole() == com.se_04.enoti.account.Role.ADMIN
-                    ? new Intent(this, MainActivity_Admin.class)
-                    : new Intent(this, MainActivity_User.class);
+            // ĐIỀU HƯỚNG DỰA TRÊN USER MỚI
+            Intent intent;
+            Role userRole = user.getRole();
+
+            if (userRole == Role.ADMIN) {
+                intent = new Intent(this, MainActivity_Admin.class);
+            } else if (userRole == Role.ACCOUNTANT) {
+                intent = new Intent(this, MainActivity_Accountant.class);
+            } else if (userRole == Role.AGENCY) {
+                intent = new Intent(this, MainActivity_Agency.class);
+            } else {
+                intent = new Intent(this, MainActivity_User.class);
+            }
+
+            // 🔥 BƯỚC QUAN TRỌNG: GỬI KÈM USER MỚI QUA INTENT
+            // Để làm được điều này, UserItem cần implement Serializable hoặc Parcelable
+            intent.putExtra("NEW_USER_DATA", user); // "NEW_USER_DATA" là một key tự đặt
+
             startActivity(intent);
             finish();
-        } catch (Exception e) { e.printStackTrace(); }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
     }
+
 
     private void handleLoginError(com.android.volley.VolleyError error) {
         String message = "Đăng nhập thất bại.";
@@ -289,7 +283,7 @@ public class LogInActivity extends BaseActivity {
                 String responseBody = new String(error.networkResponse.data, StandardCharsets.UTF_8);
                 JSONObject data = new JSONObject(responseBody);
                 message = data.optString("error", message);
-            } catch (Exception e) { }
+            } catch (Exception ignored) {}
         }
         Toast.makeText(this, message, Toast.LENGTH_LONG).show();
     }

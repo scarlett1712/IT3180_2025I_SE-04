@@ -11,15 +11,11 @@ import com.se_04.enoti.R;
 
 import java.util.*;
 
-public class RoomAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
-
-    private static final int VIEW_TYPE_SELECT_ALL = 0;
-    private static final int VIEW_TYPE_ROOM = 1;
+public class RoomAdapter extends RecyclerView.Adapter<RoomAdapter.RoomViewHolder> {
 
     private List<String> roomList;
     private Set<String> selectedRooms = new HashSet<>();
     private final OnSelectionChangedListener listener;
-    private boolean isSelectAllChecked = false;
 
     public interface OnSelectionChangedListener {
         void onSelectionChanged(Set<String> selected);
@@ -30,89 +26,80 @@ public class RoomAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
         this.listener = listener;
     }
 
+    // Cập nhật danh sách phòng mới (khi chọn tầng)
     public void updateRooms(List<String> newRooms) {
         this.roomList = newRooms;
+        // Khi load list mới thì clear selection cũ đi để tránh lỗi data ảo
+        // Hoặc giữ lại nếu bạn muốn tính năng "nhớ" lựa chọn qua các tầng
         selectedRooms.clear();
-        isSelectAllChecked = false;
         notifyDataSetChanged();
-        listener.onSelectionChanged(selectedRooms);
+
+        if (listener != null) {
+            listener.onSelectionChanged(selectedRooms);
+        }
     }
 
-    @Override
-    public int getItemViewType(int position) {
-        return (position == 0) ? VIEW_TYPE_SELECT_ALL : VIEW_TYPE_ROOM;
+    // 🔥 HÀM MỚI: Được gọi từ Activity khi bấm Checkbox "Chọn tất cả"
+    public void selectAll(boolean isSelected) {
+        selectedRooms.clear();
+        if (isSelected) {
+            selectedRooms.addAll(roomList);
+        }
+        notifyDataSetChanged();
+
+        if (listener != null) {
+            listener.onSelectionChanged(selectedRooms);
+        }
     }
 
     @NonNull
     @Override
-    public RecyclerView.ViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
-        LayoutInflater inflater = LayoutInflater.from(parent.getContext());
-        if (viewType == VIEW_TYPE_SELECT_ALL) {
-            View view = inflater.inflate(R.layout.item_select_all, parent, false);
-            return new SelectAllViewHolder(view);
-        } else {
-            View view = inflater.inflate(R.layout.item_room_select, parent, false);
-            return new RoomViewHolder(view);
-        }
+    public RoomViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
+        // Sử dụng layout item phòng đơn giản
+        View view = LayoutInflater.from(parent.getContext()).inflate(R.layout.item_room_select, parent, false);
+        return new RoomViewHolder(view);
     }
 
     @Override
-    public void onBindViewHolder(@NonNull RecyclerView.ViewHolder holder, int position) {
-        if (getItemViewType(position) == VIEW_TYPE_SELECT_ALL) {
-            SelectAllViewHolder h = (SelectAllViewHolder) holder;
-            h.checkBoxSelectAll.setOnCheckedChangeListener(null);
-            h.checkBoxSelectAll.setChecked(isSelectAllChecked);
-            h.checkBoxSelectAll.setOnCheckedChangeListener((buttonView, isChecked) -> toggleSelectAll(isChecked));
-        } else {
-            int realPos = position - 1;
-            String room = roomList.get(realPos);
-            RoomViewHolder h = (RoomViewHolder) holder;
-            h.txtRoom.setText(room);
-            h.checkBoxRoom.setOnCheckedChangeListener(null);
-            h.checkBoxRoom.setChecked(selectedRooms.contains(room));
+    public void onBindViewHolder(@NonNull RoomViewHolder holder, int position) {
+        String room = roomList.get(position);
 
-            h.checkBoxRoom.setOnCheckedChangeListener((buttonView, isChecked) -> {
-                if (isChecked) selectedRooms.add(room);
-                else selectedRooms.remove(room);
-                updateSelectAllState();
+        holder.txtRoom.setText(room);
+
+        // Xóa listener cũ trước khi set trạng thái để tránh trigger loop
+        holder.checkBoxRoom.setOnCheckedChangeListener(null);
+
+        // Set trạng thái check dựa trên Set
+        holder.checkBoxRoom.setChecked(selectedRooms.contains(room));
+
+        // Gán listener mới
+        holder.checkBoxRoom.setOnCheckedChangeListener((buttonView, isChecked) -> {
+            if (isChecked) {
+                selectedRooms.add(room);
+            } else {
+                selectedRooms.remove(room);
+            }
+
+            if (listener != null) {
                 listener.onSelectionChanged(selectedRooms);
-            });
-        }
+            }
+        });
+
+        // Cho phép bấm vào cả item để check (tăng trải nghiệm UX)
+        holder.itemView.setOnClickListener(v -> {
+            holder.checkBoxRoom.toggle();
+        });
     }
 
     @Override
     public int getItemCount() {
-        // +1 vì có thêm dòng "Chọn tất cả"
-        return roomList.size() + 1;
-    }
-
-    private void toggleSelectAll(boolean selectAll) {
-        isSelectAllChecked = selectAll;
-        selectedRooms.clear();
-        if (selectAll) selectedRooms.addAll(roomList);
-        notifyDataSetChanged();
-        listener.onSelectionChanged(selectedRooms);
-    }
-
-    private void updateSelectAllState() {
-        boolean newState = (selectedRooms.size() == roomList.size() && !roomList.isEmpty());
-        if (newState != isSelectAllChecked) {
-            isSelectAllChecked = newState;
-            notifyItemChanged(0);
-        }
-    }
-
-    static class SelectAllViewHolder extends RecyclerView.ViewHolder {
-        CheckBox checkBoxSelectAll;
-        SelectAllViewHolder(View itemView) {
-            super(itemView);
-            checkBoxSelectAll = itemView.findViewById(R.id.checkboxSelectAll);
-        }
+        return roomList != null ? roomList.size() : 0;
     }
 
     static class RoomViewHolder extends RecyclerView.ViewHolder {
         TextView txtRoom;
         CheckBox checkBoxRoom;
+
         RoomViewHolder(View itemView) {
             super(itemView);
             txtRoom = itemView.findViewById(R.id.txtRoom);

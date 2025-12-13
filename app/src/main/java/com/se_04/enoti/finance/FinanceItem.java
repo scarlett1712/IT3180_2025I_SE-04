@@ -11,20 +11,24 @@ public class FinanceItem {
     private String type;
     private String sender;
     @Nullable
-    private Long price;
+    private Long price; // Đây là "Định mức" hoặc "Số tiền gốc"
 
-    // 🔥 THAY ĐỔI 1: Xóa isPaid và thay bằng status để đồng bộ với API
+    // 🔥 Trường Status thay cho boolean isPaid
     private String status;
-    private String room; // Thêm trường room để xử lý nhóm
+    private String room;
 
-    // 🧮 Dành cho admin thống kê theo PHÒNG
+    // 🧮 Dành cho admin thống kê
     private int paidRooms;     // Số phòng đã thanh toán
     private int totalRooms;    // Tổng số phòng áp dụng
 
-    // 🔹 Constructor trống (cần thiết cho khi parse từ JSON)
+    // 🔥 MỚI: Số tiền thực tế thu được (từ bảng Invoice)
+    // Dùng để xử lý trường hợp khoản thu tự nguyện (price = null/0 nhưng thực thu > 0)
+    private double realRevenue;
+
+    // 🔹 Constructor trống
     public FinanceItem() {}
 
-    // 🔹 Constructor đầy đủ (dùng khi tạo thủ công)
+    // 🔹 Constructor đầy đủ
     public FinanceItem(String title, String content, String date, String type, String sender, @Nullable Long price) {
         this.title = (title != null) ? title : "Không rõ";
         this.content = (content != null) ? content : "";
@@ -32,7 +36,7 @@ public class FinanceItem {
         this.type = (type != null) ? type : "Khác";
         this.sender = (sender != null) ? sender : "Ban quản lý";
         this.price = price;
-        this.status = "chua_thanh_toan"; // Mặc định là chưa thanh toán
+        this.status = "chua_thanh_toan";
     }
 
     // --- GETTERS & SETTERS ---
@@ -65,20 +69,28 @@ public class FinanceItem {
     public String getRoom() { return room; }
     public void setRoom(String room) { this.room = room; }
 
-    // 🔥 THAY ĐỔI 2: Getters & Setters cho Room
     public int getTotalRooms() { return totalRooms; }
     public void setTotalRooms(int totalRooms) { this.totalRooms = totalRooms; }
 
     public int getPaidRooms() { return paidRooms; }
     public void setPaidRooms(int paidRooms) { this.paidRooms = paidRooms; }
 
-    // --- Debug / Log tiện dụng ---
+    // 🔥 GETTER & SETTER CHO REAL REVENUE (MỚI)
+    public double getRealRevenue() {
+        return realRevenue;
+    }
+
+    public void setRealRevenue(double realRevenue) {
+        this.realRevenue = realRevenue;
+    }
+
     @Override
     public String toString() {
         return "FinanceItem{" +
                 "id=" + id +
                 ", title='" + title + '\'' +
                 ", price=" + price +
+                ", realRevenue=" + realRevenue +
                 ", paidRooms=" + paidRooms +
                 ", totalRooms=" + totalRooms +
                 '}';

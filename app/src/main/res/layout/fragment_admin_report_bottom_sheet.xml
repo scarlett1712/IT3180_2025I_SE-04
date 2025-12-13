@@ -1,15 +1,17 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical"
-    android:background="@android:color/white"
-    android:paddingTop="16dp">
+    android:background="@color/white"
+    android:paddingBottom="16dp"
+    android:paddingTop="8dp">
 
     <View
-        android:layout_width="40dp"
+        android:layout_width="48dp"
         android:layout_height="4dp"
-        android:background="#E0E0E0"
+        android:background="#D0D0D0"
         android:layout_gravity="center_horizontal"
         android:layout_marginBottom="16dp"/>
 
@@ -19,9 +21,9 @@
         android:text="Danh sách Báo cáo sự cố"
         android:textSize="20sp"
         android:textStyle="bold"
-        android:textColor="@android:color/black"
+        android:textColor="@color/black"
         android:paddingHorizontal="16dp"
-        android:layout_marginBottom="12dp"/>
+        android:layout_marginBottom="16dp"/>
 
     <TextView
         android:id="@+id/txtEmpty"
@@ -29,15 +31,17 @@
         android:layout_height="wrap_content"
         android:text="Hiện không có báo cáo nào."
         android:gravity="center"
-        android:padding="30dp"
-        android:visibility="gone"/>
+        android:paddingVertical="40dp"
+        android:textColor="#757575"
+        android:visibility="gone"
+        tools:visibility="visible"/>
 
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/recyclerViewReports"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:clipToPadding="false"
-        android:padding="16dp"
-        android:paddingBottom="20dp"/>
-
+        android:paddingHorizontal="16dp"
+        android:layout_marginTop="8dp"
+        tools:listitem="@layout/item_report_admin" />
 </LinearLayout>

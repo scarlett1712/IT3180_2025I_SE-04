@@ -1,35 +1,80 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
     android:orientation="vertical"
-    android:padding="16dp"
+    android:paddingBottom="16dp"
     android:background="@drawable/bg_bottomsheet"
     android:layout_width="match_parent"
     android:layout_height="wrap_content">
 
+    <View
+        android:layout_width="48dp"
+        android:layout_height="4dp"
+        android:background="#D0D0D0"
+        android:layout_gravity="center_horizontal"
+        android:layout_marginTop="8dp"
+        android:layout_marginBottom="16dp"/>
+
     <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
         android:text="Chọn loại tệp đính kèm"
         android:textSize="18sp"
         android:textStyle="bold"
-        android:paddingBottom="12dp"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content" />
+        android:textColor="@color/black"
+        android:paddingHorizontal="24dp"
+        android:layout_marginBottom="16dp" />
 
-    <Button
+    <com.google.android.material.button.MaterialButton
         android:id="@+id/btnPickImage"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="Chọn ảnh từ thư viện" />
+        android:text="Chọn ảnh từ thư viện"
+        android:textColor="@color/black"
+        android:textAllCaps="false"
+        android:gravity="center_vertical|start"
+        android:paddingVertical="12dp"
+        app:icon="@drawable/ic_image"
+        app:iconTint="?attr/colorPrimary"
+        app:iconGravity="textStart"
+        app:iconPadding="20dp"
+        android:paddingStart="24dp"
+        style="@style/Widget.MaterialComponents.Button.TextButton"
+        tools:ignore="RtlSymmetry" />
 
-    <Button
+    <com.google.android.material.button.MaterialButton
         android:id="@+id/btnPickFile"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="Chọn từ tệp" />
+        android:text="Chọn từ tệp (PDF, DOC, v.v.)"
+        android:textColor="@color/black"
+        android:textAllCaps="false"
+        android:gravity="center_vertical|start"
+        android:paddingVertical="12dp"
+        app:icon="@drawable/ic_file"
+        app:iconTint="?attr/colorPrimary"
+        app:iconGravity="textStart"
+        app:iconPadding="20dp"
+        android:paddingStart="24dp"
+        style="@style/Widget.MaterialComponents.Button.TextButton"
+        tools:ignore="RtlSymmetry" />
 
-    <Button
+    <com.google.android.material.button.MaterialButton
         android:id="@+id/btnTakePhoto"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="Chụp ảnh mới" />
+        android:text="Chụp ảnh mới"
+        android:textColor="@color/black"
+        android:textAllCaps="false"
+        android:gravity="center_vertical|start"
+        android:paddingVertical="12dp"
+        app:icon="@drawable/ic_camera"
+        app:iconTint="?attr/colorPrimary"
+        app:iconGravity="textStart"
+        app:iconPadding="20dp"
+        android:paddingStart="24dp"
+        style="@style/Widget.MaterialComponents.Button.TextButton"
+        tools:ignore="RtlSymmetry" />
 
 </LinearLayout>

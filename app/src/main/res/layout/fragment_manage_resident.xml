@@ -1,17 +1,57 @@
 <?xml version="1.0" encoding="utf-8"?>
-<androidx.coordinatorlayout.widget.CoordinatorLayout
+<androidx.constraintlayout.widget.ConstraintLayout
     xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@android:color/white">
+    android:background="#F5F7FA">
 
-    <!-- ScrollView giữ nguyên -->
-    <ScrollView
-        android:id="@+id/scrollView_manage_notification"
+    <View
+        android:id="@+id/viewHeader"
         android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:fillViewport="true">
+        android:layout_height="220dp"
+        android:background="@drawable/bg_header_curved"
+        app:layout_constraintTop_toTopOf="parent" />
+
+    <LinearLayout
+        android:id="@+id/headerTextLayout"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:paddingHorizontal="24dp"
+        android:layout_marginTop="75dp"
+        app:layout_constraintTop_toTopOf="parent">
+
+        <TextView
+            android:id="@+id/txtWelcome"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/welcome"
+            android:textColor="@color/white"
+            android:textSize="26sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/txtGreeting"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:text="@string/greeting"
+            android:textColor="#E0E0E0"
+            android:textSize="16sp" />
+    </LinearLayout>
+
+    <androidx.cardview.widget.CardView
+        android:id="@+id/cardFilters"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginHorizontal="16dp"
+        android:layout_marginTop="20dp"
+        app:cardCornerRadius="16dp"
+        app:cardElevation="6dp"
+        app:cardBackgroundColor="@color/white"
+        app:layout_constraintTop_toBottomOf="@+id/headerTextLayout">
 
         <LinearLayout
             android:layout_width="match_parent"
@@ -19,122 +59,119 @@
             android:orientation="vertical"
             android:padding="16dp">
 
-            <!-- Phần chào -->
-            <TextView
-                android:id="@+id/txtWelcome"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="@string/welcome"
-                android:textSize="24sp"
-                android:textColor="@android:color/black"
-                android:layout_marginTop="60dp"
-                android:layout_marginBottom="4dp" />
-
-            <TextView
-                android:id="@+id/txtGreeting"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="@string/greeting"
-                android:textSize="20sp"
-                android:textColor="@android:color/darker_gray"
-                android:layout_marginBottom="20dp" />
-
-            <!-- Tiêu đề -->
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="@string/manage_residents"
+                android:textColor="#333333"
+                android:textSize="18sp"
                 android:textStyle="bold"
-                android:textSize="24sp"
-                android:layout_marginBottom="8dp"
-                android:textColor="@android:color/black" />
+                android:layout_marginBottom="12dp"/>
 
-            <!-- Thanh tìm kiếm -->
             <androidx.appcompat.widget.SearchView
                 android:id="@+id/search_view"
                 android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginBottom="8dp"
-                app:queryHint="@string/search_resident"
+                android:layout_height="40dp"
+                android:background="@drawable/bg_input_rounded"
                 app:iconifiedByDefault="false"
-                android:background="@drawable/search_view_background" />
+                app:queryBackground="@null"
+                app:queryHint="@string/search_resident" />
 
-            <!-- Bộ lọc -->
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="1dp"
+                android:background="#F0F0F0"
+                android:layout_marginVertical="12dp"/>
+
             <LinearLayout
                 android:id="@+id/layout_filters"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:orientation="horizontal"
-                android:gravity="center"
-                android:layout_marginBottom="12dp">
+                android:gravity="center_vertical">
+
+                <ImageView
+                    android:layout_width="20dp"
+                    android:layout_height="20dp"
+                    android:src="@drawable/ic_filter"
+                    app:tint="#757575"
+                    android:layout_marginEnd="8dp"/>
 
                 <Spinner
                     android:id="@+id/spinnerFilterFloor"
                     android:layout_width="0dp"
-                    android:layout_height="30dp"
+                    android:layout_height="36dp"
                     android:layout_weight="1"
-                    android:spinnerMode="dropdown"
-                    android:background="@drawable/spinner_background"
+                    android:background="@drawable/bg_spinner_border"
                     android:layout_marginEnd="8dp" />
 
                 <Spinner
                     android:id="@+id/spinnerFilterRoom"
                     android:layout_width="0dp"
-                    android:layout_height="30dp"
+                    android:layout_height="36dp"
                     android:layout_weight="1"
-                    android:background="@drawable/spinner_background"
-                    android:spinnerMode="dropdown" />
+                    android:background="@drawable/bg_spinner_border"/>
             </LinearLayout>
-
-            <!-- Danh sách cư dân -->
-            <androidx.recyclerview.widget.RecyclerView
-                android:id="@+id/recyclerViewResidents"
-                android:layout_width="match_parent"
-                android:layout_height="match_parent"
-                android:clipToPadding="false"
-                android:paddingBottom="100dp" />
-
         </LinearLayout>
-    </ScrollView>
+    </androidx.cardview.widget.CardView>
 
-    <!-- ⚡ Nút thêm cư dân (+) -->
-    <com.google.android.material.floatingactionbutton.FloatingActionButton
-        android:id="@+id/btnAddResident"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:contentDescription="@string/add_resident"
-        android:src="@drawable/ic_add"
-        app:tint="@android:color/white"
-        app:backgroundTint="?attr/colorPrimary"
-        android:layout_marginEnd="24dp"
-        android:layout_marginBottom="96dp"
-        android:layout_gravity="bottom|end"
-        app:layout_anchorGravity="bottom|end" />
-
-    <!-- 🧾 Nút xuất danh sách (Excel) -->
-    <com.google.android.material.floatingactionbutton.FloatingActionButton
-        android:id="@+id/btnExportExcel"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:contentDescription="@string/export_excel"
-        android:src="@drawable/ic_export_file"
-        app:tint="@android:color/white"
-        app:backgroundTint="?attr/colorPrimary"
-        android:layout_margin="24dp"
-        android:layout_gravity="bottom|end"
-        app:layout_anchorGravity="bottom|end" />
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/recyclerViewResidents"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_marginTop="12dp"
+        android:layout_margin="20dp"
+        android:clipToPadding="false"
+        android:paddingBottom="100dp"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/cardFilters"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        tools:listitem="@layout/item_resident" />
 
     <com.google.android.material.floatingactionbutton.ExtendedFloatingActionButton
         android:id="@+id/btnApproveRequests"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_gravity="bottom|center_horizontal"
         android:layout_marginBottom="24dp"
         android:text="Duyệt hồ sơ (0)"
-        android:textColor="@android:color/white"
+        android:textSize="14sp"
+        android:textStyle="bold"
+        android:textColor="@color/white"
         app:backgroundTint="#FF9800"
         app:icon="@drawable/ic_edit"
-        app:iconTint="@android:color/white"
-        android:visibility="gone"/>
+        app:iconTint="@color/white"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        android:visibility="gone"
+        tools:visibility="visible"/>
 
-</androidx.coordinatorlayout.widget.CoordinatorLayout>
+    <com.google.android.material.floatingactionbutton.FloatingActionButton
+        android:id="@+id/btnExportExcel"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginEnd="24dp"
+        android:layout_marginBottom="24dp"
+        android:src="@drawable/ic_export_file"
+        app:backgroundTint="@color/white"
+        app:tint="#4CAF50"
+        app:borderWidth="0dp"
+        app:elevation="6dp"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent" />
+
+    <com.google.android.material.floatingactionbutton.FloatingActionButton
+        android:id="@+id/btnAddResident"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="16dp"
+        android:src="@drawable/ic_add"
+        app:backgroundTint="?attr/colorPrimary"
+        app:tint="@color/white"
+        app:borderWidth="0dp"
+        app:elevation="6dp"
+        app:layout_constraintBottom_toTopOf="@+id/btnExportExcel"
+        app:layout_constraintEnd_toEndOf="@+id/btnExportExcel" />
+
+</androidx.constraintlayout.widget.ConstraintLayout>

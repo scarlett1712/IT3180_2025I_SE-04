@@ -1,50 +1,106 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:orientation="vertical"
-    android:padding="16dp"
     android:layout_width="match_parent"
-    android:layout_height="match_parent"
-    android:background="@color/white">
+    android:layout_height="wrap_content"
+    android:background="@drawable/bg_bottomsheet_top_rounded"
+    android:paddingBottom="24dp"
+    android:paddingHorizontal="24dp"
+    android:paddingTop="12dp">
 
-    <!-- Tiêu đề -->
+    <View
+        android:layout_width="48dp"
+        android:layout_height="4dp"
+        android:background="#E0E0E0"
+        android:layout_gravity="center_horizontal"
+        android:layout_marginBottom="24dp"/>
+
     <TextView
         android:id="@+id/txtFeedbackReplyTitle"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:text="Trả lời phản hồi"
-        android:textSize="22sp"
+        android:textSize="20sp"
         android:textStyle="bold"
         android:textColor="@color/black"
-        android:layout_marginBottom="16dp" />
+        android:gravity="center"
+        android:layout_marginBottom="24dp" />
 
-    <!-- Nội dung phản hồi gốc -->
-    <TextView
-        android:id="@+id/txtOriginalFeedback"
+    <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="(Nội dung phản hồi gốc...)"
-        android:textColor="@color/dark_gray"
-        android:layout_marginBottom="16dp" />
+        android:orientation="vertical"
+        android:background="@drawable/bg_gray_message_box"
+        android:padding="16dp"
+        android:layout_marginBottom="20dp">
 
-    <!-- Ô nhập nội dung trả lời -->
-    <EditText
-        android:id="@+id/edtReplyContent"
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:layout_marginBottom="8dp">
+
+            <ImageView
+                android:layout_width="16dp"
+                android:layout_height="16dp"
+                android:src="@drawable/ic_chat_bubble"
+                app:tint="#757575"
+                android:layout_marginEnd="8dp"/>
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Nội dung từ cư dân:"
+                android:textSize="12sp"
+                android:textStyle="bold"
+                android:textColor="#757575"/>
+        </LinearLayout>
+
+        <TextView
+            android:id="@+id/txtOriginalFeedback"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Thang máy số 2 bị kẹt..."
+            android:textSize="14sp"
+            android:textColor="#333333"
+            android:textStyle="italic"
+            android:lineSpacingExtra="4dp"/>
+    </LinearLayout>
+
+    <com.google.android.material.textfield.TextInputLayout
         android:layout_width="match_parent"
-        android:layout_height="150dp"
-        android:gravity="top|start"
-        android:hint="Nhập nội dung phản hồi..."
-        android:background="@drawable/bg_box"
-        android:padding="12dp"
-        android:textSize="16sp"
-        android:layout_marginBottom="20dp"/>
+        android:layout_height="wrap_content"
+        android:hint="Nhập nội dung trả lời..."
+        style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
+        app:boxCornerRadiusTopStart="12dp"
+        app:boxCornerRadiusTopEnd="12dp"
+        app:boxCornerRadiusBottomStart="12dp"
+        app:boxCornerRadiusBottomEnd="12dp"
+        app:boxStrokeColor="?attr/colorPrimary"
+        android:layout_marginBottom="24dp">
 
-    <!-- Nút gửi -->
+        <com.google.android.material.textfield.TextInputEditText
+            android:id="@+id/edtReplyContent"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:minLines="5"
+            android:gravity="top|start"
+            android:inputType="textMultiLine" />
+    </com.google.android.material.textfield.TextInputLayout>
+
     <com.google.android.material.button.MaterialButton
         android:id="@+id/btnSendReply"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
+        android:layout_height="56dp"
         android:text="Gửi phản hồi"
         android:textColor="@android:color/white"
-        android:textSize="18sp"
-        android:backgroundTint="?attr/colorPrimary" />
+        android:textSize="16sp"
+        android:textStyle="bold"
+        app:cornerRadius="12dp"
+        app:icon="@drawable/ic_send"
+        app:iconGravity="textStart"
+        app:backgroundTint="?attr/colorPrimary" />
+
 </LinearLayout>
