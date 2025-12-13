@@ -87,7 +87,6 @@ public class ManageAssetFragment extends Fragment {
         TextView txtGreeting = view.findViewById(R.id.txtGreeting);
 
         String username = (currentUser != null) ? currentUser.getName() : "Quản trị viên";
-        if (isAgency) username = "Cán bộ (Agency)"; // Tùy chỉnh lời chào
 
         if (txtWelcome != null) txtWelcome.setText("Xin chào " + username + "!");
 

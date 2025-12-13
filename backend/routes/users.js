@@ -328,49 +328,93 @@ router.post("/auth/firebase", async (req, res) => {
   }
 });
 
-/* ==========================================================
-   🟢 API: Đăng ký Admin
-========================================================== */
+// ==========================================================
+// 🛡️ API 1: Tạo ADMIN (Role ID = 2)
+// ==========================================================
 router.post("/create_admin", async (req, res) => {
+  return createStaffAccount(req, res, 2, "Admin");
+});
+
+// ==========================================================
+// 💰 API 2: Tạo KẾ TOÁN (Role ID = 3)
+// ==========================================================
+router.post("/create_accountant", async (req, res) => {
+  return createStaffAccount(req, res, 3, "Accountant");
+});
+
+// ==========================================================
+// 🏢 API 3: Tạo CƠ QUAN CHỨC NĂNG (Role ID = 4)
+// ==========================================================
+router.post("/create_agency", async (req, res) => {
+  return createStaffAccount(req, res, 4, "Agency");
+});
+
+// ==========================================================
+// 🛠️ HÀM DÙNG CHUNG XỬ LÝ LOGIC TẠO TÀI KHOẢN
+// ==========================================================
+async function createStaffAccount(req, res, roleId, roleName) {
   const client = await pool.connect();
   try {
-    const { phone, password, full_name, gender, dob, email, identity_card, home_town } = req.body || {};
+    // Nhận dữ liệu từ Android gửi lên
+    const { phone, password, full_name, email, identity_card, home_town, dob, gender } = req.body;
 
-    if (!phone || !password || !full_name) return res.status(400).json({ error: "Thiếu thông tin bắt buộc." });
+    // 1. Validate cơ bản
+    if (!phone || !password || !full_name) {
+      return res.status(400).json({ error: "Vui lòng nhập đủ: SĐT, Mật khẩu, Họ tên" });
+    }
 
     await client.query("BEGIN");
 
-    const exists = await client.query("SELECT 1 FROM users WHERE phone = $1", [phone]);
-    if (exists.rows.length > 0) {
+    // 2. Kiểm tra trùng SĐT
+    const checkUser = await client.query("SELECT user_id FROM users WHERE phone = $1", [phone]);
+    if (checkUser.rows.length > 0) {
       await client.query("ROLLBACK");
-      return res.status(400).json({ error: "Số điện thoại đã tồn tại." });
+      // Trả về 409 Conflict để App nhận diện lỗi trùng
+      return res.status(409).json({ error: "Số điện thoại này đã được đăng ký!" });
     }
 
+    // 3. Tạo User (Bảng users)
     const passwordHash = await bcrypt.hash(password, 10);
     const insertUser = await client.query(
-        `INSERT INTO users (password_hash, phone, created_at, updated_at) VALUES ($1, $2, NOW(), NOW()) RETURNING user_id`,
-        [passwordHash, phone]
+      `INSERT INTO users (password_hash, phone, created_at, updated_at) VALUES ($1, $2, NOW(), NOW()) RETURNING user_id`,
+      [passwordHash, phone]
     );
     const user_id = insertUser.rows[0].user_id;
 
+    // 4. Chuẩn hóa ngày sinh (Tránh lỗi format date nếu client gửi dd/mm/yyyy)
+    let formattedDob = '2000-01-01'; // Giá trị mặc định
+    if (dob) {
+        // Nếu nhận dạng dd/mm/yyyy -> chuyển thành yyyy-mm-dd
+        const parts = dob.split('/');
+        if (parts.length === 3) formattedDob = `${parts[2]}-${parts[1]}-${parts[0]}`;
+        else formattedDob = dob; // Nếu đã đúng format thì giữ nguyên
+    }
+
+    // 5. Tạo thông tin chi tiết (Bảng user_item)
+    // Lưu ý: roleId = 4 (Agency) có thể không cần is_living, nhưng để mặc định TRUE cũng không sao
     await client.query(
       `INSERT INTO user_item (user_id, full_name, gender, dob, email, identity_card, home_town, is_living)
        VALUES ($1, $2, $3, $4, $5, $6, $7, TRUE)`,
-      [user_id, full_name, gender || "Khác", dob || null, email || null, identity_card || null, home_town || null]
+      [user_id, full_name, gender || 'Khác', formattedDob, email || null, identity_card || null, home_town || null]
     );
 
-    // Mặc định Admin là Role ID 2
-    await client.query(`INSERT INTO userrole (user_id, role_id) VALUES ($1, 2)`, [user_id]);
+    // 6. Gán quyền (Bảng userrole)
+    await client.query(
+      `INSERT INTO userrole (user_id, role_id) VALUES ($1, $2)`,
+      [user_id, roleId]
+    );
 
     await client.query("COMMIT");
-    return res.json({ message: "✅ Tạo tài khoản Ban Quản Trị thành công!", user_id, phone });
+    res.json({ success: true, message: `Tạo tài khoản ${roleName} thành công!` });
 
   } catch (err) {
     await client.query("ROLLBACK");
-    console.error("💥 [CREATE ADMIN ERROR]", err);
-    return res.status(500).json({ error: "Lỗi server khi tạo tài khoản admin." });
-  } finally { client.release(); }
-});
+    console.error(`Create ${roleName} Error:`, err);
+    res.status(500).json({ error: `Lỗi server khi tạo ${roleName}.` });
+  } finally {
+    client.release();
+  }
+}
 
 /* ==========================================================
    Các API phụ trợ (Logout, Reset Pass...)

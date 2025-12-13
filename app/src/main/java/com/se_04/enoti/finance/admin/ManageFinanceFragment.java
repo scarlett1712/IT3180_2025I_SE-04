@@ -145,7 +145,7 @@ public class ManageFinanceFragment extends Fragment {
             if (currentUser.getRole() == Role.ACCOUNTANT) {
                 if (lblFinanceStatsHeader != null) lblFinanceStatsHeader.setVisibility(View.GONE);
                 if (cardStatsContainer != null) cardStatsContainer.setVisibility(View.GONE);
-                if (textList != null) textList.setTextColor(Color.BLACK);
+                if (textList != null) textList.setTextColor(Color.WHITE);
                 if (btnExportExcel != null) btnExportExcel.setVisibility(View.VISIBLE);
             } else if (currentUser.getRole() == Role.ADMIN) {
                 if (layoutFabContainer != null) layoutFabContainer.setVisibility(View.VISIBLE);
@@ -159,8 +159,7 @@ public class ManageFinanceFragment extends Fragment {
         TextView txtGreeting = view.findViewById(R.id.txtGreeting);
         UserItem currentUser = UserManager.getInstance(requireContext()).getCurrentUser();
         String username = (currentUser != null) ? currentUser.getName() : "Admin";
-        String prefix = (currentUser != null && currentUser.getRole() == Role.ACCOUNTANT) ? "Kế toán " : "";
-        txtWelcome.setText("Xin chào " + prefix + username + "!");
+        txtWelcome.setText("Xin chào " + username + "!");
 
         Calendar calendar = Calendar.getInstance();
         int hour = calendar.get(Calendar.HOUR_OF_DAY);
