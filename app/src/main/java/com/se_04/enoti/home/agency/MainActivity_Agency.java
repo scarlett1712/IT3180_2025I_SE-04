@@ -31,7 +31,7 @@ import com.google.firebase.messaging.FirebaseMessaging;
 import com.se_04.enoti.R;
 import com.se_04.enoti.account.AccountFragment;
 import com.se_04.enoti.account.UserItem;
-import com.se_04.enoti.maintenance.admin.ManageAssetFragment; // 🔥 Đã đổi sang Asset
+import com.se_04.enoti.maintenance.admin.ManageAssetFragment;
 import com.se_04.enoti.residents.ManageResidentFragment;
 import com.se_04.enoti.utils.ApiConfig;
 import com.se_04.enoti.utils.BaseActivity;
@@ -49,12 +49,11 @@ public class MainActivity_Agency extends BaseActivity {
     private static final String TAG = "MainActivity_Agency";
     private static final String SELECTED_ITEM_ID_KEY = "selectedItemIdKey";
     private static final String ACTIVE_FRAGMENT_TAG_KEY = "activeFragmentTagKey";
-
     private static final int MY_SOCKET_TIMEOUT_MS = 30000;
 
     private HomeFragment_Agency homeFragmentAgency;
     private ManageResidentFragment manageResidentFragment;
-    private ManageAssetFragment manageAssetFragment; // 🔥 Đổi từ Feedback sang Asset
+    private ManageAssetFragment manageAssetFragment;
     private AccountFragment accountFragment;
 
     private Fragment activeFragment;
@@ -87,39 +86,38 @@ public class MainActivity_Agency extends BaseActivity {
         fragmentManager = getSupportFragmentManager();
 
         if (savedInstanceState == null) {
+            // --- First time launching app ---
             homeFragmentAgency = new HomeFragment_Agency();
             manageResidentFragment = new ManageResidentFragment();
-            manageAssetFragment = new ManageAssetFragment(); // 🔥 Khởi tạo Asset Fragment
+            manageAssetFragment = new ManageAssetFragment();
             accountFragment = new AccountFragment();
 
             FragmentTransaction transaction = fragmentManager.beginTransaction();
 
+            // Add all fragments but hide them except home
             transaction.add(R.id.fragment_container, accountFragment, "account").hide(accountFragment);
-            transaction.add(R.id.fragment_container, manageAssetFragment, "manageasset").hide(manageAssetFragment); // 🔥 Tag là manageasset
+            transaction.add(R.id.fragment_container, manageAssetFragment, "manageasset").hide(manageAssetFragment);
             transaction.add(R.id.fragment_container, manageResidentFragment, "manageresidents").hide(manageResidentFragment);
-            transaction.add(R.id.fragment_container, homeFragmentAgency, "home");
+            transaction.add(R.id.fragment_container, homeFragmentAgency, "home"); // Add last to show
 
-            transaction.commitNow();
+            transaction.commit();
 
             activeFragment = homeFragmentAgency;
             currentSelectedItemId = R.id.nav_home;
         } else {
+            // --- Restoring after rotation ---
             currentSelectedItemId = savedInstanceState.getInt(SELECTED_ITEM_ID_KEY, R.id.nav_home);
             String activeTag = savedInstanceState.getString(ACTIVE_FRAGMENT_TAG_KEY, "home");
 
             homeFragmentAgency = (HomeFragment_Agency) fragmentManager.findFragmentByTag("home");
             manageResidentFragment = (ManageResidentFragment) fragmentManager.findFragmentByTag("manageresidents");
-            manageAssetFragment = (ManageAssetFragment) fragmentManager.findFragmentByTag("manageasset"); // 🔥 Tìm theo tag manageasset
+            manageAssetFragment = (ManageAssetFragment) fragmentManager.findFragmentByTag("manageasset");
             accountFragment = (AccountFragment) fragmentManager.findFragmentByTag("account");
 
-            if (homeFragmentAgency == null) homeFragmentAgency = new HomeFragment_Agency();
-            if (manageResidentFragment == null) manageResidentFragment = new ManageResidentFragment();
-            if (manageAssetFragment == null) manageAssetFragment = new ManageAssetFragment(); // 🔥
-            if (accountFragment == null) accountFragment = new AccountFragment();
-
+            // Find which fragment should be active
             switch (activeTag) {
                 case "manageresidents": activeFragment = manageResidentFragment; break;
-                case "manageasset": activeFragment = manageAssetFragment; break; // 🔥
+                case "manageasset": activeFragment = manageAssetFragment; break;
                 case "account": activeFragment = accountFragment; break;
                 case "home":
                 default: activeFragment = homeFragmentAgency; break;
@@ -129,20 +127,15 @@ public class MainActivity_Agency extends BaseActivity {
         bottomNav.setOnItemSelectedListener(item -> {
             int itemId = item.getItemId();
             Fragment targetFragment = null;
-            String targetTag = "";
 
             if (itemId == R.id.nav_home) {
                 targetFragment = homeFragmentAgency;
-                targetTag = "home";
             } else if (itemId == R.id.nav_manage_residents) {
                 targetFragment = manageResidentFragment;
-                targetTag = "manageresidents";
-            } else if (itemId == R.id.nav_manage_asset) { // 🔥 ID menu mới cho Asset
+            } else if (itemId == R.id.nav_manage_asset) {
                 targetFragment = manageAssetFragment;
-                targetTag = "manageasset";
             } else if (itemId == R.id.nav_profile) {
                 targetFragment = accountFragment;
-                targetTag = "account";
             }
 
             if (targetFragment != null) {
@@ -155,10 +148,35 @@ public class MainActivity_Agency extends BaseActivity {
         bottomNav.setSelectedItemId(currentSelectedItemId);
     }
 
+    /**
+     * Switch between fragments with slide animation
+     */
     private void switchFragment(Fragment targetFragment, int itemId) {
         if (targetFragment == activeFragment) return;
 
         FragmentTransaction transaction = fragmentManager.beginTransaction();
+
+        // 🔥 ADD SLIDE ANIMATION
+        int currentPosition = getFragmentPosition(currentSelectedItemId);
+        int targetPosition = getFragmentPosition(itemId);
+
+        if (targetPosition > currentPosition) {
+            // Sliding left (next fragment)
+            transaction.setCustomAnimations(
+                    R.anim.slide_in_right,
+                    R.anim.slide_out_left,
+                    R.anim.slide_in_left,
+                    R.anim.slide_out_right
+            );
+        } else {
+            // Sliding right (previous fragment)
+            transaction.setCustomAnimations(
+                    R.anim.slide_in_left,
+                    R.anim.slide_out_right,
+                    R.anim.slide_in_right,
+                    R.anim.slide_out_left
+            );
+        }
 
         if (!targetFragment.isAdded()) {
             String tag = getTagForFragment(targetFragment);
@@ -172,10 +190,21 @@ public class MainActivity_Agency extends BaseActivity {
         transaction.commit();
     }
 
+    /**
+     * Get fragment position for slide direction
+     */
+    private int getFragmentPosition(int menuItemId) {
+        if (menuItemId == R.id.nav_home) return 0;
+        else if (menuItemId == R.id.nav_manage_residents) return 1;
+        else if (menuItemId == R.id.nav_manage_asset) return 2;
+        else if (menuItemId == R.id.nav_profile) return 3;
+        return 0;
+    }
+
     private String getTagForFragment(Fragment fragment) {
         if (fragment == homeFragmentAgency) return "home";
         if (fragment == manageResidentFragment) return "manageresidents";
-        if (fragment == manageAssetFragment) return "manageasset"; // 🔥
+        if (fragment == manageAssetFragment) return "manageasset";
         if (fragment == accountFragment) return "account";
         return "";
     }
@@ -253,6 +282,13 @@ public class MainActivity_Agency extends BaseActivity {
                     Log.d(TAG, "Token sent successfully");
                 },
                 error -> {
+                    // 🔥 ADD ERROR HANDLING FOR 401
+                    if (error.networkResponse != null && error.networkResponse.statusCode == 401) {
+                        Log.e(TAG, "Token expired (401), forcing logout");
+                        UserManager.getInstance(this).checkAndForceLogout(error);
+                        return;
+                    }
+
                     String errorMsg = "Lỗi kết nối Server";
                     if (error.networkResponse != null && error.networkResponse.data != null) {
                         try {
@@ -264,6 +300,7 @@ public class MainActivity_Agency extends BaseActivity {
                     Log.e(TAG, "Failed to update token: " + errorMsg);
                 }
         ) {
+            // 🔥 ADD AUTHORIZATION HEADER
             @Override
             public Map<String, String> getHeaders() {
                 Map<String, String> headers = new HashMap<>();
@@ -300,7 +337,6 @@ public class MainActivity_Agency extends BaseActivity {
         bottomNav.setSelectedItemId(R.id.nav_manage_residents);
     }
 
-    // 🔥 Đã đổi tên hàm và ID để chuyển sang tab Tài sản
     public void switchToManageAssetTab() {
         BottomNavigationView bottomNav = findViewById(R.id.bottom_navigation);
         bottomNav.setSelectedItemId(R.id.nav_manage_asset);

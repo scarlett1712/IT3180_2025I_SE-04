@@ -413,25 +413,48 @@ public class SplashActivity extends BaseActivity {
     }
 
     private void navigateNext() {
-        // ... (Code gốc của bạn giữ nguyên)
         UserManager userManager = UserManager.getInstance(this);
-        UserItem user = userManager.getCurrentUser();
 
-        if (userManager.isLoggedIn() && user != null) {
-            if (user.getRole() == Role.ADMIN) {
-                startActivity(new Intent(this, MainActivity_Admin.class));
-            } else if (user.getRole() == Role.ACCOUNTANT) {
-                startActivity(new Intent(this, MainActivity_Accountant.class));
-            } else if (user.getRole() == Role.AGENCY) {
-                startActivity(new Intent(this, MainActivity_Agency.class));
-            }
-            else {
-                startActivity(new Intent(this, MainActivity_User.class));
-            }
-        } else {
+        // Check if user is logged in
+        if (!userManager.isLoggedIn()) {
             startActivity(new Intent(this, LogInActivity.class));
+            finish();
+            return;
         }
 
+        // Check if token exists
+        String token = userManager.getAuthToken();
+        if (token == null || token.isEmpty()) {
+            // Token missing -> force logout
+            userManager.forceLogout();
+            return;
+        }
+
+        // Get current user
+        UserItem user = userManager.getCurrentUser();
+        if (user == null) {
+            // User data corrupted -> force logout
+            userManager.forceLogout();
+            return;
+        }
+
+        // Navigate based on role - USE PROPER IF-ELSE CHAIN
+        Intent intent;
+        Role userRole = user.getRole();
+
+        if (userRole == Role.ADMIN) {
+            intent = new Intent(this, MainActivity_Admin.class);
+        } else if (userRole == Role.ACCOUNTANT) {
+            intent = new Intent(this, MainActivity_Accountant.class);
+        } else if (userRole == Role.AGENCY) {
+            intent = new Intent(this, MainActivity_Agency.class);
+        } else {
+            // Default to USER role
+            intent = new Intent(this, MainActivity_User.class);
+        }
+
+        intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
+        startActivity(intent);
         finish();
     }
 }
