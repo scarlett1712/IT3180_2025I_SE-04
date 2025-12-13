@@ -25,15 +25,15 @@ import static com.se_04.enoti.utils.ValidatePhoneNumberUtil.normalizePhoneNumber
 public class RegisterActivity extends BaseActivity {
 
     private TextInputEditText edtFullName, edtDob, edtPhoneNumber, edtPassword, edtConfirmPassword, edtAdminKey;
-    private TextInputEditText edtIdentityCard, edtHomeTown;
+    private TextInputEditText edtEmail, edtIdentityCard, edtHomeTown; // 🔥 ADDED edtEmail
     private Spinner spnGender;
     private Button btnRegister;
     private TextView textBackToLogin;
 
     // 🔥 ĐỊNH NGHĨA 3 MÃ XÁC THỰC RIÊNG BIỆT
     private static final String KEY_ADMIN = "ENOTI_ADMIN_2024";
-    private static final String KEY_ACCOUNTANT = "ENOTI_KT_2024"; // Mã Kế toán
-    private static final String KEY_AGENCY = "ENOTI_CQCN_2024";   // Mã Cơ quan chức năng
+    private static final String KEY_ACCOUNTANT = "ENOTI_KT_2024";
+    private static final String KEY_AGENCY = "ENOTI_CQCN_2024";
 
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
@@ -52,7 +52,8 @@ public class RegisterActivity extends BaseActivity {
         edtPhoneNumber = findViewById(R.id.edtPhoneNumber);
         edtPassword = findViewById(R.id.edtPassword);
         edtConfirmPassword = findViewById(R.id.edtConfirmPassword);
-        edtAdminKey = findViewById(R.id.edtAdminKey); // Ô nhập mã xác thực
+        edtAdminKey = findViewById(R.id.edtAdminKey);
+        edtEmail = findViewById(R.id.edtEmail); // 🔥 INITIALIZE EMAIL FIELD
         edtIdentityCard = findViewById(R.id.edtIdentityCard);
         edtHomeTown = findViewById(R.id.edtHomeTown);
         spnGender = findViewById(R.id.spnGender);
@@ -97,6 +98,7 @@ public class RegisterActivity extends BaseActivity {
         String password = getTextSafe(edtPassword);
         String confirmPassword = getTextSafe(edtConfirmPassword);
         String secretKey = getTextSafe(edtAdminKey);
+        String email = getTextSafe(edtEmail); // 🔥 GET EMAIL
         String identityCard = getTextSafe(edtIdentityCard);
         String homeTown = getTextSafe(edtHomeTown);
 
@@ -108,8 +110,15 @@ public class RegisterActivity extends BaseActivity {
         // 2. Validate
         if (TextUtils.isEmpty(fullName) || TextUtils.isEmpty(dob) || TextUtils.isEmpty(phone)
                 || TextUtils.isEmpty(password) || TextUtils.isEmpty(confirmPassword)
-                || TextUtils.isEmpty(secretKey) || TextUtils.isEmpty(identityCard) || TextUtils.isEmpty(homeTown)) {
+                || TextUtils.isEmpty(secretKey) || TextUtils.isEmpty(email) // 🔥 VALIDATE EMAIL
+                || TextUtils.isEmpty(identityCard) || TextUtils.isEmpty(homeTown)) {
             showError("Vui lòng điền đầy đủ tất cả các trường.");
+            return;
+        }
+
+        // 🔥 VALIDATE EMAIL FORMAT
+        if (!android.util.Patterns.EMAIL_ADDRESS.matcher(email).matches()) {
+            showError("Email không hợp lệ.");
             return;
         }
 
@@ -148,15 +157,10 @@ public class RegisterActivity extends BaseActivity {
         intent.putExtra("fullName", fullName);
         intent.putExtra("dob", dob);
         intent.putExtra("gender", gender);
+        intent.putExtra("email", email); // 🔥 PASS EMAIL
         intent.putExtra("identity_card", identityCard);
         intent.putExtra("home_town", homeTown);
-
-        // Truyền Role sang để EnterOTP biết gọi API nào
         intent.putExtra("target_role", targetRole);
-
-        // Flag để báo hiệu đây là quy trình đăng ký (giữ tương thích code cũ)
-        intent.putExtra("is_admin_registration", true);
-
         intent.putExtra(EnterOTPActivity.EXTRA_PREVIOUS_ACTIVITY, EnterOTPActivity.FROM_REGISTER_PHONE);
 
         startActivity(intent);
