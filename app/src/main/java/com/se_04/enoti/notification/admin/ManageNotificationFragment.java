@@ -69,7 +69,7 @@ public class ManageNotificationFragment extends Fragment {
                              @Nullable Bundle savedInstanceState) {
         View view = inflater.inflate(R.layout.fragment_manage_notification, container, false);
 
-        repository = NotificationRepository.getInstance();
+        repository = NotificationRepository.getInstance(requireContext());
         setupWelcomeViews(view);
         setupRecyclerView(view);
         setupFilters(view);

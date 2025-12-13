@@ -56,61 +56,49 @@ public class NotificationAdapter extends RecyclerView.Adapter<NotificationAdapte
     }
 
     @Override
-    public void onBindViewHolder(@NonNull NotificationAdapter.ViewHolder holder, int position) {
-        NotificationItem item = notificationList.get(position);
-        holder.txtTitle.setText(item.getTitle());
-        holder.txtDate.setText(item.getExpired_date());
-        holder.txtContent.setText(item.getContent());
+    public void onBindViewHolder(@NonNull ViewHolder holder, int position) {
+        NotificationItem notification = notificationList.get(position);
+        if (notification == null) return;
 
-        // Định dạng: chưa đọc = đậm, đã đọc = nhạt
-        holder.txtTitle.setTypeface(null, item.isRead() ? Typeface.NORMAL : Typeface.BOLD);
-        holder.itemView.setAlpha(item.isRead() ? 0.6f : 1.0f);
+        holder.txtTitle.setText(notification.getTitle());
 
+        // 🔥 LOGIC HIỂN THỊ NGÀY TRÊN DANH SÁCH 🔥
+        // Nếu có ngày hẹn (hết hạn) thì hiển thị, nếu không thì hiển thị ngày tạo
+        String displayDate = notification.getExpired_date();
+        if (displayDate == null || displayDate.isEmpty()) {
+            displayDate = notification.getDate();
+        }
+        holder.txtDate.setText(displayDate);
+
+        holder.txtContent.setText(notification.getContent());
+
+        // ... (phần xử lý màu nền giữ nguyên) ...
+
+        // Xử lý sự kiện click item
         holder.itemView.setOnClickListener(v -> {
-            int pos = holder.getBindingAdapterPosition();
-            if (pos == RecyclerView.NO_POSITION) {
-                Log.e("NotificationAdapter", "Invalid click pos");
-                return;
-            }
+            int pos = holder.getAdapterPosition();
+            if (pos == RecyclerView.NO_POSITION) return;
 
             NotificationItem clicked = notificationList.get(pos);
-            Context context = v.getContext();
-
-            // 🔹 Lấy role từ UserManager
-            boolean isAdmin = false;
-            try {
-                String role = String.valueOf(UserManager.getInstance(context)
-                        .getCurrentUser()
-                        .getRole());
-
-                Log.d("NotificationAdapter", "Current user role: " + role);
-
-                // Cho phép nhiều định dạng role khác nhau
-                if (role != null) {
-                    role = role.trim().toLowerCase();
-                    if (role.equals("2") || role.equals("admin") || role.equals("role_admin")) {
-                        isAdmin = true;
-                    }
-                }
-
-            } catch (Exception e) {
-                Log.e("NotificationAdapter", "Error reading role", e);
-            }
-
-            // 🔹 Chọn activity phù hợp
+            Context context = holder.itemView.getContext();
             Intent intent;
-            if (isAdmin) {
-                Log.d("NotificationAdapter", "→ Opening admin detail activity");
+
+            // Xác định Activity đích (User hay Admin)
+            if (UserManager.getInstance(context).isAdmin()) {
                 intent = new Intent(context, NotificationDetailActivity_Admin.class);
             } else {
-                Log.d("NotificationAdapter", "→ Opening user detail activity");
                 intent = new Intent(context, NotificationDetailActivity.class);
             }
 
             // 🔹 Truyền dữ liệu
             intent.putExtra("notification_id", clicked.getId());
             intent.putExtra("title", clicked.getTitle());
-            intent.putExtra("expired_date", clicked.getExpired_date());
+
+            // 🔥 KIỂM TRA NULL KHI PUT EXTRA 🔥
+            String expDate = clicked.getExpired_date();
+            if (expDate == null || expDate.equals("null")) expDate = ""; // Fallback an toàn
+            intent.putExtra("expired_date", expDate);
+
             intent.putExtra("content", clicked.getContent());
             intent.putExtra("sender", clicked.getSender());
             intent.putExtra("is_read", clicked.isRead());
@@ -121,6 +109,7 @@ public class NotificationAdapter extends RecyclerView.Adapter<NotificationAdapte
             if (!clicked.isRead()) {
                 clicked.setRead(true);
                 notifyItemChanged(pos);
+                NotificationRepository.getInstance(context).markAsRead(clicked.getId());
             }
         });
     }

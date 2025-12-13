@@ -5,6 +5,7 @@ import android.os.Handler;
 import android.os.Looper;
 import android.util.Log;
 
+import com.se_04.enoti.account.UserItem;
 import com.se_04.enoti.utils.ApiConfig;
 import com.se_04.enoti.utils.UserManager;
 
@@ -40,10 +41,12 @@ public class NotificationRepository {
         mainHandler = new Handler(Looper.getMainLooper());
     }
 
-    public static NotificationRepository getInstance() {
+    public static synchronized NotificationRepository getInstance(Context context) {
         if (instance == null) {
             instance = new NotificationRepository();
         }
+        // Cập nhật context mỗi lần gọi để tránh leak hoặc null
+        instance.context = context;
         return instance;
     }
 
@@ -409,18 +412,100 @@ public class NotificationRepository {
     private NotificationItem parseNotificationFromJson(JSONObject o) {
         try {
             long id = o.optLong("notification_id", -1);
+            // Nếu không tìm thấy id thì thử tìm key "id"
+            if (id == -1) id = o.optLong("id", -1);
+
             String title = o.optString("title", "Thông báo mới");
             String content = o.optString("content", "");
             String type = o.optString("type", "Thông báo");
+
+            // Xử lý ngày tạo
             String createdAt = o.optString("created_at", "");
-            String expiredDate = o.optString("expired_date", "");
+            if (createdAt.equals("null")) createdAt = "";
+
+            // 🔥 SỬA LẠI PHẦN LẤY NGÀY HẾT HẠN (SCHEDULED_AT) 🔥
+            // 1. Ưu tiên lấy theo key "expired_date"
+            String expiredDate = o.optString("expired_date");
+
+            // 2. Nếu không có hoặc bị null, thử tìm key gốc "scheduled_at"
+            if (expiredDate == null || expiredDate.isEmpty() || expiredDate.equalsIgnoreCase("null")) {
+                expiredDate = o.optString("scheduled_at");
+            }
+
+            // 3. Nếu vẫn là "null" hoặc rỗng -> Gán mặc định là "" (hoặc gán bằng createdAt nếu muốn hiển thị ngày tạo thay thế)
+            if (expiredDate == null || expiredDate.equalsIgnoreCase("null")) {
+                expiredDate = "";
+            }
+
             String sender = o.optString("sender", "Hệ thống");
             boolean isRead = o.optBoolean("is_read", false);
 
             return new NotificationItem(id, title, createdAt, expiredDate, type, sender, content, isRead);
         } catch (Exception e) {
-            Log.e(TAG, "parseNotificationFromJson error", e);
+            Log.e(TAG, "❌ JSON Parse Error", e);
             return null;
         }
+    }
+
+    public void markAsRead(long notificationId) {
+        executor.execute(() -> {
+            HttpURLConnection urlConnection = null;
+            try {
+                // 1. Lấy User ID
+                UserItem user = UserManager.getInstance(context).getCurrentUser();
+                if (user == null) {
+                    Log.e(TAG, "❌ User is null, cannot mark as read");
+                    return;
+                }
+                int userId = Integer.parseInt(user.getId());
+
+                // 2. SỬA ĐƯỜNG DẪN URL: /api/notification/ (số ít) thay vì /api/notifications/
+                URL url = new URL(BASE_URL + "/api/notification/" + notificationId + "/read");
+
+                Log.d(TAG, "⚡ Marking read: " + url.toString());
+
+                urlConnection = (HttpURLConnection) url.openConnection();
+                urlConnection.setRequestMethod("PUT");
+
+                // 3. QUAN TRỌNG: Header để Backend đọc được JSON Body
+                urlConnection.setRequestProperty("Content-Type", "application/json; charset=UTF-8");
+                urlConnection.setDoOutput(true);
+
+                // Thêm Token xác thực
+                String token = UserManager.getInstance(context).getAuthToken();
+                if (token != null) {
+                    urlConnection.setRequestProperty("Authorization", "Bearer " + token);
+                }
+
+                // 4. Tạo JSON Body chứa user_id
+                JSONObject jsonBody = new JSONObject();
+                jsonBody.put("user_id", userId);
+
+                // Gửi dữ liệu đi
+                OutputStream os = urlConnection.getOutputStream();
+                os.write(jsonBody.toString().getBytes("UTF-8"));
+                os.close();
+
+                // 5. Kiểm tra kết quả
+                int responseCode = urlConnection.getResponseCode();
+                if (responseCode == HttpURLConnection.HTTP_OK) {
+                    Log.d(TAG, "✅ Success! Notification " + notificationId + " marked as read.");
+                } else {
+                    // Đọc lỗi từ Server nếu có
+                    InputStream errorStream = urlConnection.getErrorStream();
+                    String errorMsg = "";
+                    if (errorStream != null) {
+                        BufferedReader reader = new BufferedReader(new InputStreamReader(errorStream));
+                        errorMsg = reader.readLine();
+                    }
+                    Log.e(TAG, "❌ Failed to mark read. Code: " + responseCode + ", Error: " + errorMsg);
+                }
+
+            } catch (Exception e) {
+                Log.e(TAG, "❌ Exception marking as read", e);
+            } finally {
+                if (urlConnection != null) urlConnection.disconnect();
+            }
+        });
     }
 }

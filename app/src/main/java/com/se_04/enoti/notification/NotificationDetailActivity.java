@@ -17,11 +17,15 @@ import com.se_04.enoti.utils.UserManager;
 
 public class NotificationDetailActivity extends BaseActivity {
 
-    private final NotificationRepository repository = NotificationRepository.getInstance();
+    // 1. Declare the repository, but DO NOT initialize it here.
+    private NotificationRepository repository;
 
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+
+        // 2. Initialize the repository here, where the context ('this') is valid.
+        repository = NotificationRepository.getInstance(this);
 
         setContentView(R.layout.activity_notification_detail);
 
@@ -43,6 +47,7 @@ public class NotificationDetailActivity extends BaseActivity {
         long notificationId = getIntent().getLongExtra("notification_id", -1);
         String title = getIntent().getStringExtra("title");
         String date = getIntent().getStringExtra("expired_date");
+        // You have a duplicate variable here, which is harmless but can be cleaned up.
         String expired_date = getIntent().getStringExtra("expired_date");
         String content = getIntent().getStringExtra("content");
         String sender = getIntent().getStringExtra("sender");
@@ -53,9 +58,12 @@ public class NotificationDetailActivity extends BaseActivity {
         if (content != null) txtContent.setText(content);
         if (sender != null) txtSender.setText(getString(R.string.notification_sender, sender));
 
-        // If not read, mark read (both local UI and backend)
+        if (notificationId != -1 && !isRead) {
+            Log.d("NotificationDetail", "Auto marking notification " + notificationId + " as read");
+            repository.markAsRead(notificationId);
+        }
+
         if (!isRead && notificationId > 0) {
-            // 🔹 Lấy userId hiện tại
             long userId = 0;
             try {
                 userId = Long.parseLong(
@@ -65,16 +73,20 @@ public class NotificationDetailActivity extends BaseActivity {
                 e.printStackTrace();
             }
 
-            // 🔹 Gọi API có truyền userId
             repository.markAsRead(notificationId, userId, new NotificationRepository.SimpleCallback() {
                 @Override
                 public void onSuccess() {
-                    // UI đã được đánh dấu read tại adapter rồi, không cần thêm gì
+                    Log.d("NotificationDetail", "Đánh dấu đã đọc thành công trên server.");
+                    // 🔥 BƯỚC QUAN TRỌNG: Tạo một Intent kết quả
+                    Intent resultIntent = new Intent();
+                    resultIntent.putExtra("UPDATED_NOTIFICATION_ID", notificationId);
+                    // Đặt kết quả là OK và gửi Intent đi
+                    setResult(RESULT_OK, resultIntent);
+                    // (Không cần finish() ở đây, người dùng sẽ tự back)
                 }
 
                 @Override
                 public void onError(String message) {
-                    // Có thể log hoặc hiện toast nếu cần
                     Log.e("Notification", "Mark read failed: " + message);
                 }
             });
@@ -86,7 +98,6 @@ public class NotificationDetailActivity extends BaseActivity {
             intent.putExtra("title", title);
             intent.putExtra("sender", sender);
 
-            // 🔹 Lấy user_id hiện tại
             long userId = 0;
             try {
                 userId = Long.parseLong(UserManager.getInstance(this).getCurrentUser().getId());
@@ -97,8 +108,6 @@ public class NotificationDetailActivity extends BaseActivity {
 
             startActivity(intent);
         });
-
-
     }
 
     @Override
@@ -110,6 +119,7 @@ public class NotificationDetailActivity extends BaseActivity {
         return super.onOptionsItemSelected(item);
     }
 
+    // onResume is fine as is.
     @Override
     protected void onResume() {
         super.onResume();

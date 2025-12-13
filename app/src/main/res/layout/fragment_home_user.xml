@@ -86,6 +86,7 @@
                         android:orientation="horizontal"
                         app:layoutManager="androidx.recyclerview.widget.LinearLayoutManager"
                         android:clipToPadding="false"
+                        android:paddingTop="30dp"
                         android:paddingHorizontal="8dp"/>
 
                     <LinearLayout

@@ -1,5 +1,8 @@
+// C:/Users/admin/AndroidStudioProjects/NMCNPM_SE-04/app/src/main/java/com/se_04/enoti/feedback/FeedbackDetailActivity.java
+
 package com.se_04.enoti.feedback;
 
+import android.content.Context; // It's good practice to import Context
 import android.os.Bundle;
 import android.view.MenuItem;
 import android.view.View;
@@ -71,7 +74,10 @@ public class FeedbackDetailActivity extends BaseActivity {
         // --- Hiển thị tên thông báo liên quan ---
         txtDetailRepliedNotification.setText("Đang tải thông báo...");
 
-        NotificationRepository.getInstance().fetchNotificationTitle(
+        // ================= FIX IS HERE =================
+        // Pass the activity context 'this' to the getInstance() method.
+        NotificationRepository.getInstance(this).fetchNotificationTitle(
+                // ===============================================
                 item.getNotificationId(),
                 new NotificationRepository.TitleCallback() {
                     @Override

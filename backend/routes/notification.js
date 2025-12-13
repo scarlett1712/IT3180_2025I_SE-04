@@ -259,7 +259,9 @@ router.get("/:userId", async (req, res) => {
 router.get("/detail/:id", async (req, res) => {
   try {
     const { id } = req.params;
+    const { user_id } = req.query; // 👇 Thêm dòng này để biết ai đang xem
 
+    // 👇 Sửa query: JOIN bảng user_notifications để lấy is_read thật
     const result = await pool.query(`
       SELECT
              n.notification_id,
@@ -269,10 +271,11 @@ router.get("/detail/:id", async (req, res) => {
              TO_CHAR(n.created_at, 'DD/MM/YYYY HH24:MI') as created_at,
              TO_CHAR(n.scheduled_at, 'DD/MM/YYYY HH24:MI') as expired_date,
              'Ban Quản Lý' as sender,
-             FALSE as is_read
+             COALESCE(un.is_read, FALSE) as is_read  -- 🔥 LẤY TRẠNG THÁI THẬT
       FROM notification n
+      LEFT JOIN user_notifications un ON n.notification_id = un.notification_id AND un.user_id = $2
       WHERE n.notification_id = $1
-    `, [id]);
+    `, [id, user_id || 0]); // Truyền user_id vào
 
     if (result.rows.length === 0) {
       return res.status(404).json({ error: "Không tìm thấy thông báo" });
