@@ -3,6 +3,7 @@ package com.se_04.enoti.finance;
 import android.content.Intent;
 import android.net.Uri;
 import android.os.Bundle;
+import android.util.Log;
 import android.view.MenuItem;
 import android.view.View;
 import android.widget.Button;
@@ -26,11 +27,15 @@ import com.se_04.enoti.utils.VnNumberToWords;
 import org.json.JSONObject;
 
 import java.text.DecimalFormat;
-import java.text.SimpleDateFormat; // 🔥 Import mới
-import java.util.TimeZone;       // 🔥 Import mới
+import java.text.SimpleDateFormat;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.TimeZone;
 import java.util.Objects;
 
 public class FinanceDetailActivity extends BaseActivity {
+
+    private static final String TAG = "FinanceDetailActivity";
 
     private int financeId;
     private long price;
@@ -118,6 +123,10 @@ public class FinanceDetailActivity extends BaseActivity {
         sender = intent.getStringExtra("sender");
         price = intent.getLongExtra("price", 0L);
         paymentStatus = intent.getStringExtra("payment_status");
+
+        Log.d(TAG, "📋 Finance ID: " + financeId);
+        Log.d(TAG, "💰 Price: " + price);
+        Log.d(TAG, "📊 Payment Status: " + paymentStatus);
     }
 
     private void handlePayOSDeepLink(Intent intent) {
@@ -172,12 +181,27 @@ public class FinanceDetailActivity extends BaseActivity {
         JsonObjectRequest req = new JsonObjectRequest(
                 Request.Method.PUT, url, body,
                 response -> {
+                    Log.d(TAG, "✅ Payment status updated successfully");
                     if (success) {
                         new android.os.Handler().postDelayed(this::fetchInvoice, 500);
                     }
                 },
-                error -> Toast.makeText(this, "Lỗi API cập nhật", Toast.LENGTH_SHORT).show()
-        );
+                error -> {
+                    Log.e(TAG, "❌ Error updating payment status: " + error.toString());
+                    Toast.makeText(this, "Lỗi API cập nhật", Toast.LENGTH_SHORT).show();
+                }
+        ) {
+            // 🔥 ADD AUTHORIZATION HEADER
+            @Override
+            public Map<String, String> getHeaders() {
+                Map<String, String> headers = new HashMap<>();
+                String token = UserManager.getInstance(getApplicationContext()).getAuthToken();
+                if (token != null && !token.isEmpty()) {
+                    headers.put("Authorization", "Bearer " + token);
+                }
+                return headers;
+            }
+        };
 
         Volley.newRequestQueue(this).add(req);
     }
@@ -185,9 +209,12 @@ public class FinanceDetailActivity extends BaseActivity {
     private void fetchInvoice() {
         String url = ApiConfig.BASE_URL + "/api/invoice/by-finance/" + financeId;
 
+        Log.d(TAG, "🔍 Fetching invoice from: " + url);
+
         JsonObjectRequest request = new JsonObjectRequest(
                 Request.Method.GET, url, null,
                 response -> {
+                    Log.d(TAG, "✅ Invoice response: " + response.toString());
                     try {
                         String ordercode = response.getString("ordercode");
                         long amount = response.getLong("amount");
@@ -204,10 +231,47 @@ public class FinanceDetailActivity extends BaseActivity {
 
                         findViewById(R.id.invoiceDetail).setVisibility(View.VISIBLE);
 
-                    } catch (Exception ignored) {}
+                        Log.d(TAG, "✅ Invoice displayed successfully");
+
+                    } catch (Exception e) {
+                        Log.e(TAG, "❌ Error parsing invoice: " + e.getMessage(), e);
+                        Toast.makeText(this, "Lỗi hiển thị hóa đơn", Toast.LENGTH_SHORT).show();
+                    }
                 },
-                error -> Toast.makeText(this, "Không lấy được hóa đơn!", Toast.LENGTH_SHORT).show()
-        );
+                error -> {
+                    Log.e(TAG, "❌ Error fetching invoice: " + error.toString());
+
+                    if (error.networkResponse != null) {
+                        Log.e(TAG, "Status code: " + error.networkResponse.statusCode);
+
+                        if (error.networkResponse.statusCode == 401) {
+                            UserManager.getInstance(this).checkAndForceLogout(error);
+                            return;
+                        }
+
+                        if (error.networkResponse.data != null) {
+                            String errorBody = new String(error.networkResponse.data);
+                            Log.e(TAG, "Error body: " + errorBody);
+                        }
+                    }
+
+                    Toast.makeText(this, "Không lấy được hóa đơn!", Toast.LENGTH_SHORT).show();
+                }
+        ) {
+            // 🔥🔥🔥 CRITICAL FIX: ADD AUTHORIZATION HEADER 🔥🔥🔥
+            @Override
+            public Map<String, String> getHeaders() {
+                Map<String, String> headers = new HashMap<>();
+                String token = UserManager.getInstance(getApplicationContext()).getAuthToken();
+                if (token != null && !token.isEmpty()) {
+                    headers.put("Authorization", "Bearer " + token);
+                    Log.d(TAG, "✅ Sending token: " + token.substring(0, 10) + "...");
+                } else {
+                    Log.e(TAG, "⚠️ WARNING: No token available!");
+                }
+                return headers;
+            }
+        };
 
         Volley.newRequestQueue(this).add(request);
     }
@@ -228,7 +292,8 @@ public class FinanceDetailActivity extends BaseActivity {
 
             return outputFormat.format(date);
         } catch (Exception e) {
-            return utcTime; // Nếu lỗi (do định dạng khác), hiển thị nguyên gốc
+            Log.e(TAG, "Error converting UTC time: " + e.getMessage());
+            return utcTime; // Nếu lỗi, hiển thị nguyên gốc
         }
     }
 

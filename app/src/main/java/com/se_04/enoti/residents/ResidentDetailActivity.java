@@ -166,12 +166,30 @@ public class ResidentDetailActivity extends BaseActivity {
         // 🔥 NẾU LÀ AGENCY THÌ KHÔNG HIỆN MENU EDIT/DELETE
         if (!isAgency) {
             getMenuInflater().inflate(R.menu.menu_resident_options, menu);
-            MenuItem statusItem = menu.findItem(R.id.action_toggle_status);
+
+            // Xử lý đổi tên nút (Ẩn / Kích hoạt)
+            android.view.MenuItem statusItem = menu.findItem(R.id.action_toggle_status);
             if (statusItem != null) {
                 statusItem.setTitle(isLiving ? "Ẩn cư dân" : "Kích hoạt lại");
             }
+
+            // 🔥🔥🔥 CODE ÉP MÀU CHỮ THÀNH ĐEN (BẮT ĐẦU TỪ ĐÂY) 🔥🔥🔥
+            for (int i = 0; i < menu.size(); i++) {
+                android.view.MenuItem item = menu.getItem(i);
+                CharSequence title = item.getTitle();
+
+                if (title != null) {
+                    android.text.SpannableString spanString = new android.text.SpannableString(title);
+                    // Ép màu ĐEN (Color.BLACK)
+                    spanString.setSpan(new android.text.style.ForegroundColorSpan(android.graphics.Color.BLACK), 0, spanString.length(), 0);
+                    item.setTitle(spanString);
+                }
+            }
+            // 🔥🔥🔥 KẾT THÚC CODE ÉP MÀU 🔥🔥🔥
+
             return true;
         }
+
         // Nếu là Agency, trả về true để hiện menu trống (chỉ có nút Back)
         return true;
     }

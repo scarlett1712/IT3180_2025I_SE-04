@@ -65,4 +65,20 @@
         <item name="android:textStyle">bold</item>
     </style>
 
+    <style name="CustomPopupMenu" parent="Widget.AppCompat.PopupMenu.Overflow">
+        <item name="android:popupBackground">@color/white</item>
+        <item name="android:textColor">@android:color/black</item>
+    </style>
+
+    <style name="ToolbarTheme" parent="ThemeOverlay.AppCompat.ActionBar">
+        <item name="actionOverflowMenuStyle">@style/CustomPopupMenu</item>
+        <item name="android:textColorSecondary">@android:color/black</item> </style>
+
+    <style name="PopupOverlay" parent="ThemeOverlay.MaterialComponents.Light">
+        <item name="android:textColorPrimary">@color/black</item>
+        <item name="android:textColorSecondary">#666666</item>
+        <item name="colorSurface">@color/white</item>
+        <item name="android:background">@color/white</item>
+    </style>
+
 </resources>

@@ -1,18 +1,16 @@
 import express from "express";
 import { pool } from "../db.js";
-import { sendNotification } from "../utils/firebaseHelper.js"; // 🔥 Import hàm gửi
+import { sendNotification } from "../utils/firebaseHelper.js";
 
 const router = express.Router();
 
 /**
  * ==================================================================
- * 📝 API: TẠO THÔNG BÁO MỚI (QUAN TRỌNG NHẤT)
+ * 📝 API: TẠO THÔNG BÁO MỚI
  * ==================================================================
  */
 router.post("/create", async (req, res) => {
   const { title, content, type, target_type, target_ids, scheduled_at } = req.body;
-  // target_type: 'all' | 'role' | 'specific'
-  // target_ids: Mảng ID (nếu specific) hoặc ID role (nếu role)
 
   if (!title || !content) return res.status(400).json({ error: "Thiếu tiêu đề hoặc nội dung." });
 
@@ -20,39 +18,28 @@ router.post("/create", async (req, res) => {
   try {
     await client.query("BEGIN");
 
-    // 1. Kiểm tra xem là Gửi ngay hay Hẹn giờ
-    // Nếu không có scheduled_at hoặc thời gian <= hiện tại => Gửi ngay
     const isInstant = !scheduled_at || new Date(scheduled_at) <= new Date();
-
-    // Nếu gửi ngay thì status là SENT (sau khi gửi xong), hẹn giờ thì là PENDING
     const initialStatus = isInstant ? 'SENT' : 'PENDING';
-    const finalScheduledAt = scheduled_at || new Date(); // Nếu null thì lấy giờ hiện tại
+    const finalScheduledAt = scheduled_at || new Date();
 
-    // 2. Tạo thông báo trong bảng chính
     const insertRes = await client.query(
       `INSERT INTO notification (title, content, type, created_by, created_at, scheduled_at, status)
-       VALUES ($1, $2, $3, 1, NOW(), $4, $5) -- Giả sử admin ID = 1
+       VALUES ($1, $2, $3, 1, NOW(), $4, $5)
        RETURNING notification_id`,
       [title, content, type || 'general', finalScheduledAt, initialStatus]
     );
     const notificationId = insertRes.rows[0].notification_id;
 
-    // 3. Xác định danh sách người nhận (user_ids)
     let recipientIds = [];
 
     if (target_type === 'all') {
-        // Gửi cho tất cả User active
         const usersRes = await client.query("SELECT user_id FROM user_item WHERE is_living = TRUE");
         recipientIds = usersRes.rows.map(r => r.user_id);
     }
     else if (target_type === 'role') {
-        // Gửi theo Role (VD: Chỉ gửi cho chủ hộ)
-        // target_ids ở đây là mảng role_id
-        // Cần join bảng userrole hoặc logic tùy DB của bạn. Ví dụ đơn giản:
-        // SELECT user_id FROM userrole WHERE role_id = ANY($1)
+        // Add your role logic here
     }
     else if (target_type === 'specific') {
-        // Gửi cho danh sách cụ thể
         recipientIds = target_ids || [];
     }
 
@@ -61,7 +48,6 @@ router.post("/create", async (req, res) => {
         return res.status(400).json({ error: "Không tìm thấy người nhận phù hợp." });
     }
 
-    // 4. Lưu vào bảng user_notifications (Để user thấy trong App)
     for (const userId of recipientIds) {
         await client.query(
             `INSERT INTO user_notifications (user_id, notification_id, is_read) VALUES ($1, $2, FALSE)`,
@@ -69,25 +55,18 @@ router.post("/create", async (req, res) => {
         );
     }
 
-    // 5. 🔥 LOGIC GỬI PUSH NOTIFICATION
     if (isInstant) {
-        // == TRƯỜNG HỢP GỬI NGAY ==
-        // Lấy token của những người nhận
         const tokensRes = await client.query(
             `SELECT fcm_token FROM users WHERE user_id = ANY($1::int[]) AND fcm_token IS NOT NULL`,
             [recipientIds]
         );
 
-        // Gửi loop từng người
         for (const row of tokensRes.rows) {
-            // Không await để trả response nhanh cho Admin, việc gửi cứ chạy ngầm
             sendNotification(row.fcm_token, title, content, { type: type || 'general' })
                 .catch(e => console.error("Lỗi gửi push lẻ:", e.message));
         }
     }
     else {
-        // == TRƯỜNG HỢP HẸN GIỜ ==
-        // KHÔNG LÀM GÌ CẢ. Scheduler sẽ lo việc này.
         console.log(`⏳ Đã lên lịch gửi thông báo ID ${notificationId} vào lúc ${finalScheduledAt}`);
     }
 
@@ -122,7 +101,6 @@ router.put("/update/:id", async (req, res) => {
   try {
     await client.query("BEGIN");
 
-    // 1. Cập nhật nội dung
     const result = await client.query(
       `UPDATE notification
        SET title = $1, content = $2, type = $3, created_at = NOW()
@@ -135,14 +113,11 @@ router.put("/update/:id", async (req, res) => {
         return res.status(404).json({ error: "Không tìm thấy thông báo." });
     }
 
-    // 2. Reset trạng thái "Chưa đọc" cho user
     await client.query(
       `UPDATE user_notifications SET is_read = FALSE WHERE notification_id = $1`,
       [id]
     );
 
-    // 3. 🔥 GỬI PUSH BÁO CẬP NHẬT (Logic bổ sung)
-    // Để cư dân biết thông báo đã thay đổi nội dung
     (async () => {
         try {
             const usersResult = await pool.query(`
@@ -181,9 +156,7 @@ router.delete("/delete/:id", async (req, res) => {
   try {
     await client.query("BEGIN");
 
-    // Xóa bảng phụ trước
     await client.query("DELETE FROM user_notifications WHERE notification_id = $1", [id]);
-    // Xóa bảng chính
     const result = await client.query("DELETE FROM notification WHERE notification_id = $1", [id]);
 
     if (result.rowCount === 0) {
@@ -203,57 +176,121 @@ router.delete("/delete/:id", async (req, res) => {
 
 /**
  * ==================================================================
- * 📋 CÁC API GET (Lấy danh sách)
+ * 📋 API: LẤY DANH SÁCH THÔNG BÁO (ADMIN)
  * ==================================================================
  */
-
-// 1. Cho Admin: Lấy danh sách đã gửi
 router.get("/sent", async (req, res) => {
   try {
     const result = await pool.query(`
       SELECT n.*,
-             TO_CHAR(n.created_at, 'DD/MM/YYYY HH24:MI') as date_fmt,
-             n.status -- Admin cần xem status (PENDING/SENT)
+             n.notification_id,
+             n.title,
+             n.content,
+             n.type,
+             TO_CHAR(n.created_at, 'DD/MM/YYYY HH24:MI') as created_at,
+             TO_CHAR(n.scheduled_at, 'DD/MM/YYYY HH24:MI') as expired_date,
+             'Ban Quản Lý' as sender,
+             n.status,
+             FALSE as is_read
       FROM notification n
       ORDER BY n.created_at DESC
     `);
     res.json(result.rows);
   } catch (error) {
+    console.error("Get sent notifications error:", error);
     res.status(500).json({ message: "Lỗi server" });
   }
 });
 
-// 2. Cho Cư dân: Lấy danh sách của mình
+/**
+ * ==================================================================
+ * 📋 API: LẤY DANH SÁCH THÔNG BÁO CỦA USER (🔥 FIXED)
+ * ==================================================================
+ */
 router.get("/:userId", async (req, res) => {
   try {
     const { userId } = req.params;
+
+    console.log("📡 Fetching notifications for user:", userId);
+
     const result = await pool.query(`
-      SELECT n.notification_id, n.title, n.content, n.type,
-             TO_CHAR(n.created_at, 'DD/MM/YYYY HH24:MI') as date_fmt,
+      SELECT
+             n.notification_id,
+             n.title,
+             n.content,
+             n.type,
+             TO_CHAR(n.created_at, 'DD/MM/YYYY HH24:MI') as created_at,
+             TO_CHAR(n.scheduled_at, 'DD/MM/YYYY HH24:MI') as expired_date,
+             'Ban Quản Lý' as sender,
              un.is_read
       FROM notification n
       JOIN user_notifications un ON n.notification_id = un.notification_id
       WHERE un.user_id = $1
-      AND n.status = 'SENT' -- 🔥 Quan trọng: User chỉ thấy cái nào đã SENT
+      AND n.status = 'SENT'
       ORDER BY n.created_at DESC
     `, [userId]);
+
+    console.log("✅ Found", result.rows.length, "notifications for user", userId);
+
     res.json(result.rows);
   } catch (error) {
+    console.error("Get user notifications error:", error);
     res.status(500).json({ message: "Lỗi server" });
   }
 });
 
-// 3. Đánh dấu đã đọc
+/**
+ * ==================================================================
+ * 📌 API: LẤY CHI TIẾT 1 THÔNG BÁO
+ * ==================================================================
+ */
+router.get("/detail/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const result = await pool.query(`
+      SELECT
+             n.notification_id,
+             n.title,
+             n.content,
+             n.type,
+             TO_CHAR(n.created_at, 'DD/MM/YYYY HH24:MI') as created_at,
+             TO_CHAR(n.scheduled_at, 'DD/MM/YYYY HH24:MI') as expired_date,
+             'Ban Quản Lý' as sender,
+             FALSE as is_read
+      FROM notification n
+      WHERE n.notification_id = $1
+    `, [id]);
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: "Không tìm thấy thông báo" });
+    }
+
+    res.json(result.rows[0]);
+  } catch (error) {
+    console.error("Get notification detail error:", error);
+    res.status(500).json({ message: "Lỗi server" });
+  }
+});
+
+/**
+ * ==================================================================
+ * ✅ API: ĐÁNH DẤU ĐÃ ĐỌC
+ * ==================================================================
+ */
 router.put("/:notificationId/read", async (req, res) => {
   try {
     const { notificationId } = req.params;
     const { user_id } = req.body;
+
     await pool.query(
       `UPDATE user_notifications SET is_read = TRUE WHERE notification_id = $1 AND user_id = $2`,
       [notificationId, user_id]
     );
+
     res.json({ success: true });
   } catch (error) {
+    console.error("Mark as read error:", error);
     res.status(500).json({ message: "Lỗi server" });
   }
 });
