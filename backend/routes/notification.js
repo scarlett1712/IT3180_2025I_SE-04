@@ -6,7 +6,7 @@ const router = express.Router();
 
 /**
  * ==================================================================
- * 📝 API: TẠO THÔNG BÁO MỚI
+ * 📝 API: TẠO THÔNG BÁO MỚI (Đã sửa: Auto set status = 'SENT')
  * ==================================================================
  */
 router.post("/create", async (req, res) => {
@@ -18,26 +18,33 @@ router.post("/create", async (req, res) => {
   try {
     await client.query("BEGIN");
 
+    // 🔥 LOGIC QUAN TRỌNG: Xác định trạng thái
+    // Nếu không chọn giờ hoặc giờ chọn < hiện tại -> Là gửi ngay -> Status = 'SENT'
     const isInstant = !scheduled_at || new Date(scheduled_at) <= new Date();
     const initialStatus = isInstant ? 'SENT' : 'PENDING';
     const finalScheduledAt = scheduled_at || new Date();
 
+    // Chèn vào bảng notification với cột status
     const insertRes = await client.query(
       `INSERT INTO notification (title, content, type, created_by, created_at, scheduled_at, status)
        VALUES ($1, $2, $3, 1, NOW(), $4, $5)
-       RETURNING notification_id`,
+       RETURNING notification_id`, // ⚠️ Lưu ý: Nếu DB của bạn cột id là 'id' thì sửa dòng này thành RETURNING id
       [title, content, type || 'general', finalScheduledAt, initialStatus]
     );
-    const notificationId = insertRes.rows[0].notification_id;
 
+    // Lấy ID vừa tạo (Kiểm tra kỹ tên cột id hoặc notification_id)
+    const notificationId = insertRes.rows[0].notification_id || insertRes.rows[0].id;
+
+    // --- XỬ LÝ NGƯỜI NHẬN (Giữ nguyên logic cũ) ---
     let recipientIds = [];
 
     if (target_type === 'all') {
+        // Lấy tất cả user đang sinh sống
         const usersRes = await client.query("SELECT user_id FROM user_item WHERE is_living = TRUE");
         recipientIds = usersRes.rows.map(r => r.user_id);
     }
     else if (target_type === 'role') {
-        // Add your role logic here
+        // Logic lấy theo role (nếu cần)
     }
     else if (target_type === 'specific') {
         recipientIds = target_ids || [];
@@ -48,6 +55,7 @@ router.post("/create", async (req, res) => {
         return res.status(400).json({ error: "Không tìm thấy người nhận phù hợp." });
     }
 
+    // Insert vào bảng trung gian user_notifications
     for (const userId of recipientIds) {
         await client.query(
             `INSERT INTO user_notifications (user_id, notification_id, is_read) VALUES ($1, $2, FALSE)`,
@@ -55,6 +63,7 @@ router.post("/create", async (req, res) => {
         );
     }
 
+    // Gửi Firebase Notification (Chỉ gửi nếu là gửi ngay)
     if (isInstant) {
         const tokensRes = await client.query(
             `SELECT fcm_token FROM users WHERE user_id = ANY($1::int[]) AND fcm_token IS NOT NULL`,
@@ -65,8 +74,7 @@ router.post("/create", async (req, res) => {
             sendNotification(row.fcm_token, title, content, { type: type || 'general' })
                 .catch(e => console.error("Lỗi gửi push lẻ:", e.message));
         }
-    }
-    else {
+    } else {
         console.log(`⏳ Đã lên lịch gửi thông báo ID ${notificationId} vào lúc ${finalScheduledAt}`);
     }
 
@@ -74,13 +82,14 @@ router.post("/create", async (req, res) => {
 
     res.json({
         success: true,
-        message: isInstant ? "Đã gửi thông báo thành công." : "Đã lên lịch gửi thông báo."
+        message: isInstant ? "Đã gửi thông báo thành công." : "Đã lên lịch gửi thông báo.",
+        notificationId: notificationId
     });
 
   } catch (err) {
     await client.query("ROLLBACK");
     console.error("Create Notification Error:", err);
-    res.status(500).json({ error: "Lỗi server." });
+    res.status(500).json({ error: "Lỗi server: " + err.message });
   } finally {
     client.release();
   }
@@ -88,7 +97,7 @@ router.post("/create", async (req, res) => {
 
 /**
  * ==================================================================
- * ✏️ API: CẬP NHẬT THÔNG BÁO
+ * ✏️ API: CẬP NHẬT THÔNG BÁO (Đã sửa: Auto set status = 'SENT')
  * ==================================================================
  */
 router.put("/update/:id", async (req, res) => {
@@ -101,9 +110,10 @@ router.put("/update/:id", async (req, res) => {
   try {
     await client.query("BEGIN");
 
+    // 🔥 SỬA Ở ĐÂY: Thêm "status = 'SENT'" vào câu lệnh UPDATE
     const result = await client.query(
       `UPDATE notification
-       SET title = $1, content = $2, type = $3, created_at = NOW()
+       SET title = $1, content = $2, type = $3, status = 'SENT', created_at = NOW()
        WHERE notification_id = $4 RETURNING *`,
       [title, content, type, id]
     );
@@ -113,11 +123,13 @@ router.put("/update/:id", async (req, res) => {
         return res.status(404).json({ error: "Không tìm thấy thông báo." });
     }
 
+    // Đánh dấu lại là chưa đọc để user chú ý
     await client.query(
       `UPDATE user_notifications SET is_read = FALSE WHERE notification_id = $1`,
       [id]
     );
 
+    // Gửi lại thông báo đẩy (FCM)
     (async () => {
         try {
             const usersResult = await pool.query(`
