@@ -180,7 +180,8 @@ router.get("/asset/:asset_id/details", async (req, res) => {
     let queryParams = [];
 
     if (role === 'admin') {
-      // 🔥 ADMIN: Xem toàn bộ lịch sử BẢO TRÌ
+      // 🔥 ADMIN: Cần xem tên nhân viên kỹ thuật (ui.full_name)
+      // Nên BẮT BUỘC phải JOIN với bảng user_item (đặt tên là ui)
       historyQuery = `
         SELECT
           ms.schedule_id as id,
@@ -189,19 +190,20 @@ router.get("/asset/:asset_id/details", async (req, res) => {
           ms.description,
           ms.result_note as result,
           TO_CHAR(ms.scheduled_date, 'YYYY-MM-DD HH24:MI:SS') as date,
-          ui.full_name as performer_name
+          ui.full_name as performer_name -- ✅ Có ui.full_name thì phải có JOIN ui ở dưới
         FROM maintenanceschedule ms
         LEFT JOIN users u ON ms.user_id = u.user_id
-        LEFT JOIN user_item ui ON u.user_id = ui.user_id
+        LEFT JOIN user_item ui ON u.user_id = ui.user_id -- ✅ Dòng này định nghĩa 'ui'
         WHERE ms.asset_id = $1
         ORDER BY ms.scheduled_date DESC
       `;
       queryParams = [asset_id];
 
     } else {
-      // 🔥 USER (Cư dân):
+      // 🔥 USER (Cư dân): Không cần JOIN bảng user_item để tránh lỗi và bảo mật thông tin nhân viên
+      // Thay ui.full_name bằng chuỗi cố định 'Ban quản lý'
       historyQuery = `
-        -- Phần 1: Lịch sử bảo trì (Công khai)
+        -- Phần 1: Lịch sử bảo trì
         SELECT
           schedule_id as id,
           'Maintenance' as type,
@@ -209,19 +211,19 @@ router.get("/asset/:asset_id/details", async (req, res) => {
           description,
           result_note as result,
           TO_CHAR(scheduled_date, 'YYYY-MM-DD HH24:MI:SS') as date,
-          ui.full_name as performer_name
+          ui.full_name as performer_name -- ✅ Dùng chuỗi cứng, KHÔNG dùng ui.full_name để tránh lỗi
         FROM maintenanceschedule
         WHERE asset_id = $1
 
         UNION ALL
 
-        -- Phần 2: Báo cáo sự cố của chính user đó
+        -- Phần 2: Báo cáo sự cố của chính user
         SELECT
           report_id as id,
           'MyReport' as type,
           status,
           description,
-          admin_note as result, -- ✅ ĐÃ SỬA: 'admin_response' -> 'admin_note'
+          admin_note as result, -- ✅ Đảm bảo tên cột đúng là admin_note
           TO_CHAR(created_at, 'YYYY-MM-DD HH24:MI:SS') as date,
           'Tôi' as performer_name
         FROM incident_reports
@@ -235,15 +237,14 @@ router.get("/asset/:asset_id/details", async (req, res) => {
 
     const historyRes = await pool.query(historyQuery, queryParams);
 
-    // Trả về JSON kết hợp
     res.json({
         asset: assetInfo,
         history: historyRes.rows
     });
 
   } catch (err) {
-    console.error("Lỗi API chi tiết thiết bị:", err); // Log lỗi ra console để dễ debug
-    res.status(500).json({ error: "Lỗi lấy chi tiết thiết bị" });
+    console.error("Lỗi API chi tiết thiết bị:", err);
+    res.status(500).json({ error: "Lỗi lấy chi tiết thiết bị: " + err.message });
   }
 });
 export default router;
