@@ -15,7 +15,7 @@ export const createInvoiceTable = async () => {
     await query(`
       CREATE TABLE IF NOT EXISTS invoice (
         invoice_id SERIAL PRIMARY KEY,
-        finance_id INTEGER NOT NULL,
+        finance_id INTEGER NOT NULL, -- Link tới user_finances(id)
         amount NUMERIC(12, 2) NOT NULL,
         description TEXT,
         ordercode VARCHAR(255) UNIQUE NOT NULL,
@@ -26,15 +26,21 @@ export const createInvoiceTable = async () => {
     `);
 
     // 2. Kiểm tra và thêm ràng buộc nếu thiếu (An toàn)
+    // Script này đảm bảo finance_id trỏ đúng vào bảng user_finances
     await query(`
       DO $$
       BEGIN
+        -- Xóa cột user_id nếu còn tồn tại (do logic cũ)
+        IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='invoice' AND column_name='user_id') THEN
+            ALTER TABLE invoice DROP COLUMN user_id;
+        END IF;
+
         -- Thêm FK tới user_finances nếu chưa có
         IF NOT EXISTS (SELECT 1 FROM information_schema.table_constraints WHERE constraint_name='invoice_finance_id_fkey') THEN
             ALTER TABLE invoice ADD CONSTRAINT invoice_finance_id_fkey FOREIGN KEY (finance_id) REFERENCES user_finances(id) ON DELETE CASCADE;
         END IF;
 
-        -- Thêm Unique nếu chưa có
+        -- Thêm Unique nếu chưa có (Mỗi dòng user_finance chỉ có 1 hóa đơn)
         IF NOT EXISTS (SELECT 1 FROM information_schema.table_constraints WHERE constraint_name='invoice_finance_id_key') THEN
             ALTER TABLE invoice ADD CONSTRAINT invoice_finance_id_key UNIQUE (finance_id);
         END IF;
@@ -49,7 +55,7 @@ export const createInvoiceTable = async () => {
 };
 
 // ==================================================================
-// 🧾 1. TẠO INVOICE (Tự động Map ID)
+// 🧾 1. TẠO INVOICE (Tự động Map ID từ finance_id chung + user_id)
 // ==================================================================
 router.post("/store", async (req, res) => {
   const { finance_id, user_id, amount, description, ordercode, currency } = req.body;
@@ -62,7 +68,7 @@ router.post("/store", async (req, res) => {
   try {
     await client.query("BEGIN");
 
-    // 1. Tìm ID của user_finances (Bảng trung gian)
+    // 1. Tìm ID của user_finances (Bảng trung gian) dựa trên finance_id chung và user_id
     let ufResult = await client.query(
       "SELECT id FROM user_finances WHERE finance_id = $1 AND user_id = $2",
       [finance_id, user_id]
@@ -73,7 +79,7 @@ router.post("/store", async (req, res) => {
     if (ufResult.rows.length > 0) {
       finalUserFinanceId = ufResult.rows[0].id;
     } else {
-      // Nếu chưa có (đóng tự nguyện), tự tạo mới
+      // Nếu chưa có (ví dụ: đóng góp tự nguyện chưa được gán), tự tạo mới
       console.log(`⚠️ Creating new user_finance for User ${user_id} - Finance ${finance_id}`);
       const newUf = await client.query(
         "INSERT INTO user_finances (user_id, finance_id, status) VALUES ($1, $2, 'chua_thanh_toan') RETURNING id",
@@ -82,7 +88,7 @@ router.post("/store", async (req, res) => {
       finalUserFinanceId = newUf.rows[0].id;
     }
 
-    // 2. Kiểm tra đã có hóa đơn chưa
+    // 2. Kiểm tra đã có hóa đơn cho khoản này chưa
     const existing = await client.query(
       "SELECT invoice_id FROM invoice WHERE finance_id = $1",
       [finalUserFinanceId]
@@ -90,7 +96,7 @@ router.post("/store", async (req, res) => {
 
     if (existing.rows.length > 0) {
       await client.query("ROLLBACK");
-      // Trả về 200 kèm invoice cũ để App hiển thị luôn
+      // Trả về 200 kèm invoice cũ để App hiển thị luôn mà không báo lỗi
       return res.status(200).json({
         success: true,
         message: "Hóa đơn đã tồn tại",
@@ -99,6 +105,7 @@ router.post("/store", async (req, res) => {
     }
 
     // 3. Tạo Invoice
+    // Lưu ý: finance_id trong bảng invoice lưu ID của user_finances
     const invResult = await client.query(
       `INSERT INTO invoice (finance_id, amount, description, ordercode, currency, paytime)
        VALUES ($1, $2, $3, $4, $5, NOW())
@@ -106,7 +113,7 @@ router.post("/store", async (req, res) => {
       [finalUserFinanceId, amount, description, ordercode, currency || "VND"]
     );
 
-    // 4. Update trạng thái thanh toán
+    // 4. Update trạng thái thanh toán trong user_finances
     await client.query(
       "UPDATE user_finances SET status = 'da_thanh_toan' WHERE id = $1",
       [finalUserFinanceId]
@@ -141,16 +148,16 @@ router.get("/:ordercode", async (req, res) => {
 });
 
 // ==================================================================
-// 🔥 3. LẤY INVOICE THEO FINANCE_ID + USER_ID (Cho App)
+// 🔥 3. LẤY INVOICE THEO FINANCE_ID + USER_ID (Cho App & Admin xem chi tiết)
 // ==================================================================
 router.get("/by-finance/:financeId", async (req, res) => {
   try {
-    const { financeId } = req.params;
-    const { user_id } = req.query;
+    const { financeId } = req.params; // ID khoản thu chung (finances.id)
+    const { user_id } = req.query;    // ID người dùng
 
     if (!user_id) return res.status(400).json({ error: "Thiếu user_id" });
 
-    // JOIN bảng user_finances để tìm invoice
+    // JOIN bảng user_finances để tìm invoice tương ứng
     const result = await query(
       `SELECT i.*, TO_CHAR(i.paytime, 'DD/MM/YYYY HH24:MI') as pay_time_formatted
        FROM invoice i
