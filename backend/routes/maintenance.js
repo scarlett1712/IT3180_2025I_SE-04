@@ -162,7 +162,6 @@ router.get("/staff-list", async (req, res) => {
 });
 
 // 7. [USER & ADMIN] Lấy chi tiết thiết bị & Lịch sử hoạt động
-// API này trả về cả thông tin thiết bị lẫn danh sách lịch sử (Bảo trì + Báo cáo)
 router.get("/asset/:asset_id/details", async (req, res) => {
   const { asset_id } = req.params;
   const { user_id, role } = req.query; // role='admin' hoặc không
@@ -181,17 +180,16 @@ router.get("/asset/:asset_id/details", async (req, res) => {
     let queryParams = [];
 
     if (role === 'admin') {
-      // 🔥 ADMIN: Xem toàn bộ lịch sử BẢO TRÌ (Maintenance Schedule)
-      // Kèm tên người thực hiện (nếu có)
+      // 🔥 ADMIN: Xem toàn bộ lịch sử BẢO TRÌ
       historyQuery = `
         SELECT
           ms.schedule_id as id,
-          'Maintenance' as type, -- Đánh dấu loại để Frontend phân biệt
+          'Maintenance' as type,
           ms.status,
           ms.description,
-          ms.result_note as result, -- Kết quả bảo trì
+          ms.result_note as result,
           TO_CHAR(ms.scheduled_date, 'YYYY-MM-DD HH24:MI:SS') as date,
-          ui.full_name as performer_name -- Tên nhân viên thực hiện
+          ui.full_name as performer_name
         FROM maintenanceschedule ms
         LEFT JOIN users u ON ms.user_id = u.user_id
         LEFT JOIN user_item ui ON u.user_id = ui.user_id
@@ -202,9 +200,6 @@ router.get("/asset/:asset_id/details", async (req, res) => {
 
     } else {
       // 🔥 USER (Cư dân):
-      // - Xem lịch sử BẢO TRÌ (để biết máy đang sửa hay tốt)
-      // - Xem lịch sử BÁO CÁO SỰ CỐ của CHÍNH HỌ (My Report)
-
       historyQuery = `
         -- Phần 1: Lịch sử bảo trì (Công khai)
         SELECT
@@ -214,7 +209,7 @@ router.get("/asset/:asset_id/details", async (req, res) => {
           description,
           result_note as result,
           TO_CHAR(scheduled_date, 'YYYY-MM-DD HH24:MI:SS') as date,
-          'Ban quản lý' as performer_name -- User không cần biết tên kỹ thuật viên cụ thể
+          ui.full_name as performer_name
         FROM maintenanceschedule
         WHERE asset_id = $1
 
@@ -226,7 +221,7 @@ router.get("/asset/:asset_id/details", async (req, res) => {
           'MyReport' as type,
           status,
           description,
-          admin_response as result, -- Phản hồi của admin
+          admin_note as result, -- ✅ ĐÃ SỬA: 'admin_response' -> 'admin_note'
           TO_CHAR(created_at, 'YYYY-MM-DD HH24:MI:SS') as date,
           'Tôi' as performer_name
         FROM incident_reports
@@ -247,7 +242,7 @@ router.get("/asset/:asset_id/details", async (req, res) => {
     });
 
   } catch (err) {
-    console.error(err);
+    console.error("Lỗi API chi tiết thiết bị:", err); // Log lỗi ra console để dễ debug
     res.status(500).json({ error: "Lỗi lấy chi tiết thiết bị" });
   }
 });
