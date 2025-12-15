@@ -174,7 +174,6 @@ router.delete("/delete/:target_id", verifySession, async (req, res) => {
     await client.query("DELETE FROM login_requests WHERE user_id = $1", [target_id]);
     await client.query("DELETE FROM user_notifications WHERE user_id = $1", [target_id]);
     await client.query("DELETE FROM user_finances WHERE user_id = $1", [target_id]);
-    await client.query("DELETE FROM invoice WHERE user_id = $1", [target_id]); // 🔥 Thêm xóa hóa đơn nếu có
     await client.query("DELETE FROM userrole WHERE user_id = $1", [target_id]);
 
     // 🔥 2. Xử lý bảng user_item và relationship
