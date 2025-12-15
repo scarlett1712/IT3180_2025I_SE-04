@@ -1,4 +1,4 @@
-package com.se_04.enoti.maintenance.admin; // Đảm bảo package này đúng với cấu trúc thư mục của bạn
+package com.se_04.enoti.maintenance.admin;
 
 import android.graphics.Color;
 import android.view.LayoutInflater;
@@ -10,6 +10,7 @@ import android.widget.TextView;
 import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.RecyclerView;
 
+import com.bumptech.glide.Glide; // 🔥 Import Glide
 import com.se_04.enoti.R;
 import com.se_04.enoti.maintenance.AssetItem;
 
@@ -20,7 +21,7 @@ public class AssetAdapter extends RecyclerView.Adapter<AssetAdapter.ViewHolder> 
     private List<AssetItem> list;
     private OnItemClickListener listener;
 
-    // 🔥 Interface để bắt sự kiện click (Activity/Fragment sẽ implement cái này)
+    // 🔥 Interface để bắt sự kiện click
     public interface OnItemClickListener {
         void onItemClick(AssetItem item);
     }
@@ -37,7 +38,6 @@ public class AssetAdapter extends RecyclerView.Adapter<AssetAdapter.ViewHolder> 
     @NonNull
     @Override
     public ViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
-        // Sử dụng layout custom item_asset.xml
         View view = LayoutInflater.from(parent.getContext()).inflate(R.layout.item_asset, parent, false);
         return new ViewHolder(view);
     }
@@ -46,17 +46,31 @@ public class AssetAdapter extends RecyclerView.Adapter<AssetAdapter.ViewHolder> 
     public void onBindViewHolder(@NonNull ViewHolder holder, int position) {
         AssetItem item = list.get(position);
 
-        // Gán dữ liệu
+        // Gán dữ liệu Text
         holder.txtName.setText(item.getName());
         holder.txtLocation.setText("📍 " + item.getLocation());
 
-        // Xử lý trạng thái và màu sắc
+        // 🔥 LOGIC MỚI: Hiển thị ảnh Thumbnail bằng Glide
+        if (item.getThumbnail() != null && !item.getThumbnail().isEmpty()) {
+            Glide.with(holder.itemView.getContext())
+                    .load(item.getThumbnail())
+                    .placeholder(R.drawable.ic_devices) // Icon mặc định khi đang tải (đảm bảo bạn có icon này)
+                    .error(R.drawable.ic_devices)       // Icon khi lỗi
+                    .centerCrop()
+                    .into(holder.imgIcon);
+        } else {
+            // Nếu không có ảnh, set về icon mặc định (quan trọng khi tái sử dụng view)
+            holder.imgIcon.setImageResource(R.drawable.ic_devices);
+        }
+
+        // Xử lý trạng thái và màu sắc (Giữ nguyên logic cũ của bạn)
         String status = item.getStatus();
         if ("Good".equalsIgnoreCase(status)) {
             holder.txtStatus.setText("Hoạt động tốt");
             holder.txtStatus.setTextColor(Color.parseColor("#388E3C")); // Xanh đậm
             holder.txtStatus.setBackgroundColor(Color.parseColor("#E8F5E9")); // Nền xanh nhạt
         } else {
+            // Bao gồm cả Maintenance và Broken
             holder.txtStatus.setText("Đang bảo trì");
             holder.txtStatus.setTextColor(Color.parseColor("#D32F2F")); // Đỏ đậm
             holder.txtStatus.setBackgroundColor(Color.parseColor("#FFEBEE")); // Nền đỏ nhạt

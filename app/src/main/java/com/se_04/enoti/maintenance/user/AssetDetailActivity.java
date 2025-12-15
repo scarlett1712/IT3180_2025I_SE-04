@@ -1,7 +1,7 @@
 package com.se_04.enoti.maintenance.user;
 
 import android.content.Intent;
-import android.graphics.Color;
+import android.net.Uri;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.MenuItem;
@@ -11,7 +11,6 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.annotation.Nullable;
-import androidx.core.content.ContextCompat;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
@@ -23,6 +22,7 @@ import com.google.android.material.floatingactionbutton.ExtendedFloatingActionBu
 import com.se_04.enoti.R;
 import com.se_04.enoti.account.UserItem;
 import com.se_04.enoti.maintenance.AssetHistoryItem;
+import com.se_04.enoti.maintenance.AssetImageAdapter; // 🔥 Import Adapter ảnh mới
 import com.se_04.enoti.utils.ApiConfig;
 import com.se_04.enoti.utils.BaseActivity;
 import com.se_04.enoti.utils.UserManager;
@@ -37,12 +37,17 @@ import java.util.List;
 public class AssetDetailActivity extends BaseActivity {
 
     private MaterialToolbar toolbar;
-    private TextView txtName, txtId, txtLocation, txtStatus, txtEmptyHistory, lblHistory;
+    private TextView txtName, txtId, txtLocation, txtStatus, lblHistory;
     private ImageView imgStatusIcon;
 
     private RecyclerView recyclerHistory;
-    private AssetHistoryAdapter adapter;
+    private AssetHistoryAdapter historyAdapter; // Đổi tên cho rõ ràng
     private List<AssetHistoryItem> historyList = new ArrayList<>();
+
+    // 🔥 CÁC BIẾN MỚI CHO ẢNH
+    private RecyclerView recyclerImages;
+    private AssetImageAdapter imageAdapter;
+    private final List<String> imageUrls = new ArrayList<>();
 
     private ExtendedFloatingActionButton btnReport;
     private View layoutEmptyHistory;
@@ -52,9 +57,9 @@ public class AssetDetailActivity extends BaseActivity {
     private boolean isAdmin = false;
 
     @Override
-    protected void onCreate(Bundle savedInstanceState) {
+    protected void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_asset_detail); // Sử dụng layout mới
+        setContentView(R.layout.activity_asset_detail);
 
         // Lấy dữ liệu từ Intent
         assetId = getIntent().getIntExtra("ASSET_ID", -1);
@@ -79,22 +84,38 @@ public class AssetDetailActivity extends BaseActivity {
         toolbar = findViewById(R.id.toolbar);
 
         txtName = findViewById(R.id.txtDetailName);
-        txtId = findViewById(R.id.txtDetailId); // Thêm ID mới
+        txtId = findViewById(R.id.txtDetailId);
         txtLocation = findViewById(R.id.txtDetailLocation);
         txtStatus = findViewById(R.id.txtDetailStatus);
-        imgStatusIcon = findViewById(R.id.imgStatusIcon); // Icon trạng thái
+        imgStatusIcon = findViewById(R.id.imgStatusIcon);
 
-        lblHistory = findViewById(R.id.lblHistory); // Tiêu đề danh sách
-        txtEmptyHistory = findViewById(R.id.txtEmptyHistory);
+        lblHistory = findViewById(R.id.lblHistory);
         layoutEmptyHistory = findViewById(R.id.layoutEmptyHistory);
 
-        recyclerHistory = findViewById(R.id.recyclerHistory);
         btnReport = findViewById(R.id.btnGoToReport);
 
-        // Setup RecyclerView
+        // 🔥 1. SETUP RECYCLERVIEW CHO ẢNH (MỚI)
+        recyclerImages = findViewById(R.id.recyclerAssetImages); // Đảm bảo bạn đã thêm ID này vào XML
+        if (recyclerImages != null) {
+            recyclerImages.setLayoutManager(new LinearLayoutManager(this, LinearLayoutManager.HORIZONTAL, false));
+            imageAdapter = new AssetImageAdapter(imageUrls, url -> {
+                // Click vào ảnh -> Mở xem full (Intent mặc định của Android)
+                try {
+                    Intent intent = new Intent(Intent.ACTION_VIEW);
+                    intent.setDataAndType(Uri.parse(url), "image/*");
+                    startActivity(intent);
+                } catch (Exception e) {
+                    Toast.makeText(this, "Không thể mở ảnh", Toast.LENGTH_SHORT).show();
+                }
+            });
+            recyclerImages.setAdapter(imageAdapter);
+        }
+
+        // 2. SETUP RECYCLERVIEW CHO LỊCH SỬ (GIỮ NGUYÊN)
+        recyclerHistory = findViewById(R.id.recyclerHistory);
         recyclerHistory.setLayoutManager(new LinearLayoutManager(this));
-        adapter = new AssetHistoryAdapter(historyList);
-        recyclerHistory.setAdapter(adapter);
+        historyAdapter = new AssetHistoryAdapter(historyList);
+        recyclerHistory.setAdapter(historyAdapter);
     }
 
     private void setupToolbar() {
@@ -108,7 +129,7 @@ public class AssetDetailActivity extends BaseActivity {
 
     private void setupUIForRole() {
         if (isAdmin) {
-            // Admin chỉ xem, không báo hỏng ở đây (hoặc tùy logic của bạn)
+            // Admin chỉ xem
             btnReport.setVisibility(View.GONE);
             if (lblHistory != null) lblHistory.setText("LỊCH SỬ BẢO TRÌ TOÀN BỘ");
         } else {
@@ -140,15 +161,29 @@ public class AssetDetailActivity extends BaseActivity {
                             JSONObject assetObj = response.getJSONObject("asset");
 
                             txtName.setText(assetObj.optString("asset_name", "N/A"));
-                            txtId.setText("Mã: " + assetObj.optString("id", String.valueOf(assetId))); // Hiển thị ID
+                            txtId.setText("Mã: " + assetObj.optString("asset_id", String.valueOf(assetId)));
                             txtLocation.setText("Vị trí: " + assetObj.optString("location", "N/A"));
 
-                            // 🔥 Cập nhật trạng thái (Text + Màu + Icon)
                             String status = assetObj.optString("status", "Good");
                             updateStatusUI(status);
                         }
 
-                        // 2. Hiển thị lịch sử
+                        // 🔥 2. HIỂN THỊ DANH SÁCH ẢNH (MỚI)
+                        if (response.has("images")) {
+                            JSONArray imgArr = response.getJSONArray("images");
+                            imageUrls.clear();
+                            for (int i = 0; i < imgArr.length(); i++) {
+                                imageUrls.add(imgArr.getString(i));
+                            }
+                            if (imageAdapter != null) imageAdapter.notifyDataSetChanged();
+
+                            // Ẩn hiện Recycler nếu không có ảnh
+                            if (recyclerImages != null) {
+                                recyclerImages.setVisibility(imageUrls.isEmpty() ? View.GONE : View.VISIBLE);
+                            }
+                        }
+
+                        // 3. Hiển thị lịch sử (Giữ nguyên)
                         historyList.clear();
                         if (response.has("history")) {
                             JSONArray historyArr = response.getJSONArray("history");
@@ -156,9 +191,9 @@ public class AssetDetailActivity extends BaseActivity {
                                 historyList.add(new AssetHistoryItem(historyArr.getJSONObject(i)));
                             }
                         }
-                        adapter.notifyDataSetChanged();
+                        historyAdapter.notifyDataSetChanged();
 
-                        // 3. Xử lý Empty State
+                        // Xử lý Empty State cho lịch sử
                         if (historyList.isEmpty()) {
                             layoutEmptyHistory.setVisibility(View.VISIBLE);
                             recyclerHistory.setVisibility(View.GONE);
@@ -186,37 +221,25 @@ public class AssetDetailActivity extends BaseActivity {
         Volley.newRequestQueue(this).add(request);
     }
 
-    // Helper cập nhật UI trạng thái
     private void updateStatusUI(String status) {
-        int colorRes;
         int iconRes;
         String statusText;
 
         if ("Good".equalsIgnoreCase(status)) {
             statusText = "Hoạt động tốt";
-            colorRes = R.color.holo_green_dark; // Hoặc mã màu #388E3C
-            iconRes = R.drawable.ic_check_circle; // Icon tích xanh
+            iconRes = R.drawable.ic_check_circle;
         } else if ("Maintenance".equalsIgnoreCase(status)) {
             statusText = "Đang bảo trì";
-            colorRes = R.color.blue_primary; // Hoặc #1976D2
-            iconRes = R.drawable.ic_history; // Icon đồng hồ
+            iconRes = R.drawable.ic_history;
         } else if ("Broken".equalsIgnoreCase(status)) {
             statusText = "Đang gặp sự cố";
-            colorRes = R.color.red_primary; // Hoặc #D32F2F
-            iconRes = R.drawable.ic_report_problem; // Icon cảnh báo
+            iconRes = R.drawable.ic_report_problem;
         } else {
             statusText = status;
-            colorRes = android.R.color.darker_gray;
             iconRes = R.drawable.ic_devices;
         }
 
-        // Set màu text
         txtStatus.setText(statusText);
-        // Lưu ý: Cần context để lấy màu từ resource nếu dùng R.color
-        // txtStatus.setTextColor(ContextCompat.getColor(this, colorRes));
-
-        // Set icon tint
         imgStatusIcon.setImageResource(iconRes);
-        // imgStatusIcon.setColorFilter(ContextCompat.getColor(this, colorRes));
     }
 }

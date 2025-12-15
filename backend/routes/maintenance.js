@@ -1,7 +1,9 @@
 import express from "express";
 import { pool } from "../db.js";
-import { sendNotification } from "../utils/firebaseHelper.js"; // Import để gửi thông báo
+import { sendNotification } from "../utils/firebaseHelper.js";
 import { verifySession } from "../middleware/authMiddleware.js";
+// 🔥 Import helper upload ảnh
+import { uploadToCloudinary } from "../utils/cloudinaryHelper.js";
 
 const router = express.Router();
 
@@ -12,24 +14,63 @@ const router = express.Router();
 // 1. Lấy danh sách tài sản
 router.get("/assets", async (req, res) => {
   try {
-    const result = await pool.query("SELECT * FROM asset ORDER BY asset_id DESC");
+    // 🔥 Lấy thêm ảnh đại diện (ảnh đầu tiên) nếu cần hiển thị thumbnail ở danh sách
+    const result = await pool.query(`
+      SELECT a.*,
+             (SELECT image_url FROM asset_images ai WHERE ai.asset_id = a.asset_id LIMIT 1) as thumbnail
+      FROM asset a
+      ORDER BY a.asset_id DESC
+    `);
     res.json(result.rows);
   } catch (err) {
+    console.error(err);
     res.status(500).json({ error: "Lỗi lấy danh sách tài sản" });
   }
 });
 
-// 2. Thêm tài sản mới
+// 2. Thêm tài sản mới (Hỗ trợ nhiều ảnh)
 router.post("/assets", async (req, res) => {
-  const { asset_name, location, status, purchase_date } = req.body;
+  const { asset_name, location, status, purchase_date, images } = req.body;
+  // 'images' là mảng chuỗi Base64: ["data:image/...", "data:image/..."]
+
+  const client = await pool.connect();
   try {
-    await pool.query(
-      "INSERT INTO asset (asset_name, location, status, purchase_date) VALUES ($1, $2, $3, $4)",
+    await client.query("BEGIN");
+
+    // 2.1. Thêm Asset
+    const assetRes = await client.query(
+      "INSERT INTO asset (asset_name, location, status, purchase_date) VALUES ($1, $2, $3, $4) RETURNING asset_id",
       [asset_name, location, status || 'Good', purchase_date]
     );
-    res.json({ success: true, message: "Đã thêm tài sản mới." });
+    const assetId = assetRes.rows[0].asset_id;
+
+    // 2.2. Upload & Lưu ảnh (Nếu có)
+    if (images && Array.isArray(images) && images.length > 0) {
+      console.log(`📸 Uploading ${images.length} images for asset ${assetId}...`);
+
+      for (const base64 of images) {
+        // Upload từng ảnh lên Cloudinary
+        const uploadRes = await uploadToCloudinary(base64, "enoti_assets");
+
+        if (uploadRes && uploadRes.url) {
+          // Lưu URL vào bảng asset_images
+          await client.query(
+            "INSERT INTO asset_images (asset_id, image_url) VALUES ($1, $2)",
+            [assetId, uploadRes.url]
+          );
+        }
+      }
+    }
+
+    await client.query("COMMIT");
+    res.json({ success: true, message: "Đã thêm tài sản mới thành công." });
+
   } catch (err) {
+    await client.query("ROLLBACK");
+    console.error("Lỗi thêm tài sản:", err);
     res.status(500).json({ error: "Lỗi thêm tài sản" });
+  } finally {
+    client.release();
   }
 });
 
@@ -37,7 +78,7 @@ router.post("/assets", async (req, res) => {
    📅 QUẢN LÝ LỊCH BẢO TRÌ (SCHEDULE)
 ========================================================== */
 
-// 3. Lấy danh sách lịch bảo trì (Kèm tên tài sản và tên nhân viên)
+// 3. Lấy danh sách lịch bảo trì
 router.get("/schedule", async (req, res) => {
   try {
     const result = await pool.query(`
@@ -57,9 +98,9 @@ router.get("/schedule", async (req, res) => {
   }
 });
 
-// 4. Tạo lịch bảo trì & Giao việc cho nhân viên
+// 4. Tạo lịch bảo trì
 router.post("/schedule/create", async (req, res) => {
-  const { asset_id, scheduled_date, user_id, description } = req.body; // user_id là ID nhân viên kỹ thuật
+  const { asset_id, scheduled_date, user_id, description } = req.body;
 
   if (!asset_id || !scheduled_date) {
     return res.status(400).json({ error: "Thiếu thông tin bắt buộc" });
@@ -69,19 +110,16 @@ router.post("/schedule/create", async (req, res) => {
   try {
     await client.query("BEGIN");
 
-    // Tạo lịch
     await client.query(
       `INSERT INTO maintenanceschedule (asset_id, scheduled_date, user_id, status, description)
        VALUES ($1, $2, $3, 'Pending', $4)`,
       [asset_id, scheduled_date, user_id, description]
     );
 
-    // Cập nhật trạng thái tài sản thành "Đang bảo trì" (Maintenance)
     await client.query("UPDATE asset SET status = 'Maintenance' WHERE asset_id = $1", [asset_id]);
 
     await client.query("COMMIT");
 
-    // 🔥 Gửi thông báo cho nhân viên nếu được giao việc
     if (user_id) {
       const userRes = await pool.query("SELECT fcm_token FROM users WHERE user_id = $1", [user_id]);
       if (userRes.rows.length > 0 && userRes.rows[0].fcm_token) {
@@ -103,32 +141,25 @@ router.post("/schedule/create", async (req, res) => {
   }
 });
 
-// 5. Cập nhật trạng thái bảo trì (Hoàn thành/Hủy)
+// 5. Cập nhật trạng thái bảo trì
 router.post("/schedule/update", async (req, res) => {
   const { schedule_id, status, result_note } = req.body;
-  // status: 'Completed', 'Cancelled', 'In Progress'
-
   const client = await pool.connect();
   try {
     await client.query("BEGIN");
 
-    // 1. Cập nhật lịch
     await client.query(
       "UPDATE maintenanceschedule SET status = $1, result_note = $2 WHERE schedule_id = $3",
       [status, result_note, schedule_id]
     );
 
-    // 2. Cập nhật trạng thái thiết bị dựa trên tiến độ
     const scheduleRes = await client.query("SELECT asset_id FROM maintenanceschedule WHERE schedule_id = $1", [schedule_id]);
     if (scheduleRes.rows.length > 0) {
         const assetId = scheduleRes.rows[0].asset_id;
-
         if (status === 'In Progress') {
-            // Đang sửa -> Thiết bị là 'Maintenance'
             await client.query("UPDATE asset SET status = 'Maintenance' WHERE asset_id = $1", [assetId]);
         }
         else if (status === 'Completed') {
-            // Sửa xong -> Thiết bị là 'Good'
             await client.query("UPDATE asset SET status = 'Good' WHERE asset_id = $1", [assetId]);
         }
     }
@@ -142,16 +173,14 @@ router.post("/schedule/update", async (req, res) => {
     client.release();
   }
 });
-// 6. Lấy danh sách nhân viên (Staff) để giao việc
+
+// 6. Lấy danh sách nhân viên
 router.get("/staff-list", async (req, res) => {
   try {
-    // Lấy user có role là nhân viên (giả sử role_id = 3 là kỹ thuật viên/nhân viên)
-    // Nếu bạn chưa phân quyền kỹ, có thể lấy tất cả user hoặc lọc theo role_id phù hợp
     const result = await pool.query(`
       SELECT u.user_id, ui.full_name, u.phone
       FROM users u
       JOIN user_item ui ON u.user_id = ui.user_id
-      -- WHERE u.role_id = 3  <-- Bỏ comment nếu muốn lọc đúng role
       ORDER BY ui.full_name ASC
     `);
     res.json(result.rows);
@@ -161,34 +190,32 @@ router.get("/staff-list", async (req, res) => {
   }
 });
 
-// 7. [USER & ADMIN] Lấy chi tiết thiết bị & Lịch sử hoạt động
+// 7. [USER & ADMIN] Lấy chi tiết thiết bị (Kèm ảnh & Lịch sử)
 router.get("/asset/:asset_id/details", async (req, res) => {
   const { asset_id } = req.params;
-  const { user_id, role } = req.query; // role='admin' hoặc không
+  const { user_id, role } = req.query;
 
   try {
-    // 1. Lấy thông tin cơ bản của thiết bị
+    // 1. Lấy thông tin cơ bản
     const assetRes = await pool.query("SELECT * FROM asset WHERE asset_id = $1", [asset_id]);
-
     if (assetRes.rows.length === 0) {
       return res.status(404).json({ error: "Không tìm thấy thiết bị" });
     }
     const assetInfo = assetRes.rows[0];
 
-    // 2. Lấy lịch sử (Logic phân quyền)
+    // 🔥 2. Lấy danh sách ảnh từ bảng phụ
+    const imagesRes = await pool.query("SELECT image_url FROM asset_images WHERE asset_id = $1", [asset_id]);
+    const imageUrls = imagesRes.rows.map(row => row.image_url);
+
+    // 3. Lấy lịch sử (Logic cũ của bạn)
     let historyQuery = "";
     let queryParams = [];
 
     if (role === 'admin') {
-      // 🔥 ADMIN: Giữ nguyên logic cũ (có JOIN bảng user_item alias là 'ui')
       historyQuery = `
         SELECT
-          ms.schedule_id as id,
-          'Maintenance' as type,
-          ms.status,
-          ms.description,
-          ms.result_note as result,
-          TO_CHAR(ms.scheduled_date, 'YYYY-MM-DD HH24:MI:SS') as date,
+          ms.schedule_id as id, 'Maintenance' as type, ms.status, ms.description,
+          ms.result_note as result, TO_CHAR(ms.scheduled_date, 'YYYY-MM-DD HH24:MI:SS') as date,
           ui.full_name as performer_name
         FROM maintenanceschedule ms
         LEFT JOIN users u ON ms.user_id = u.user_id
@@ -197,38 +224,19 @@ router.get("/asset/:asset_id/details", async (req, res) => {
         ORDER BY ms.scheduled_date DESC
       `;
       queryParams = [asset_id];
-
     } else {
-      // 🔥 USER (Cư dân): ĐÃ SỬA TRIỆT ĐỂ
-      // - Không dùng alias 'ms.' hay 'ui.' để tránh lỗi 'missing FROM-clause'
-      // - Dùng chuỗi cứng 'Ban quản lý'
       historyQuery = `
-        -- Phần 1: Lịch sử bảo trì
         SELECT
-          schedule_id as id,
-          'Maintenance' as type,
-          status,
-          description,
-          result_note as result,
-          TO_CHAR(scheduled_date, 'YYYY-MM-DD HH24:MI:SS') as date,
+          schedule_id as id, 'Maintenance' as type, status, description,
+          result_note as result, TO_CHAR(scheduled_date, 'YYYY-MM-DD HH24:MI:SS') as date,
           'Ban quản lý' as performer_name
-        FROM maintenanceschedule
-        WHERE asset_id = $1
-
+        FROM maintenanceschedule WHERE asset_id = $1
         UNION ALL
-
-        -- Phần 2: Báo cáo sự cố của chính user
         SELECT
-          report_id as id,
-          'MyReport' as type,
-          status,
-          description,
-          admin_note as result,
-          TO_CHAR(created_at, 'YYYY-MM-DD HH24:MI:SS') as date,
+          report_id as id, 'MyReport' as type, status, description,
+          admin_note as result, TO_CHAR(created_at, 'YYYY-MM-DD HH24:MI:SS') as date,
           'Tôi' as performer_name
-        FROM incident_reports
-        WHERE asset_id = $1 AND user_id = $2
-
+        FROM incident_reports WHERE asset_id = $1 AND user_id = $2
         ORDER BY date DESC
       `;
       queryParams = [asset_id, user_id || 0];
@@ -238,6 +246,7 @@ router.get("/asset/:asset_id/details", async (req, res) => {
 
     res.json({
         asset: assetInfo,
+        images: imageUrls, // 🔥 Trả về mảng URL ảnh
         history: historyRes.rows
     });
 
@@ -246,4 +255,5 @@ router.get("/asset/:asset_id/details", async (req, res) => {
     res.status(500).json({ error: "Lỗi Server: " + err.message });
   }
 });
+
 export default router;
