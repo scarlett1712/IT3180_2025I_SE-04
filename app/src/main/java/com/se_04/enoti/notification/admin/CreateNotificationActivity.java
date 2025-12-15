@@ -490,7 +490,7 @@ public class CreateNotificationActivity extends BaseActivity {
 
             // 🔥 THÊM FILE BASE64 VÀO BODY
             if (fileBase64 != null) {
-                body.put("image_base64", fileBase64); // Dùng key chung là image_base64 cho cả file
+                body.put("file_base64", fileBase64); // Dùng key chung là image_base64 cho cả file
                 body.put("file_name", fileName);
             }
 
