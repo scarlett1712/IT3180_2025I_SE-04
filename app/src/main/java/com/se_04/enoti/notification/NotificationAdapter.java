@@ -150,6 +150,10 @@ public class NotificationAdapter extends RecyclerView.Adapter<NotificationAdapte
             intent.putExtra("sender", clicked.getSender());
             intent.putExtra("is_read", clicked.isRead());
 
+            // 🔥 4. TRUYỀN DỮ LIỆU FILE QUA INTENT (QUAN TRỌNG)
+            intent.putExtra("file_url", clicked.getFileUrl());
+            intent.putExtra("file_type", clicked.getFileType());
+
             context.startActivity(intent);
         });
     }

@@ -1,5 +1,6 @@
 package com.se_04.enoti.notification.admin;
 
+import android.app.AlertDialog;
 import android.content.Intent;
 import android.net.Uri;
 import android.os.Bundle;
@@ -13,8 +14,7 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.annotation.Nullable;
-import androidx.appcompat.app.AlertDialog;
-import androidx.cardview.widget.CardView; // Import
+import androidx.cardview.widget.CardView;
 import androidx.localbroadcastmanager.content.LocalBroadcastManager;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
@@ -24,9 +24,9 @@ import com.android.volley.RequestQueue;
 import com.android.volley.toolbox.JsonArrayRequest;
 import com.android.volley.toolbox.JsonObjectRequest;
 import com.android.volley.toolbox.Volley;
-import com.bumptech.glide.Glide; // Import
+import com.bumptech.glide.Glide; // 🔥 Đã thêm Glide
 import com.google.android.material.appbar.MaterialToolbar;
-import com.google.android.material.button.MaterialButton; // Import
+import com.google.android.material.button.MaterialButton;
 import com.se_04.enoti.R;
 import com.se_04.enoti.feedback.admin.FeedbackAdapter_Admin;
 import com.se_04.enoti.feedback.admin.FeedbackItem_Admin;
@@ -60,7 +60,7 @@ public class NotificationDetailActivity_Admin extends BaseActivity {
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_notification_detail_admin); // Dùng lại layout User hoặc layout Admin tương tự
+        setContentView(R.layout.activity_notification_detail_admin);
 
         MaterialToolbar toolbar = findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
@@ -99,12 +99,15 @@ public class NotificationDetailActivity_Admin extends BaseActivity {
         String fileUrl = getIntent().getStringExtra("file_url");
         String fileType = getIntent().getStringExtra("file_type");
 
+        // DEBUG LOG
+        Log.e("NotifAdmin", "ID: " + currentNotificationId + ", URL: " + fileUrl + ", Type: " + fileType);
+
         txtTitle.setText(currentTitle != null ? currentTitle : "Tiêu đề");
         txtContent.setText(currentContent != null ? currentContent : "");
         txtSender.setText(getString(R.string.notification_sender, sender != null ? sender : "Ban quản lý"));
         txtDate.setText("Hạn: " + (expiredDate != null ? expiredDate : "N/A"));
 
-        // 🔥 Hiển thị file
+        // 🔥 Hiển thị file bằng Glide
         displayAttachment(fileUrl, fileType);
 
         if (currentNotificationId != -1) {
@@ -118,18 +121,32 @@ public class NotificationDetailActivity_Admin extends BaseActivity {
     private void displayAttachment(String fileUrl, String fileType) {
         if (fileUrl != null && !fileUrl.isEmpty() && !fileUrl.equals("null")) {
             if ("image".equals(fileType) || (fileType != null && fileType.startsWith("image"))) {
+                // HIỂN THỊ ẢNH
                 if (cardAttachment != null) cardAttachment.setVisibility(View.VISIBLE);
                 if (btnViewFile != null) btnViewFile.setVisibility(View.GONE);
 
-                Glide.with(this).load(fileUrl).into(imgAttachment);
+                // 🔥 Dùng Glide load ảnh
+                Glide.with(this)
+                        .load(fileUrl)
+                        .placeholder(R.drawable.bg_white_rounded) // Đảm bảo đã tạo drawable này
+                        .error(R.drawable.ic_warning_circle) // Đảm bảo đã tạo icon error
+                        .into(imgAttachment);
+
                 imgAttachment.setOnClickListener(v -> openWebBrowser(fileUrl));
             } else {
+                // HIỂN THỊ NÚT TẢI FILE
                 if (cardAttachment != null) cardAttachment.setVisibility(View.GONE);
                 if (btnViewFile != null) btnViewFile.setVisibility(View.VISIBLE);
 
+                String btnText = "Xem tài liệu đính kèm";
+                if ("video".equals(fileType) || (fileType != null && fileType.startsWith("video"))) btnText = "Xem Video";
+                if ("pdf".equals(fileType)) btnText = "Mở tài liệu PDF";
+
+                btnViewFile.setText(btnText);
                 btnViewFile.setOnClickListener(v -> openWebBrowser(fileUrl));
             }
         } else {
+            // KHÔNG CÓ FILE
             if (cardAttachment != null) cardAttachment.setVisibility(View.GONE);
             if (btnViewFile != null) btnViewFile.setVisibility(View.GONE);
         }
@@ -139,7 +156,9 @@ public class NotificationDetailActivity_Admin extends BaseActivity {
         try {
             Intent i = new Intent(Intent.ACTION_VIEW, Uri.parse(url));
             startActivity(i);
-        } catch (Exception e) {}
+        } catch (Exception e) {
+            Toast.makeText(this, "Không thể mở liên kết", Toast.LENGTH_SHORT).show();
+        }
     }
 
     private void fetchFeedbackList(int notificationId) {
@@ -175,8 +194,6 @@ public class NotificationDetailActivity_Admin extends BaseActivity {
         }
     }
 
-    // ... Giữ nguyên các hàm Menu (onCreateOptionsMenu, onOptionsItemSelected, deleteNotification...) của bạn
-    // Vì code Admin khá dài nên mình chỉ update phần onCreate và logic hiển thị file, phần menu bạn giữ nguyên nhé.
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
         getMenuInflater().inflate(R.menu.menu_notification_admin, menu);

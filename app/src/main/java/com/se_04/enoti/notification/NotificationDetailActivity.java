@@ -4,15 +4,16 @@ import android.content.Intent;
 import android.net.Uri;
 import android.os.Bundle;
 import android.util.Log;
-import android.util.TypedValue;
 import android.view.MenuItem;
 import android.view.View;
 import android.widget.ImageView;
 import android.widget.TextView;
-import androidx.annotation.Nullable;
-import androidx.cardview.widget.CardView; // Import CardView
+import android.widget.Toast;
 
-import com.bumptech.glide.Glide; // 🔥 Import Glide
+import androidx.annotation.Nullable;
+import androidx.cardview.widget.CardView;
+
+import com.bumptech.glide.Glide;
 import com.google.android.material.appbar.MaterialToolbar;
 import com.google.android.material.button.MaterialButton;
 import com.se_04.enoti.R;
@@ -26,7 +27,7 @@ public class NotificationDetailActivity extends BaseActivity {
     private long notificationId;
     private boolean wasMarkedAsRead = false;
 
-    // 🔥 Views mới
+    // 🔥 Views đính kèm
     private ImageView imgAttachment;
     private CardView cardAttachment;
     private MaterialButton btnViewFile;
@@ -38,7 +39,7 @@ public class NotificationDetailActivity extends BaseActivity {
         repository = NotificationRepository.getInstance(this);
         setContentView(R.layout.activity_notification_detail);
 
-        // Ánh xạ views cũ
+        // Ánh xạ views
         MaterialButton btnReply = findViewById(R.id.btnReply);
         TextView txtTitle = findViewById(R.id.txtDetailTitle);
         TextView txtDate = findViewById(R.id.txtDetailDate);
@@ -58,7 +59,7 @@ public class NotificationDetailActivity extends BaseActivity {
             getSupportActionBar().setTitle("Chi tiết thông báo");
         }
 
-        // Lấy dữ liệu Intent
+        // Lấy dữ liệu từ Intent
         notificationId = getIntent().getLongExtra("notification_id", -1);
         String title = getIntent().getStringExtra("title");
         String expired_date = getIntent().getStringExtra("expired_date");
@@ -70,6 +71,9 @@ public class NotificationDetailActivity extends BaseActivity {
         String fileUrl = getIntent().getStringExtra("file_url");
         String fileType = getIntent().getStringExtra("file_type");
 
+        // DEBUG LOG: Kiểm tra xem URL có qua được bên này không
+        Log.e("NotifDetail", "ID: " + notificationId + ", URL: " + fileUrl + ", Type: " + fileType);
+
         if (title != null) txtTitle.setText(title);
         if (expired_date != null) txtDate.setText(expired_date);
         if (content != null) txtContent.setText(content);
@@ -78,7 +82,7 @@ public class NotificationDetailActivity extends BaseActivity {
         // 🔥 LOGIC HIỂN THỊ FILE
         displayAttachment(fileUrl, fileType);
 
-        // Đánh dấu đã đọc
+        // Đánh dấu đã đọc (nếu chưa đọc)
         if (notificationId != -1 && !isRead) {
             repository.markAsRead(notificationId, new NotificationRepository.SimpleCallback() {
                 @Override
@@ -105,19 +109,20 @@ public class NotificationDetailActivity extends BaseActivity {
         if (fileUrl != null && !fileUrl.isEmpty() && !fileUrl.equals("null")) {
             if ("image".equals(fileType) || (fileType != null && fileType.startsWith("image"))) {
                 // Hiển thị ảnh
-                cardAttachment.setVisibility(View.VISIBLE);
-                btnViewFile.setVisibility(View.GONE);
+                if (cardAttachment != null) cardAttachment.setVisibility(View.VISIBLE);
+                if (btnViewFile != null) btnViewFile.setVisibility(View.GONE);
 
                 Glide.with(this)
                         .load(fileUrl)
                         .placeholder(R.drawable.bg_white_rounded)
+                        .error(R.drawable.ic_warning_circle) // 🔥 Thêm icon lỗi nếu ảnh chết
                         .into(imgAttachment);
 
                 imgAttachment.setOnClickListener(v -> openWebBrowser(fileUrl));
             } else {
                 // Hiển thị nút tải file (PDF, Video...)
-                cardAttachment.setVisibility(View.GONE);
-                btnViewFile.setVisibility(View.VISIBLE);
+                if (cardAttachment != null) cardAttachment.setVisibility(View.GONE);
+                if (btnViewFile != null) btnViewFile.setVisibility(View.VISIBLE);
 
                 String btnText = "Xem tài liệu đính kèm";
                 if ("video".equals(fileType)) btnText = "Xem Video đính kèm";
@@ -128,8 +133,8 @@ public class NotificationDetailActivity extends BaseActivity {
             }
         } else {
             // Không có file
-            cardAttachment.setVisibility(View.GONE);
-            btnViewFile.setVisibility(View.GONE);
+            if (cardAttachment != null) cardAttachment.setVisibility(View.GONE);
+            if (btnViewFile != null) btnViewFile.setVisibility(View.GONE);
         }
     }
 
@@ -140,6 +145,7 @@ public class NotificationDetailActivity extends BaseActivity {
             startActivity(intent);
         } catch (Exception e) {
             e.printStackTrace();
+            Toast.makeText(this, "Không thể mở liên kết này", Toast.LENGTH_SHORT).show();
         }
     }
 

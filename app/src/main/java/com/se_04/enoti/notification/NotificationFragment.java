@@ -37,7 +37,7 @@ import java.util.List;
 public class NotificationFragment extends Fragment {
 
     private static final String TAG = "NotificationFragment";
-    private static final int REFRESH_INTERVAL = 30000; // 🔥 Increased to 30 seconds to reduce conflicts
+    private static final int REFRESH_INTERVAL = 30000;
 
     private NotificationAdapter adapter;
     private final List<NotificationItem> originalList = new ArrayList<>();
@@ -112,13 +112,10 @@ public class NotificationFragment extends Fragment {
                 @Override
                 public void onNotificationClicked(long notificationId) {
                     Log.d(TAG, "🔔 Fragment received click callback for notification: " + notificationId);
-                    // When a notification is clicked and marked as read, update it locally
                     updateNotificationReadStatus(notificationId, true);
                 }
             });
             recyclerView.setAdapter(adapter);
-
-            Log.d(TAG, "✅ RecyclerView initialized successfully with adapter callback");
         } else {
             Log.e(TAG, "❌ RecyclerView is NULL!");
         }
@@ -140,7 +137,6 @@ public class NotificationFragment extends Fragment {
     public void onPause() {
         super.onPause();
         refreshHandler.removeCallbacks(refreshRunnable);
-        // 🔥 Save cache when leaving to preserve read states
         saveListToCache(originalList);
     }
 
@@ -168,8 +164,7 @@ public class NotificationFragment extends Fragment {
             }
 
             @Override
-            public void onNothingSelected(AdapterView<?> parent) {
-            }
+            public void onNothingSelected(AdapterView<?> parent) {}
         };
         spinnerFilterType.setOnItemSelectedListener(filterListener);
         spinnerFilterTime.setOnItemSelectedListener(filterListener);
@@ -248,58 +243,30 @@ public class NotificationFragment extends Fragment {
         });
     }
 
-    // 🔥 NEW METHOD: Update a specific notification's read status
     private void updateNotificationReadStatus(long notificationId, boolean isRead) {
-        Log.d(TAG, "🔄 updateNotificationReadStatus called for ID: " + notificationId + ", isRead: " + isRead);
-        Log.d(TAG, "📊 Current originalList size: " + originalList.size());
-
         boolean found = false;
 
-        // Update in original list
         for (NotificationItem item : originalList) {
             if (item.getId() == notificationId) {
-                Log.d(TAG, "🔍 Found notification in originalList. Current isRead: " + item.isRead());
                 item.setRead(isRead);
                 found = true;
-                Log.d(TAG, "✅ Updated notification " + notificationId + " to isRead=" + isRead);
                 break;
             }
         }
 
-        if (!found) {
-            Log.e(TAG, "❌ WARNING: Notification " + notificationId + " NOT FOUND in originalList!");
-            // Print all IDs for debugging
-            StringBuilder ids = new StringBuilder("Available IDs: ");
-            for (NotificationItem item : originalList) {
-                ids.append(item.getId()).append(", ");
-            }
-            Log.d(TAG, ids.toString());
-        }
-
         if (found) {
-            // Save to cache immediately
-            Log.d(TAG, "💾 Saving to cache...");
             saveListToCache(originalList);
-
-            // Update filtered list and refresh UI
-            Log.d(TAG, "🎨 Refreshing UI...");
             applyFiltersAndSearch();
-
-            Log.d(TAG, "✅ Update completed successfully");
         }
     }
 
-    // 🔥 NEW METHOD: Merge server data while preserving local read states
     private void mergeReadStates(List<NotificationItem> serverItems) {
         List<NotificationItem> updatedList = new ArrayList<>();
 
         for (NotificationItem serverItem : serverItems) {
-            // Check if we already have this notification locally with read status
             for (NotificationItem localItem : originalList) {
                 if (localItem.getId() == serverItem.getId() && localItem.isRead()) {
-                    // Preserve local read state if it was marked as read
                     serverItem.setRead(true);
-                    Log.d(TAG, "🔄 Preserved read state for notification " + serverItem.getId());
                     break;
                 }
             }
@@ -308,11 +275,10 @@ public class NotificationFragment extends Fragment {
 
         originalList.clear();
         originalList.addAll(updatedList);
-
-        // Save the merged data
         saveListToCache(originalList);
     }
 
+    // 🔥 CẬP NHẬT: Lưu file_url và file_type vào cache
     private void saveListToCache(List<NotificationItem> items) {
         if (!isAdded()) return;
         try {
@@ -327,15 +293,18 @@ public class NotificationFragment extends Fragment {
                 obj.put("created_at", item.getDate());
                 obj.put("expired_date", item.getExpired_date());
                 obj.put("is_read", item.isRead());
+                obj.put("file_url", item.getFileUrl());
+                obj.put("file_type", item.getFileType());
+
                 array.put(obj);
             }
             DataCacheManager.getInstance(requireContext()).saveCache(cacheFileName, array.toString());
-            Log.d(TAG, "💾 Cache saved with " + items.size() + " items");
         } catch (Exception e) {
             Log.e(TAG, "Failed to save cache", e);
         }
     }
 
+    // 🔥 CẬP NHẬT: Đọc file_url và file_type từ cache
     private void loadFromCache() {
         if (!isAdded()) return;
         String data = DataCacheManager.getInstance(requireContext()).readCache(cacheFileName);
@@ -354,7 +323,9 @@ public class NotificationFragment extends Fragment {
                             obj.optString("type"),
                             obj.optString("sender"),
                             obj.optString("content"),
-                            obj.optBoolean("is_read")
+                            obj.optBoolean("is_read"),
+                            obj.optString("file_url"), // 🔥 LẤY TỪ CACHE
+                            obj.optString("file_type") // 🔥 LẤY TỪ CACHE
                     ));
                 }
                 originalList.clear();
@@ -406,24 +377,16 @@ public class NotificationFragment extends Fragment {
                 txtEmpty.setText(originalList.isEmpty() ? "Chưa có thông báo nào." : "Không tìm thấy kết quả.");
             }
         }
-
-        Log.d(TAG, "🔍 Applied filters: " + filteredList.size() + " items displayed");
     }
 
     private String convertTypeToEnglish(String typeVi) {
         switch (typeVi) {
-            case "Hành chính":
-                return "Administrative";
-            case "Kỹ thuật & bảo trì":
-                return "Maintenance";
-            case "Tài chính":
-                return "Finance";
-            case "Sự kiện & cộng đồng":
-                return "Event";
-            case "Khẩn cấp":
-                return "Emergency";
-            default:
-                return "All";
+            case "Hành chính": return "Administrative";
+            case "Kỹ thuật & bảo trì": return "Maintenance";
+            case "Tài chính": return "Finance";
+            case "Sự kiện & cộng đồng": return "Event";
+            case "Khẩn cấp": return "Emergency";
+            default: return "All";
         }
     }
 }

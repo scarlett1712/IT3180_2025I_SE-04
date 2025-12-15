@@ -441,27 +441,20 @@ public class NotificationRepository {
     private NotificationItem parseNotificationFromJson(JSONObject o) {
         try {
             long id = o.optLong("notification_id", -1);
-            // Nếu không tìm thấy id thì thử tìm key "id"
             if (id == -1) id = o.optLong("id", -1);
 
             String title = o.optString("title", "Thông báo mới");
             String content = o.optString("content", "");
             String type = o.optString("type", "Thông báo");
 
-            // Xử lý ngày tạo
             String createdAt = o.optString("created_at", "");
             if (createdAt.equals("null")) createdAt = "";
 
-            // 🔥 SỬA LẠI PHẦN LẤY NGÀY HẾT HẠN (SCHEDULED_AT) 🔥
-            // 1. Ưu tiên lấy theo key "expired_date"
+            // Xử lý ngày hết hạn
             String expiredDate = o.optString("expired_date");
-
-            // 2. Nếu không có hoặc bị null, thử tìm key gốc "scheduled_at"
             if (expiredDate == null || expiredDate.isEmpty() || expiredDate.equalsIgnoreCase("null")) {
                 expiredDate = o.optString("scheduled_at");
             }
-
-            // 3. Nếu vẫn là "null" hoặc rỗng -> Gán mặc định là "" (hoặc gán bằng createdAt nếu muốn hiển thị ngày tạo thay thế)
             if (expiredDate == null || expiredDate.equalsIgnoreCase("null")) {
                 expiredDate = "";
             }
@@ -469,7 +462,17 @@ public class NotificationRepository {
             String sender = o.optString("sender", "Hệ thống");
             boolean isRead = o.optBoolean("is_read", false);
 
-            return new NotificationItem(id, title, createdAt, expiredDate, type, sender, content, isRead);
+            // 🔥 CẬP NHẬT: Lấy file_url và file_type (Fix lỗi null)
+            String fileUrl = o.optString("file_url", null);
+            String fileType = o.optString("file_type", null);
+
+            // Kiểm tra kỹ nếu server trả về chuỗi "null"
+            if ("null".equalsIgnoreCase(fileUrl)) fileUrl = null;
+            if ("null".equalsIgnoreCase(fileType)) fileType = null;
+
+            // Sử dụng Constructor MỚI (đã thêm fileUrl, fileType)
+            return new NotificationItem(id, title, createdAt, expiredDate, type, sender, content, isRead, fileUrl, fileType);
+
         } catch (Exception e) {
             Log.e(TAG, "❌ JSON Parse Error", e);
             return null;

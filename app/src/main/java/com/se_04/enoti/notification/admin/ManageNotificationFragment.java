@@ -21,6 +21,7 @@ import androidx.fragment.app.Fragment;
 import androidx.localbroadcastmanager.content.LocalBroadcastManager;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
+import androidx.appcompat.widget.SearchView;
 
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
 import com.se_04.enoti.R;
@@ -30,7 +31,6 @@ import com.se_04.enoti.notification.NotificationItem;
 import com.se_04.enoti.notification.NotificationRepository;
 import com.se_04.enoti.utils.DataCacheManager;
 import com.se_04.enoti.utils.UserManager;
-import androidx.appcompat.widget.SearchView;
 
 import org.json.JSONArray;
 import org.json.JSONObject;
@@ -208,7 +208,11 @@ public class ManageNotificationFragment extends Fragment {
                 obj.put("type", item.getType());
                 obj.put("created_at", item.getDate());
                 obj.put("expired_date", item.getExpired_date());
-                // Admin không cần isRead
+
+                // 🔥 LƯU THÊM FILE URL & TYPE
+                obj.put("file_url", item.getFileUrl());
+                obj.put("file_type", item.getFileType());
+
                 array.put(obj);
             }
             DataCacheManager.getInstance(requireContext()).saveCache(DataCacheManager.CACHE_ADMIN_NOTIFS, array.toString());
@@ -232,7 +236,9 @@ public class ManageNotificationFragment extends Fragment {
                             obj.optString("type"),
                             "Hệ thống", // Sender mặc định admin
                             obj.optString("content"),
-                            true
+                            true,
+                            obj.optString("file_url"), // 🔥 LẤY TỪ CACHE
+                            obj.optString("file_type") // 🔥 LẤY TỪ CACHE
                     ));
                 }
                 updateListUI(list);
