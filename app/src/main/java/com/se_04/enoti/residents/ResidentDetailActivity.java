@@ -130,23 +130,23 @@ public class ResidentDetailActivity extends BaseActivity {
         if (bundle == null) return;
 
         // Set text an toàn (kiểm tra null)
-        if (tvName != null) tvName.setText(bundle.getString("Tên", ""));
+        if (tvName != null) tvName.setText(getValidText(bundle.getString("name", "")));
 
-        if (tvGender != null) tvGender.setText(bundle.getString("Giới tính", ""));
-        if (tvDob != null) tvDob.setText(bundle.getString("Ngày sinh", ""));
-        if (tvJob != null) tvJob.setText(bundle.getString("Nghề nghiệp", ""));
+        if (tvGender != null) tvGender.setText(getValidText(bundle.getString("gender", "")));
+        if (tvDob != null) tvDob.setText(getValidText(bundle.getString("dob", "")));
+        if (tvJob != null) tvJob.setText(getValidText(bundle.getString("job", "")));
 
-        String identity = bundle.getString("identity_card", "");
+        String identity = getValidText(bundle.getString("identity_card", ""));
         if (tvIdentity != null) tvIdentity.setText(identity.isEmpty() ? "Chưa cập nhật" : identity);
 
-        String homeTown = bundle.getString("home_town", "");
+        String homeTown = getValidText(bundle.getString("home_town", ""));
         if (tvHomeTown != null) tvHomeTown.setText(homeTown.isEmpty() ? "Chưa cập nhật" : homeTown);
 
-        if (tvEmail != null) tvEmail.setText(bundle.getString("email", ""));
-        if (tvPhone != null) tvPhone.setText(bundle.getString("phone", ""));
+        if (tvEmail != null) tvEmail.setText(getValidText(bundle.getString("email", "")));
+        if (tvPhone != null) tvPhone.setText(getValidText(bundle.getString("phone", "")));
 
-        if (tvRoom != null) tvRoom.setText(bundle.getString("room", ""));
-        if (tvRelationship != null) tvRelationship.setText(bundle.getString("relationship", ""));
+        if (tvRoom != null) tvRoom.setText(getValidText(bundle.getString("room", "")));
+        if (tvRelationship != null) tvRelationship.setText(getValidText(bundle.getString("relationship", "")));
 
         // Vai trò
         if (tvRole != null) tvRole.setText("Cư dân");
@@ -428,5 +428,13 @@ public class ResidentDetailActivity extends BaseActivity {
     private File getAvatarFile(String userId) {
         File avatarDir = new File(getFilesDir(), "avatars");
         return new File(avatarDir, userId + ".jpg");
+    }
+
+    // Hàm kiểm tra: Nếu null hoặc rỗng -> Trả về "Không"
+    private String getValidText(String value) {
+        if (value == null || value.trim().isEmpty() || value.equalsIgnoreCase("null")) {
+            return "Không";
+        }
+        return value;
     }
 }

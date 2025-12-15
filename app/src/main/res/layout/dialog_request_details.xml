@@ -36,25 +36,7 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="vertical"
-            android:paddingBottom="10dp">
-            <TextView
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:text="Tên cũ: Nguyễn Văn A (Màu xám)\nTên mới: Nguyễn Văn B (Màu xanh)"
-                android:textColor="#555555"
-                android:lineSpacingExtra="4dp"
-                android:paddingVertical="8dp"
-                android:textSize="14sp"/>
-            <TextView
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:text="Ngày sinh cũ: 17-12-2005\nNgày sinh mới: 12-17-2005"
-                android:textColor="#555555"
-                android:lineSpacingExtra="4dp"
-                android:paddingVertical="8dp"
-                android:textSize="14sp"/>
-
-        </LinearLayout>
+            android:paddingBottom="10dp"/>
     </ScrollView>
 
     <LinearLayout

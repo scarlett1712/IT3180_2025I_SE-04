@@ -161,7 +161,35 @@ public class FinanceDetailActivity_Admin extends BaseActivity {
     private void createCheckboxesForRooms() {
         layoutRoomCheckboxes.removeAllViews();
         List<String> sortedRooms = new ArrayList<>(roomToUsersMap.keySet());
-        java.util.Collections.sort(sortedRooms);
+        java.util.Collections.sort(sortedRooms, new java.util.Comparator<String>() {
+            @Override
+            public int compare(String room1, String room2) {
+                try {
+                    // Tách tầng và số phòng cho room1
+                    int floor1 = Integer.parseInt(room1.substring(0, room1.length() - 2));
+                    int number1 = Integer.parseInt(room1.substring(room1.length() - 2));
+
+                    // Tách tầng và số phòng cho room2
+                    int floor2 = Integer.parseInt(room2.substring(0, room2.length() - 2));
+                    int number2 = Integer.parseInt(room2.substring(room2.length() - 2));
+
+                    // So sánh tầng trước
+                    int floorCompare = Integer.compare(floor1, floor2);
+                    if (floorCompare != 0) {
+                        return floorCompare; // Nếu tầng khác nhau, trả về kết quả so sánh tầng
+                    }
+
+                    // Nếu tầng giống nhau, so sánh số phòng
+                    return Integer.compare(number1, number2);
+
+                } catch (NumberFormatException | StringIndexOutOfBoundsException e) {
+                    // Nếu có lỗi (ví dụ: tên phòng không đúng định dạng), dùng cách so sánh chuỗi mặc định
+                    Log.e("SortRooms", "Lỗi khi phân tích tên phòng: " + room1 + " hoặc " + room2, e);
+                    return room1.compareTo(room2);
+                }
+            }
+        });
+
 
         if (canEdit) {
             Toast.makeText(this, "Giữ lì (Long Press) vào phòng đã thanh toán để xem hóa đơn", Toast.LENGTH_LONG).show();
@@ -231,9 +259,6 @@ public class FinanceDetailActivity_Admin extends BaseActivity {
         bottomSheet.show(getSupportFragmentManager(), "InvoiceBottomSheet");
     }
 
-    // ... (Giữ nguyên logic updateRoomStatuses và updateStatusForRoom) ...
-
-    // Lưu ý: Cần giữ nguyên các phần code cũ về updateRoomStatuses để Kế toán có thể sửa trạng thái
     private void updateRoomStatuses() {
         if (!canEdit) return;
         int updatedCount = 0;
