@@ -113,7 +113,7 @@ public class AccountFragment extends Fragment {
             // Nhưng tôi sẽ giữ nguyên theo code cũ của bạn để tránh lỗi logic hiện tại
             currentUser = new UserItem(
                     "U01", "F01", "a.nguyenvan@example.com", "Nguyễn Văn A",
-                    "12/03/1950", Gender.MALE, "Chủ hộ", 0, Role.USER, "0987654321", "000000000000", "Hà Nội"
+                    "12/03/1950", "Không", Gender.MALE, "Chủ hộ", 0, Role.USER, "0987654321", "000000000000", "Hà Nội"
             );
             userManager.saveCurrentUser(currentUser);
         }

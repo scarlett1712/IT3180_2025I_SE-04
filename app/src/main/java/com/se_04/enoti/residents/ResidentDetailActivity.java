@@ -40,7 +40,7 @@ import java.util.Map;
 public class ResidentDetailActivity extends BaseActivity {
 
     // Các TextView hiển thị giá trị (Value)
-    private TextView tvName, tvGender, tvDob, tvIdentity, tvHomeTown;
+    private TextView tvName, tvGender, tvDob, tvJob, tvIdentity, tvHomeTown;
     private TextView tvEmail, tvPhone;
     private TextView tvRoom, tvRelationship, tvRole; // tvRole lấy từ layout rowRole
     private TextView txtResidentLiving;
@@ -100,6 +100,7 @@ public class ResidentDetailActivity extends BaseActivity {
         // Hàm này sẽ gán Label cho dòng đó và trả về TextView Value để ta set dữ liệu sau này
         tvGender = setupRow(R.id.rowGender, "Giới tính");
         tvDob = setupRow(R.id.rowDob, "Ngày sinh");
+        tvJob = setupRow(R.id.rowJob, "Nghề nghiệp");
         tvIdentity = setupRow(R.id.rowIdentity, "CCCD/CMND");
         tvHomeTown = setupRow(R.id.rowHomeTown, "Quê quán");
 
@@ -129,10 +130,11 @@ public class ResidentDetailActivity extends BaseActivity {
         if (bundle == null) return;
 
         // Set text an toàn (kiểm tra null)
-        if (tvName != null) tvName.setText(bundle.getString("name", ""));
+        if (tvName != null) tvName.setText(bundle.getString("Tên", ""));
 
-        if (tvGender != null) tvGender.setText(bundle.getString("gender", ""));
-        if (tvDob != null) tvDob.setText(bundle.getString("dob", ""));
+        if (tvGender != null) tvGender.setText(bundle.getString("Giới tính", ""));
+        if (tvDob != null) tvDob.setText(bundle.getString("Ngày sinh", ""));
+        if (tvJob != null) tvJob.setText(bundle.getString("Nghề nghiệp", ""));
 
         String identity = bundle.getString("identity_card", "");
         if (tvIdentity != null) tvIdentity.setText(identity.isEmpty() ? "Chưa cập nhật" : identity);
@@ -185,8 +187,6 @@ public class ResidentDetailActivity extends BaseActivity {
                     item.setTitle(spanString);
                 }
             }
-            // 🔥🔥🔥 KẾT THÚC CODE ÉP MÀU 🔥🔥🔥
-
             return true;
         }
 
@@ -234,6 +234,7 @@ public class ResidentDetailActivity extends BaseActivity {
         EditText edtEmail = dialogView.findViewById(R.id.edtEditEmail);
         EditText edtGender = dialogView.findViewById(R.id.edtEditGender);
         EditText edtDob = dialogView.findViewById(R.id.edtEditDob);
+        EditText edtJob = dialogView.findViewById(R.id.edtEditJob);
         EditText edtIdentity = dialogView.findViewById(R.id.edtEditIdentityCard);
         EditText edtHomeTown = dialogView.findViewById(R.id.edtEditHomeTown);
         Button btnSave = dialogView.findViewById(R.id.btnSaveEdit);
@@ -261,6 +262,7 @@ public class ResidentDetailActivity extends BaseActivity {
                     edtEmail.getText().toString().trim(),
                     edtGender.getText().toString().trim(),
                     edtDob.getText().toString().trim(),
+                    edtJob.getText().toString().trim(),
                     edtIdentity.getText().toString().trim(),
                     edtHomeTown.getText().toString().trim(),
                     dialog
@@ -270,7 +272,7 @@ public class ResidentDetailActivity extends BaseActivity {
         dialog.show();
     }
 
-    private void updateResidentInfo(String name, String phone, String email, String gender, String dob, String identity, String homeTown, AlertDialog dialog) {
+    private void updateResidentInfo(String name, String phone, String email, String gender, String dob, String job, String identity, String homeTown, AlertDialog dialog) {
         JSONObject body = new JSONObject();
         try {
             body.put("full_name", name);
@@ -278,6 +280,7 @@ public class ResidentDetailActivity extends BaseActivity {
             body.put("email", email);
             body.put("gender", gender);
             body.put("dob", dob);
+            body.put("job", job);
             body.put("identity_card", identity);
             body.put("home_town", homeTown);
         } catch (JSONException e) { e.printStackTrace(); }
@@ -291,6 +294,7 @@ public class ResidentDetailActivity extends BaseActivity {
                     if (tvEmail != null) tvEmail.setText(email);
                     if (tvGender != null) tvGender.setText(gender);
                     if (tvDob != null) tvDob.setText(dob);
+                    if (tvJob != null) tvJob.setText(job);
                     if (tvIdentity != null) tvIdentity.setText(identity);
                     if (tvHomeTown != null) tvHomeTown.setText(homeTown);
 

@@ -12,6 +12,7 @@ public class UserItem implements Serializable {
     private final String email;
     private final String name;
     private final String dob;
+    private final String job;
     private final Gender gender;
     private final String relationship;
     private final int room;
@@ -20,7 +21,7 @@ public class UserItem implements Serializable {
     private final String identityCard;
     private final String homeTown;
 
-    public UserItem(String id, @Nullable String familyId, String email, String name, String dob,
+    public UserItem(String id, @Nullable String familyId, String email, String name, String dob, String job,
                     Gender gender, String relationship, int room, Role role, String phone,
                     String identityCard, String homeTown) {
         this.id = id;
@@ -28,6 +29,7 @@ public class UserItem implements Serializable {
         this.email = email;
         this.name = name;
         this.dob = dob;
+        this.job = job;
         this.gender = gender;
         this.relationship = relationship;
         this.room = room;
@@ -43,6 +45,8 @@ public class UserItem implements Serializable {
         String name = userJson.optString("name");
         String genderStr = userJson.optString("gender", "Khác");
         String dob = userJson.optString("dob", "01-01-2000");
+        String job = userJson.optString("job", "");
+        String familyId = userJson.optString("family_id", "");
         String roomStr = userJson.optString("room", "0");
         String relationship = userJson.optString("relationship", "Thành viên");
         String email = userJson.optString("email", "");
@@ -86,7 +90,7 @@ public class UserItem implements Serializable {
             room = 0;
         }
 
-        return new UserItem(id, null, email, name, dob, gender, relationship, room, role, phone, identityCard, homeTown);
+        return new UserItem(id, null, email, name, dob, job, gender, relationship, room, role, phone, identityCard, homeTown);
     }
 
     // --- Getters ---
@@ -96,6 +100,7 @@ public class UserItem implements Serializable {
     public String getName() { return name; }
     public String getDob() { return dob; }
     public Gender getGender() { return gender; }
+    public String getJob() { return job; }
     public String getRelationship() { return relationship; }
     public int getRoom() { return room; }
     public Role getRole() { return role; }

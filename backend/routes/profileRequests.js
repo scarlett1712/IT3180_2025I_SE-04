@@ -16,6 +16,7 @@ const createTableQuery = `
     new_email VARCHAR(255),
     new_gender VARCHAR(50),
     new_dob DATE,
+    new_job VARCHAR(255),
     new_identity_card VARCHAR(50),
     new_home_town VARCHAR(255),
     new_relationship VARCHAR(100), -- Lưu chuỗi text (VD: "Vợ")
@@ -32,11 +33,13 @@ const createTableQuery = `
     await query(createTableQuery);
 
     // Đảm bảo các cột mới tồn tại trong bảng request
+    await query(`ALTER TABLE profile_requests ADD COLUMN IF NOT EXISTS new_job VARCHAR(50);`);
     await query(`ALTER TABLE profile_requests ADD COLUMN IF NOT EXISTS new_identity_card VARCHAR(50);`);
     await query(`ALTER TABLE profile_requests ADD COLUMN IF NOT EXISTS new_home_town VARCHAR(255);`);
     await query(`ALTER TABLE profile_requests ADD COLUMN IF NOT EXISTS new_is_living BOOLEAN;`);
 
     // Đảm bảo các cột mới tồn tại trong bảng chính user_item (như file create_user)
+    await query(`ALTER TABLE user_item ADD COLUMN IF NOT EXISTS job VARCHAR(50);`);
     await query(`ALTER TABLE user_item ADD COLUMN IF NOT EXISTS identity_card VARCHAR(50);`);
     await query(`ALTER TABLE user_item ADD COLUMN IF NOT EXISTS home_town VARCHAR(255);`);
     await query(`ALTER TABLE user_item ADD COLUMN IF NOT EXISTS is_living BOOLEAN DEFAULT TRUE;`);
@@ -51,7 +54,7 @@ const createTableQuery = `
 router.post("/create", async (req, res) => {
   try {
     const {
-      user_id, full_name, phone, email, gender, dob,
+      user_id, full_name, phone, email, gender, dob, job,
       identity_card, home_town, relationship, is_head
     } = req.body;
 
@@ -76,10 +79,11 @@ router.post("/create", async (req, res) => {
                email = COALESCE($2, email),
                gender = COALESCE($3, gender),
                dob = COALESCE($4, dob),
-               identity_card = COALESCE($5, identity_card),
-               home_town = COALESCE($6, home_town)
-           WHERE user_id = $7`,
-          [full_name, email, gender, dob, identity_card, home_town, user_id]
+               job = COALESCE($5, job),
+               identity_card = COALESCE($6, identity_card),
+               home_town = COALESCE($7, home_town)
+           WHERE user_id = $8`,
+          [full_name, email, gender, dob, job, identity_card, home_town, user_id]
         );
 
         // 2. Update bảng users (Số điện thoại)
@@ -114,10 +118,10 @@ router.post("/create", async (req, res) => {
 
       await pool.query(
         `INSERT INTO profile_requests
-         (user_id, new_full_name, new_phone, new_email, new_gender, new_dob,
+         (user_id, new_full_name, new_phone, new_email, new_gender, new_dob, new_job,
           new_identity_card, new_home_town, new_relationship, new_is_head)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
-        [user_id, full_name, phone, email, gender, dob, identity_card, home_town, relationship, is_head]
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
+        [user_id, full_name, phone, email, gender, dob, job, identity_card, home_town, relationship, is_head]
       );
 
       return res.json({ success: true, message: "Đã gửi yêu cầu, vui lòng chờ BQT duyệt.", is_auto_approved: false });
@@ -140,8 +144,9 @@ router.get("/pending", async (req, res) => {
              ui.email as current_email,
              ui.gender as current_gender,
              TO_CHAR(ui.dob, 'YYYY-MM-DD') as current_dob,
-             ui.identity_card as current_identity_card, -- 🔥
-             ui.home_town as current_home_town,         -- 🔥
+             ui.job as current_job,
+             ui.identity_card as current_identity_card,
+             ui.home_town as current_home_town,
              ui.is_living as current_is_living,
 
              -- Lấy tên quan hệ hiện tại từ bảng relationship thông qua ID
@@ -189,15 +194,17 @@ router.post("/resolve", async (req, res) => {
              email = COALESCE($2, email),
              gender = COALESCE($3, gender),
              dob = COALESCE($4, dob),
-             identity_card = COALESCE($5, identity_card), -- 🔥 Update CCCD
-             home_town = COALESCE($6, home_town),         -- 🔥 Update Quê quán
-             is_living = COALESCE($7, is_living)
-         WHERE user_id = $8`,
+             job = COALESCE($5, job),
+             identity_card = COALESCE($6, identity_card), -- 🔥 Update CCCD
+             home_town = COALESCE($7, home_town),         -- 🔥 Update Quê quán
+             is_living = COALESCE($8, is_living)
+         WHERE user_id = $9`,
         [
             request.new_full_name,
             request.new_email,
             request.new_gender,
             request.new_dob,
+            request.new_job,
             request.new_identity_card,
             request.new_home_town,
             request.new_is_living,

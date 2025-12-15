@@ -195,12 +195,19 @@ public class CreateNotificationActivity extends BaseActivity {
                 if (obj.optInt("role_id", 0) != 1) continue;
 
                 allResidents.add(new ResidentItem(
-                        obj.optInt("user_item_id"), obj.optInt("user_id"),
-                        obj.optString("full_name"), obj.optString("gender"),
-                        obj.optString("dob"), obj.optString("email"),
-                        obj.optString("phone"), obj.optString("relationship_with_the_head_of_household"),
-                        obj.optString("family_id"), obj.optBoolean("is_living"),
-                        obj.optString("apartment_number"), obj.optString("identity_card", ""),
+                        obj.optInt("user_item_id"),
+                        obj.optInt("user_id"),
+                        obj.optString("full_name"),
+                        obj.optString("gender"),
+                        obj.optString("dob"),
+                        obj.optString("job"),
+                        obj.optString("email"),
+                        obj.optString("phone"),
+                        obj.optString("relationship_with_the_head_of_household"),
+                        obj.optString("family_id"),
+                        obj.optBoolean("is_living"),
+                        obj.optString("apartment_number"),
+                        obj.optString("identity_card", ""),
                         obj.optString("home_town", "")
                 ));
             }

@@ -32,7 +32,7 @@
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Họ và tên"
+            android:text="Họ và tên*"
             android:textColor="#555555"
             android:textSize="14sp"
             android:layout_marginBottom="4dp"/>
@@ -51,7 +51,7 @@
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Số điện thoại"
+            android:text="Số điện thoại*"
             android:textColor="#555555"
             android:textSize="14sp"
             android:layout_marginBottom="4dp"/>
@@ -70,7 +70,7 @@
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Email"
+            android:text="Email*"
             android:textColor="#555555"
             android:textSize="14sp"
             android:layout_marginBottom="4dp"/>
@@ -89,7 +89,7 @@
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Giới tính"
+            android:text="Giới tính*"
             android:textColor="#555555"
             android:textSize="14sp"
             android:layout_marginBottom="4dp"/>
@@ -108,7 +108,7 @@
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Ngày sinh (DD-MM-YYYY)"
+            android:text="Ngày sinh (DD-MM-YYYY)*"
             android:textColor="#555555"
             android:textSize="14sp"
             android:layout_marginBottom="4dp"/>
@@ -121,6 +121,25 @@
             android:padding="12dp"
             android:hint="Ví dụ: 31-12-1990"
             android:inputType="date"
+            android:minHeight="48dp"
+            android:layout_marginBottom="16dp" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Nghề nghiệp"
+            android:textColor="#555555"
+            android:textSize="14sp"
+            android:layout_marginBottom="4dp"/>
+
+        <EditText
+            android:id="@+id/edtEditJob"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:background="@drawable/bg_input_rounded_border"
+            android:padding="12dp"
+            android:hint="Ví dụ: Công nhân, Giáo viên, ..."
+            android:inputType="text"
             android:minHeight="48dp"
             android:layout_marginBottom="16dp" />
 

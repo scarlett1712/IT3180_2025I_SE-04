@@ -140,6 +140,7 @@ public class UserManager {
         editor.putString("email", user.getEmail());
         editor.putString("name", user.getName());
         editor.putString("dob", user.getDob());
+        editor.putString("job", user.getJob());
 
         if (user.getGender() != null)
             editor.putString("gender", user.getGender().name());
@@ -176,6 +177,7 @@ public class UserManager {
                 sharedPreferences.getString("email", ""),
                 sharedPreferences.getString("name", ""),
                 sharedPreferences.getString("dob", ""),
+                sharedPreferences.getString("job", ""),
                 gender,
                 sharedPreferences.getString("relationship_with_the_head_of_household", ""),
                 sharedPreferences.getInt("apartment_number", 0),
@@ -198,6 +200,7 @@ public class UserManager {
         editor.remove("email");
         editor.remove("name");
         editor.remove("dob");
+        editor.remove("job");
         editor.remove("gender");
         editor.remove("relationship_with_the_head_of_household");
         editor.remove("apartment_number");

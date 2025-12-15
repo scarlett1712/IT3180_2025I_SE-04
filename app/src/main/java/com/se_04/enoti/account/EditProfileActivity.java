@@ -37,7 +37,7 @@ import java.util.Locale;
 
 public class EditProfileActivity extends BaseActivity {
 
-    private TextInputEditText edtFullName, edtPhone, edtEmail, edtDob;
+    private TextInputEditText edtFullName, edtPhone, edtEmail, edtDob, edtJob;
     private TextInputEditText edtIdentityCard, edtHomeTown;
     private TextInputEditText edtRoom, edtFloor, edtRelation;
     private CheckBox checkboxIsHouseholder;
@@ -117,6 +117,7 @@ public class EditProfileActivity extends BaseActivity {
         edtEmail = findViewById(R.id.edtEmail);
         edtGender = findViewById(R.id.edtGender);
         edtDob = findViewById(R.id.edtDob);
+        edtJob = findViewById(R.id.edtJob);
 
         edtIdentityCard = findViewById(R.id.edtIdentityCard);
         edtHomeTown = findViewById(R.id.edtHomeTown);
@@ -179,6 +180,7 @@ public class EditProfileActivity extends BaseActivity {
         edtFullName.setText(currentUser.getName());
         edtPhone.setText(currentUser.getPhone());
         edtEmail.setText(currentUser.getEmail());
+        edtJob.setText(currentUser.getJob());
         edtIdentityCard.setText(currentUser.getIdentityCard());
         edtHomeTown.setText(currentUser.getHomeTown());
 
@@ -227,6 +229,7 @@ public class EditProfileActivity extends BaseActivity {
         String phone = edtPhone.getText().toString().trim();
         String email = edtEmail.getText().toString().trim();
         String gender = edtGender.getText().toString().trim();
+        String job = edtJob.getText().toString().trim();
         String dobDisplay = edtDob.getText().toString().trim();
         String identityCard = edtIdentityCard.getText().toString().trim();
         String homeTown = edtHomeTown.getText().toString().trim();
@@ -265,6 +268,7 @@ public class EditProfileActivity extends BaseActivity {
             body.put("email", email);
             body.put("gender", gender);
             body.put("dob", dobApi);
+            body.put("job", job);
             body.put("identity_card", identityCard);
             body.put("home_town", homeTown);
 
