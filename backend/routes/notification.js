@@ -6,11 +6,13 @@ const router = express.Router();
 
 /**
  * ==================================================================
- * 📝 API: TẠO THÔNG BÁO MỚI (Đã sửa: Auto set status = 'SENT')
+ * 📝 API: TẠO THÔNG BÁO MỚI (Logic: Scheduler + Status)
+ * (Đã cập nhật để Insert thêm file_url/file_type nếu có)
  * ==================================================================
  */
 router.post("/create", async (req, res) => {
-  const { title, content, type, target_type, target_ids, scheduled_at } = req.body;
+  // 🔥 Nhận thêm file_url, file_type (nếu logic của bạn có truyền ở đây)
+  const { title, content, type, target_type, target_ids, scheduled_at, file_url, file_type } = req.body;
 
   if (!title || !content) return res.status(400).json({ error: "Thiếu tiêu đề hoặc nội dung." });
 
@@ -18,21 +20,32 @@ router.post("/create", async (req, res) => {
   try {
     await client.query("BEGIN");
 
-    // 🔥 LOGIC QUAN TRỌNG: Xác định trạng thái
+    // 🔥 LOGIC: Xác định trạng thái
     // Nếu không chọn giờ hoặc giờ chọn < hiện tại -> Là gửi ngay -> Status = 'SENT'
     const isInstant = !scheduled_at || new Date(scheduled_at) <= new Date();
     const initialStatus = isInstant ? 'SENT' : 'PENDING';
     const finalScheduledAt = scheduled_at || new Date();
 
-    // Chèn vào bảng notification với cột status
+    // 🔥 CẬP NHẬT: Insert thêm file_url và file_type
     const insertRes = await client.query(
-      `INSERT INTO notification (title, content, type, created_by, created_at, scheduled_at, status)
-       VALUES ($1, $2, $3, 1, NOW(), $4, $5)
-       RETURNING notification_id`, // ⚠️ Lưu ý: Nếu DB của bạn cột id là 'id' thì sửa dòng này thành RETURNING id
-      [title, content, type || 'general', finalScheduledAt, initialStatus]
+      `INSERT INTO notification (
+          title, content, type, created_by, created_at, scheduled_at, status,
+          file_url, file_type
+       )
+       VALUES ($1, $2, $3, 1, NOW(), $4, $5, $6, $7)
+       RETURNING notification_id`,
+      [
+        title,
+        content,
+        type || 'general',
+        finalScheduledAt,
+        initialStatus,
+        file_url || null,  // 🔥 Lưu link file (nếu có)
+        file_type || null  // 🔥 Lưu loại file (nếu có)
+      ]
     );
 
-    // Lấy ID vừa tạo (Kiểm tra kỹ tên cột id hoặc notification_id)
+    // Lấy ID vừa tạo (hỗ trợ cả trường hợp DB trả về id hoặc notification_id)
     const notificationId = insertRes.rows[0].notification_id || insertRes.rows[0].id;
 
     // --- XỬ LÝ NGƯỜI NHẬN (Giữ nguyên logic cũ) ---
@@ -44,7 +57,7 @@ router.post("/create", async (req, res) => {
         recipientIds = usersRes.rows.map(r => r.user_id);
     }
     else if (target_type === 'role') {
-        // Logic lấy theo role (nếu cần)
+        // Logic lấy theo role (giữ nguyên placeholder nếu bạn chưa implement)
     }
     else if (target_type === 'specific') {
         recipientIds = target_ids || [];
@@ -71,7 +84,14 @@ router.post("/create", async (req, res) => {
         );
 
         for (const row of tokensRes.rows) {
-            sendNotification(row.fcm_token, title, content, { type: type || 'general' })
+            // 🔥 Gửi kèm file_url trong data payload nếu cần
+            const dataPayload = { type: type || 'general' };
+            if (file_url) {
+                dataPayload.file_url = file_url;
+                dataPayload.file_type = file_type;
+            }
+
+            sendNotification(row.fcm_token, title, content, dataPayload)
                 .catch(e => console.error("Lỗi gửi push lẻ:", e.message));
         }
     } else {
@@ -97,7 +117,7 @@ router.post("/create", async (req, res) => {
 
 /**
  * ==================================================================
- * ✏️ API: CẬP NHẬT THÔNG BÁO (Đã sửa: Auto set status = 'SENT')
+ * ✏️ API: CẬP NHẬT THÔNG BÁO (Logic: Auto set status = 'SENT')
  * ==================================================================
  */
 router.put("/update/:id", async (req, res) => {
@@ -110,7 +130,7 @@ router.put("/update/:id", async (req, res) => {
   try {
     await client.query("BEGIN");
 
-    // 🔥 SỬA Ở ĐÂY: Thêm "status = 'SENT'" vào câu lệnh UPDATE
+    // Cập nhật thông báo và set status = 'SENT'
     const result = await client.query(
       `UPDATE notification
        SET title = $1, content = $2, type = $3, status = 'SENT', created_at = NOW()
@@ -193,12 +213,15 @@ router.delete("/delete/:id", async (req, res) => {
  */
 router.get("/sent", async (req, res) => {
   try {
+    // 🔥 CẬP NHẬT: Thêm n.file_url và n.file_type
     const result = await pool.query(`
       SELECT n.*,
              n.notification_id,
              n.title,
              n.content,
              n.type,
+             n.file_url,
+             n.file_type,
              TO_CHAR(n.created_at, 'DD/MM/YYYY HH24:MI') as created_at,
              TO_CHAR(n.scheduled_at, 'DD/MM/YYYY HH24:MI') as expired_date,
              'Ban Quản Lý' as sender,
@@ -216,7 +239,7 @@ router.get("/sent", async (req, res) => {
 
 /**
  * ==================================================================
- * 📋 API: LẤY DANH SÁCH THÔNG BÁO CỦA USER (🔥 FIXED)
+ * 📋 API: LẤY DANH SÁCH THÔNG BÁO CỦA USER
  * ==================================================================
  */
 router.get("/:userId", async (req, res) => {
@@ -225,12 +248,15 @@ router.get("/:userId", async (req, res) => {
 
     console.log("📡 Fetching notifications for user:", userId);
 
+    // 🔥 CẬP NHẬT: Thêm n.file_url và n.file_type
     const result = await pool.query(`
       SELECT
              n.notification_id,
              n.title,
              n.content,
              n.type,
+             n.file_url,
+             n.file_type,
              TO_CHAR(n.created_at, 'DD/MM/YYYY HH24:MI') as created_at,
              TO_CHAR(n.scheduled_at, 'DD/MM/YYYY HH24:MI') as expired_date,
              'Ban Quản Lý' as sender,
@@ -259,23 +285,25 @@ router.get("/:userId", async (req, res) => {
 router.get("/detail/:id", async (req, res) => {
   try {
     const { id } = req.params;
-    const { user_id } = req.query; // 👇 Thêm dòng này để biết ai đang xem
+    const { user_id } = req.query;
 
-    // 👇 Sửa query: JOIN bảng user_notifications để lấy is_read thật
+    // 🔥 CẬP NHẬT: Thêm n.file_url và n.file_type
     const result = await pool.query(`
       SELECT
              n.notification_id,
              n.title,
              n.content,
              n.type,
+             n.file_url,
+             n.file_type,
              TO_CHAR(n.created_at, 'DD/MM/YYYY HH24:MI') as created_at,
              TO_CHAR(n.scheduled_at, 'DD/MM/YYYY HH24:MI') as expired_date,
              'Ban Quản Lý' as sender,
-             COALESCE(un.is_read, FALSE) as is_read  -- 🔥 LẤY TRẠNG THÁI THẬT
+             COALESCE(un.is_read, FALSE) as is_read
       FROM notification n
       LEFT JOIN user_notifications un ON n.notification_id = un.notification_id AND un.user_id = $2
       WHERE n.notification_id = $1
-    `, [id, user_id || 0]); // Truyền user_id vào
+    `, [id, user_id || 0]);
 
     if (result.rows.length === 0) {
       return res.status(404).json({ error: "Không tìm thấy thông báo" });
