@@ -91,4 +91,12 @@
     <string name="no_notifications">Không có thông báo</string>
     <string name="feedback_reply_history">Lịch sử phản hồi</string>
 
+    <string-array name="authority_message_categories">
+        <item>Thông báo hành chính</item>
+        <item>Lịch kiểm tra/Thanh tra</item>
+        <item>Giấy mời họp</item>
+        <item>Cảnh báo an ninh</item>
+        <item>Khác</item>
+    </string-array>
+
 </resources>

@@ -184,7 +184,7 @@
                 </androidx.cardview.widget.CardView>
 
                 <androidx.cardview.widget.CardView
-                    android:layout_width="0dp"
+                    android.layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_columnWeight="1"
                     android:layout_margin="8dp"
@@ -291,11 +291,43 @@
                     </LinearLayout>
                 </androidx.cardview.widget.CardView>
 
-                <Space
+                <!-- START: Authority Inbox CardView -->
+                <androidx.cardview.widget.CardView
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_columnWeight="1"
-                    android:layout_margin="8dp"/>
+                    android:layout_margin="8dp"
+                    app:cardCornerRadius="16dp"
+                    app:cardElevation="4dp">
+
+                    <LinearLayout
+                        android:id="@+id/layoutAuthorityInbox"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:gravity="center"
+                        android:padding="20dp"
+                        android:background="?attr/selectableItemBackground">
+
+                        <ImageView
+                            android:layout_width="56dp"
+                            android:layout_height="56dp"
+                            android:background="@drawable/bg_circle_purple" 
+                            android:src="@drawable/ic_authority_inbox" 
+                            android:padding="14dp"
+                            app:tint="@color/white"/>
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Hộp thư CQCN"
+                            android:textSize="15sp"
+                            android:textStyle="bold"
+                            android:layout_marginTop="12dp"
+                            android:textColor="#333333"/>
+                    </LinearLayout>
+                </androidx.cardview.widget.CardView>
+                <!-- END: Authority Inbox CardView -->
 
             </GridLayout>
         </LinearLayout>

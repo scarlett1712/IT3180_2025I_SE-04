@@ -77,6 +77,12 @@
         <activity android:name=".finance.admin.BulkUtilityBillActivity" />
         <activity android:name=".finance.admin.ConfigRatesActivity" />
         <activity android:name=".settings.SettingsActivity" />
+
+        <!-- START: Authority Communication Activities -->
+        <activity android:name=".authority.SendToAdminActivity" />
+        <activity android:name=".authority.AuthorityInboxActivity" />
+        <!-- END: Authority Communication Activities -->
+
         <activity android:name=".finance.FinanceDetailActivity"
             android:launchMode="singleTop"
             android:exported="true"

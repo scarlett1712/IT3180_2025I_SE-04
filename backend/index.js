@@ -19,6 +19,9 @@ import invoiceRoute, { createInvoiceTable } from "./routes/invoice.js";
 import profileRequestRoutes from "./routes/profileRequests.js";
 import maintenanceRoutes from "./routes/maintenance.js";
 import reportsRoutes from "./routes/reports.js";
+// START: Import new route and table creation function
+import authorityRoutes, { createAuthorityMessagesTable } from "./routes/authority.js";
+// END: Import
 
 import { startScheduler } from "./cron/scheduler.js";
 
@@ -63,6 +66,7 @@ app.use("/api/invoice", invoiceRoute);
 app.use("/api/profile-requests", profileRequestRoutes);
 app.use("/api/maintenance", maintenanceRoutes);
 app.use("/api/reports", reportsRoutes);
+app.use("/api/authority", authorityRoutes);
 
 // ✅ Health check
 app.get("/", (req, res) => {
@@ -89,6 +93,9 @@ const initializeDatabase = async () => {
   try {
     await createFinanceTables();
     await createInvoiceTable();
+    // START: Call new table creation function
+    await createAuthorityMessagesTable(); 
+    // END: Call
     console.log("✅ All tables initialized successfully");
   } catch (error) {
     console.error("❌ Error initializing database:", error);

@@ -1,5 +1,6 @@
 package com.se_04.enoti.home.agency;
 
+import android.content.Intent;
 import android.os.Bundle;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -12,6 +13,7 @@ import androidx.fragment.app.Fragment;
 
 import com.se_04.enoti.R;
 import com.se_04.enoti.account.UserItem;
+import com.se_04.enoti.authority.SendToAdminActivity;
 import com.se_04.enoti.utils.UserManager;
 
 import java.util.Calendar;
@@ -72,5 +74,12 @@ public class HomeFragment_Agency extends Fragment {
                 ((MainActivity_Agency) getActivity()).switchToManageAssetTab();
             }
         });
+
+        // START: Add navigation to SendToAdminActivity
+        view.findViewById(R.id.layoutSendToAdmin).setOnClickListener(v -> {
+            Intent intent = new Intent(getActivity(), SendToAdminActivity.class);
+            startActivity(intent);
+        });
+        // END: Add navigation
     }
 }
