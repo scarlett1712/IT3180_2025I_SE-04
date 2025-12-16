@@ -57,7 +57,7 @@ public class HomeFragment_Accountant extends Fragment {
     private Spinner spinnerMonth, spinnerYear;
 
     // Buttons
-    private LinearLayout btnCreateFee, btnUtility, btnApprovePayment, btnConfigPrice;
+    private LinearLayout btnCreateFee, btnUtility, btnConfigPrice;
 
     // Time filters
     private int selectedMonth = 0;
@@ -92,7 +92,6 @@ public class HomeFragment_Accountant extends Fragment {
 
         btnCreateFee = view.findViewById(R.id.btnCreateFee);
         btnUtility = view.findViewById(R.id.btnUtility);
-        btnApprovePayment = view.findViewById(R.id.btnApprovePayment);
         btnConfigPrice = view.findViewById(R.id.btnConfigPrice);
 
         swipeRefreshLayout.setOnRefreshListener(this::loadFinancialStats);
@@ -140,9 +139,6 @@ public class HomeFragment_Accountant extends Fragment {
 
         btnUtility.setOnClickListener(v ->
                 startActivity(new Intent(getActivity(), BulkUtilityBillActivity.class)));
-
-        btnApprovePayment.setOnClickListener(v ->
-                Toast.makeText(getContext(), "Tính năng duyệt tiền đang được phát triển", Toast.LENGTH_SHORT).show());
 
         btnConfigPrice.setOnClickListener(v ->
                 startActivity(new Intent(getActivity(), ConfigRatesActivity.class)));

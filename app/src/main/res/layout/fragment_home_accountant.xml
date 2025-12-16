@@ -244,32 +244,6 @@
                             </LinearLayout>
 
                             <LinearLayout
-                                android:id="@+id/btnApprovePayment"
-                                android:layout_width="0dp"
-                                android:layout_height="wrap_content"
-                                android:layout_columnWeight="1"
-                                android:layout_margin="8dp"
-                                android:background="?attr/selectableItemBackground"
-                                android:clickable="true"
-                                android:focusable="true"
-                                android:gravity="center"
-                                android:orientation="vertical"
-                                android:padding="16dp">
-                                <ImageView
-                                    android:layout_width="40dp"
-                                    android:layout_height="40dp"
-                                    android:src="@drawable/ic_check_circle"
-                                    app:tint="#4CAF50" />
-                                <TextView
-                                    android:layout_width="wrap_content"
-                                    android:layout_height="wrap_content"
-                                    android:layout_marginTop="8dp"
-                                    android:text="Duyệt tiền"
-                                    android:textStyle="bold"
-                                    android:textColor="@color/black"/>
-                            </LinearLayout>
-
-                            <LinearLayout
                                 android:id="@+id/btnConfigPrice"
                                 android:layout_width="0dp"
                                 android:layout_height="wrap_content"
