@@ -7,12 +7,12 @@ const router = express.Router();
 /**
  * ==================================================================
  * 📝 API: TẠO THÔNG BÁO MỚI (Logic: Scheduler + Status)
- * (Đã cập nhật để Insert thêm file_url/file_type nếu có)
+ * (Đã sửa để nhận đúng key 'scheduled_time' từ Android)
  * ==================================================================
  */
 router.post("/create", async (req, res) => {
-  // 🔥 Nhận thêm file_url, file_type (nếu logic của bạn có truyền ở đây)
-  const { title, content, type, target_type, target_ids, scheduled_at, file_url, file_type } = req.body;
+  // 🔥 SỬA: Nhận 'scheduled_time' thay vì 'scheduled_at'
+  const { title, content, type, target_type, target_ids, scheduled_time, file_url, file_type } = req.body;
 
   if (!title || !content) return res.status(400).json({ error: "Thiếu tiêu đề hoặc nội dung." });
 
@@ -20,13 +20,20 @@ router.post("/create", async (req, res) => {
   try {
     await client.query("BEGIN");
 
-    // 🔥 LOGIC: Xác định trạng thái
-    // Nếu không chọn giờ hoặc giờ chọn < hiện tại -> Là gửi ngay -> Status = 'SENT'
-    const isInstant = !scheduled_at || new Date(scheduled_at) <= new Date();
-    const initialStatus = isInstant ? 'SENT' : 'PENDING';
-    const finalScheduledAt = scheduled_at || new Date();
+    // 🔥 LOGIC MỚI: Xử lý thời gian hẹn giờ
+    let scheduledAtDate = null;
+    if (scheduled_time) {
+        scheduledAtDate = new Date(scheduled_time);
+    }
 
-    // 🔥 CẬP NHẬT: Insert thêm file_url và file_type
+    // Kiểm tra: Nếu không có giờ HOẶC giờ hẹn <= giờ hiện tại => Gửi ngay (SENT)
+    // Ngược lại => Hẹn giờ (PENDING)
+    const isInstant = !scheduledAtDate || scheduledAtDate <= new Date();
+
+    const initialStatus = isInstant ? 'SENT' : 'PENDING';
+    const finalScheduledAt = isInstant ? new Date() : scheduledAtDate;
+
+    // Insert vào DB
     const insertRes = await client.query(
       `INSERT INTO notification (
           title, content, type, created_by, created_at, scheduled_at, status,
@@ -38,53 +45,54 @@ router.post("/create", async (req, res) => {
         title,
         content,
         type || 'general',
-        finalScheduledAt,
-        initialStatus,
-        file_url || null,  // 🔥 Lưu link file (nếu có)
-        file_type || null  // 🔥 Lưu loại file (nếu có)
+        finalScheduledAt, // Lưu thời gian gửi chính xác
+        initialStatus,    // SENT hoặc PENDING
+        file_url || null,
+        file_type || null
       ]
     );
 
     // Lấy ID vừa tạo (hỗ trợ cả trường hợp DB trả về id hoặc notification_id)
     const notificationId = insertRes.rows[0].notification_id || insertRes.rows[0].id;
 
-    // --- XỬ LÝ NGƯỜI NHẬN (Giữ nguyên logic cũ) ---
+    // --- XỬ LÝ NGƯỜI NHẬN ---
     let recipientIds = [];
 
-    if (target_type === 'all') {
+    if (target_type === 'all' || req.body.send_to_all === true) {
         // Lấy tất cả user đang sinh sống
         const usersRes = await client.query("SELECT user_id FROM user_item WHERE is_living = TRUE");
         recipientIds = usersRes.rows.map(r => r.user_id);
     }
     else if (target_type === 'role') {
-        // Logic lấy theo role (giữ nguyên placeholder nếu bạn chưa implement)
+        // Logic lấy theo role (Placeholder)
     }
-    else if (target_type === 'specific') {
+    else if (target_type === 'specific' || (target_ids && target_ids.length > 0)) {
         recipientIds = target_ids || [];
     }
 
     if (recipientIds.length === 0) {
-        await client.query("ROLLBACK");
-        return res.status(400).json({ error: "Không tìm thấy người nhận phù hợp." });
+        // Nếu không có người nhận nhưng đã tạo thông báo, ta vẫn commit để lưu thông báo đó (nhưng không ai nhận được)
+        // Hoặc rollback tùy logic của bạn. Ở đây tôi chọn Commit nhưng log warning.
+        console.warn("⚠️ Cảnh báo: Tạo thông báo nhưng không có người nhận nào được chọn.");
+    } else {
+        // Insert vào bảng trung gian user_notifications (Sử dụng bulk insert hoặc loop)
+        for (const userId of recipientIds) {
+            await client.query(
+                `INSERT INTO user_notifications (user_id, notification_id, is_read) VALUES ($1, $2, FALSE)`,
+                [userId, notificationId]
+            );
+        }
     }
 
-    // Insert vào bảng trung gian user_notifications
-    for (const userId of recipientIds) {
-        await client.query(
-            `INSERT INTO user_notifications (user_id, notification_id, is_read) VALUES ($1, $2, FALSE)`,
-            [userId, notificationId]
-        );
-    }
-
-    // Gửi Firebase Notification (Chỉ gửi nếu là gửi ngay)
-    if (isInstant) {
+    // --- GỬI FIREBASE ---
+    // Chỉ gửi ngay nếu trạng thái là SENT (isInstant = true)
+    if (isInstant && recipientIds.length > 0) {
         const tokensRes = await client.query(
             `SELECT fcm_token FROM users WHERE user_id = ANY($1::int[]) AND fcm_token IS NOT NULL`,
             [recipientIds]
         );
 
         for (const row of tokensRes.rows) {
-            // 🔥 Gửi kèm file_url trong data payload nếu cần
             const dataPayload = { type: type || 'general' };
             if (file_url) {
                 dataPayload.file_url = file_url;
@@ -94,8 +102,9 @@ router.post("/create", async (req, res) => {
             sendNotification(row.fcm_token, title, content, dataPayload)
                 .catch(e => console.error("Lỗi gửi push lẻ:", e.message));
         }
+        console.log(`✅ Đã gửi ngay thông báo ID ${notificationId} tới ${tokensRes.rows.length} thiết bị.`);
     } else {
-        console.log(`⏳ Đã lên lịch gửi thông báo ID ${notificationId} vào lúc ${finalScheduledAt}`);
+        console.log(`⏳ Đã LÊN LỊCH gửi thông báo ID ${notificationId} vào lúc ${finalScheduledAt}`);
     }
 
     await client.query("COMMIT");
@@ -213,7 +222,6 @@ router.delete("/delete/:id", async (req, res) => {
  */
 router.get("/sent", async (req, res) => {
   try {
-    // 🔥 CẬP NHẬT: Thêm n.file_url và n.file_type
     const result = await pool.query(`
       SELECT n.*,
              n.notification_id,
@@ -248,7 +256,6 @@ router.get("/:userId", async (req, res) => {
 
     console.log("📡 Fetching notifications for user:", userId);
 
-    // 🔥 CẬP NHẬT: Thêm n.file_url và n.file_type
     const result = await pool.query(`
       SELECT
              n.notification_id,
@@ -287,7 +294,6 @@ router.get("/detail/:id", async (req, res) => {
     const { id } = req.params;
     const { user_id } = req.query;
 
-    // 🔥 CẬP NHẬT: Thêm n.file_url và n.file_type
     const result = await pool.query(`
       SELECT
              n.notification_id,

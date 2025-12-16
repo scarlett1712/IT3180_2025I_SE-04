@@ -202,45 +202,47 @@ public class FinanceDetailActivity_Admin extends BaseActivity {
             checkBox.setChecked(isPaid);
             checkBox.setTag(room);
 
-            // LOGIC QUYỀN HẠN & CLICK
-            if (canEdit) {
-                // KẾ TOÁN:
-                // - Click thường: Đánh dấu check/uncheck để cập nhật trạng thái
-                // - Giữ lì (Long Click): Xem hóa đơn (nếu đã thanh toán)
-                checkBox.setEnabled(true);
-
-                checkBox.setOnLongClickListener(v -> {
-                    if (checkBox.isChecked()) {
-                        showInvoiceBottomSheet(room);
-                        return true; // Đã xử lý sự kiện
-                    }
-                    return false;
-                });
-
-            } else {
-                // ADMIN (Chỉ xem):
-                // - Không click được checkbox để đổi trạng thái
-                // - Click vào để xem hóa đơn (nếu đã thanh toán)
-                checkBox.setClickable(true); // Vẫn cho click nhưng logic khác
-                checkBox.setFocusable(false); // Không focus nhập liệu
-
-                // Override sự kiện click để không đổi trạng thái check mà mở hóa đơn
-                checkBox.setOnClickListener(v -> {
-                    // Reset lại trạng thái cũ (không cho đổi)
-                    checkBox.setChecked(isPaid);
-
-                    if (isPaid) {
-                        showInvoiceBottomSheet(room);
-                    } else {
-                        Toast.makeText(this, "Phòng này chưa thanh toán", Toast.LENGTH_SHORT).show();
-                    }
-                });
-            }
-
             // Đổi màu nếu đã thanh toán để dễ nhìn
             if (isPaid) {
                 checkBox.setTextColor(ContextCompat.getColor(this, R.color.holo_green_dark));
                 checkBox.setTypeface(null, android.graphics.Typeface.BOLD);
+            }
+
+            // --- LOGIC PHÂN QUYỀN ---
+
+            // 1. SỰ KIỆN LONG CLICK (Giữ lì) - Cả Admin và Kế toán đều được dùng để xem hóa đơn
+            checkBox.setOnLongClickListener(v -> {
+                if (checkBox.isChecked()) { // Chỉ xem được nếu đã thanh toán
+                    showInvoiceBottomSheet(room);
+                    return true; // Đã xử lý sự kiện
+                } else {
+                    Toast.makeText(this, "Phòng này chưa thanh toán", Toast.LENGTH_SHORT).show();
+                    return true;
+                }
+            });
+
+            // 2. SỰ KIỆN CLICK VÀ TRẠNG THÁI
+            if (canEdit) {
+                // KẾ TOÁN: Được phép thay đổi trạng thái
+                checkBox.setEnabled(true);
+                // Không cần setOnClickListener đặc biệt, mặc định CheckBox sẽ đổi trạng thái khi click
+            } else {
+                // ADMIN (Chỉ xem):
+                // Cách 1: setEnabled(false) -> CheckBox sẽ bị xám mờ, không click được.
+                // checkBox.setEnabled(false);
+
+                // Cách 2 (Tốt hơn nếu muốn giữ màu sắc): Chặn sự kiện click đổi trạng thái
+                checkBox.setClickable(false); // Không nhận click thường
+                checkBox.setFocusable(false);
+
+                // Tuy nhiên, setClickable(false) đôi khi cũng chặn luôn LongClick trên một số version Android.
+                // Nên giải pháp an toàn nhất cho Admin để vừa giữ màu, vừa không tick được, vừa LongClick được là:
+
+                checkBox.setOnClickListener(v -> {
+                    // Ngay lập tức trả về trạng thái cũ nếu lỡ click trúng
+                    checkBox.setChecked(isPaid);
+                    Toast.makeText(this, "Bạn không có quyền chỉnh sửa trạng thái", Toast.LENGTH_SHORT).show();
+                });
             }
 
             layoutRoomCheckboxes.addView(checkBox);
