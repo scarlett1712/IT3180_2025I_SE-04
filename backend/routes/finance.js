@@ -232,9 +232,6 @@ router.get("/:financeId/users", async (req, res) => {
   }
 });
 
-// ==================================================================
-// 🔵 [PUT] CẬP NHẬT TRẠNG THÁI THANH TOÁN (ADMIN - BY ROOM) - ĐÃ FIX
-// ==================================================================
 router.put("/update-status", async (req, res) => {
   const { room, finance_id, status } = req.body;
   console.log(`[UPDATE] Room: ${room}, FinanceID: ${finance_id}, Status: ${status}`);
@@ -247,35 +244,36 @@ router.put("/update-status", async (req, res) => {
   try {
     await client.query("BEGIN");
 
-    // 🔥 FIX: Ưu tiên tìm theo finance_id trực tiếp trong user_finances
-    // Với điện/nước, 1 finance_id chỉ gán cho 1 phòng (và các user trong đó) nên tìm theo ID là chính xác nhất.
-    let userFinanceRows = await client.query(
-        "SELECT id, user_id FROM user_finances WHERE finance_id = $1",
-        [finance_id]
-    );
+    let userFinanceRows;
 
-    // Nếu không tìm thấy bằng ID trực tiếp, thử dùng logic cũ (tìm theo phòng + finance_id)
-    // Trường hợp này dành cho các khoản thu chung (1 ID gán cho nhiều phòng)
-    if (userFinanceRows.rows.length === 0 && room) {
-        console.log("⚠️ Fallback: Searching by Room + FinanceID...");
+    if (room) {
+        // 🔥 FIX QUAN TRỌNG: Chỉ tìm user_finances của ĐÚNG phòng đó.
+        // Sử dụng JOIN để liên kết từ user_finances -> user_item -> relationship -> apartment
         userFinanceRows = await client.query(`
           SELECT uf.id, uf.user_id
-          FROM user_item ui
+          FROM user_finances uf
+          JOIN user_item ui ON uf.user_id = ui.user_id
           JOIN relationship r ON ui.relationship = r.relationship_id
           JOIN apartment a ON r.apartment_id = a.apartment_id
-          JOIN user_finances uf ON uf.user_id = ui.user_id
-          WHERE a.apartment_number = $1 AND uf.finance_id = $2
-        `, [room, finance_id]);
+          WHERE uf.finance_id = $1 AND a.apartment_number = $2
+        `, [finance_id, room]);
+    } else {
+        // Fallback: Tìm theo finance_id (chỉ dùng nếu user tự thanh toán online, không gửi room)
+        userFinanceRows = await client.query(
+            "SELECT id, user_id FROM user_finances WHERE finance_id = $1",
+            [finance_id]
+        );
     }
 
     if (userFinanceRows.rows.length === 0) {
       await client.query("ROLLBACK");
-      return res.status(404).json({ error: "Không tìm thấy dữ liệu thanh toán cho phòng/khoản thu này." });
+      // Nếu không tìm thấy user nào ở phòng đó có bill này
+      return res.status(404).json({ error: `Không tìm thấy cư dân nào ở phòng ${room} có khoản thu này.` });
     }
 
-    // Lấy danh sách ID các dòng cần update (thường là 1 dòng, hoặc nhiều nếu phòng có nhiều người cùng chịu phí)
+    // Lấy danh sách ID các dòng cần update (Chỉ update cho những người ở phòng đó)
     const targetIds = userFinanceRows.rows.map(r => r.id);
-    const representativeUserId = userFinanceRows.rows[0].user_id; // Lấy 1 user làm đại diện cho invoice
+    const representativeUserId = userFinanceRows.rows[0].user_id;
 
     // Cập nhật trạng thái
     await client.query(`
@@ -284,33 +282,36 @@ router.put("/update-status", async (req, res) => {
       WHERE id = ANY($2::int[])
     `, [status, targetIds]);
 
-    // Xử lý Invoice (Hóa đơn đã thanh toán)
+    // Xử lý Invoice (Hóa đơn)
     if (status === 'da_thanh_toan') {
-      const financeRes = await client.query("SELECT title, amount FROM finances WHERE id = $1", [finance_id]);
-      if (financeRes.rows.length > 0) {
-          const finance = financeRes.rows[0];
-          const ordercode = `ADMIN-${Date.now()}-${representativeUserId}`;
+      try {
+          const financeRes = await client.query("SELECT title, amount FROM finances WHERE id = $1", [finance_id]);
+          if (financeRes.rows.length > 0) {
+              const finance = financeRes.rows[0];
+              const ordercode = `ADMIN-${Date.now()}-${representativeUserId}`;
 
-          // Kiểm tra xem đã có invoice cho bất kỳ ID nào trong nhóm này chưa
-          const existingInvoice = await client.query(
-            "SELECT invoice_id FROM invoice WHERE finance_id = ANY($1::int[])",
-            [targetIds]
-          );
+              // Kiểm tra xem đã có invoice chưa
+              const existingInvoice = await client.query(
+                "SELECT invoice_id FROM invoice WHERE finance_id = ANY($1::int[])",
+                [targetIds]
+              );
 
-          if (existingInvoice.rows.length === 0) {
-            // Tạo invoice gắn với ID đầu tiên trong danh sách (đại diện)
-            await client.query(`
-              INSERT INTO invoice (finance_id, amount, description, ordercode, currency, paytime)
-              VALUES ($1, $2, $3, $4, 'VND', NOW())
-            `, [targetIds[0], finance.amount, finance.title, ordercode]);
+              if (existingInvoice.rows.length === 0) {
+                // Tạo invoice mới cho ID đầu tiên tìm thấy (đại diện)
+                await client.query(`
+                  INSERT INTO invoice (finance_id, amount, description, ordercode, currency, paytime)
+                  VALUES ($1, $2, $3, $4, 'VND', NOW() + INTERVAL '7 hours')
+                `, [targetIds[0], finance.amount, finance.title, ordercode]);
+              }
           }
+      } catch (invErr) {
+          console.error("⚠️ Lỗi tạo invoice:", invErr.message);
       }
     } else {
-      // Nếu bỏ thanh toán -> Xóa invoice tương ứng
-      await client.query(
-        "DELETE FROM invoice WHERE finance_id = ANY($1::int[])",
-        [targetIds]
-      );
+      // Nếu bỏ thanh toán -> Xóa invoice
+      try {
+          await client.query("DELETE FROM invoice WHERE finance_id = ANY($1::int[])", [targetIds]);
+      } catch (invErr) { console.error("⚠️ Lỗi xóa invoice:", invErr.message); }
     }
 
     await client.query("COMMIT");
