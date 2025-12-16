@@ -145,7 +145,6 @@ public class NotificationAdapter extends RecyclerView.Adapter<NotificationAdapte
             String expDate = clicked.getExpired_date();
             if (expDate == null || expDate.equals("null")) expDate = "";
             intent.putExtra("expired_date", expDate);
-
             intent.putExtra("content", clicked.getContent());
             intent.putExtra("sender", clicked.getSender());
             intent.putExtra("is_read", clicked.isRead());

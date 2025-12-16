@@ -105,7 +105,7 @@ public class NotificationDetailActivity_Admin extends BaseActivity {
         txtTitle.setText(currentTitle != null ? currentTitle : "Tiêu đề");
         txtContent.setText(currentContent != null ? currentContent : "");
         txtSender.setText(getString(R.string.notification_sender, sender != null ? sender : "Ban quản lý"));
-        txtDate.setText("Hạn: " + (expiredDate != null ? expiredDate : "N/A"));
+        txtDate.setText("Hạn: " + (expiredDate != null && !expiredDate.isEmpty() ? expiredDate : "N/A"));
 
         // 🔥 Hiển thị file bằng Glide
         displayAttachment(fileUrl, fileType);

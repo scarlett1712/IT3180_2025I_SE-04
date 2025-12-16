@@ -19,9 +19,14 @@ import invoiceRoute, { createInvoiceTable } from "./routes/invoice.js";
 import profileRequestRoutes from "./routes/profileRequests.js";
 import maintenanceRoutes from "./routes/maintenance.js";
 import reportsRoutes from "./routes/reports.js";
+<<<<<<< HEAD
 // START: Import new route and table creation function
 import authorityRoutes, { createAuthorityMessagesTable } from "./routes/authority.js";
 // END: Import
+=======
+// 🔥 Import route cập nhật app (Mới)
+import appUpdateRoutes from "./routes/app_update.js";
+>>>>>>> 00942c61f45fe9d670f7e2208686de03e25649cd
 
 import { startScheduler } from "./cron/scheduler.js";
 
@@ -68,6 +73,9 @@ app.use("/api/maintenance", maintenanceRoutes);
 app.use("/api/reports", reportsRoutes);
 app.use("/api/authority", authorityRoutes);
 
+// 🔥 Route cập nhật app (Mới)
+app.use("/api/app-update", appUpdateRoutes);
+
 // ✅ Health check
 app.get("/", (req, res) => {
   res.json({
@@ -105,7 +113,7 @@ const initializeDatabase = async () => {
 // ✅ Start server
 app.listen(PORT, async () => {
   console.log(`🚀 Server started on port ${PORT}`);
-  console.log(`📍 Health check: http://localhost:${PORT}/`);
+  console.log(`📍 Health check: OK`);
 
   // 🔥 Initialize database tables
   await initializeDatabase();
