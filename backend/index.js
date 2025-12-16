@@ -19,6 +19,7 @@ import invoiceRoute, { createInvoiceTable } from "./routes/invoice.js";
 import profileRequestRoutes from "./routes/profileRequests.js";
 import maintenanceRoutes from "./routes/maintenance.js";
 import reportsRoutes from "./routes/reports.js";
+// 🔥 Import route cập nhật app (Mới)
 import appUpdateRoutes from "./routes/app_update.js";
 
 import { startScheduler } from "./cron/scheduler.js";
@@ -28,8 +29,13 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+// ✅ Cho phép truy cập static
 app.use(express.static("public"));
+
+// ✅ Bật CORS
 app.use(cors());
+
+// ✅ Bắt buộc: parse JSON & form-data trước
 app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true, limit: "10mb" }));
 
@@ -59,6 +65,8 @@ app.use("/api/invoice", invoiceRoute);
 app.use("/api/profile-requests", profileRequestRoutes);
 app.use("/api/maintenance", maintenanceRoutes);
 app.use("/api/reports", reportsRoutes);
+
+// 🔥 Route cập nhật app (Mới)
 app.use("/api/app-update", appUpdateRoutes);
 
 // ✅ Health check
@@ -95,7 +103,7 @@ const initializeDatabase = async () => {
 // ✅ Start server
 app.listen(PORT, async () => {
   console.log(`🚀 Server started on port ${PORT}`);
-  console.log(`📍 Health check: OK);
+  console.log(`📍 Health check: OK`);
 
   // 🔥 Initialize database tables
   await initializeDatabase();
