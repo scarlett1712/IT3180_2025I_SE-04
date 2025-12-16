@@ -19,14 +19,8 @@ import invoiceRoute, { createInvoiceTable } from "./routes/invoice.js";
 import profileRequestRoutes from "./routes/profileRequests.js";
 import maintenanceRoutes from "./routes/maintenance.js";
 import reportsRoutes from "./routes/reports.js";
-<<<<<<< HEAD
-// START: Import new route and table creation function
 import authorityRoutes, { createAuthorityMessagesTable } from "./routes/authority.js";
-// END: Import
-=======
-// 🔥 Import route cập nhật app (Mới)
 import appUpdateRoutes from "./routes/app_update.js";
->>>>>>> 00942c61f45fe9d670f7e2208686de03e25649cd
 
 import { startScheduler } from "./cron/scheduler.js";
 
