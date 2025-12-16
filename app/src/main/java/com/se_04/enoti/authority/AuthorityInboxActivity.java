@@ -6,7 +6,7 @@ import android.view.View;
 import android.widget.ProgressBar;
 import android.widget.Toast;
 
-import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.content.ContextCompat;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
@@ -15,22 +15,25 @@ import com.android.volley.RequestQueue;
 import com.android.volley.VolleyError;
 import com.android.volley.toolbox.JsonArrayRequest;
 import com.android.volley.toolbox.Volley;
+import com.google.android.material.appbar.MaterialToolbar;
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
 import com.se_04.enoti.R;
 import com.se_04.enoti.utils.ApiConfig;
+import com.se_04.enoti.utils.BaseActivity;
 
 import java.lang.reflect.Type;
 import java.util.ArrayList;
 import java.util.List;
 
-public class AuthorityInboxActivity extends AppCompatActivity {
+public class AuthorityInboxActivity extends BaseActivity {
 
     private RecyclerView recyclerView;
     private AuthorityMessageAdapter adapter;
     private List<AuthorityMessage> messageList = new ArrayList<>();
     private ProgressBar progressBar;
     private RequestQueue requestQueue;
+    private MaterialToolbar toolbar;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -39,18 +42,28 @@ public class AuthorityInboxActivity extends AppCompatActivity {
 
         recyclerView = findViewById(R.id.recycler_view_messages);
         progressBar = findViewById(R.id.progress_bar);
+        toolbar = findViewById(R.id.toolbar);
 
         recyclerView.setLayoutManager(new LinearLayoutManager(this));
         adapter = new AuthorityMessageAdapter(this, messageList);
         recyclerView.setAdapter(adapter);
+
+        // Toolbar
+        setSupportActionBar(toolbar);
+        if (getSupportActionBar() != null) {
+            getSupportActionBar().setDisplayHomeAsUpEnabled(true);
+            getSupportActionBar().setTitle("Thông báo từ CQCN");
+            toolbar.setTitleTextColor(ContextCompat.getColor(this, android.R.color.white));
+        }
+        toolbar.setNavigationOnClickListener(v -> finish());
 
         requestQueue = Volley.newRequestQueue(this);
 
         fetchMessages();
 
         adapter.setOnItemClickListener(message -> {
-            // TODO: Implement detail view
-            Toast.makeText(this, "Chi tiết cho: " + message.getTitle(), Toast.LENGTH_SHORT).show();
+            AuthorityDetailBottomSheet bottomSheet = AuthorityDetailBottomSheet.newInstance(message);
+            bottomSheet.show(getSupportFragmentManager(), "AuthorityDetailBottomSheet");
         });
     }
 

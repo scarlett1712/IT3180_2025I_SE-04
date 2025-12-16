@@ -2,7 +2,9 @@ package com.se_04.enoti.authority;
 
 import com.google.gson.annotations.SerializedName;
 
-public class AuthorityMessage {
+import java.io.Serializable;
+
+public class AuthorityMessage implements Serializable {
 
     @SerializedName("id")
     private int id;
