@@ -46,6 +46,14 @@ public class SendToAdminActivity extends AppCompatActivity {
 
         requestQueue = Volley.newRequestQueue(this);
 
+        com.google.android.material.appbar.MaterialToolbar toolbar = findViewById(R.id.toolbar);
+        setSupportActionBar(toolbar);
+        if (getSupportActionBar() != null) {
+            getSupportActionBar().setDisplayHomeAsUpEnabled(true);
+            getSupportActionBar().setTitle("Gửi thông báo tới BQT");
+        }
+        toolbar.setNavigationOnClickListener(v -> finish()); // Xử lý nút back
+
         setupSpinner();
 
         btnSend.setOnClickListener(v -> sendMessage());
