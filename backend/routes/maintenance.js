@@ -1,7 +1,6 @@
 import express from "express";
 import { pool } from "../db.js";
 import { sendNotification } from "../utils/firebaseHelper.js";
-import { verifySession } from "../middleware/authMiddleware.js";
 // 🔥 Import helper upload ảnh
 import { uploadToCloudinary } from "../utils/cloudinaryHelper.js";
 
@@ -14,7 +13,6 @@ const router = express.Router();
 // 1. Lấy danh sách tài sản
 router.get("/assets", async (req, res) => {
   try {
-    // 🔥 Lấy thêm ảnh đại diện (ảnh đầu tiên) nếu cần hiển thị thumbnail ở danh sách
     const result = await pool.query(`
       SELECT a.*,
              (SELECT image_url FROM asset_images ai WHERE ai.asset_id = a.asset_id LIMIT 1) as thumbnail
@@ -28,32 +26,25 @@ router.get("/assets", async (req, res) => {
   }
 });
 
-// 2. Thêm tài sản mới (Hỗ trợ nhiều ảnh)
+// 2. Thêm tài sản mới
 router.post("/assets", async (req, res) => {
   const { asset_name, location, status, purchase_date, images } = req.body;
-  // 'images' là mảng chuỗi Base64: ["data:image/...", "data:image/..."]
 
   const client = await pool.connect();
   try {
     await client.query("BEGIN");
 
-    // 2.1. Thêm Asset
     const assetRes = await client.query(
       "INSERT INTO asset (asset_name, location, status, purchase_date) VALUES ($1, $2, $3, $4) RETURNING asset_id",
       [asset_name, location, status || 'Good', purchase_date]
     );
     const assetId = assetRes.rows[0].asset_id;
 
-    // 2.2. Upload & Lưu ảnh (Nếu có)
     if (images && Array.isArray(images) && images.length > 0) {
       console.log(`📸 Uploading ${images.length} images for asset ${assetId}...`);
-
       for (const base64 of images) {
-        // Upload từng ảnh lên Cloudinary
         const uploadRes = await uploadToCloudinary(base64, "enoti_assets");
-
         if (uploadRes && uploadRes.url) {
-          // Lưu URL vào bảng asset_images
           await client.query(
             "INSERT INTO asset_images (asset_id, image_url) VALUES ($1, $2)",
             [assetId, uploadRes.url]
@@ -73,6 +64,70 @@ router.post("/assets", async (req, res) => {
     client.release();
   }
 });
+
+/* ==========================================================
+   🔥 [MỚI] API CẬP NHẬT & XÓA TÀI SẢN (CHO ADMIN)
+========================================================== */
+
+// 2.1. Cập nhật thông tin thiết bị
+router.put("/asset/:id", async (req, res) => {
+  const { id } = req.params;
+  const { name, location, status } = req.body; // Nhận name, location, status từ Android
+
+  try {
+    const query = `
+      UPDATE asset
+      SET asset_name = $1, location = $2, status = $3
+      WHERE asset_id = $4
+    `;
+    const result = await pool.query(query, [name, location, status, id]);
+
+    if (result.rowCount === 0) {
+        return res.status(404).json({ error: "Không tìm thấy thiết bị" });
+    }
+
+    res.json({ message: "Cập nhật thành công" });
+  } catch (error) {
+    console.error("Lỗi cập nhật asset:", error);
+    res.status(500).json({ error: "Lỗi server: " + error.message });
+  }
+});
+
+// 2.2. Xóa thiết bị
+router.delete("/asset/:id", async (req, res) => {
+  const { id } = req.params;
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+
+    // Xóa ảnh liên quan
+    await client.query("DELETE FROM asset_images WHERE asset_id = $1", [id]);
+
+    // Xóa lịch bảo trì liên quan
+    await client.query("DELETE FROM maintenanceschedule WHERE asset_id = $1", [id]);
+
+    // Xóa báo cáo sự cố liên quan
+    await client.query("DELETE FROM incident_reports WHERE asset_id = $1", [id]);
+
+    // Cuối cùng xóa asset
+    const result = await client.query("DELETE FROM asset WHERE asset_id = $1", [id]);
+
+    if (result.rowCount === 0) {
+        await client.query("ROLLBACK");
+        return res.status(404).json({ error: "Không tìm thấy thiết bị" });
+    }
+
+    await client.query("COMMIT");
+    res.json({ message: "Đã xóa thiết bị" });
+  } catch (error) {
+    await client.query("ROLLBACK");
+    console.error("Lỗi xóa asset:", error);
+    res.status(500).json({ error: "Lỗi server: " + error.message });
+  } finally {
+    client.release();
+  }
+});
+
 
 /* ==========================================================
    📅 QUẢN LÝ LỊCH BẢO TRÌ (SCHEDULE)
@@ -196,18 +251,15 @@ router.get("/asset/:asset_id/details", async (req, res) => {
   const { user_id, role } = req.query;
 
   try {
-    // 1. Lấy thông tin cơ bản
     const assetRes = await pool.query("SELECT * FROM asset WHERE asset_id = $1", [asset_id]);
     if (assetRes.rows.length === 0) {
       return res.status(404).json({ error: "Không tìm thấy thiết bị" });
     }
     const assetInfo = assetRes.rows[0];
 
-    // 🔥 2. Lấy danh sách ảnh từ bảng phụ
     const imagesRes = await pool.query("SELECT image_url FROM asset_images WHERE asset_id = $1", [asset_id]);
     const imageUrls = imagesRes.rows.map(row => row.image_url);
 
-    // 3. Lấy lịch sử (Logic cũ của bạn)
     let historyQuery = "";
     let queryParams = [];
 
@@ -246,7 +298,7 @@ router.get("/asset/:asset_id/details", async (req, res) => {
 
     res.json({
         asset: assetInfo,
-        images: imageUrls, // 🔥 Trả về mảng URL ảnh
+        images: imageUrls,
         history: historyRes.rows
     });
 
