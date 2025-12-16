@@ -146,6 +146,16 @@
                     </LinearLayout>
 
                 </LinearLayout>
+
+                <androidx.recyclerview.widget.RecyclerView
+                    android:id="@+id/recyclerAssetImages"
+                    android:layout_width="match_parent"
+                    android:layout_height="140dp"
+                    android:layout_marginTop="16dp"
+                    android:clipToPadding="false"
+                    android:paddingStart="4dp"
+                    android:visibility="gone"/>
+
             </com.google.android.material.card.MaterialCardView>
 
             <TextView

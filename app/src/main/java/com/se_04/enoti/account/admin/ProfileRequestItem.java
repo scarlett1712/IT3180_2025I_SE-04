@@ -7,10 +7,12 @@ public class ProfileRequestItem implements Serializable {
     private int requestId;
     private int userId;
     // Thông tin MỚI
-    private String newFullName, newPhone, newEmail, newGender, newDob, newIdentityCard, newHomeTown;
+    private String newFullName, newPhone, newEmail, newGender, newDob, newJob
+    , newIdentityCard, newHomeTown;
 
     // Thông tin CŨ (Hiện tại)
-    private String currentName, currentPhone, currentEmail, currentGender, currentDob, currentIdentityCard, currentHomeTown;
+    private String currentName, currentPhone, currentEmail, currentGender, currentDob, currentJob
+    , currentIdentityCard, currentHomeTown;
 
     private String createdAt;
 
@@ -23,6 +25,7 @@ public class ProfileRequestItem implements Serializable {
         this.newEmail = obj.optString("new_email");
         this.newGender = obj.optString("new_gender");
         this.newDob = obj.optString("new_dob");
+        this.newJob = obj.optString("new_job");
         this.newIdentityCard = obj.optString("new_identity_card");
         this.newHomeTown = obj.optString("new_home_town");
 
@@ -44,6 +47,7 @@ public class ProfileRequestItem implements Serializable {
     public String getNewEmail() { return newEmail; }
     public String getNewGender() { return newGender; }
     public String getNewDob() { return newDob; }
+    public String getNewJob() { return newJob; }
     public String getNewIdentityCard() { return newIdentityCard; }
     public String getNewHomeTown() { return newHomeTown; }
 
@@ -52,6 +56,7 @@ public class ProfileRequestItem implements Serializable {
     public String getCurrentEmail() { return currentEmail; }
     public String getCurrentGender() { return currentGender; }
     public String getCurrentDob() { return currentDob; }
+    public String getCurrentJob() { return currentJob; }
     public String getCurrentIdentityCard() { return currentIdentityCard; }
     public String getCurrentHomeTown() { return currentHomeTown; }
 }

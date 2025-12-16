@@ -1,5 +1,6 @@
 package com.se_04.enoti.feedback;
 
+import android.content.Context;
 import android.content.Intent;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -49,6 +50,7 @@ public class FeedbackAdapter extends RecyclerView.Adapter<FeedbackAdapter.ViewHo
     @Override
     public void onBindViewHolder(@NonNull ViewHolder holder, int position) {
         FeedbackItem item = feedbackList.get(position);
+        Context context = holder.itemView.getContext(); // 🔥 Lấy Context từ View
 
         // --- Hiển thị tiêu đề và ngày tạo ---
         holder.txtTitle.setText("Phản hồi #" + item.getFeedbackId());
@@ -58,58 +60,67 @@ public class FeedbackAdapter extends RecyclerView.Adapter<FeedbackAdapter.ViewHo
         holder.txtContent.setText("Đang tải tên thông báo...");
 
         // --- Lấy tên thông báo từ repository ---
-        NotificationRepository.getInstance().fetchNotificationTitle(
+        // 🔥 SỬA: Truyền 'context' vào getInstance
+        NotificationRepository.getInstance(context).fetchNotificationTitle(
                 item.getNotificationId(),
                 new NotificationRepository.TitleCallback() {
                     @Override
                     public void onSuccess(String title) {
-                        holder.txtContent.setText("Phản hồi cho thông báo: " + title);
+                        // Kiểm tra xem ViewHolder có còn ở vị trí cũ không (tránh lỗi khi cuộn nhanh)
+                        if (holder.getBindingAdapterPosition() == position) {
+                            holder.txtContent.setText("Phản hồi cho: " + title);
+                        }
                     }
 
                     @Override
                     public void onError(String message) {
-                        holder.txtContent.setText("Phản hồi cho thông báo #" + item.getNotificationId());
+                        if (holder.getBindingAdapterPosition() == position) {
+                            holder.txtContent.setText("Phản hồi cho thông báo #" + item.getNotificationId());
+                        }
                     }
                 }
         );
 
         // --- Hiển thị màu trạng thái ---
         int colorResId;
-        if (item.getStatus() == null) {
-            colorResId = R.color.status_default; // fallback
-        } else {
-            switch (item.getStatus().toLowerCase()) {
-                case "pending":
-                    colorResId = R.color.status_default;
-                    break;
-                case "sent":
-                    colorResId = R.color.status_sent;
-                    break;
-                case "read":
-                    colorResId = R.color.status_read;
-                    break;
-                case "replied":
-                    colorResId = R.color.status_replied;
-                    break;
-                default:
-                    colorResId = R.color.status_default;
-                    break;
-            }
+        String status = item.getStatus();
+        if (status == null) status = "pending";
+
+        switch (status.toLowerCase()) {
+            case "sent":
+                colorResId = R.color.status_sent;
+                break;
+            case "read":
+                colorResId = R.color.status_read;
+                break;
+            case "replied":
+                colorResId = R.color.status_replied;
+                break;
+            case "pending":
+            default:
+                colorResId = R.color.status_default;
+                break;
         }
 
-        holder.statusIndicator.getBackground().setTint(
-                ContextCompat.getColor(holder.itemView.getContext(), colorResId)
-        );
+        // Kiểm tra null để tránh crash nếu view chưa có background
+        if (holder.statusIndicator.getBackground() != null) {
+            holder.statusIndicator.getBackground().setTint(
+                    ContextCompat.getColor(context, colorResId)
+            );
+        }
 
         // --- Click item ---
         holder.itemView.setOnClickListener(v -> {
-            FeedbackItem clicked = feedbackList.get(holder.getBindingAdapterPosition());
-            if (listener != null) {
-                listener.onItemClick(clicked);
-            } else {
-                Intent intent = new Intent(v.getContext(), FeedbackDetailActivity.class);
-                intent.putExtra("feedback_item", clicked);
-                v.getContext().startActivity(intent);
+            int currentPos = holder.getBindingAdapterPosition();
+            if (currentPos != RecyclerView.NO_POSITION) {
+                FeedbackItem clicked = feedbackList.get(currentPos);
+                if (listener != null) {
+                    listener.onItemClick(clicked);
+                } else {
+                    Intent intent = new Intent(context, FeedbackDetailActivity.class);
+                    intent.putExtra("feedback_item", clicked); // FeedbackItem cần implements Serializable
+                    context.startActivity(intent);
+                }
             }
         });
     }
@@ -127,6 +138,7 @@ public class FeedbackAdapter extends RecyclerView.Adapter<FeedbackAdapter.ViewHo
             super(itemView);
             txtTitle = itemView.findViewById(R.id.txtTitle);
             txtDate = itemView.findViewById(R.id.txtDate);
+            // Lưu ý: ID này phải khớp với layout item_feedback.xml
             txtContent = itemView.findViewById(R.id.txtRepliedNotification);
             statusIndicator = itemView.findViewById(R.id.statusIndicator);
         }

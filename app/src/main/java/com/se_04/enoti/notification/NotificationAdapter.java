@@ -2,7 +2,6 @@ package com.se_04.enoti.notification;
 
 import android.content.Context;
 import android.content.Intent;
-import android.graphics.Typeface;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -21,19 +20,32 @@ import java.util.List;
 
 public class NotificationAdapter extends RecyclerView.Adapter<NotificationAdapter.ViewHolder> {
 
+    private static final String TAG = "NotificationAdapter";
     public static final int VIEW_TYPE_NORMAL = 1;
     public static final int VIEW_TYPE_HIGHLIGHTED = 2;
 
     private final List<NotificationItem> notificationList = new ArrayList<>();
+    private OnNotificationClickListener clickListener;
+
+    // 🔥 Callback interface
+    public interface OnNotificationClickListener {
+        void onNotificationClicked(long notificationId);
+    }
 
     public NotificationAdapter(List<NotificationItem> initial, int viewTypeHighlighted) {
         if (initial != null) notificationList.addAll(initial);
+    }
+
+    // 🔥 Set click listener
+    public void setOnNotificationClickListener(OnNotificationClickListener listener) {
+        this.clickListener = listener;
     }
 
     public void updateList(List<NotificationItem> newList) {
         notificationList.clear();
         if (newList != null) notificationList.addAll(newList);
         notifyDataSetChanged();
+        Log.d(TAG, "📋 List updated with " + notificationList.size() + " items");
     }
 
     @Override
@@ -56,72 +68,92 @@ public class NotificationAdapter extends RecyclerView.Adapter<NotificationAdapte
     }
 
     @Override
-    public void onBindViewHolder(@NonNull NotificationAdapter.ViewHolder holder, int position) {
-        NotificationItem item = notificationList.get(position);
-        holder.txtTitle.setText(item.getTitle());
-        holder.txtDate.setText(item.getExpired_date());
-        holder.txtContent.setText(item.getContent());
+    public void onBindViewHolder(@NonNull ViewHolder holder, int position) {
+        NotificationItem notification = notificationList.get(position);
+        if (notification == null) return;
 
-        // Định dạng: chưa đọc = đậm, đã đọc = nhạt
-        holder.txtTitle.setTypeface(null, item.isRead() ? Typeface.NORMAL : Typeface.BOLD);
-        holder.itemView.setAlpha(item.isRead() ? 0.6f : 1.0f);
+        holder.txtTitle.setText(notification.getTitle());
 
+        // Display date logic
+        String displayDate = notification.getExpired_date();
+        if (displayDate == null || displayDate.isEmpty()) {
+            displayDate = notification.getDate();
+        }
+        holder.txtDate.setText(displayDate);
+
+        holder.txtContent.setText(notification.getContent());
+
+        // 🔥 Visual indicator for read/unread status
+        if (notification.isRead()) {
+            holder.itemView.setAlpha(0.7f); // Dim read notifications
+        } else {
+            holder.itemView.setAlpha(1.0f); // Full opacity for unread
+        }
+
+        // Handle click event
         holder.itemView.setOnClickListener(v -> {
-            int pos = holder.getBindingAdapterPosition();
-            if (pos == RecyclerView.NO_POSITION) {
-                Log.e("NotificationAdapter", "Invalid click pos");
-                return;
-            }
+            int pos = holder.getAdapterPosition();
+            if (pos == RecyclerView.NO_POSITION) return;
 
             NotificationItem clicked = notificationList.get(pos);
-            Context context = v.getContext();
+            Context context = holder.itemView.getContext();
 
-            // 🔹 Lấy role từ UserManager
-            boolean isAdmin = false;
-            try {
-                String role = String.valueOf(UserManager.getInstance(context)
-                        .getCurrentUser()
-                        .getRole());
+            Log.d(TAG, "🖱️ Clicked notification ID: " + clicked.getId() + " (isRead: " + clicked.isRead() + ")");
 
-                Log.d("NotificationAdapter", "Current user role: " + role);
+            // 🔥 Mark as read locally FIRST for immediate UI feedback
+            boolean wasUnread = !clicked.isRead();
+            if (wasUnread) {
+                clicked.setRead(true);
+                notifyItemChanged(pos);
+                Log.d(TAG, "📝 Updated local item to isRead=true");
 
-                // Cho phép nhiều định dạng role khác nhau
-                if (role != null) {
-                    role = role.trim().toLowerCase();
-                    if (role.equals("2") || role.equals("admin") || role.equals("role_admin")) {
-                        isAdmin = true;
-                    }
+                // Notify fragment to update cache
+                if (clickListener != null) {
+                    Log.d(TAG, "📞 Calling fragment callback");
+                    clickListener.onNotificationClicked(clicked.getId());
+                } else {
+                    Log.e(TAG, "❌ WARNING: clickListener is NULL! Fragment won't be notified!");
                 }
 
-            } catch (Exception e) {
-                Log.e("NotificationAdapter", "Error reading role", e);
+                // Mark as read on server
+                NotificationRepository.getInstance(context).markAsRead(clicked.getId(), new NotificationRepository.SimpleCallback() {
+                    @Override
+                    public void onSuccess() {
+                        Log.d(TAG, "✅ Server confirmed notification " + clicked.getId() + " marked as read");
+                    }
+
+                    @Override
+                    public void onError(String message) {
+                        Log.e(TAG, "❌ Server error marking as read: " + message);
+                    }
+                });
+            } else {
+                Log.d(TAG, "ℹ️ Notification already marked as read, skipping update");
             }
 
-            // 🔹 Chọn activity phù hợp
+            // Open detail activity
             Intent intent;
-            if (isAdmin) {
-                Log.d("NotificationAdapter", "→ Opening admin detail activity");
+            if (UserManager.getInstance(context).isAdmin()) {
                 intent = new Intent(context, NotificationDetailActivity_Admin.class);
             } else {
-                Log.d("NotificationAdapter", "→ Opening user detail activity");
                 intent = new Intent(context, NotificationDetailActivity.class);
             }
 
-            // 🔹 Truyền dữ liệu
             intent.putExtra("notification_id", clicked.getId());
             intent.putExtra("title", clicked.getTitle());
-            intent.putExtra("expired_date", clicked.getExpired_date());
+
+            String expDate = clicked.getExpired_date();
+            if (expDate == null || expDate.equals("null")) expDate = "";
+            intent.putExtra("expired_date", expDate);
             intent.putExtra("content", clicked.getContent());
             intent.putExtra("sender", clicked.getSender());
             intent.putExtra("is_read", clicked.isRead());
 
-            context.startActivity(intent);
+            // 🔥 4. TRUYỀN DỮ LIỆU FILE QUA INTENT (QUAN TRỌNG)
+            intent.putExtra("file_url", clicked.getFileUrl());
+            intent.putExtra("file_type", clicked.getFileType());
 
-            // 🔹 Cập nhật local: đánh dấu đã đọc
-            if (!clicked.isRead()) {
-                clicked.setRead(true);
-                notifyItemChanged(pos);
-            }
+            context.startActivity(intent);
         });
     }
 

@@ -28,11 +28,12 @@ const initSchemaWithRetry = async (retries = 10) => {
       `);
       await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS session_token VARCHAR(255);`);
       await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS fcm_token TEXT;`);
+      await pool.query(`ALTER TABLE user_item ADD COLUMN IF NOT EXISTS job VARCHAR(255);`);
       await pool.query(`ALTER TABLE user_item ADD COLUMN IF NOT EXISTS identity_card VARCHAR(50);`);
       await pool.query(`ALTER TABLE user_item ADD COLUMN IF NOT EXISTS home_town VARCHAR(255);`);
       await pool.query(`ALTER TABLE user_item ADD COLUMN IF NOT EXISTS is_living BOOLEAN DEFAULT TRUE;`);
 
-      console.log("✅ Database schema verified (Users).");
+      console.log("Database schema verified (Users).");
       return;
 
     } catch (err) {
@@ -40,19 +41,18 @@ const initSchemaWithRetry = async (retries = 10) => {
         console.log(`⏳ Database đang khởi động... Thử lại sau 3s (${i + 1}/${retries})`);
         await wait(3000);
       } else {
-        console.error("❌ Error initializing database schema:", err);
+        console.error("Error initializing database schema:", err);
         break;
       }
     }
   }
-  console.error("❌ Không thể kết nối Database sau nhiều lần thử.");
+  console.error("Không thể kết nối Database sau nhiều lần thử.");
 };
 
 initSchemaWithRetry();
 
 // 🔥 HELPER: Hàm chuyển đổi Role ID sang tên Role
 const getRoleName = (roleId) => {
-    // ⚠️ IMPORTANT: Use == for type coercion (roleId might be string or number)
     if (roleId == 1) return "USER";
     if (roleId == 2) return "ADMIN";
     if (roleId == 3) return "ACCOUNTANT";
@@ -60,19 +60,19 @@ const getRoleName = (roleId) => {
     return "USER"; // Default fallback
 };
 
-// 🔥 NEW HELPER: Build complete user object
 const buildUserObject = (userRow, infoRow) => {
     const roleName = getRoleName(userRow.role_id || 1);
 
     return {
         id: userRow.user_id.toString(),
-        familyId: infoRow.family_id ? infoRow.family_id.toString() : "0", // 🔥 ADD familyId
+        familyId: infoRow.family_id ? infoRow.family_id.toString() : "0",
         phone: userRow.phone,
         role: roleName,
         role_id: userRow.role_id || 1,
         name: infoRow.full_name || userRow.phone,
         gender: infoRow.gender || "Khác",
         dob: infoRow.dob || "01-01-2000",
+        job: infoRow.job || "Không",
         email: infoRow.email || "",
         identity_card: infoRow.identity_card || "",
         home_town: infoRow.home_town || "",
@@ -93,6 +93,7 @@ router.get("/profile/:user_id", verifySession, async (req, res) => {
         u.user_id, u.phone, ui.email,
         ui.full_name,
         TO_CHAR(ui.dob, 'YYYY-MM-DD') as dob,
+        ui.job,
         ui.gender,
         ui.identity_card,
         ui.home_town,
@@ -158,7 +159,7 @@ router.post("/login", async (req, res) => {
         const user = userRes.rows[0];
 
         const infoRes = await pool.query(`
-            SELECT ui.full_name, ui.gender, TO_CHAR(ui.dob, 'DD-MM-YYYY') AS dob, ui.email,
+            SELECT ui.full_name, ui.gender, TO_CHAR(ui.dob, 'DD-MM-YYYY') AS dob, ui.job, ui.email,
                    ui.identity_card, ui.home_town,
                    r.relationship_with_the_head_of_household AS relationship,
                    a.apartment_number AS room,
@@ -223,7 +224,7 @@ router.post("/login", async (req, res) => {
 
     // 🔥 FIXED: Get complete info with family_id
     const infoRes = await pool.query(`
-        SELECT ui.full_name, ui.gender, TO_CHAR(ui.dob, 'DD-MM-YYYY') AS dob, ui.email,
+        SELECT ui.full_name, ui.gender, TO_CHAR(ui.dob, 'DD-MM-YYYY') AS dob, ui.job, ui.email,
                ui.identity_card, ui.home_town,
                r.relationship_with_the_head_of_household AS relationship,
                a.apartment_number AS room,
@@ -303,7 +304,7 @@ router.post("/auth/firebase", async (req, res) => {
 
     // 🔥 FIXED: Get complete info with family_id
     const infoRes = await pool.query(`
-        SELECT ui.full_name, ui.gender, TO_CHAR(ui.dob, 'DD-MM-YYYY') AS dob, ui.email,
+        SELECT ui.full_name, ui.gender, TO_CHAR(ui.dob, 'DD-MM-YYYY') AS dob, ui.job, ui.email,
                ui.identity_card, ui.home_town,
                r.relationship_with_the_head_of_household AS relationship,
                a.apartment_number AS room,
@@ -356,7 +357,7 @@ async function createStaffAccount(req, res, roleId, roleName) {
   const client = await pool.connect();
   try {
     // Nhận dữ liệu từ Android gửi lên
-    const { phone, password, full_name, email, identity_card, home_town, dob, gender } = req.body;
+    const { phone, password, full_name, email, identity_card, home_town, dob, gender, job } = req.body;
 
     // 1. Validate cơ bản
     if (!phone || !password || !full_name) {
@@ -369,7 +370,6 @@ async function createStaffAccount(req, res, roleId, roleName) {
     const checkUser = await client.query("SELECT user_id FROM users WHERE phone = $1", [phone]);
     if (checkUser.rows.length > 0) {
       await client.query("ROLLBACK");
-      // Trả về 409 Conflict để App nhận diện lỗi trùng
       return res.status(409).json({ error: "Số điện thoại này đã được đăng ký!" });
     }
 
@@ -381,7 +381,6 @@ async function createStaffAccount(req, res, roleId, roleName) {
     );
     const user_id = insertUser.rows[0].user_id;
 
-    // 4. Chuẩn hóa ngày sinh (Tránh lỗi format date nếu client gửi dd/mm/yyyy)
     let formattedDob = '2000-01-01'; // Giá trị mặc định
     if (dob) {
         // Nếu nhận dạng dd/mm/yyyy -> chuyển thành yyyy-mm-dd
@@ -393,7 +392,7 @@ async function createStaffAccount(req, res, roleId, roleName) {
     // 5. Tạo thông tin chi tiết (Bảng user_item)
     // Lưu ý: roleId = 4 (Agency) có thể không cần is_living, nhưng để mặc định TRUE cũng không sao
     await client.query(
-      `INSERT INTO user_item (user_id, full_name, gender, dob, email, identity_card, home_town, is_living)
+      `INSERT INTO user_item (user_id, full_name, gender, dob, job, email, identity_card, home_town, is_living)
        VALUES ($1, $2, $3, $4, $5, $6, $7, TRUE)`,
       [user_id, full_name, gender || 'Khác', formattedDob, email || null, identity_card || null, home_town || null]
     );

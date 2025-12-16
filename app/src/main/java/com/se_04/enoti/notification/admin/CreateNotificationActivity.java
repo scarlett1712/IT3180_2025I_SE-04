@@ -3,8 +3,12 @@ package com.se_04.enoti.notification.admin;
 import android.app.DatePickerDialog;
 import android.app.TimePickerDialog;
 import android.content.Intent;
+import android.database.Cursor;
+import android.net.Uri;
 import android.os.Bundle;
+import android.provider.OpenableColumns;
 import android.text.TextUtils;
+import android.util.Base64;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -21,7 +25,8 @@ import androidx.localbroadcastmanager.content.LocalBroadcastManager;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
-import com.android.volley.AuthFailureError; // Import thêm
+import com.android.volley.AuthFailureError;
+import com.android.volley.DefaultRetryPolicy;
 import com.android.volley.Request;
 import com.android.volley.RequestQueue;
 import com.android.volley.toolbox.JsonArrayRequest;
@@ -43,6 +48,9 @@ import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Calendar;
@@ -65,6 +73,13 @@ public class CreateNotificationActivity extends BaseActivity {
     private MaterialButton btnSendNow, btnSendLater;
     private TextView txtSelectedResidents;
     private CheckBox chkSendAll;
+
+    // 🔥 CÁC BIẾN MỚI ĐỂ XỬ LÝ FILE
+    private MaterialButton btnSelectImage; // Nút chọn file
+    private TextView txtFileName;          // Hiển thị tên file
+    private static final int PICK_FILE_REQUEST = 999;
+    private String fileBase64;
+    private String fileName;
 
     public static final String ACTION_NOTIFICATION_CREATED = "com.se_04.enoti.NOTIFICATION_CREATED";
     private static final String API_URL = ApiConfig.BASE_URL + "/api/residents";
@@ -107,6 +122,10 @@ public class CreateNotificationActivity extends BaseActivity {
         btnSendLater = findViewById(R.id.btnSendLater);
         txtSelectedResidents = findViewById(R.id.txtSelectedResidents);
         chkSendAll = findViewById(R.id.chkSendAll);
+
+        // 🔥 Ánh xạ View mới
+        btnSelectImage = findViewById(R.id.btnSelectImage);
+        txtFileName = findViewById(R.id.txtFileName);
     }
 
     private void setupToolbar() {
@@ -131,9 +150,14 @@ public class CreateNotificationActivity extends BaseActivity {
 
         View cardRecipients = findViewById(R.id.cardRecipients);
         if (cardRecipients != null) cardRecipients.setVisibility(View.GONE);
+
         btnSendLater.setVisibility(View.GONE);
         btnSendNow.setText("Lưu thay đổi");
         btnSendNow.setOnClickListener(v -> updateNotification());
+
+        // Ẩn chức năng file khi edit (để đơn giản hóa)
+        if(btnSelectImage != null) btnSelectImage.setVisibility(View.GONE);
+        if(txtFileName != null) txtFileName.setVisibility(View.GONE);
     }
 
     private void setupCreateMode() {
@@ -153,7 +177,78 @@ public class CreateNotificationActivity extends BaseActivity {
         btnSendNow.setOnClickListener(v -> sendNow());
         btnSendLater.setOnClickListener(v -> showSendOptionsBottomSheet());
 
+        // 🔥 SỰ KIỆN CHỌN FILE
+        if (btnSelectImage != null) {
+            btnSelectImage.setOnClickListener(v -> openFilePicker());
+        }
+
         fetchResidentsFromAPI();
+    }
+
+    // 🔥 HÀM MỞ FILE PICKER (Ảnh, Video, PDF)
+    private void openFilePicker() {
+        Intent intent = new Intent(Intent.ACTION_GET_CONTENT);
+        intent.setType("*/*");
+        String[] mimeTypes = {"image/*", "video/*", "application/pdf"};
+        intent.putExtra(Intent.EXTRA_MIME_TYPES, mimeTypes);
+        startActivityForResult(intent, PICK_FILE_REQUEST);
+    }
+
+    // 🔥 XỬ LÝ KẾT QUẢ CHỌN FILE
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, @Nullable Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        if (requestCode == PICK_FILE_REQUEST && resultCode == RESULT_OK && data != null && data.getData() != null) {
+            Uri fileUri = data.getData();
+
+            // Lấy tên file
+            fileName = getFileName(fileUri);
+            if(txtFileName != null) txtFileName.setText("Đã đính kèm: " + fileName);
+
+            // Chuyển sang Base64
+            convertFileToBase64(fileUri);
+        }
+    }
+
+    private void convertFileToBase64(Uri uri) {
+        try {
+            InputStream inputStream = getContentResolver().openInputStream(uri);
+            ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+            byte[] buffer = new byte[1024];
+            int len;
+            while ((len = inputStream.read(buffer)) != -1) {
+                outputStream.write(buffer, 0, len);
+            }
+            byte[] bytes = outputStream.toByteArray();
+
+            // Lấy MIME type
+            String mimeType = getContentResolver().getType(uri);
+            if (mimeType == null) mimeType = "application/octet-stream";
+
+            fileBase64 = "data:" + mimeType + ";base64," + Base64.encodeToString(bytes, Base64.DEFAULT);
+
+        } catch (IOException e) {
+            e.printStackTrace();
+            Toast.makeText(this, "Lỗi đọc file: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    private String getFileName(Uri uri) {
+        String result = null;
+        if (uri.getScheme().equals("content")) {
+            try (Cursor cursor = getContentResolver().query(uri, null, null, null, null)) {
+                if (cursor != null && cursor.moveToFirst()) {
+                    int index = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME);
+                    if(index >= 0) result = cursor.getString(index);
+                }
+            }
+        }
+        if (result == null) {
+            result = uri.getPath();
+            int cut = result.lastIndexOf('/');
+            if (cut != -1) result = result.substring(cut + 1);
+        }
+        return result;
     }
 
     private void setupNotificationType(@Nullable String selectedType) {
@@ -175,7 +270,6 @@ public class CreateNotificationActivity extends BaseActivity {
                     Log.e("API_ERROR", "Lỗi tải cư dân: " + error.toString());
                     Toast.makeText(this, "Không thể tải danh sách cư dân", Toast.LENGTH_SHORT).show();
                 }) {
-            // 🔥 THÊM HEADER AUTH
             @Override
             public Map<String, String> getHeaders() throws AuthFailureError {
                 Map<String, String> headers = new HashMap<>();
@@ -195,12 +289,19 @@ public class CreateNotificationActivity extends BaseActivity {
                 if (obj.optInt("role_id", 0) != 1) continue;
 
                 allResidents.add(new ResidentItem(
-                        obj.optInt("user_item_id"), obj.optInt("user_id"),
-                        obj.optString("full_name"), obj.optString("gender"),
-                        obj.optString("dob"), obj.optString("email"),
-                        obj.optString("phone"), obj.optString("relationship_with_the_head_of_household"),
-                        obj.optString("family_id"), obj.optBoolean("is_living"),
-                        obj.optString("apartment_number"), obj.optString("identity_card", ""),
+                        obj.optInt("user_item_id"),
+                        obj.optInt("user_id"),
+                        obj.optString("full_name"),
+                        obj.optString("gender"),
+                        obj.optString("dob"),
+                        obj.optString("job"),
+                        obj.optString("email"),
+                        obj.optString("phone"),
+                        obj.optString("relationship_with_the_head_of_household"),
+                        obj.optString("family_id"),
+                        obj.optBoolean("is_living"),
+                        obj.optString("apartment_number"),
+                        obj.optString("identity_card", ""),
                         obj.optString("home_town", "")
                 ));
             }
@@ -335,6 +436,7 @@ public class CreateNotificationActivity extends BaseActivity {
     private void sendLater(Date scheduledTime) { sendNotification(scheduledTime); }
 
     private void sendNotification(Date scheduledTime) {
+        // ... (Logic kiểm tra selectedResidents giữ nguyên)
         if (selectedResidents.isEmpty()) {
             Toast.makeText(this, "Chưa chọn người nhận, hệ thống sẽ gửi cho TẤT CẢ cư dân!", Toast.LENGTH_SHORT).show();
             selectedResidents = new HashSet<>(allResidents);
@@ -369,6 +471,9 @@ public class CreateNotificationActivity extends BaseActivity {
             JSONArray userIds = new JSONArray();
             for (ResidentItem r : selectedResidents) userIds.put(r.getUserId());
 
+            // Check nếu gửi tất cả thì thêm flag để server xử lý nhanh hơn
+            boolean sendToAll = chkSendAll.isChecked();
+
             UserItem currentUser = UserManager.getInstance(this).getCurrentUser();
             int senderId = (currentUser != null) ? Integer.parseInt(currentUser.getId()) : 1;
 
@@ -379,7 +484,15 @@ public class CreateNotificationActivity extends BaseActivity {
             body.put("sender_id", senderId);
             body.put("expired_date", expiredDate);
             body.put("target_user_ids", userIds);
+            body.put("send_to_all", sendToAll); // Gửi cờ này cho Server
+
             if (scheduledTime != null) body.put("scheduled_time", formattedScheduledTime);
+
+            // 🔥 THÊM FILE BASE64 VÀO BODY
+            if (fileBase64 != null) {
+                body.put("file_base64", fileBase64); // Dùng key chung là image_base64 cho cả file
+                body.put("file_name", fileName);
+            }
 
             RequestQueue queue = Volley.newRequestQueue(this);
             JsonObjectRequest request = new JsonObjectRequest(Request.Method.POST, NOTIFICATION_API_URL, body,
@@ -389,7 +502,6 @@ public class CreateNotificationActivity extends BaseActivity {
                         finish();
                     },
                     error -> Toast.makeText(this, "Lỗi gửi: " + error.toString(), Toast.LENGTH_SHORT).show()) {
-                // 🔥 THÊM HEADER AUTH CHO API POST
                 @Override
                 public Map<String, String> getHeaders() throws AuthFailureError {
                     Map<String, String> headers = new HashMap<>();
@@ -398,6 +510,13 @@ public class CreateNotificationActivity extends BaseActivity {
                     return headers;
                 }
             };
+
+            // 🔥 TĂNG TIMEOUT VÌ GỬI FILE NẶNG
+            request.setRetryPolicy(new DefaultRetryPolicy(
+                    30000, // 30 giây
+                    DefaultRetryPolicy.DEFAULT_MAX_RETRIES,
+                    DefaultRetryPolicy.DEFAULT_BACKOFF_MULT));
+
             queue.add(request);
         } catch (Exception e) { e.printStackTrace(); }
     }
@@ -425,7 +544,6 @@ public class CreateNotificationActivity extends BaseActivity {
                 },
                 error -> Toast.makeText(this, "Lỗi cập nhật", Toast.LENGTH_SHORT).show()
         ) {
-            // 🔥 THÊM HEADER AUTH CHO API PUT
             @Override
             public Map<String, String> getHeaders() throws AuthFailureError {
                 Map<String, String> headers = new HashMap<>();

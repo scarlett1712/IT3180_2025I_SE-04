@@ -10,6 +10,7 @@ import android.widget.ArrayAdapter;
 import android.widget.AutoCompleteTextView;
 import android.widget.Button;
 import android.widget.CheckBox;
+import android.widget.LinearLayout;
 import android.widget.TextView; // Đảm bảo import TextView
 import android.widget.Toast;
 import androidx.appcompat.widget.Toolbar;
@@ -37,7 +38,7 @@ import java.util.Locale;
 
 public class EditProfileActivity extends BaseActivity {
 
-    private TextInputEditText edtFullName, edtPhone, edtEmail, edtDob;
+    private TextInputEditText edtFullName, edtPhone, edtEmail, edtDob, edtJob;
     private TextInputEditText edtIdentityCard, edtHomeTown;
     private TextInputEditText edtRoom, edtFloor, edtRelation;
     private CheckBox checkboxIsHouseholder;
@@ -45,7 +46,7 @@ public class EditProfileActivity extends BaseActivity {
     private Button btnSubmit;
     private UserItem currentUser;
     private Toolbar toolbar;
-    private TextView txtWarning; // Cảnh báo "Chỉ user thường mới cần duyệt"
+    private LinearLayout txtWarning; // Cảnh báo "Chỉ user thường mới cần duyệt"
 
     private final SimpleDateFormat displayDateFormat = new SimpleDateFormat("dd-MM-yyyy", Locale.getDefault());
     private final SimpleDateFormat apiDateFormat = new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault());
@@ -101,6 +102,13 @@ public class EditProfileActivity extends BaseActivity {
             // Ẩn cảnh báo (nếu có trong XML)
             if (txtWarning != null) txtWarning.setVisibility(View.GONE);
         }
+
+        if (role == Role.ACCOUNTANT || role == Role.AGENCY){
+            checkboxIsHouseholder.setVisibility(View.GONE);
+            hideInputLayout(edtRoom);
+            hideInputLayout(edtFloor);
+            hideInputLayout(edtRelation);
+        }
     }
 
     private void hideInputLayout(View view) {
@@ -117,6 +125,7 @@ public class EditProfileActivity extends BaseActivity {
         edtEmail = findViewById(R.id.edtEmail);
         edtGender = findViewById(R.id.edtGender);
         edtDob = findViewById(R.id.edtDob);
+        edtJob = findViewById(R.id.edtJob);
 
         edtIdentityCard = findViewById(R.id.edtIdentityCard);
         edtHomeTown = findViewById(R.id.edtHomeTown);
@@ -128,7 +137,7 @@ public class EditProfileActivity extends BaseActivity {
         btnSubmit = findViewById(R.id.btnSubmit);
 
         // Nếu file XML có TextView cảnh báo
-        txtWarning = findViewById(R.id.warning);
+        txtWarning = findViewById(R.id.layoutWarning);
 
         edtRoom.setEnabled(false);
         edtFloor.setEnabled(false);
@@ -179,6 +188,7 @@ public class EditProfileActivity extends BaseActivity {
         edtFullName.setText(currentUser.getName());
         edtPhone.setText(currentUser.getPhone());
         edtEmail.setText(currentUser.getEmail());
+        edtJob.setText(currentUser.getJob());
         edtIdentityCard.setText(currentUser.getIdentityCard());
         edtHomeTown.setText(currentUser.getHomeTown());
 
@@ -200,7 +210,7 @@ public class EditProfileActivity extends BaseActivity {
             }
         }
 
-        if (currentUser.getRole() != Role.ADMIN) {
+        if (currentUser.getRole() != Role.ADMIN && currentUser.getRole() != Role.ACCOUNTANT && currentUser.getRole() != Role.AGENCY) {
             String currentRoom = String.valueOf(currentUser.getRoom());
             if (currentRoom != null && !currentRoom.isEmpty() && !"null".equals(currentRoom)) {
                 edtRoom.setText(currentRoom);
@@ -227,6 +237,7 @@ public class EditProfileActivity extends BaseActivity {
         String phone = edtPhone.getText().toString().trim();
         String email = edtEmail.getText().toString().trim();
         String gender = edtGender.getText().toString().trim();
+        String job = edtJob.getText().toString().trim();
         String dobDisplay = edtDob.getText().toString().trim();
         String identityCard = edtIdentityCard.getText().toString().trim();
         String homeTown = edtHomeTown.getText().toString().trim();
@@ -234,7 +245,7 @@ public class EditProfileActivity extends BaseActivity {
         boolean isHead = false;
         String relation = "";
 
-        if (currentUser.getRole() != Role.ADMIN) {
+        if (currentUser.getRole() != Role.ADMIN && currentUser.getRole() != Role.ACCOUNTANT && currentUser.getRole() != Role.AGENCY) {
             isHead = checkboxIsHouseholder.isChecked();
             relation = isHead ? "Bản thân" : edtRelation.getText().toString().trim();
             if (!isHead && TextUtils.isEmpty(relation)) {
@@ -265,10 +276,11 @@ public class EditProfileActivity extends BaseActivity {
             body.put("email", email);
             body.put("gender", gender);
             body.put("dob", dobApi);
+            body.put("job", job);
             body.put("identity_card", identityCard);
             body.put("home_town", homeTown);
 
-            if (currentUser.getRole() != Role.ADMIN) {
+            if (currentUser.getRole() != Role.ADMIN || currentUser.getRole() != Role.ACCOUNTANT || currentUser.getRole() != Role.AGENCY) {
                 body.put("relationship", relation);
                 body.put("is_head", isHead);
             }
@@ -290,11 +302,11 @@ public class EditProfileActivity extends BaseActivity {
 
                             if (isAutoApproved || currentUser.getRole() == Role.ADMIN) {
                                 // Admin: Thành công ngay
-                                Toast.makeText(this, "✅ Cập nhật thông tin thành công!", Toast.LENGTH_LONG).show();
+                                Toast.makeText(this, "Cập nhật thông tin thành công!", Toast.LENGTH_LONG).show();
 
                             } else {
                                 // User thường: Chờ duyệt
-                                Toast.makeText(this, "📩 Đã gửi yêu cầu! Vui lòng chờ BQT duyệt.", Toast.LENGTH_LONG).show();
+                                Toast.makeText(this, "Đã gửi yêu cầu! Vui lòng chờ BQT duyệt.", Toast.LENGTH_LONG).show();
                             }
 
                             finish();

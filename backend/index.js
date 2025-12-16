@@ -14,11 +14,13 @@ import changePasswordRoutes from "./routes/change_password.js";
 import createUserRoutes from "./routes/create_user.js";
 import feedbackRoutes from "./routes/feedback.js";
 import feedbackReplyRoutes from "./routes/feedbackReply.js";
-import financeRoutes from "./routes/finance.js"; // Đã bỏ import { createFinanceTables } nếu không dùng ở đây
-import invoiceRoute from "./routes/invoice.js";
-import profileRequestRoutes from "./routes/profileRequests.js"; // 🔥 Sửa tên file thành số nhiều (Requests)
+import financeRoutes, { createFinanceTables } from "./routes/finance.js";
+import invoiceRoute, { createInvoiceTable } from "./routes/invoice.js";
+import profileRequestRoutes from "./routes/profileRequests.js";
 import maintenanceRoutes from "./routes/maintenance.js";
 import reportsRoutes from "./routes/reports.js";
+import authorityRoutes, { createAuthorityMessagesTable } from "./routes/authority.js";
+import appUpdateRoutes from "./routes/app_update.js";
 
 import { startScheduler } from "./cron/scheduler.js";
 
@@ -42,7 +44,6 @@ app.use((req, res, next) => {
   console.log("=== 🔥 INCOMING REQUEST ===");
   console.log("Method:", req.method);
   console.log("Path:", req.path);
-  // console.log("Content-Type:", req.headers["content-type"]);
   console.log("===============================");
   next();
 });
@@ -58,12 +59,16 @@ app.use("/api/create_notification", createNotificationRoutes);
 app.use("/api/changepassword", changePasswordRoutes);
 app.use("/api/create_user", createUserRoutes);
 app.use("/api/feedback", feedbackRoutes);
-app.use("/api/feedback", feedbackReplyRoutes); // Nên đổi path khác nếu feedbackRoutes đã chiếm dụng
+app.use("/api/feedback", feedbackReplyRoutes);
 app.use("/api/finance", financeRoutes);
 app.use("/api/invoice", invoiceRoute);
 app.use("/api/profile-requests", profileRequestRoutes);
 app.use("/api/maintenance", maintenanceRoutes);
 app.use("/api/reports", reportsRoutes);
+app.use("/api/authority", authorityRoutes);
+
+// 🔥 Route cập nhật app (Mới)
+app.use("/api/app-update", appUpdateRoutes);
 
 // ✅ Health check
 app.get("/", (req, res) => {
@@ -84,9 +89,29 @@ app.post("/api/debug", (req, res) => {
   });
 });
 
+// 🔥 Initialize database tables on startup
+const initializeDatabase = async () => {
+  console.log("🔧 Initializing database tables...");
+  try {
+    await createFinanceTables();
+    await createInvoiceTable();
+    // START: Call new table creation function
+    await createAuthorityMessagesTable(); 
+    // END: Call
+    console.log("✅ All tables initialized successfully");
+  } catch (error) {
+    console.error("❌ Error initializing database:", error);
+  }
+};
+
 // ✅ Start server
-app.listen(PORT, () => {
+app.listen(PORT, async () => {
   console.log(`🚀 Server started on port ${PORT}`);
-  console.log(`📍 Health check: http://localhost:${PORT}/`);
+  console.log(`📍 Health check: OK`);
+
+  // 🔥 Initialize database tables
+  await initializeDatabase();
+
+  // Start scheduler
   startScheduler();
 });

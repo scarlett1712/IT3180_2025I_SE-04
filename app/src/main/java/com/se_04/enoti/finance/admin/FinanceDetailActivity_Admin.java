@@ -3,7 +3,6 @@ package com.se_04.enoti.finance.admin;
 import android.app.AlertDialog;
 import android.os.Bundle;
 import android.util.Log;
-import android.view.LayoutInflater;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
@@ -34,6 +33,7 @@ import org.json.JSONException;
 import org.json.JSONObject;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -47,14 +47,19 @@ public class FinanceDetailActivity_Admin extends BaseActivity {
     private RequestQueue requestQueue;
     private int financeId;
     private int currentUserId;
-    private String currentTitle, currentDueDate; // Lưu lại để dùng khi Edit
-    private double currentAmount = 0; // Lưu số tiền nếu cần hiển thị
+    private String currentTitle, currentDueDate;
+    private double currentAmount = 0;
 
-    // 🔥 Biến quyết định quyền sửa (Mặc định là FALSE)
     private boolean canEdit = false;
 
-    private final Map<String, List<Integer>> roomToUsersMap = new HashMap<>();
-    private final Map<String, Boolean> roomInitialStatusMap = new HashMap<>();
+    // Map: Phòng -> Trạng thái thanh toán (true/false)
+    private final Map<String, Boolean> roomStatusMap = new HashMap<>();
+
+    // Map: Phòng -> ID người đại diện (để xem hóa đơn)
+    private final Map<String, Integer> roomInvoiceRefMap = new HashMap<>();
+
+    // Map: Lưu trữ CheckBox View
+    private final Map<String, CheckBox> roomCheckBoxViews = new HashMap<>();
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -73,32 +78,25 @@ public class FinanceDetailActivity_Admin extends BaseActivity {
             getSupportActionBar().setTitle("Chi tiết khoản thu");
             toolbar.setTitleTextColor(ContextCompat.getColor(this, android.R.color.white));
         }
+        toolbar.setNavigationOnClickListener(v -> finish());
 
         requestQueue = Volley.newRequestQueue(this);
 
         financeId = getIntent().getIntExtra("finance_id", -1);
         currentTitle = getIntent().getStringExtra("title");
         currentDueDate = getIntent().getStringExtra("due_date");
-        // Nếu có truyền amount qua Intent thì lấy, không thì mặc định
         currentAmount = getIntent().getDoubleExtra("amount", 0);
 
         UserItem currentUser = UserManager.getInstance(this).getCurrentUser();
         if (currentUser != null) {
             currentUserId = Integer.parseInt(currentUser.getId());
-
-            boolean isAdmin = UserManager.getInstance(this).isAdmin();
             boolean isAccountant = (currentUser.getRole() == Role.ACCOUNTANT);
 
-            if (isAdmin) {
-                canEdit = false;
-            } else if (isAccountant) {
-                canEdit = true;
-            } else {
-                canEdit = false;
-            }
+            // Chỉ Kế toán được sửa, Admin chỉ xem
+            if (isAccountant) canEdit = true;
+            else canEdit = false;
         }
 
-        // Ẩn/Hiện nút Lưu trạng thái
         if (canEdit) {
             buttonSaveChanges.setVisibility(View.VISIBLE);
             buttonSaveChanges.setOnClickListener(v -> updateRoomStatuses());
@@ -106,15 +104,14 @@ public class FinanceDetailActivity_Admin extends BaseActivity {
             buttonSaveChanges.setVisibility(View.GONE);
         }
 
-        updateUIHeader(); // Hiển thị Title và Date
+        updateUIHeader();
 
         if (financeId == -1) {
-            Toast.makeText(this, "Thiếu ID khoản thu!", Toast.LENGTH_SHORT).show();
             finish();
             return;
         }
 
-        loadRoomStatuses();
+        loadRoomData();
     }
 
     private void updateUIHeader() {
@@ -122,10 +119,170 @@ public class FinanceDetailActivity_Admin extends BaseActivity {
         txtFinanceDeadline.setText("Hạn nộp: " + (currentDueDate != null ? currentDueDate : "Không rõ"));
     }
 
-    // 🔥 TẠO MENU (3 CHẤM)
+    private void loadRoomData() {
+        String url = ApiConfig.BASE_URL + "/api/finance/" + financeId + "/users";
+        JsonArrayRequest request = new JsonArrayRequest(Request.Method.GET, url, null,
+                response -> {
+                    try {
+                        roomStatusMap.clear();
+                        roomInvoiceRefMap.clear();
+
+                        for (int i = 0; i < response.length(); i++) {
+                            JSONObject obj = response.getJSONObject(i);
+                            String room = obj.optString("room", "N/A");
+                            String status = obj.optString("status", "chua_thanh_toan");
+                            int userId = obj.optInt("user_id");
+
+                            boolean isPaid = "da_thanh_toan".equalsIgnoreCase(status);
+
+                            // Nếu phòng này chưa có trong map, hoặc nếu phòng này đã có nhưng trạng thái mới là 'paid' thì cập nhật
+                            // (Mục đích: Chỉ cần 1 người trong phòng đóng tiền = phòng đã đóng tiền)
+                            if (!roomStatusMap.containsKey(room)) {
+                                roomStatusMap.put(room, isPaid);
+                            } else {
+                                if (isPaid) roomStatusMap.put(room, true);
+                            }
+
+                            // Lưu ID người thanh toán để xem hóa đơn
+                            if (isPaid && !roomInvoiceRefMap.containsKey(room)) {
+                                roomInvoiceRefMap.put(room, userId);
+                            }
+                        }
+                        renderRoomList();
+                    } catch (JSONException e) { e.printStackTrace(); }
+                },
+                error -> Toast.makeText(this, "Lỗi tải danh sách phòng", Toast.LENGTH_SHORT).show());
+        requestQueue.add(request);
+    }
+
+    private void renderRoomList() {
+        layoutRoomCheckboxes.removeAllViews();
+        roomCheckBoxViews.clear();
+
+        List<String> sortedRooms = new ArrayList<>(roomStatusMap.keySet());
+
+        Collections.sort(sortedRooms, (room1, room2) -> {
+            try {
+                if (room1.length() < 3 || room2.length() < 3) return room1.compareTo(room2);
+                int floor1 = Integer.parseInt(room1.substring(0, room1.length() - 2));
+                int number1 = Integer.parseInt(room1.substring(room1.length() - 2));
+                int floor2 = Integer.parseInt(room2.substring(0, room2.length() - 2));
+                int number2 = Integer.parseInt(room2.substring(room2.length() - 2));
+
+                int floorCompare = Integer.compare(floor1, floor2);
+                return (floorCompare != 0) ? floorCompare : Integer.compare(number1, number2);
+            } catch (Exception e) {
+                return room1.compareTo(room2);
+            }
+        });
+
+        for (String room : sortedRooms) {
+            // 🔥 QUAN TRỌNG: Tạo biến final cục bộ để fix lỗi bấm nhầm phòng
+            final String finalRoom = room;
+
+            CheckBox checkBox = new CheckBox(this);
+            checkBox.setText("Phòng " + finalRoom);
+
+            boolean isPaid = roomStatusMap.getOrDefault(finalRoom, false);
+            checkBox.setChecked(isPaid);
+            checkBox.setTag(finalRoom);
+
+            if (isPaid) {
+                checkBox.setTextColor(ContextCompat.getColor(this, R.color.holo_green_dark));
+                checkBox.setTypeface(null, android.graphics.Typeface.BOLD);
+            }
+
+            // --- SỰ KIỆN XEM HÓA ĐƠN ---
+            checkBox.setOnLongClickListener(v -> {
+                if (checkBox.isChecked()) {
+                    showInvoice(finalRoom); // Dùng biến finalRoom thay vì room
+                    return true;
+                } else {
+                    Toast.makeText(this, "Phòng này chưa thanh toán", Toast.LENGTH_SHORT).show();
+                    return true;
+                }
+            });
+
+            // --- QUYỀN SỬA ---
+            if (canEdit) {
+                checkBox.setEnabled(true);
+            } else {
+                checkBox.setOnClickListener(v -> {
+                    checkBox.setChecked(isPaid);
+                    Toast.makeText(this, "Bạn không có quyền chỉnh sửa", Toast.LENGTH_SHORT).show();
+                });
+            }
+
+            layoutRoomCheckboxes.addView(checkBox);
+            roomCheckBoxViews.put(finalRoom, checkBox);
+        }
+    }
+
+    private void showInvoice(String room) {
+        Integer userId = roomInvoiceRefMap.get(room);
+        if (userId == null) {
+            Toast.makeText(this, "Không tìm thấy dữ liệu hóa đơn", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        InvoiceBottomSheet bottomSheet = InvoiceBottomSheet.newInstance(financeId, userId);
+        bottomSheet.show(getSupportFragmentManager(), "InvoiceBottomSheet");
+    }
+
+    private void updateRoomStatuses() {
+        if (!canEdit) return;
+
+        int updatedCount = 0;
+
+        for (Map.Entry<String, CheckBox> entry : roomCheckBoxViews.entrySet()) {
+            String roomName = entry.getKey();
+            CheckBox cb = entry.getValue();
+
+            boolean currentChecked = cb.isChecked();
+            boolean initialStatus = roomStatusMap.getOrDefault(roomName, false);
+
+            // Chỉ update nếu có sự thay đổi
+            if (currentChecked != initialStatus) {
+                callApiUpdateStatus(roomName, currentChecked);
+                updatedCount++;
+            }
+        }
+
+        if (updatedCount > 0) {
+            Toast.makeText(this, "Đang cập nhật " + updatedCount + " phòng...", Toast.LENGTH_SHORT).show();
+            // Đợi server xử lý xong rồi load lại
+            new android.os.Handler().postDelayed(this::loadRoomData, 1500);
+        } else {
+            Toast.makeText(this, "Không có thay đổi nào.", Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    private void callApiUpdateStatus(String roomName, boolean isPaid) {
+        String url = ApiConfig.BASE_URL + "/api/finance/update-status";
+        JSONObject body = new JSONObject();
+        try {
+            body.put("room", roomName);
+            body.put("finance_id", financeId);
+            body.put("admin_id", currentUserId);
+            body.put("status", isPaid ? "da_thanh_toan" : "chua_thanh_toan");
+        } catch (JSONException e) { return; }
+
+        JsonObjectRequest request = new JsonObjectRequest(Request.Method.PUT, url, body,
+                response -> Log.i("FinanceDetail", "Updated room: " + roomName),
+                error -> Log.e("FinanceDetail", "Error updating room " + roomName)
+        ) {
+            @Override
+            public Map<String, String> getHeaders() {
+                Map<String, String> headers = new HashMap<>();
+                String token = UserManager.getInstance(getApplicationContext()).getAuthToken();
+                if(token != null) headers.put("Authorization", "Bearer " + token);
+                return headers;
+            }
+        };
+        requestQueue.add(request);
+    }
+
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
-        // Chỉ inflate menu nếu có quyền chỉnh sửa (Kế toán)
         if (canEdit) {
             getMenuInflater().inflate(R.menu.menu_finance_detail, menu);
             return true;
@@ -133,32 +290,26 @@ public class FinanceDetailActivity_Admin extends BaseActivity {
         return super.onCreateOptionsMenu(menu);
     }
 
-    // 🔥 XỬ LÝ CLICK MENU
     @Override
     public boolean onOptionsItemSelected(@NonNull MenuItem item) {
         int id = item.getItemId();
-
         if (id == android.R.id.home) {
-            onBackPressed();
+            finish();
+            return true;
+        } else if (id == R.id.action_edit) {
+            if (canEdit) showEditDialog();
+            return true;
+        } else if (id == R.id.action_delete) {
+            if (canEdit) showDeleteConfirmation();
             return true;
         }
-        else if (id == R.id.action_edit) {
-            showEditDialog(); // Hiện hộp thoại sửa
-            return true;
-        }
-        else if (id == R.id.action_delete) {
-            showDeleteConfirmation(); // Hiện hộp thoại xác nhận xóa
-            return true;
-        }
-
         return super.onOptionsItemSelected(item);
     }
 
-    // --- LOGIC XÓA ---
     private void showDeleteConfirmation() {
         new AlertDialog.Builder(this)
                 .setTitle("Xác nhận xóa")
-                .setMessage("Bạn có chắc chắn muốn xóa khoản thu này không? Dữ liệu thanh toán của cư dân cũng sẽ bị xóa.")
+                .setMessage("Bạn có chắc chắn muốn xóa khoản thu này không?")
                 .setPositiveButton("Xóa", (dialog, which) -> deleteFinance())
                 .setNegativeButton("Hủy", null)
                 .show();
@@ -166,11 +317,10 @@ public class FinanceDetailActivity_Admin extends BaseActivity {
 
     private void deleteFinance() {
         String url = ApiConfig.BASE_URL + "/api/finance/" + financeId;
-
         JsonObjectRequest request = new JsonObjectRequest(Request.Method.DELETE, url, null,
                 response -> {
                     Toast.makeText(this, "Đã xóa khoản thu!", Toast.LENGTH_SHORT).show();
-                    setResult(RESULT_OK); // Báo về màn hình trước để reload
+                    setResult(RESULT_OK);
                     finish();
                 },
                 error -> Toast.makeText(this, "Lỗi khi xóa khoản thu", Toast.LENGTH_SHORT).show()
@@ -186,7 +336,6 @@ public class FinanceDetailActivity_Admin extends BaseActivity {
         requestQueue.add(request);
     }
 
-    // --- SỬA HÀM HIỆN DIALOG ---
     private void showEditDialog() {
         AlertDialog.Builder builder = new AlertDialog.Builder(this);
         builder.setTitle("Chỉnh sửa khoản thu");
@@ -208,11 +357,7 @@ public class FinanceDetailActivity_Admin extends BaseActivity {
         final EditText inputAmount = new EditText(this);
         inputAmount.setHint("Số tiền (VNĐ)");
         inputAmount.setInputType(android.text.InputType.TYPE_CLASS_NUMBER);
-
-        // Chỉ hiển thị số tiền nếu nó > 0 (hoặc khác null logic cũ)
-        if (currentAmount > 0) {
-            inputAmount.setText(String.format("%.0f", currentAmount));
-        }
+        if (currentAmount > 0) inputAmount.setText(String.format("%.0f", currentAmount));
         layout.addView(inputAmount);
 
         builder.setView(layout);
@@ -226,25 +371,13 @@ public class FinanceDetailActivity_Admin extends BaseActivity {
                 Toast.makeText(this, "Tiêu đề không được để trống", Toast.LENGTH_SHORT).show();
                 return;
             }
-
-            // 🔥 LOGIC MỚI: Nếu để trống -> Gán là null
-            Double finalAmount = null;
-            if (!amountStr.isEmpty()) {
-                try {
-                    finalAmount = Double.parseDouble(amountStr);
-                } catch (NumberFormatException e) {
-                    finalAmount = null;
-                }
-            }
-
+            Double finalAmount = amountStr.isEmpty() ? null : Double.parseDouble(amountStr);
             updateFinanceInfo(newTitle, newDate, finalAmount);
         });
         builder.setNegativeButton("Hủy", (dialog, which) -> dialog.cancel());
-
         builder.show();
     }
 
-    // --- SỬA HÀM GỌI API (Chấp nhận Double thay vì double) ---
     private void updateFinanceInfo(String title, String date, Double amount) {
         String url = ApiConfig.BASE_URL + "/api/finance/" + financeId;
         JSONObject body = new JSONObject();
@@ -252,129 +385,20 @@ public class FinanceDetailActivity_Admin extends BaseActivity {
             body.put("title", title);
             body.put("due_date", date);
             body.put("content", "Đã chỉnh sửa bởi Kế toán");
-
-            // 🔥 QUAN TRỌNG: Gửi null chuẩn JSON nếu amount là null
-            if (amount != null) {
-                body.put("amount", amount);
-            } else {
-                body.put("amount", JSONObject.NULL);
-            }
-
+            if (amount != null) body.put("amount", amount);
+            else body.put("amount", JSONObject.NULL);
         } catch (JSONException e) { e.printStackTrace(); }
 
         JsonObjectRequest request = new JsonObjectRequest(Request.Method.PUT, url, body,
                 response -> {
                     Toast.makeText(this, "Cập nhật thành công!", Toast.LENGTH_SHORT).show();
-
-                    // Cập nhật lại UI
                     currentTitle = title;
                     currentDueDate = date;
-                    // Nếu null thì coi như 0 để hiển thị hoặc xử lý logic hiển thị khác tùy bạn
                     currentAmount = (amount != null) ? amount : 0;
-
                     updateUIHeader();
                     setResult(RESULT_OK);
                 },
                 error -> Toast.makeText(this, "Lỗi cập nhật", Toast.LENGTH_SHORT).show()
-        ) {
-            @Override
-            public Map<String, String> getHeaders() {
-                Map<String, String> headers = new HashMap<>();
-                String token = UserManager.getInstance(getApplicationContext()).getAuthToken();
-                if(token != null) headers.put("Authorization", "Bearer " + token);
-                return headers;
-            }
-        };
-        requestQueue.add(request);
-    }
-
-    // --- CÁC HÀM CŨ (LOAD ROOM, CHECKBOX...) GIỮ NGUYÊN ---
-
-    private void loadRoomStatuses() {
-        String url = ApiConfig.BASE_URL + "/api/finance/" + financeId + "/users";
-        JsonArrayRequest request = new JsonArrayRequest(Request.Method.GET, url, null,
-                response -> {
-                    try {
-                        roomToUsersMap.clear();
-                        roomInitialStatusMap.clear();
-                        for (int i = 0; i < response.length(); i++) {
-                            JSONObject obj = response.getJSONObject(i);
-                            int userId = obj.optInt("user_id");
-                            String room = obj.optString("room", "N/A");
-                            String status = obj.optString("status", "chua_thanh_toan");
-                            boolean isPaid = status.equalsIgnoreCase("da_thanh_toan");
-
-                            if (!roomToUsersMap.containsKey(room)) roomToUsersMap.put(room, new ArrayList<>());
-                            roomToUsersMap.get(room).add(userId);
-                            if (!roomInitialStatusMap.containsKey(room)) roomInitialStatusMap.put(room, isPaid);
-                        }
-                        createCheckboxesForRooms();
-                    } catch (JSONException e) { e.printStackTrace(); }
-                },
-                error -> Toast.makeText(this, "Lỗi tải danh sách phòng", Toast.LENGTH_SHORT).show());
-        requestQueue.add(request);
-    }
-
-    private void createCheckboxesForRooms() {
-        layoutRoomCheckboxes.removeAllViews();
-        List<String> sortedRooms = new ArrayList<>(roomToUsersMap.keySet());
-        java.util.Collections.sort(sortedRooms);
-
-        for (String room : sortedRooms) {
-            CheckBox checkBox = new CheckBox(this);
-            checkBox.setText("Phòng " + room);
-            boolean isPaid = roomInitialStatusMap.getOrDefault(room, false);
-            checkBox.setChecked(isPaid);
-            checkBox.setTag(room);
-
-            if (canEdit) {
-                checkBox.setEnabled(true);
-                checkBox.setClickable(true);
-                checkBox.setAlpha(1.0f);
-            } else {
-                checkBox.setEnabled(false);
-                checkBox.setClickable(false);
-                checkBox.setFocusable(false);
-                checkBox.setTextColor(ContextCompat.getColor(this, R.color.black));
-                checkBox.setAlpha(0.6f);
-            }
-            layoutRoomCheckboxes.addView(checkBox);
-        }
-    }
-
-    private void updateRoomStatuses() {
-        if (!canEdit) return;
-        int updatedCount = 0;
-        for (int i = 0; i < layoutRoomCheckboxes.getChildCount(); i++) {
-            View view = layoutRoomCheckboxes.getChildAt(i);
-            if (view instanceof CheckBox) {
-                CheckBox cb = (CheckBox) view;
-                String roomName = (String) cb.getTag();
-                boolean isChecked = cb.isChecked();
-                boolean initialStatus = roomInitialStatusMap.getOrDefault(roomName, false);
-                if (isChecked != initialStatus) {
-                    updateStatusForRoom(roomName, isChecked);
-                    updatedCount++;
-                }
-            }
-        }
-        if (updatedCount > 0) Toast.makeText(this, "Đang cập nhật...", Toast.LENGTH_SHORT).show();
-        else Toast.makeText(this, "Không có thay đổi.", Toast.LENGTH_SHORT).show();
-    }
-
-    private void updateStatusForRoom(String roomName, boolean isPaid) {
-        String url = ApiConfig.BASE_URL + "/api/finance/update-status";
-        JSONObject body = new JSONObject();
-        try {
-            body.put("room", roomName);
-            body.put("finance_id", financeId);
-            body.put("admin_id", currentUserId);
-            body.put("status", isPaid ? "da_thanh_toan" : "chua_thanh_toan");
-        } catch (JSONException e) { return; }
-
-        JsonObjectRequest request = new JsonObjectRequest(Request.Method.PUT, url, body,
-                response -> Log.i("FinanceDetail", "Updated room: " + roomName),
-                error -> Toast.makeText(this, "Lỗi cập nhật phòng " + roomName, Toast.LENGTH_SHORT).show()
         ) {
             @Override
             public Map<String, String> getHeaders() {

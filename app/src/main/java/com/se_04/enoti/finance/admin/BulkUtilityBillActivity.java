@@ -11,7 +11,7 @@ import androidx.annotation.Nullable;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
-import com.android.volley.AuthFailureError; // Import thêm
+import com.android.volley.AuthFailureError;
 import com.android.volley.Request;
 import com.android.volley.RequestQueue;
 import com.android.volley.toolbox.JsonArrayRequest;
@@ -23,7 +23,7 @@ import com.google.android.material.button.MaterialButtonToggleGroup;
 import com.se_04.enoti.R;
 import com.se_04.enoti.utils.ApiConfig;
 import com.se_04.enoti.utils.BaseActivity;
-import com.se_04.enoti.utils.UserManager; // Import thêm
+import com.se_04.enoti.utils.UserManager;
 
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -125,7 +125,6 @@ public class BulkUtilityBillActivity extends BaseActivity {
                 },
                 error -> Toast.makeText(this, "Lỗi tải danh sách phòng", Toast.LENGTH_SHORT).show()
         ) {
-            // 🔥 THÊM HEADER AUTH
             @Override
             public Map<String, String> getHeaders() throws AuthFailureError {
                 Map<String, String> headers = new HashMap<>();
@@ -143,22 +142,36 @@ public class BulkUtilityBillActivity extends BaseActivity {
 
         for (UtilityInputItem item : inputList) {
             String newStr = item.getNewIndex().trim();
+
+            // Chỉ xử lý nếu người dùng đã nhập chỉ số mới
             if (!newStr.isEmpty()) {
                 try {
-                    int oldVal = Integer.parseInt(item.getOldIndex());
+                    // 🔥 FIX: Xử lý an toàn cho chỉ số cũ
+                    // Nếu oldIndex rỗng hoặc null -> Mặc định là 0
+                    int oldVal = 0;
+                    String oldStr = item.getOldIndex();
+                    if (!TextUtils.isEmpty(oldStr) && TextUtils.isDigitsOnly(oldStr)) {
+                        oldVal = Integer.parseInt(oldStr);
+                    }
+
                     int newVal = Integer.parseInt(newStr);
+
+                    // Kiểm tra logic: Chỉ số mới không được nhỏ hơn chỉ số cũ
                     if (newVal < oldVal) {
-                        Toast.makeText(this, "Lỗi: Phòng " + item.getRoomNumber() + " chỉ số mới nhỏ hơn cũ!", Toast.LENGTH_LONG).show();
+                        Toast.makeText(this, "Lỗi: Phòng " + item.getRoomNumber() + " chỉ số mới nhỏ hơn cũ (" + oldVal + ")!", Toast.LENGTH_LONG).show();
                         return;
                     }
+
                     JSONObject obj = new JSONObject();
                     obj.put("room", item.getRoomNumber());
                     obj.put("old_index", oldVal);
                     obj.put("new_index", newVal);
                     jsonArray.put(obj);
                     count++;
+
                 } catch (NumberFormatException e) {
-                    Toast.makeText(this, "Lỗi định dạng số phòng " + item.getRoomNumber(), Toast.LENGTH_SHORT).show();
+                    // Nếu người dùng nhập ký tự không phải số vào ô "Mới"
+                    Toast.makeText(this, "Lỗi định dạng số tại phòng " + item.getRoomNumber(), Toast.LENGTH_SHORT).show();
                     return;
                 } catch (JSONException e) { e.printStackTrace(); }
             }
@@ -198,10 +211,9 @@ public class BulkUtilityBillActivity extends BaseActivity {
                 error -> {
                     btnSaveAll.setEnabled(true);
                     btnSaveAll.setText("Lưu & Tính tiền");
-                    Toast.makeText(this, "Lỗi khi lưu dữ liệu", Toast.LENGTH_SHORT).show();
+                    Toast.makeText(this, "Lỗi khi lưu dữ liệu: " + error.getMessage(), Toast.LENGTH_SHORT).show();
                 }
         ) {
-            // 🔥 THÊM HEADER AUTH CHO API POST
             @Override
             public Map<String, String> getHeaders() throws AuthFailureError {
                 Map<String, String> headers = new HashMap<>();

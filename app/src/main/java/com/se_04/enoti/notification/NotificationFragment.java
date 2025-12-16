@@ -1,6 +1,5 @@
 package com.se_04.enoti.notification;
 
-import android.content.Context;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
@@ -12,7 +11,6 @@ import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
 import android.widget.Spinner;
 import android.widget.TextView;
-import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
@@ -39,19 +37,21 @@ import java.util.List;
 public class NotificationFragment extends Fragment {
 
     private static final String TAG = "NotificationFragment";
-    private static final int REFRESH_INTERVAL = 10000; // Tăng lên 10s để đỡ spam server nếu đã có cache
+    private static final int REFRESH_INTERVAL = 30000;
 
     private NotificationAdapter adapter;
-    private List<NotificationItem> originalList = new ArrayList<>();
-    private List<NotificationItem> filteredList = new ArrayList<>();
+    private final List<NotificationItem> originalList = new ArrayList<>();
+    private final List<NotificationItem> filteredList = new ArrayList<>();
 
     private Spinner spinnerFilterType, spinnerFilterTime;
     private SearchView searchView;
     private TextView txtEmpty;
+    private RecyclerView recyclerView;
 
-    private final NotificationRepository repository = NotificationRepository.getInstance();
+    private NotificationRepository repository;
+
     private boolean isFirstLoad = true;
-    private String cacheFileName; // 🔥 Tên file cache riêng cho user
+    private String cacheFileName;
 
     private final Handler refreshHandler = new Handler(Looper.getMainLooper());
     private final Runnable refreshRunnable = new Runnable() {
@@ -64,6 +64,12 @@ public class NotificationFragment extends Fragment {
         }
     };
 
+    @Override
+    public void onCreate(@Nullable Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        repository = NotificationRepository.getInstance(requireContext());
+    }
+
     @Nullable
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater,
@@ -71,18 +77,21 @@ public class NotificationFragment extends Fragment {
                              @Nullable Bundle savedInstanceState) {
         View view = inflater.inflate(R.layout.fragment_notifications, container, false);
 
-        repository.setContext(requireContext());
+        // Initialize views
         TextView txtWelcome = view.findViewById(R.id.txtWelcome);
         TextView txtGreeting = view.findViewById(R.id.txtGreeting);
         searchView = view.findViewById(R.id.search_view);
         spinnerFilterType = view.findViewById(R.id.spinnerFilterType);
         spinnerFilterTime = view.findViewById(R.id.spinnerFilterTime);
         txtEmpty = view.findViewById(R.id.txtEmpty);
+        recyclerView = view.findViewById(R.id.recyclerViewNotifications);
 
+        // Set up welcome message
         UserItem currentUser = UserManager.getInstance(requireContext()).getCurrentUser();
         String username = (currentUser != null) ? currentUser.getName() : "Người dùng";
         txtWelcome.setText("Xin chào " + username + "!");
 
+        // Set up time-based greeting
         Calendar calendar = Calendar.getInstance();
         int hour = calendar.get(Calendar.HOUR_OF_DAY);
         String timeOfDay;
@@ -92,10 +101,24 @@ public class NotificationFragment extends Fragment {
         else timeOfDay = "tối";
         txtGreeting.setText(getString(R.string.greeting, timeOfDay));
 
-        RecyclerView recyclerView = view.findViewById(R.id.recyclerViewNotifications);
-        recyclerView.setLayoutManager(new LinearLayoutManager(requireContext()));
-        adapter = new NotificationAdapter(filteredList, NotificationAdapter.VIEW_TYPE_NORMAL);
-        recyclerView.setAdapter(adapter);
+        // 🔥 Set up RecyclerView with CORRECT ID
+        if (recyclerView != null) {
+            recyclerView.setLayoutManager(new LinearLayoutManager(requireContext()));
+            recyclerView.setHasFixedSize(true);
+
+            // 🔥 Create adapter with callback to handle read status updates
+            adapter = new NotificationAdapter(filteredList, NotificationAdapter.VIEW_TYPE_NORMAL);
+            adapter.setOnNotificationClickListener(new NotificationAdapter.OnNotificationClickListener() {
+                @Override
+                public void onNotificationClicked(long notificationId) {
+                    Log.d(TAG, "🔔 Fragment received click callback for notification: " + notificationId);
+                    updateNotificationReadStatus(notificationId, true);
+                }
+            });
+            recyclerView.setAdapter(adapter);
+        } else {
+            Log.e(TAG, "❌ RecyclerView is NULL!");
+        }
 
         setupControls();
 
@@ -106,26 +129,28 @@ public class NotificationFragment extends Fragment {
     public void onResume() {
         super.onResume();
         isFirstLoad = true;
-        loadNotificationsFromCurrentUser();
         refreshHandler.removeCallbacks(refreshRunnable);
-        refreshHandler.postDelayed(refreshRunnable, REFRESH_INTERVAL);
+        refreshHandler.post(refreshRunnable);
     }
 
     @Override
     public void onPause() {
         super.onPause();
         refreshHandler.removeCallbacks(refreshRunnable);
+        saveListToCache(originalList);
     }
 
     private void setupControls() {
         if (getContext() == null) return;
 
+        // Type filter spinner
         String[] typeOptions = {"Tất cả", "Hành chính", "Kỹ thuật & bảo trì", "Tài chính", "Sự kiện & cộng đồng", "Khẩn cấp"};
         ArrayAdapter<String> typeAdapter = new ArrayAdapter<>(requireContext(),
                 android.R.layout.simple_spinner_item, typeOptions);
         typeAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
         spinnerFilterType.setAdapter(typeAdapter);
 
+        // Time sort spinner
         String[] timeOptions = {"Mới nhất", "Cũ nhất"};
         ArrayAdapter<String> timeAdapter = new ArrayAdapter<>(requireContext(),
                 android.R.layout.simple_spinner_item, timeOptions);
@@ -133,38 +158,44 @@ public class NotificationFragment extends Fragment {
         spinnerFilterTime.setAdapter(timeAdapter);
 
         AdapterView.OnItemSelectedListener filterListener = new AdapterView.OnItemSelectedListener() {
-            @Override public void onItemSelected(AdapterView<?> parent, View v, int pos, long id) {
+            @Override
+            public void onItemSelected(AdapterView<?> parent, View v, int pos, long id) {
                 applyFiltersAndSearch();
             }
-            @Override public void onNothingSelected(AdapterView<?> parent) {}
+
+            @Override
+            public void onNothingSelected(AdapterView<?> parent) {}
         };
         spinnerFilterType.setOnItemSelectedListener(filterListener);
         spinnerFilterTime.setOnItemSelectedListener(filterListener);
 
         searchView.setOnQueryTextListener(new SearchView.OnQueryTextListener() {
-            @Override public boolean onQueryTextSubmit(String q) {
+            @Override
+            public boolean onQueryTextSubmit(String query) {
                 applyFiltersAndSearch();
-                return true;
+                return false;
             }
-            @Override public boolean onQueryTextChange(String newText) {
+
+            @Override
+            public boolean onQueryTextChange(String newText) {
                 applyFiltersAndSearch();
                 return true;
             }
         });
     }
 
-    private void loadNotificationsFromCurrentUser(){
-        if (!isAdded() || getContext() == null) return;
+    private void loadNotificationsFromCurrentUser() {
+        if (!isAdded()) return;
 
         UserItem currentUser = UserManager.getInstance(requireContext()).getCurrentUser();
         if (currentUser == null || currentUser.getId() == null) {
+            Log.w(TAG, "Current user is not available. Cannot load notifications.");
             return;
         }
 
-        // 🔥 1. Xác định tên file cache và Load Cache trước
         cacheFileName = "cache_notifs_" + currentUser.getId() + ".json";
 
-        // Chỉ load cache nếu list đang trống (tránh giật màn hình khi đang refresh tự động)
+        // Only load from cache if the list is empty
         if (originalList.isEmpty()) {
             loadFromCache();
         }
@@ -181,38 +212,75 @@ public class NotificationFragment extends Fragment {
         repository.fetchNotifications(userId, new NotificationRepository.NotificationsCallback() {
             @Override
             public void onSuccess(List<NotificationItem> items) {
-                if (isAdded()) {
-                    // 🔥 2. Lưu vào Cache khi tải thành công
-                    saveListToCache(items);
+                if (!isAdded()) return;
 
-                    int oldSize = originalList.size();
-                    int newSize = items.size();
+                Log.d(TAG, "📥 Received " + items.size() + " notifications from server");
 
-                    originalList.clear();
-                    originalList.addAll(items);
-                    applyFiltersAndSearch();
+                // 🔥 Merge server data with local read states
+                mergeReadStates(items);
 
-                    if (!isFirstLoad && newSize > oldSize) {
-                        Snackbar.make(requireView(), "Bạn có thông báo mới!", Snackbar.LENGTH_SHORT)
-                                .setAction("Xem", v -> {
-                                    RecyclerView rv = getView().findViewById(R.id.recyclerViewNotifications);
-                                    if (rv != null) rv.smoothScrollToPosition(0);
-                                })
-                                .show();
-                    }
-                    isFirstLoad = false;
+                int oldSize = originalList.size();
+                int newSize = items.size();
+
+                applyFiltersAndSearch();
+
+                if (!isFirstLoad && newSize > oldSize && getView() != null) {
+                    Snackbar.make(getView(), "Bạn có thông báo mới!", Snackbar.LENGTH_SHORT)
+                            .setAction("Xem", v -> {
+                                if (recyclerView != null) recyclerView.smoothScrollToPosition(0);
+                            })
+                            .show();
                 }
+                isFirstLoad = false;
             }
 
             @Override
             public void onError(String message) {
-                Log.e(TAG, "Failed to load notifications: " + message);
-                // Nếu lỗi mạng, UI vẫn hiển thị dữ liệu từ cache đã load trước đó
+                if (isAdded()) {
+                    Log.e(TAG, "Failed to load notifications: " + message);
+                }
             }
         });
     }
 
+    private void updateNotificationReadStatus(long notificationId, boolean isRead) {
+        boolean found = false;
+
+        for (NotificationItem item : originalList) {
+            if (item.getId() == notificationId) {
+                item.setRead(isRead);
+                found = true;
+                break;
+            }
+        }
+
+        if (found) {
+            saveListToCache(originalList);
+            applyFiltersAndSearch();
+        }
+    }
+
+    private void mergeReadStates(List<NotificationItem> serverItems) {
+        List<NotificationItem> updatedList = new ArrayList<>();
+
+        for (NotificationItem serverItem : serverItems) {
+            for (NotificationItem localItem : originalList) {
+                if (localItem.getId() == serverItem.getId() && localItem.isRead()) {
+                    serverItem.setRead(true);
+                    break;
+                }
+            }
+            updatedList.add(serverItem);
+        }
+
+        originalList.clear();
+        originalList.addAll(updatedList);
+        saveListToCache(originalList);
+    }
+
+    // 🔥 CẬP NHẬT: Lưu file_url và file_type vào cache
     private void saveListToCache(List<NotificationItem> items) {
+        if (!isAdded()) return;
         try {
             JSONArray array = new JSONArray();
             for (NotificationItem item : items) {
@@ -225,16 +293,20 @@ public class NotificationFragment extends Fragment {
                 obj.put("created_at", item.getDate());
                 obj.put("expired_date", item.getExpired_date());
                 obj.put("is_read", item.isRead());
+                obj.put("file_url", item.getFileUrl());
+                obj.put("file_type", item.getFileType());
+
                 array.put(obj);
             }
             DataCacheManager.getInstance(requireContext()).saveCache(cacheFileName, array.toString());
         } catch (Exception e) {
-            e.printStackTrace();
+            Log.e(TAG, "Failed to save cache", e);
         }
     }
 
-    // 🔥 Helper: Đọc từ Cache (Sửa lỗi 8 tham số)
+    // 🔥 CẬP NHẬT: Đọc file_url và file_type từ cache
     private void loadFromCache() {
+        if (!isAdded()) return;
         String data = DataCacheManager.getInstance(requireContext()).readCache(cacheFileName);
         if (data != null && !data.isEmpty()) {
             try {
@@ -243,34 +315,36 @@ public class NotificationFragment extends Fragment {
                 for (int i = 0; i < array.length(); i++) {
                     JSONObject obj = array.getJSONObject(i);
 
-                    // Tạo đối tượng với ĐỦ 8 THAM SỐ theo đúng thứ tự Constructor
                     cachedList.add(new NotificationItem(
-                            obj.optInt("notification_id"),      // 1. id
-                            obj.optString("title"),             // 2. title
-                            obj.optString("created_at"),        // 3. date (created_at)
-                            obj.optString("expired_date", ""),  // 4. expired_date (Mới thêm)
-                            obj.optString("type"),              // 5. type
-                            obj.optString("sender"),            // 6. sender
-                            obj.optString("content"),           // 7. content
-                            obj.optBoolean("is_read")           // 8. isRead
+                            obj.optLong("notification_id"),
+                            obj.optString("title"),
+                            obj.optString("created_at"),
+                            obj.optString("expired_date", ""),
+                            obj.optString("type"),
+                            obj.optString("sender"),
+                            obj.optString("content"),
+                            obj.optBoolean("is_read"),
+                            obj.optString("file_url"), // 🔥 LẤY TỪ CACHE
+                            obj.optString("file_type") // 🔥 LẤY TỪ CACHE
                     ));
                 }
                 originalList.clear();
                 originalList.addAll(cachedList);
                 applyFiltersAndSearch();
+                Log.d(TAG, "📂 Loaded " + cachedList.size() + " items from cache");
             } catch (Exception e) {
-                e.printStackTrace();
+                Log.e(TAG, "Failed to load from cache", e);
             }
         }
     }
 
     private void applyFiltersAndSearch() {
-        if (searchView == null || spinnerFilterType == null) return;
+        if (searchView == null || spinnerFilterType == null || spinnerFilterTime == null) return;
 
         String searchQuery = searchView.getQuery() == null ? "" : searchView.getQuery().toString().toLowerCase().trim();
-        String selectedTypeVi = spinnerFilterType.getSelectedItem() == null ? "Tất cả" : spinnerFilterType.getSelectedItem().toString();
+        String selectedTypeVi = spinnerFilterType.getSelectedItem().toString();
         String selectedType = convertTypeToEnglish(selectedTypeVi);
-        String selectedTime = spinnerFilterTime.getSelectedItem() == null ? "Mới nhất" : spinnerFilterTime.getSelectedItem().toString();
+        String selectedTime = spinnerFilterTime.getSelectedItem().toString();
 
         filteredList.clear();
         for (NotificationItem item : originalList) {
@@ -282,7 +356,9 @@ public class NotificationFragment extends Fragment {
             boolean matchesSearch = title.contains(searchQuery) || content.contains(searchQuery) || sender.contains(searchQuery);
             boolean matchesType = selectedType.equals("All") || type.equalsIgnoreCase(selectedType);
 
-            if (matchesSearch && matchesType) filteredList.add(item);
+            if (matchesSearch && matchesType) {
+                filteredList.add(item);
+            }
         }
 
         if (selectedTime.equals("Mới nhất")) {
@@ -291,7 +367,9 @@ public class NotificationFragment extends Fragment {
             Collections.sort(filteredList, Comparator.comparing(NotificationItem::getDate));
         }
 
-        if (adapter != null) adapter.updateList(filteredList);
+        if (adapter != null) {
+            adapter.updateList(filteredList);
+        }
 
         if (txtEmpty != null) {
             txtEmpty.setVisibility(filteredList.isEmpty() ? View.VISIBLE : View.GONE);

@@ -66,6 +66,7 @@ public class ResidentAdapter extends RecyclerView.Adapter<ResidentAdapter.ViewHo
                 intent.putExtra("name", resident.getName());
                 intent.putExtra("gender", resident.getGender());
                 intent.putExtra("dob", resident.getDob());
+                intent.putExtra("job", resident.getJob());
                 intent.putExtra("email", resident.getEmail());
                 intent.putExtra("phone", resident.getPhone());
                 intent.putExtra("relationship", resident.getRelationship());

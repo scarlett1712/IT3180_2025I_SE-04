@@ -48,6 +48,7 @@ router.get("/", verifySession, async (req, res) => {
         u.phone,
         TO_CHAR(ui.dob, 'DD-MM-YYYY') AS dob,
         ui.gender,
+        ui.job,
         ui.identity_card,
         ui.home_town,
         ur.role_id,
@@ -81,7 +82,7 @@ router.get("/", verifySession, async (req, res) => {
 // ==================================================================
 router.put("/update/:userId", verifySession, async (req, res) => {
   const { userId } = req.params;
-  const { full_name, gender, dob, email, phone, identity_card, home_town } = req.body;
+  const { full_name, gender, dob, job, email, phone, identity_card, home_town } = req.body;
 
   // 🔥 Lấy thông tin người đang thực hiện request (từ token)
   // Middleware của bạn có thể gán vào req.user hoặc req.currentUser. Hãy kiểm tra!
@@ -110,11 +111,12 @@ router.put("/update/:userId", verifySession, async (req, res) => {
        SET full_name = COALESCE($1, full_name),
            gender = COALESCE($2, gender),
            dob = COALESCE($3, dob),
-           email = COALESCE($4, email),
-           identity_card = COALESCE($5, identity_card),
-           home_town = COALESCE($6, home_town)
-       WHERE user_id = $7`,
-      [full_name, gender, formattedDob, email, identity_card, home_town, userId]
+           job = COALESCE($4, job),
+           email = COALESCE($5, email),
+           identity_card = COALESCE($6, identity_card),
+           home_town = COALESCE($7, home_town)
+       WHERE user_id = $8`,
+      [full_name, gender, formattedDob, job, email, identity_card, home_town, userId]
     );
 
     // 2. Cập nhật số điện thoại (Chỉ Admin hoặc chính chủ được đổi SĐT login)
@@ -172,7 +174,6 @@ router.delete("/delete/:target_id", verifySession, async (req, res) => {
     await client.query("DELETE FROM login_requests WHERE user_id = $1", [target_id]);
     await client.query("DELETE FROM user_notifications WHERE user_id = $1", [target_id]);
     await client.query("DELETE FROM user_finances WHERE user_id = $1", [target_id]);
-    await client.query("DELETE FROM invoice WHERE user_id = $1", [target_id]); // 🔥 Thêm xóa hóa đơn nếu có
     await client.query("DELETE FROM userrole WHERE user_id = $1", [target_id]);
 
     // 🔥 2. Xử lý bảng user_item và relationship

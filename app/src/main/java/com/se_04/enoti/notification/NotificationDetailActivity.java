@@ -1,13 +1,19 @@
 package com.se_04.enoti.notification;
 
 import android.content.Intent;
+import android.net.Uri;
 import android.os.Bundle;
 import android.util.Log;
-import android.util.TypedValue;
 import android.view.MenuItem;
+import android.view.View;
+import android.widget.ImageView;
 import android.widget.TextView;
+import android.widget.Toast;
+
 import androidx.annotation.Nullable;
-import androidx.appcompat.app.AppCompatActivity;
+import androidx.cardview.widget.CardView;
+
+import com.bumptech.glide.Glide;
 import com.google.android.material.appbar.MaterialToolbar;
 import com.google.android.material.button.MaterialButton;
 import com.se_04.enoti.R;
@@ -17,20 +23,33 @@ import com.se_04.enoti.utils.UserManager;
 
 public class NotificationDetailActivity extends BaseActivity {
 
-    private final NotificationRepository repository = NotificationRepository.getInstance();
+    private NotificationRepository repository;
+    private long notificationId;
+    private boolean wasMarkedAsRead = false;
+
+    // 🔥 Views đính kèm
+    private ImageView imgAttachment;
+    private CardView cardAttachment;
+    private MaterialButton btnViewFile;
 
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
+        repository = NotificationRepository.getInstance(this);
         setContentView(R.layout.activity_notification_detail);
 
+        // Ánh xạ views
         MaterialButton btnReply = findViewById(R.id.btnReply);
-
         TextView txtTitle = findViewById(R.id.txtDetailTitle);
         TextView txtDate = findViewById(R.id.txtDetailDate);
         TextView txtSender = findViewById(R.id.txtDetailSender);
         TextView txtContent = findViewById(R.id.txtDetailContent);
+
+        // 🔥 Ánh xạ Views mới (File đính kèm)
+        imgAttachment = findViewById(R.id.imgAttachment);
+        cardAttachment = findViewById(R.id.cardAttachment);
+        btnViewFile = findViewById(R.id.btnViewFile);
 
         MaterialToolbar toolbar = findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
@@ -40,43 +59,36 @@ public class NotificationDetailActivity extends BaseActivity {
             getSupportActionBar().setTitle("Chi tiết thông báo");
         }
 
-        long notificationId = getIntent().getLongExtra("notification_id", -1);
+        // Lấy dữ liệu từ Intent
+        notificationId = getIntent().getLongExtra("notification_id", -1);
         String title = getIntent().getStringExtra("title");
-        String date = getIntent().getStringExtra("expired_date");
         String expired_date = getIntent().getStringExtra("expired_date");
         String content = getIntent().getStringExtra("content");
         String sender = getIntent().getStringExtra("sender");
         boolean isRead = getIntent().getBooleanExtra("is_read", false);
 
+        // 🔥 Lấy thông tin file
+        String fileUrl = getIntent().getStringExtra("file_url");
+        String fileType = getIntent().getStringExtra("file_type");
+
+        // DEBUG LOG: Kiểm tra xem URL có qua được bên này không
+        Log.e("NotifDetail", "ID: " + notificationId + ", URL: " + fileUrl + ", Type: " + fileType);
+
         if (title != null) txtTitle.setText(title);
-        if (date != null) txtDate.setText(expired_date);
+        if (expired_date != null) txtDate.setText(expired_date);
         if (content != null) txtContent.setText(content);
         if (sender != null) txtSender.setText(getString(R.string.notification_sender, sender));
 
-        // If not read, mark read (both local UI and backend)
-        if (!isRead && notificationId > 0) {
-            // 🔹 Lấy userId hiện tại
-            long userId = 0;
-            try {
-                userId = Long.parseLong(
-                        UserManager.getInstance(this).getCurrentUser().getId()
-                );
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
+        // 🔥 LOGIC HIỂN THỊ FILE
+        displayAttachment(fileUrl, fileType);
 
-            // 🔹 Gọi API có truyền userId
-            repository.markAsRead(notificationId, userId, new NotificationRepository.SimpleCallback() {
+        // Đánh dấu đã đọc (nếu chưa đọc)
+        if (notificationId != -1 && !isRead) {
+            repository.markAsRead(notificationId, new NotificationRepository.SimpleCallback() {
                 @Override
-                public void onSuccess() {
-                    // UI đã được đánh dấu read tại adapter rồi, không cần thêm gì
-                }
-
+                public void onSuccess() { wasMarkedAsRead = true; }
                 @Override
-                public void onError(String message) {
-                    // Có thể log hoặc hiện toast nếu cần
-                    Log.e("Notification", "Mark read failed: " + message);
-                }
+                public void onError(String message) { Log.e("NotiDetail", "Err: " + message); }
             });
         }
 
@@ -85,20 +97,56 @@ public class NotificationDetailActivity extends BaseActivity {
             intent.putExtra("notification_id", notificationId);
             intent.putExtra("title", title);
             intent.putExtra("sender", sender);
-
-            // 🔹 Lấy user_id hiện tại
-            long userId = 0;
             try {
-                userId = Long.parseLong(UserManager.getInstance(this).getCurrentUser().getId());
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
-            intent.putExtra("user_id", userId);
-
+                long userId = Long.parseLong(UserManager.getInstance(this).getCurrentUser().getId());
+                intent.putExtra("user_id", userId);
+            } catch (Exception e) { e.printStackTrace(); }
             startActivity(intent);
         });
+    }
 
+    private void displayAttachment(String fileUrl, String fileType) {
+        if (fileUrl != null && !fileUrl.isEmpty() && !fileUrl.equals("null")) {
+            if ("image".equals(fileType) || (fileType != null && fileType.startsWith("image"))) {
+                // Hiển thị ảnh
+                if (cardAttachment != null) cardAttachment.setVisibility(View.VISIBLE);
+                if (btnViewFile != null) btnViewFile.setVisibility(View.GONE);
 
+                Glide.with(this)
+                        .load(fileUrl)
+                        .placeholder(R.drawable.bg_white_rounded)
+                        .error(R.drawable.ic_warning_circle) // 🔥 Thêm icon lỗi nếu ảnh chết
+                        .into(imgAttachment);
+
+                imgAttachment.setOnClickListener(v -> openWebBrowser(fileUrl));
+            } else {
+                // Hiển thị nút tải file (PDF, Video...)
+                if (cardAttachment != null) cardAttachment.setVisibility(View.GONE);
+                if (btnViewFile != null) btnViewFile.setVisibility(View.VISIBLE);
+
+                String btnText = "Xem tài liệu đính kèm";
+                if ("video".equals(fileType)) btnText = "Xem Video đính kèm";
+                if ("pdf".equals(fileType)) btnText = "Mở tài liệu PDF";
+
+                btnViewFile.setText(btnText);
+                btnViewFile.setOnClickListener(v -> openWebBrowser(fileUrl));
+            }
+        } else {
+            // Không có file
+            if (cardAttachment != null) cardAttachment.setVisibility(View.GONE);
+            if (btnViewFile != null) btnViewFile.setVisibility(View.GONE);
+        }
+    }
+
+    private void openWebBrowser(String url) {
+        try {
+            Intent intent = new Intent(Intent.ACTION_VIEW);
+            intent.setData(Uri.parse(url));
+            startActivity(intent);
+        } catch (Exception e) {
+            e.printStackTrace();
+            Toast.makeText(this, "Không thể mở liên kết này", Toast.LENGTH_SHORT).show();
+        }
     }
 
     @Override
@@ -111,14 +159,12 @@ public class NotificationDetailActivity extends BaseActivity {
     }
 
     @Override
-    protected void onResume() {
-        super.onResume();
-        MaterialToolbar toolbar = findViewById(R.id.toolbar);
-        if (toolbar != null) {
-            TypedValue typedValue = new TypedValue();
-            getTheme().resolveAttribute(androidx.appcompat.R.attr.colorPrimary, typedValue, true);
-            toolbar.setBackgroundColor(typedValue.data);
-            toolbar.setTitleTextColor(getResources().getColor(android.R.color.white, getTheme()));
+    public void finish() {
+        if (wasMarkedAsRead) {
+            Intent resultIntent = new Intent();
+            resultIntent.putExtra("notification_marked_read", notificationId);
+            setResult(RESULT_OK, resultIntent);
         }
+        super.finish();
     }
 }

@@ -56,7 +56,7 @@
                     android:layout_width="match_parent"
                     android:layout_height="60dp"
                     android:background="@drawable/bg_input_rounded"
-                    android:hint="Họ và tên (*)"
+                    android:hint="Họ và tên*"
                     android:paddingHorizontal="20dp"
                     android:singleLine="true"/>
             </com.google.android.material.textfield.TextInputLayout>
@@ -78,11 +78,12 @@
                         android:layout_width="match_parent"
                         android:layout_height="60dp"
                         android:background="@drawable/bg_input_rounded"
-                        android:hint="Ngày sinh"
+                        android:hint="Ngày sinh*"
                         android:focusable="false"
                         android:inputType="none"
                         android:paddingHorizontal="20dp"/>
                 </com.google.android.material.textfield.TextInputLayout>
+
                 <Spinner
                     android:id="@+id/spnGender"
                     android:layout_width="0dp"
@@ -100,11 +101,27 @@
                 app:boxBackgroundMode="none"
                 app:hintEnabled="false">
                 <com.google.android.material.textfield.TextInputEditText
+                    android:id="@+id/edtJob"
+                    android:layout_width="match_parent"
+                    android:layout_height="60dp"
+                    android:background="@drawable/bg_input_rounded"
+                    android:hint="Nghề nghiệp*"
+                    android:inputType="text"
+                    android:paddingHorizontal="20dp"/>
+            </com.google.android.material.textfield.TextInputLayout>
+
+            <com.google.android.material.textfield.TextInputLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="16dp"
+                app:boxBackgroundMode="none"
+                app:hintEnabled="false">
+                <com.google.android.material.textfield.TextInputEditText
                     android:id="@+id/edtPhoneNumber"
                     android:layout_width="match_parent"
                     android:layout_height="60dp"
                     android:background="@drawable/bg_input_rounded"
-                    android:hint="Số điện thoại (*)"
+                    android:hint="Số điện thoại*"
                     android:inputType="phone"
                     android:paddingHorizontal="20dp"/>
             </com.google.android.material.textfield.TextInputLayout>
@@ -121,7 +138,7 @@
                     android:layout_width="match_parent"
                     android:layout_height="60dp"
                     android:background="@drawable/bg_input_rounded"
-                    android:hint="Mật khẩu (*)"
+                    android:hint="Mật khẩu*"
                     android:inputType="textPassword"
                     android:paddingHorizontal="20dp"/>
             </com.google.android.material.textfield.TextInputLayout>
@@ -138,7 +155,7 @@
                     android:layout_width="match_parent"
                     android:layout_height="60dp"
                     android:background="@drawable/bg_input_rounded"
-                    android:hint="Xác nhận mật khẩu (*)"
+                    android:hint="Xác nhận mật khẩu*"
                     android:inputType="textPassword"
                     android:paddingHorizontal="20dp"/>
             </com.google.android.material.textfield.TextInputLayout>
@@ -154,7 +171,55 @@
                     android:layout_width="match_parent"
                     android:layout_height="60dp"
                     android:background="@drawable/bg_input_rounded"
-                    android:hint="Mã xác thực BQT (*)"
+                    android:hint="Mã xác thực*"
+                    android:inputType="textPassword"
+                    android:paddingHorizontal="20dp"/>
+            </com.google.android.material.textfield.TextInputLayout>
+
+            <com.google.android.material.textfield.TextInputLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="16dp"
+                app:boxBackgroundMode="none"
+                app:hintEnabled="false">
+                <com.google.android.material.textfield.TextInputEditText
+                    android:id="@+id/edtEmail"
+                    android:layout_width="match_parent"
+                    android:layout_height="60dp"
+                    android:background="@drawable/bg_input_rounded"
+                    android:hint="Email"
+                    android:inputType="textPassword"
+                    android:paddingHorizontal="20dp"/>
+            </com.google.android.material.textfield.TextInputLayout>
+
+            <com.google.android.material.textfield.TextInputLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="16dp"
+                app:boxBackgroundMode="none"
+                app:hintEnabled="false">
+                <com.google.android.material.textfield.TextInputEditText
+                    android:id="@+id/edtIdentityCard"
+                    android:layout_width="match_parent"
+                    android:layout_height="60dp"
+                    android:background="@drawable/bg_input_rounded"
+                    android:hint="CCCD"
+                    android:inputType="textPassword"
+                    android:paddingHorizontal="20dp"/>
+            </com.google.android.material.textfield.TextInputLayout>
+
+            <com.google.android.material.textfield.TextInputLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="16dp"
+                app:boxBackgroundMode="none"
+                app:hintEnabled="false">
+                <com.google.android.material.textfield.TextInputEditText
+                    android:id="@+id/edtHomeTown"
+                    android:layout_width="match_parent"
+                    android:layout_height="60dp"
+                    android:background="@drawable/bg_input_rounded"
+                    android:hint="Quê quán"
                     android:inputType="textPassword"
                     android:paddingHorizontal="20dp"/>
             </com.google.android.material.textfield.TextInputLayout>

@@ -138,7 +138,7 @@ public class HomeFragment_User extends Fragment {
             return;
         }
 
-        NotificationRepository.getInstance().fetchNotifications(userId, new NotificationRepository.NotificationsCallback() {
+        NotificationRepository.getInstance(requireContext()).fetchNotifications(userId, new NotificationRepository.NotificationsCallback() {
             @Override
             public void onSuccess(List<NotificationItem> items) {
                 if (isAdded() && items != null) {

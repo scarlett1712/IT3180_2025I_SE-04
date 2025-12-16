@@ -246,6 +246,7 @@ public class EnterOTPActivity extends BaseActivity {
             requestBody.put("password", intent.getStringExtra("password"));
             requestBody.put("full_name", intent.getStringExtra("fullName"));
             requestBody.put("dob", intent.getStringExtra("dob"));
+            requestBody.put("job", intent.getStringExtra("job"));
             requestBody.put("email", intent.getStringExtra("email"));
 
             // Dữ liệu bổ sung

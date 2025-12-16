@@ -5,6 +5,7 @@ import android.os.Handler;
 import android.os.Looper;
 import android.util.Log;
 
+import com.se_04.enoti.account.UserItem;
 import com.se_04.enoti.utils.ApiConfig;
 import com.se_04.enoti.utils.UserManager;
 
@@ -40,10 +41,12 @@ public class NotificationRepository {
         mainHandler = new Handler(Looper.getMainLooper());
     }
 
-    public static NotificationRepository getInstance() {
+    public static synchronized NotificationRepository getInstance(Context context) {
         if (instance == null) {
             instance = new NotificationRepository();
         }
+        // Cập nhật context mỗi lần gọi để tránh leak hoặc null
+        instance.context = context;
         return instance;
     }
 
@@ -197,47 +200,76 @@ public class NotificationRepository {
         });
     }
 
-    public void markAsRead(long notificationId, long userId, SimpleCallback callback) {
+    public void markAsRead(long notificationId, SimpleCallback callback) {
         executor.execute(() -> {
-            HttpURLConnection conn = null;
+            HttpURLConnection urlConnection = null;
             try {
+                // 1. Tự động lấy User ID từ hệ thống
+                UserItem user = UserManager.getInstance(context).getCurrentUser();
+                if (user == null) {
+                    String msg = "User chưa đăng nhập, không thể đánh dấu đã đọc";
+                    Log.e(TAG, "❌ " + msg);
+                    if (callback != null) mainHandler.post(() -> callback.onError(msg));
+                    return;
+                }
+
+                // Parse ID sang số (đề phòng ID là chuỗi)
+                long userId;
+                try {
+                    userId = Long.parseLong(user.getId());
+                } catch (NumberFormatException e) {
+                    if (callback != null) mainHandler.post(() -> callback.onError("ID người dùng không hợp lệ"));
+                    return;
+                }
+
+                // 2. Cấu hình URL và Connection
                 URL url = new URL(BASE_URL + "/api/notification/" + notificationId + "/read");
-                conn = (HttpURLConnection) url.openConnection();
-                conn.setRequestMethod("PUT");
-                conn.setDoOutput(true);
-                conn.setConnectTimeout(CONNECT_TIMEOUT);
-                conn.setReadTimeout(READ_TIMEOUT);
-                conn.setRequestProperty("Accept", "application/json");
-                conn.setRequestProperty("Content-Type", "application/json; charset=utf-8");
+                Log.d(TAG, "⚡ Marking read: " + url);
 
-                // 🔥 ADD AUTHORIZATION HEADER
-                if (context != null) {
-                    String token = UserManager.getInstance(context).getAuthToken();
-                    if (token != null && !token.isEmpty()) {
-                        conn.setRequestProperty("Authorization", "Bearer " + token);
-                    }
+                urlConnection = (HttpURLConnection) url.openConnection();
+                urlConnection.setRequestMethod("PUT");
+                urlConnection.setRequestProperty("Content-Type", "application/json; charset=UTF-8");
+                urlConnection.setRequestProperty("Accept", "application/json");
+                urlConnection.setDoOutput(true);
+
+                // Thêm Token
+                String token = UserManager.getInstance(context).getAuthToken();
+                if (token != null) {
+                    urlConnection.setRequestProperty("Authorization", "Bearer " + token);
                 }
 
-                JSONObject body = new JSONObject();
-                body.put("user_id", userId);
-                byte[] input = body.toString().getBytes("utf-8");
-                try (OutputStream os = conn.getOutputStream()) {
-                    os.write(input, 0, input.length);
-                }
+                // 3. Gửi Body JSON
+                JSONObject jsonBody = new JSONObject();
+                jsonBody.put("user_id", userId);
 
-                int code = conn.getResponseCode();
-                if (code >= 200 && code < 300) {
-                    mainHandler.post(callback::onSuccess);
+                OutputStream os = urlConnection.getOutputStream();
+                os.write(jsonBody.toString().getBytes("UTF-8"));
+                os.close();
+
+                // 4. Xử lý phản hồi
+                int responseCode = urlConnection.getResponseCode();
+                if (responseCode >= 200 && responseCode < 300) {
+                    Log.d(TAG, "✅ Marked notification " + notificationId + " as read success.");
+                    if (callback != null) mainHandler.post(callback::onSuccess);
                 } else {
-                    Log.e(TAG, "markAsRead HTTP " + code);
-                    mainHandler.post(() -> callback.onError("Không thể đánh dấu là đã đọc"));
+                    // Đọc lỗi chi tiết từ Server
+                    InputStream errorStream = urlConnection.getErrorStream();
+                    String errorMsg = "Lỗi không xác định";
+                    if (errorStream != null) {
+                        BufferedReader reader = new BufferedReader(new InputStreamReader(errorStream));
+                        errorMsg = reader.readLine();
+                    }
+                    Log.e(TAG, "❌ Failed to mark read. Code: " + responseCode + " - " + errorMsg);
+
+                    String finalMsg = errorMsg;
+                    if (callback != null) mainHandler.post(() -> callback.onError("Lỗi " + responseCode + ": " + finalMsg));
                 }
 
             } catch (Exception e) {
-                Log.e(TAG, "markAsRead exception", e);
-                mainHandler.post(() -> callback.onError("Kết nối thất bại"));
+                Log.e(TAG, "❌ Exception marking as read", e);
+                if (callback != null) mainHandler.post(() -> callback.onError("Lỗi kết nối"));
             } finally {
-                if (conn != null) conn.disconnect();
+                if (urlConnection != null) urlConnection.disconnect();
             }
         });
     }
@@ -409,18 +441,45 @@ public class NotificationRepository {
     private NotificationItem parseNotificationFromJson(JSONObject o) {
         try {
             long id = o.optLong("notification_id", -1);
+            if (id == -1) id = o.optLong("id", -1);
+
             String title = o.optString("title", "Thông báo mới");
             String content = o.optString("content", "");
             String type = o.optString("type", "Thông báo");
+
             String createdAt = o.optString("created_at", "");
-            String expiredDate = o.optString("expired_date", "");
+            if (createdAt.equals("null")) createdAt = "";
+
+            // Xử lý ngày hết hạn
+            String expiredDate = o.optString("expired_date");
+            if (expiredDate == null || expiredDate.isEmpty() || expiredDate.equalsIgnoreCase("null")) {
+                expiredDate = o.optString("scheduled_at");
+            }
+            if (expiredDate == null || expiredDate.equalsIgnoreCase("null")) {
+                expiredDate = "";
+            }
+
             String sender = o.optString("sender", "Hệ thống");
             boolean isRead = o.optBoolean("is_read", false);
 
-            return new NotificationItem(id, title, createdAt, expiredDate, type, sender, content, isRead);
+            // 🔥 CẬP NHẬT: Lấy file_url và file_type (Fix lỗi null)
+            String fileUrl = o.optString("file_url", null);
+            String fileType = o.optString("file_type", null);
+
+            // Kiểm tra kỹ nếu server trả về chuỗi "null"
+            if ("null".equalsIgnoreCase(fileUrl)) fileUrl = null;
+            if ("null".equalsIgnoreCase(fileType)) fileType = null;
+
+            // Sử dụng Constructor MỚI (đã thêm fileUrl, fileType)
+            return new NotificationItem(id, title, createdAt, expiredDate, type, sender, content, isRead, fileUrl, fileType);
+
         } catch (Exception e) {
-            Log.e(TAG, "parseNotificationFromJson error", e);
+            Log.e(TAG, "❌ JSON Parse Error", e);
             return null;
         }
+    }
+
+    public void markAsRead(long notificationId) {
+        markAsRead(notificationId, null);
     }
 }

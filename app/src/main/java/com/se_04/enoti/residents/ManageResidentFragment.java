@@ -267,6 +267,7 @@ public class ManageResidentFragment extends Fragment {
                         obj.optString("full_name"),
                         obj.optString("gender"),
                         obj.optString("dob"),
+                        obj.optString("job"),
                         obj.optString("email"),
                         obj.optString("phone"),
                         obj.optString("relationship_with_the_head_of_household"),
@@ -363,7 +364,7 @@ public class ManageResidentFragment extends Fragment {
             org.apache.poi.hssf.usermodel.HSSFWorkbook workbook = new org.apache.poi.hssf.usermodel.HSSFWorkbook();
             org.apache.poi.ss.usermodel.Sheet sheet = workbook.createSheet("Cư dân");
 
-            String[] headers = {"Họ tên", "Giới tính", "Ngày sinh", "Điện thoại", "Email", "Phòng", "Chủ hộ", "Quan hệ", "CCCD", "Quê quán"};
+            String[] headers = {"Họ tên", "Giới tính", "Ngày sinh", "Nghề nghiệp", "Điện thoại", "Email", "Phòng", "Chủ hộ", "Quan hệ", "CCCD", "Quê quán"};
             org.apache.poi.ss.usermodel.Row headerRow = sheet.createRow(0);
             for (int i = 0; i < headers.length; i++) {
                 org.apache.poi.ss.usermodel.Cell cell = headerRow.createCell(i);
@@ -385,13 +386,14 @@ public class ManageResidentFragment extends Fragment {
                 row.createCell(0).setCellValue(r.getName());
                 row.createCell(1).setCellValue(r.getGender());
                 row.createCell(2).setCellValue(r.getDob());
-                row.createCell(3).setCellValue(r.getPhone());
-                row.createCell(4).setCellValue(r.getEmail());
-                row.createCell(5).setCellValue(r.getRoom());
-                row.createCell(6).setCellValue(headName);
-                row.createCell(7).setCellValue(r.getRelationship());
-                row.createCell(8).setCellValue(r.getIdentityCard());
-                row.createCell(9).setCellValue(r.getHomeTown());
+                row.createCell(3).setCellValue(r.getJob());
+                row.createCell(4).setCellValue(r.getPhone());
+                row.createCell(5).setCellValue(r.getEmail());
+                row.createCell(6).setCellValue(r.getRoom());
+                row.createCell(7).setCellValue(headName);
+                row.createCell(8).setCellValue(r.getRelationship());
+                row.createCell(9).setCellValue(r.getIdentityCard());
+                row.createCell(10).setCellValue(r.getHomeTown());
             }
 
             for (int i = 0; i < headers.length; i++) {

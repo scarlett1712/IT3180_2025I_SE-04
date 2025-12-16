@@ -115,6 +115,7 @@ public class ApproveRequestsActivity extends BaseActivity {
         String oldDob = item.getCurrentDob() != null && item.getCurrentDob().length() >= 10 ? item.getCurrentDob().substring(0, 10) : "";
         String newDob = item.getNewDob() != null && item.getNewDob().length() >= 10 ? item.getNewDob().substring(0, 10) : "";
         addComparisonRow(container, "Ngày sinh", oldDob, newDob);
+        addComparisonRow(container, "Nghề nghiệp", item.getCurrentJob(), item.getNewJob());
 
         addComparisonRow(container, "CCCD", item.getCurrentIdentityCard(), item.getNewIdentityCard());
         addComparisonRow(container, "Quê quán", item.getCurrentHomeTown(), item.getNewHomeTown());

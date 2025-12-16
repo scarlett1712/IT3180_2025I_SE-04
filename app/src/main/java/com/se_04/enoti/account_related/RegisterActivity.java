@@ -24,7 +24,7 @@ import static com.se_04.enoti.utils.ValidatePhoneNumberUtil.normalizePhoneNumber
 
 public class RegisterActivity extends BaseActivity {
 
-    private TextInputEditText edtFullName, edtDob, edtPhoneNumber, edtPassword, edtConfirmPassword, edtAdminKey;
+    private TextInputEditText edtFullName, edtDob, edtJob, edtPhoneNumber, edtPassword, edtConfirmPassword, edtAdminKey;
     private TextInputEditText edtEmail, edtIdentityCard, edtHomeTown; // 🔥 ADDED edtEmail
     private Spinner spnGender;
     private Button btnRegister;
@@ -49,6 +49,7 @@ public class RegisterActivity extends BaseActivity {
     private void initViews() {
         edtFullName = findViewById(R.id.edtFullName);
         edtDob = findViewById(R.id.edtDob);
+        edtJob = findViewById(R.id.edtJob);
         edtPhoneNumber = findViewById(R.id.edtPhoneNumber);
         edtPassword = findViewById(R.id.edtPassword);
         edtConfirmPassword = findViewById(R.id.edtConfirmPassword);
@@ -94,6 +95,7 @@ public class RegisterActivity extends BaseActivity {
         // 1. Lấy dữ liệu
         String fullName = getTextSafe(edtFullName);
         String dob = getTextSafe(edtDob);
+        String job = getTextSafe(edtJob);
         String phone = getTextSafe(edtPhoneNumber);
         String password = getTextSafe(edtPassword);
         String confirmPassword = getTextSafe(edtConfirmPassword);
@@ -110,9 +112,8 @@ public class RegisterActivity extends BaseActivity {
         // 2. Validate
         if (TextUtils.isEmpty(fullName) || TextUtils.isEmpty(dob) || TextUtils.isEmpty(phone)
                 || TextUtils.isEmpty(password) || TextUtils.isEmpty(confirmPassword)
-                || TextUtils.isEmpty(secretKey) || TextUtils.isEmpty(email) // 🔥 VALIDATE EMAIL
-                || TextUtils.isEmpty(identityCard) || TextUtils.isEmpty(homeTown)) {
-            showError("Vui lòng điền đầy đủ tất cả các trường.");
+                || TextUtils.isEmpty(secretKey)) {
+            showError("Vui lòng điền đầy đủ tất cả các trường có dấu *");
             return;
         }
 
@@ -156,6 +157,7 @@ public class RegisterActivity extends BaseActivity {
         intent.putExtra("password", password);
         intent.putExtra("fullName", fullName);
         intent.putExtra("dob", dob);
+        intent.putExtra("job", job);
         intent.putExtra("gender", gender);
         intent.putExtra("email", email); // 🔥 PASS EMAIL
         intent.putExtra("identity_card", identityCard);

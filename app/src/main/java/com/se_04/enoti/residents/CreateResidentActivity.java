@@ -31,7 +31,7 @@ import java.util.Locale;
 public class CreateResidentActivity extends BaseActivity {
 
     // 🔥 Đã thêm edtIdentityCard, edtHomeTown vào danh sách biến
-    private TextInputEditText edtFullName, edtBirthDate, edtRelation, edtPhone, edtEmail, edtRoom, edtFloor, edtIdentityCard, edtHomeTown;
+    private TextInputEditText edtFullName, edtBirthDate, edtJob, edtRelation, edtPhone, edtEmail, edtRoom, edtFloor, edtIdentityCard, edtHomeTown;
     private Spinner spinnerGender;
     private CheckBox checkboxIsHouseholder;
     private MaterialButton btnSaveResident, btnCancel;
@@ -85,6 +85,7 @@ public class CreateResidentActivity extends BaseActivity {
     private void initViews() {
         edtFullName = findViewById(R.id.edtFullName);
         edtBirthDate = findViewById(R.id.edtBirthDate);
+        edtJob = findViewById(R.id.edtJob);
         edtRelation = findViewById(R.id.edtRelation);
         edtPhone = findViewById(R.id.edtPhone);
         edtEmail = findViewById(R.id.edtEmail);
@@ -127,6 +128,7 @@ public class CreateResidentActivity extends BaseActivity {
     private void createResident() {
         String fullName = edtFullName.getText().toString().trim();
         String birthDateDisplay = edtBirthDate.getText().toString().trim();
+        String job = edtJob.getText().toString().trim();
         String gender = spinnerGender.getSelectedItem().toString();
         String floorInput = edtFloor.getText().toString().trim();
         String roomInput = edtRoom.getText().toString().trim();
@@ -176,6 +178,7 @@ public class CreateResidentActivity extends BaseActivity {
             body.put("full_name", fullName);
             body.put("gender", gender);
             body.put("dob", birthDateApi);  // yyyy-MM-dd
+            body.put("job", job);
             body.put("email", email);
             body.put("room", room);
             body.put("floor", floor);

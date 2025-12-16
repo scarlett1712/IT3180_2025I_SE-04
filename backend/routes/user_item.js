@@ -23,7 +23,7 @@ router.get("/", async (req, res) => {
 /* 🧠 Thêm cư dân (Updated) */
 router.post("/", async (req, res) => {
   const { 
-    user_id, full_name, gender, dob, family_id, relationship, email, is_living,
+    user_id, full_name, gender, dob, job, family_id, relationship, email, is_living,
     identity_card, home_town // 🔥 Nhận thêm 2 trường này
   } = req.body;
 
@@ -32,9 +32,9 @@ router.post("/", async (req, res) => {
 
   try {
     await pool.query(
-      `INSERT INTO user_item (user_id, full_name, gender, dob, family_id, relationship, email, is_living, identity_card, home_town)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
-      [user_id, full_name, gender, dob, family_id, relationship, email, is_living, identity_card, home_town]
+      `INSERT INTO user_item (user_id, full_name, gender, dob, job, family_id, relationship, email, is_living, identity_card, home_town)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
+      [user_id, full_name, gender, dob, job, family_id, relationship, email, is_living, identity_card, home_town]
     );
     res.status(201).json({ message: "Thêm cư dân thành công" });
   } catch (err) {

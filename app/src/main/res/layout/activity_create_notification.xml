@@ -5,20 +5,22 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="#F5F7FA"> <com.google.android.material.appbar.AppBarLayout
-    android:layout_width="match_parent"
-    android:layout_height="wrap_content"
-    android:background="@android:color/transparent"
-    app:elevation="0dp">
+    android:background="#F5F7FA">
 
-    <com.google.android.material.appbar.MaterialToolbar
-        android:id="@+id/toolbar"
+    <com.google.android.material.appbar.AppBarLayout
         android:layout_width="match_parent"
-        android:layout_height="?attr/actionBarSize"
-        app:title="Tạo thông báo mới"
-        app:titleTextColor="@color/white"
-        app:navigationIcon="@drawable/ic_arrow_back" />
-</com.google.android.material.appbar.AppBarLayout>
+        android:layout_height="wrap_content"
+        android:background="@android:color/transparent"
+        app:elevation="0dp">
+
+        <com.google.android.material.appbar.MaterialToolbar
+            android:id="@+id/toolbar"
+            android:layout_width="match_parent"
+            android:layout_height="?attr/actionBarSize"
+            app:title="Tạo thông báo mới"
+            app:titleTextColor="@color/white"
+            app:navigationIcon="@drawable/ic_arrow_back" />
+    </com.google.android.material.appbar.AppBarLayout>
 
     <androidx.core.widget.NestedScrollView
         android:id="@+id/scrollView"
@@ -41,9 +43,7 @@
                 app:layout_constraintTop_toTopOf="parent"
                 app:cardBackgroundColor="@color/white"
                 app:cardCornerRadius="16dp"
-                app:cardElevation="4dp"
-                tools:layout_editor_absoluteX="16dp"
-                tools:layout_editor_absoluteY="60dp">
+                app:cardElevation="4dp">
 
                 <LinearLayout
                     android:layout_width="match_parent"
@@ -296,16 +296,27 @@
                     </com.google.android.material.textfield.TextInputLayout>
 
                     <com.google.android.material.button.MaterialButton
-                        android:id="@+id/btnAttach"
+                        android:id="@+id/btnSelectImage"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="Thêm đính kèm"
+                        android:text="Đính kèm (Ảnh/Video/PDF)"
                         android:textColor="?attr/colorPrimary"
                         app:icon="@drawable/ic_attach_file"
                         app:iconTint="?attr/colorPrimary"
                         style="@style/Widget.MaterialComponents.Button.OutlinedButton"
                         app:strokeColor="?attr/colorPrimary"
                         app:cornerRadius="8dp" />
+
+                    <TextView
+                        android:id="@+id/txtFileName"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text=""
+                        android:textColor="#555555"
+                        android:textSize="13sp"
+                        android:textStyle="italic"
+                        android:layout_marginTop="8dp"
+                        android:visibility="visible"/>
 
                     <ImageView
                         android:id="@+id/imgPreview"

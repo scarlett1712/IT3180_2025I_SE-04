@@ -17,6 +17,7 @@ import androidx.recyclerview.widget.RecyclerView;
 
 import com.google.android.material.snackbar.Snackbar;
 import com.se_04.enoti.account.UserItem;
+import com.se_04.enoti.authority.AuthorityInboxActivity;
 import com.se_04.enoti.finance.admin.CreateFinanceActivity;
 import com.se_04.enoti.home.user.MainActivity_User;
 import com.se_04.enoti.maintenance.admin.MaintenanceActivity;
@@ -108,8 +109,11 @@ public class HomeFragment_Admin extends Fragment {
                 Snackbar.make(v, "Chức năng sẽ được cập nhật trong thời gian tới.", Snackbar.LENGTH_LONG).show()
         );
 
-
-
-
+        // START: Add navigation to Authority Inbox
+        view.findViewById(R.id.layoutAuthorityInbox).setOnClickListener(v -> {
+            Intent intent = new Intent(getActivity(), AuthorityInboxActivity.class);
+            startActivity(intent);
+        });
+        // END: Add navigation
     }
 }

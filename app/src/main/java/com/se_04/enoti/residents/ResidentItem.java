@@ -8,6 +8,7 @@ public class ResidentItem {
 
     private String gender;
     private String dob;
+    private String job;
     private String email;
     private String phone;
     private String relationship;
@@ -19,7 +20,7 @@ public class ResidentItem {
     private String homeTown;
 
     // Constructor đầy đủ (cho Admin quản lý)
-    public ResidentItem(int id, int userId, String name, String gender, String dob, String email, String phone,
+    public ResidentItem(int id, int userId, String name, String gender, String dob, String job, String email, String phone,
                         String relationship, String familyId, boolean isLiving, String room,
                         String identityCard, String homeTown) { // 🔥 Thêm tham số vào đây
         this.id = id;
@@ -27,6 +28,7 @@ public class ResidentItem {
         this.name = name;
         this.gender = gender;
         this.dob = dob;
+        this.job = job;
         this.email = email;
         this.phone = phone;
         this.relationship = relationship;
@@ -45,6 +47,7 @@ public class ResidentItem {
         this.id = 0;
         this.gender = "";
         this.dob = "";
+        this.job = "";
         this.email = "";
         this.phone = "";
         this.relationship = "";
@@ -61,6 +64,7 @@ public class ResidentItem {
     public String getRoom() { return room; }
     public String getGender() { return gender; }
     public String getDob() { return dob; }
+    public String getJob() { return job; }
     public String getEmail() { return email; }
     public String getPhone() { return phone; }
     public String getRelationship() { return relationship; }

@@ -91,6 +91,7 @@
 
                     <include layout="@layout/item_detail_row" android:id="@+id/rowGender"/>
                     <include layout="@layout/item_detail_row" android:id="@+id/rowDob"/>
+                    <include layout="@layout/item_detail_row" android:id="@+id/rowJob"/>
                     <include layout="@layout/item_detail_row" android:id="@+id/rowIdentity"/>
                     <include layout="@layout/item_detail_row" android:id="@+id/rowHomeTown"/>
 

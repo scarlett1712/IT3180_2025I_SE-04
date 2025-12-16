@@ -5,20 +5,22 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="#F5F7FA"> <com.google.android.material.appbar.AppBarLayout
-    android:layout_width="match_parent"
-    android:layout_height="wrap_content"
-    android:background="@android:color/transparent"
-    app:elevation="0dp">
+    android:background="#F5F7FA">
 
-    <com.google.android.material.appbar.MaterialToolbar
-        android:id="@+id/toolbar"
+    <com.google.android.material.appbar.AppBarLayout
         android:layout_width="match_parent"
-        android:layout_height="?attr/actionBarSize"
-        app:title="Thêm thiết bị mới"
-        app:titleTextColor="@color/white"
-        app:navigationIcon="@drawable/ic_arrow_back" />
-</com.google.android.material.appbar.AppBarLayout>
+        android:layout_height="wrap_content"
+        android:background="@android:color/transparent"
+        app:elevation="0dp">
+
+        <com.google.android.material.appbar.MaterialToolbar
+            android:id="@+id/toolbar"
+            android:layout_width="match_parent"
+            android:layout_height="?attr/actionBarSize"
+            app:title="Thêm thiết bị mới"
+            app:titleTextColor="@color/white"
+            app:navigationIcon="@drawable/ic_arrow_back" />
+    </com.google.android.material.appbar.AppBarLayout>
 
     <androidx.core.widget.NestedScrollView
         android:id="@+id/scrollView"
@@ -102,7 +104,7 @@
                         style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:layout_marginBottom="24dp"
+                        android:layout_marginBottom="16dp"
                         android:hint="Ngày mua / Ngày lắp đặt"
                         app:boxCornerRadiusBottomEnd="12dp"
                         app:boxCornerRadiusBottomStart="12dp"
@@ -121,6 +123,37 @@
                             android:inputType="none" />
                     </com.google.android.material.textfield.TextInputLayout>
 
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Hình ảnh thiết bị"
+                        android:textSize="14sp"
+                        android:textStyle="bold"
+                        android:layout_marginBottom="8dp"
+                        android:textColor="#555555"/>
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/btnSelectImages"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="Chọn ảnh (Tối đa 5)"
+                        android:textColor="?attr/colorPrimary"
+                        app:icon="@drawable/ic_image_placeholder"
+                        app:iconTint="?attr/colorPrimary"
+                        app:strokeColor="?attr/colorPrimary"
+                        app:strokeWidth="1dp"
+                        style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                        android:layout_marginBottom="8dp" />
+
+                    <androidx.recyclerview.widget.RecyclerView
+                        android:id="@+id/recyclerSelectedImages"
+                        android:layout_width="match_parent"
+                        android:layout_height="110dp"
+                        android:orientation="horizontal"
+                        android:visibility="gone"
+                        android:layout_marginBottom="24dp"
+                        tools:listitem="@layout/item_asset_image"
+                        tools:visibility="visible"/>
                     <com.google.android.material.button.MaterialButton
                         android:id="@+id/btnAddAsset"
                         android:layout_width="match_parent"

@@ -5,7 +5,7 @@
     </style>
 
     <style name="CustomBottomSheetStyle" parent="Widget.Design.BottomSheet.Modal">
-        <item name="android:background">@drawable/bg_bottomsheet</item>
+        <item name="android:background">@drawable/bg_bottomsheet_top_rounded</item>
     </style>
 
     <style name="ResidentLabel">

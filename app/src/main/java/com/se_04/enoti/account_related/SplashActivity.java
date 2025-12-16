@@ -2,7 +2,7 @@ package com.se_04.enoti.account_related;
 
 import android.Manifest;
 import android.annotation.SuppressLint;
-import android.app.DownloadManager; // Giữ lại để dùng hằng số Environment.DIRECTORY_DOWNLOADS
+import android.app.DownloadManager;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
@@ -28,15 +28,16 @@ import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.app.AppCompatDelegate;
 import androidx.core.content.ContextCompat;
-import androidx.core.content.FileProvider; // 🔥 THÊM MỚI
+import androidx.core.content.FileProvider;
 
-import com.se_04.enoti.R; // 🔥 Cần R.layout.dialog_progress (Tôi sẽ giả định bạn tự tạo)
+import com.se_04.enoti.R;
 import com.se_04.enoti.account.Role;
 import com.se_04.enoti.account.UserItem;
 import com.se_04.enoti.home.accountant.MainActivity_Accountant;
 import com.se_04.enoti.home.admin.MainActivity_Admin;
 import com.se_04.enoti.home.agency.MainActivity_Agency;
 import com.se_04.enoti.home.user.MainActivity_User;
+import com.se_04.enoti.utils.ApiConfig; // 🔥 Ensure this exists and has BASE_URL
 import com.se_04.enoti.utils.BaseActivity;
 import com.se_04.enoti.utils.UserManager;
 
@@ -44,25 +45,24 @@ import org.json.JSONArray;
 import org.json.JSONObject;
 
 import java.io.File;
-import java.io.FileOutputStream; // 🔥 THÊM MỚI
-import java.io.InputStream; // 🔥 THÊM MỚI
-import java.io.OutputStream; // 🔥 THÊM MỚI
+import java.io.FileOutputStream;
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.io.IOException;
 
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.Response;
-import okhttp3.ResponseBody; // 🔥 THÊM MỚI
+import okhttp3.ResponseBody;
 
 @SuppressLint("CustomSplashScreen")
 public class SplashActivity extends BaseActivity {
 
     private ActivityResultLauncher<String[]> permissionLauncher;
-    // 🔥 THÊM MỚI: Launcher để xin quyền "Cài đặt ứng dụng không rõ nguồn gốc"
     private ActivityResultLauncher<Intent> installPermissionLauncher;
 
     private static final String UPDATE_FILE_NAME = "enoti_update.apk";
-    private Handler mainThreadHandler; // 🔥 THÊM MỚI: Để cập nhật UI từ luồng nền
+    private Handler mainThreadHandler;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -70,25 +70,21 @@ public class SplashActivity extends BaseActivity {
         super.onCreate(savedInstanceState);
         mainThreadHandler = new Handler(Looper.getMainLooper());
 
-        // 🔥 THÊM MỚI: Đăng ký launcher cho quyền cài đặt
         installPermissionLauncher = registerForActivityResult(
                 new ActivityResultContracts.StartActivityForResult(),
                 result -> {
-                    // Sau khi người dùng quay lại từ màn hình Cài đặt
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                         if (getPackageManager().canRequestPackageInstalls()) {
-                            proceedWithInstall(); // Nếu họ đã cấp quyền, tiến hành cài đặt
+                            proceedWithInstall();
                         } else {
                             Toast.makeText(this, "Bạn đã từ chối quyền cài đặt. Vui lòng cập nhật thủ công.", Toast.LENGTH_LONG).show();
-                            navigateNext(); // Đi tiếp vào app
+                            navigateNext();
                         }
                     }
                 });
 
-        // 🔥 THÊM MỚI: Chạy logic dọn dẹp ở background
         new Thread(() -> cleanupOldApk(this)).start();
 
-        // --- XIN QUYỀN NHƯ BẢN GỐC ---
         permissionLauncher = registerForActivityResult(
                 new ActivityResultContracts.RequestMultiplePermissions(),
                 result -> {
@@ -102,7 +98,7 @@ public class SplashActivity extends BaseActivity {
                     }
 
                     if (cameraGranted && imageGranted) {
-                        checkUpdateFromGitHub();
+                        checkUpdateFromBackend(); // 🔥 CHANGED to call Backend
                     } else {
                         if (isPermissionPermanentlyDenied()) {
                             showPermissionSettingsDialog();
@@ -122,7 +118,7 @@ public class SplashActivity extends BaseActivity {
             prefs.edit().putBoolean("first_run", false).apply();
         } else {
             if (hasRequiredPermissions()) {
-                checkUpdateFromGitHub();
+                checkUpdateFromBackend(); // 🔥 CHANGED to call Backend
             } else {
                 requestAppPermissions();
             }
@@ -142,14 +138,17 @@ public class SplashActivity extends BaseActivity {
 
 
     // -----------------------------
-    // 🔥 CHECK UPDATE (Đã sửa)
+    // 🔥 CHECK UPDATE FROM BACKEND (MODIFIED)
     // -----------------------------
-    private void checkUpdateFromGitHub() {
+    private void checkUpdateFromBackend() {
         new Thread(() -> {
             try {
                 OkHttpClient client = new OkHttpClient();
+                // 🔥 Use your Backend URL instead of GitHub API directly
+                String url = ApiConfig.BASE_URL + "/api/app-update/latest-version";
+
                 Request request = new Request.Builder()
-                        .url("https://api.github.com/repos/scarlett1712/IT3180_2025I_SE-04/releases/latest")
+                        .url(url)
                         .build();
 
                 Response response = client.newCall(request).execute();
@@ -161,76 +160,70 @@ public class SplashActivity extends BaseActivity {
                 String json = response.body().string();
                 JSONObject obj = new JSONObject(json);
 
-                String latestVersion = obj.getString("tag_name").replace("v", "");
-                // 🔥 THÊM MỚI: Lấy nội dung Release Notes
-                String releaseNotes = obj.getString("body");
+                // Backend returns: { "version": "v1.0.2", "download_url": "...", "release_notes": "..." }
+                String latestVersion = obj.optString("version", "").replace("v", "");
+                String releaseNotes = obj.optString("release_notes", "Cập nhật mới");
+                String apkUrl = obj.optString("download_url", "");
 
                 PackageInfo pInfo = getPackageManager().getPackageInfo(getPackageName(), 0);
                 String currentVersion = pInfo.versionName;
 
-                if (isNewer(latestVersion, currentVersion)) {
-                    JSONArray assets = obj.getJSONArray("assets");
-                    if (assets.length() > 0) {
-                        // Lấy link APK (giả sử là asset đầu tiên, hoặc bạn có thể lặp để tìm .apk)
-                        String apkUrl = assets.getJSONObject(0).getString("browser_download_url");
-
-                        // 🔥 THAY ĐỔI: Gửi tất cả thông tin sang dialog
-                        mainThreadHandler.post(() -> showUpdateDialog(apkUrl, latestVersion, releaseNotes));
-                    }
+                if (!latestVersion.isEmpty() && !apkUrl.isEmpty() && isNewer(latestVersion, currentVersion)) {
+                    mainThreadHandler.post(() -> showUpdateDialog(apkUrl, latestVersion, releaseNotes));
                 } else {
                     mainThreadHandler.post(this::navigateNext);
                 }
 
             } catch (Exception e) {
+                e.printStackTrace();
                 mainThreadHandler.post(this::navigateNext);
             }
         }).start();
     }
 
     private boolean isNewer(String latest, String current) {
-        String[] l = latest.split("\\.");
-        String[] c = current.split("\\.");
-        int len = Math.max(l.length, c.length);
+        try {
+            String[] l = latest.split("\\.");
+            String[] c = current.split("\\.");
+            int len = Math.max(l.length, c.length);
 
-        for (int i = 0; i < len; i++) {
-            int lv = i < l.length ? Integer.parseInt(l[i]) : 0;
-            int cv = i < c.length ? Integer.parseInt(c[i]) : 0;
-            if (lv > cv) return true;
-            if (lv < cv) return false;
+            for (int i = 0; i < len; i++) {
+                int lv = i < l.length ? Integer.parseInt(l[i]) : 0;
+                int cv = i < c.length ? Integer.parseInt(c[i]) : 0;
+                if (lv > cv) return true;
+                if (lv < cv) return false;
+            }
+        } catch (NumberFormatException e) {
+            return false; // Version parsing failed
         }
         return false;
     }
 
     // -----------------------------
-    // 🔥 HÀM TẢI VỀ (Đã viết lại hoàn toàn)
+    // 🔥 DOWNLOAD & INSTALL (Kept exactly as you wrote it)
     // -----------------------------
 
     private void showUpdateDialog(String url, String version, String releaseNotes) {
-        // Thay thế \r\n (từ Markdown) bằng \n (cho TextView)
         String notes = releaseNotes.replace("\r\n", "\n");
 
         new AlertDialog.Builder(this)
                 .setTitle("Có bản cập nhật mới")
                 .setMessage("Phiên bản mới: v" + version + "\n\nNội dung cập nhật:\n" + notes)
-                .setPositiveButton("Cập nhật", (d, w) -> downloadAndInstall(url)) // Chuyển sang hàm tải mới
+                .setPositiveButton("Cập nhật", (d, w) -> downloadAndInstall(url))
                 .setNegativeButton("Sau", (d, w) -> navigateNext())
                 .setCancelable(false)
                 .show();
     }
 
-    // 🔥 HÀM MỚI: Tải về thủ công bằng OkHttp để hiển thị ProgressBar
     private void downloadAndInstall(String url) {
-        // 1. Tạo Dialog với ProgressBar
         AlertDialog.Builder builder = new AlertDialog.Builder(this);
         builder.setTitle("Đang tải cập nhật...");
 
-        // Tạo ProgressBar theo chương trình
         ProgressBar progressBar = new ProgressBar(this, null, android.R.attr.progressBarStyleHorizontal);
         progressBar.setIndeterminate(false);
         progressBar.setMax(100);
         progressBar.setProgress(0);
 
-        // Thêm ProgressBar vào một layout
         LinearLayout layout = new LinearLayout(this);
         layout.setOrientation(LinearLayout.VERTICAL);
         layout.setPadding(50, 50, 50, 50);
@@ -240,7 +233,6 @@ public class SplashActivity extends BaseActivity {
         builder.setCancelable(false);
         AlertDialog progressDialog = builder.show();
 
-        // 2. Bắt đầu tải trên luồng nền
         new Thread(() -> {
             try {
                 OkHttpClient client = new OkHttpClient();
@@ -263,8 +255,7 @@ public class SplashActivity extends BaseActivity {
                     bytesRead += count;
                     output.write(data, 0, count);
 
-                    // Tính toán % và cập nhật ProgressBar
-                    int progress = (int) ((bytesRead * 100) / totalBytes);
+                    int progress = (totalBytes > 0) ? (int) ((bytesRead * 100) / totalBytes) : 0;
                     mainThreadHandler.post(() -> progressBar.setProgress(progress));
                 }
 
@@ -272,10 +263,9 @@ public class SplashActivity extends BaseActivity {
                 output.close();
                 input.close();
 
-                // 3. Tải xong, đóng dialog và kích hoạt cài đặt
                 mainThreadHandler.post(() -> {
                     progressDialog.dismiss();
-                    triggerInstall(); // Kích hoạt cài đặt
+                    triggerInstall();
                 });
 
             } catch (Exception e) {
@@ -283,43 +273,36 @@ public class SplashActivity extends BaseActivity {
                 mainThreadHandler.post(() -> {
                     progressDialog.dismiss();
                     Toast.makeText(this, "Tải về thất bại: " + e.getMessage(), Toast.LENGTH_LONG).show();
-                    navigateNext(); // Đi tiếp nếu tải lỗi
+                    navigateNext();
                 });
             }
         }).start();
     }
 
-    // 🔥 HÀM MỚI: Kích hoạt cài đặt (kiểm tra quyền)
     private void triggerInstall() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            // Với Android 8+, cần quyền "Cài đặt ứng dụng không rõ nguồn gốc"
             if (!getPackageManager().canRequestPackageInstalls()) {
-                // Hiển thị dialog giải thích
                 new AlertDialog.Builder(this)
                         .setTitle("Cần cấp quyền cài đặt")
-                        .setMessage("Để cài đặt bản cập nhật, bạn cần cấp quyền cho ENoti.")
+                        .setMessage("Để cài đặt bản cập nhật, bạn cần cấp quyền cho ứng dụng ENoti.")
                         .setPositiveButton("Đến Cài đặt", (d, w) -> {
                             Intent intent = new Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES,
                                     Uri.parse("package:" + getPackageName()));
-                            installPermissionLauncher.launch(intent); // Mở màn hình Cài đặt
+                            installPermissionLauncher.launch(intent);
                         })
                         .setNegativeButton("Hủy", (d, w) -> navigateNext())
                         .show();
                 return;
             }
         }
-        // Nếu đã có quyền (hoặc < Android 8), tiến hành cài đặt
         proceedWithInstall();
     }
 
-    // 🔥 HÀM MỚI: Tiến hành cài đặt (sử dụng FileProvider)
     private void proceedWithInstall() {
         File file = new File(getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS), UPDATE_FILE_NAME);
         if (file.exists()) {
-            // BẮT BUỘC: Sử dụng FileProvider để lấy Uri
-            // (Hãy chắc chắn bạn đã khai báo provider trong Manifest)
             Uri apkUri = FileProvider.getUriForFile(this,
-                    getPackageName() + ".provider", // Đây là authority, phải khớp Manifest
+                    getPackageName() + ".provider",
                     file);
 
             Intent installIntent = new Intent(Intent.ACTION_VIEW);
@@ -329,7 +312,7 @@ public class SplashActivity extends BaseActivity {
 
             try {
                 startActivity(installIntent);
-                finish(); // Đóng SplashActivity khi mở trình cài đặt
+                finish();
             } catch (Exception e) {
                 e.printStackTrace();
                 Toast.makeText(this, "Không thể mở trình cài đặt.", Toast.LENGTH_LONG).show();
@@ -342,9 +325,7 @@ public class SplashActivity extends BaseActivity {
     }
 
 
-    // 🔥 Hàm dọn dẹp (Giữ nguyên)
     private void cleanupOldApk(Context context) {
-        // ... (Code gốc của bạn giữ nguyên) ...
         try {
             File downloadDir = context.getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS);
             if (downloadDir == null || !downloadDir.isDirectory()) {
@@ -364,10 +345,9 @@ public class SplashActivity extends BaseActivity {
     }
 
     // -----------------------------
-    //  QUYỀN VÀ ĐIỀU HƯỚNG (Code gốc)
+    //  PERMISSIONS & NAVIGATION (Kept exactly as is)
     // -----------------------------
     private void requestAppPermissions() {
-        // ... (Code gốc của bạn giữ nguyên)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             permissionLauncher.launch(new String[]{
                     Manifest.permission.CAMERA,
@@ -383,7 +363,6 @@ public class SplashActivity extends BaseActivity {
     }
 
     private boolean isPermissionPermanentlyDenied() {
-        // ... (Code gốc của bạn giữ nguyên)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             return (ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED
                     && !shouldShowRequestPermissionRationale(Manifest.permission.CAMERA))
@@ -398,7 +377,6 @@ public class SplashActivity extends BaseActivity {
     }
 
     private void showPermissionSettingsDialog() {
-        // ... (Code gốc của bạn giữ nguyên)
         new AlertDialog.Builder(this)
                 .setTitle("Cần cấp quyền")
                 .setMessage("Vui lòng mở Cài đặt và cấp lại quyền.")
@@ -415,30 +393,24 @@ public class SplashActivity extends BaseActivity {
     private void navigateNext() {
         UserManager userManager = UserManager.getInstance(this);
 
-        // Check if user is logged in
         if (!userManager.isLoggedIn()) {
             startActivity(new Intent(this, LogInActivity.class));
             finish();
             return;
         }
 
-        // Check if token exists
         String token = userManager.getAuthToken();
         if (token == null || token.isEmpty()) {
-            // Token missing -> force logout
             userManager.forceLogout();
             return;
         }
 
-        // Get current user
         UserItem user = userManager.getCurrentUser();
         if (user == null) {
-            // User data corrupted -> force logout
             userManager.forceLogout();
             return;
         }
 
-        // Navigate based on role - USE PROPER IF-ELSE CHAIN
         Intent intent;
         Role userRole = user.getRole();
 
@@ -449,7 +421,6 @@ public class SplashActivity extends BaseActivity {
         } else if (userRole == Role.AGENCY) {
             intent = new Intent(this, MainActivity_Agency.class);
         } else {
-            // Default to USER role
             intent = new Intent(this, MainActivity_User.class);
         }
 
