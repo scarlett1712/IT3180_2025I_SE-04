@@ -114,7 +114,7 @@ router.put("/update/:userId", verifySession, async (req, res) => {
            job = COALESCE($4, job),
            email = COALESCE($5, email),
            identity_card = COALESCE($6, identity_card),
-           home_town = COALESCE($77, home_town)
+           home_town = COALESCE($7, home_town)
        WHERE user_id = $8`,
       [full_name, gender, formattedDob, job, email, identity_card, home_town, userId]
     );
