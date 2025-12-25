@@ -122,7 +122,7 @@ public class CreateNotificationActivity extends BaseActivity {
         btnSendLater = findViewById(R.id.btnSendLater);
         txtSelectedResidents = findViewById(R.id.txtSelectedResidents);
         chkSendAll = findViewById(R.id.chkSendAll);
-
+        edtExpirationDate.setFocusable(false);
         // 🔥 Ánh xạ View mới
         btnSelectImage = findViewById(R.id.btnSelectImage);
         txtFileName = findViewById(R.id.txtFileName);
@@ -392,9 +392,13 @@ public class CreateNotificationActivity extends BaseActivity {
     private void setupExpirationDatePicker() {
         edtExpirationDate.setOnClickListener(v -> {
             Calendar c = Calendar.getInstance();
-            new DatePickerDialog(this, (view, year, month, dayOfMonth) ->
+            DatePickerDialog datePickerDialog = new DatePickerDialog(this, (view, year, month, dayOfMonth) ->
                     edtExpirationDate.setText(String.format(Locale.getDefault(), "%02d/%02d/%d", dayOfMonth, month + 1, year)),
-                    c.get(Calendar.YEAR), c.get(Calendar.MONTH), c.get(Calendar.DAY_OF_MONTH)).show();
+                    c.get(Calendar.YEAR), c.get(Calendar.MONTH), c.get(Calendar.DAY_OF_MONTH));
+
+            datePickerDialog.getDatePicker().setMinDate(System.currentTimeMillis());
+
+            datePickerDialog.show();
         });
     }
 
@@ -411,10 +415,15 @@ public class CreateNotificationActivity extends BaseActivity {
         txtSendTime.setText(sdf.format(c.getTime()));
 
         btnSelectDate.setOnClickListener(v -> {
-            new DatePickerDialog(this, (view, y, m, d) -> {
-                c.set(Calendar.YEAR, y); c.set(Calendar.MONTH, m); c.set(Calendar.DAY_OF_MONTH, d);
+            DatePickerDialog datePickerDialog = new DatePickerDialog(this, (view, y, m, d) -> {
+                c.set(Calendar.YEAR, y);
+                c.set(Calendar.MONTH, m);
+                c.set(Calendar.DAY_OF_MONTH, d);
                 txtSendTime.setText(sdf.format(c.getTime()));
-            }, c.get(Calendar.YEAR), c.get(Calendar.MONTH), c.get(Calendar.DAY_OF_MONTH)).show();
+            }, c.get(Calendar.YEAR), c.get(Calendar.MONTH), c.get(Calendar.DAY_OF_MONTH));
+
+            datePickerDialog.getDatePicker().setMinDate(System.currentTimeMillis());
+            datePickerDialog.show();
         });
 
         btnSelectTime.setOnClickListener(v -> {

@@ -309,7 +309,9 @@ public class FinanceDetailActivity extends BaseActivity {
                             txtAmount.setText(new DecimalFormat("#,###,###").format(amount) + " đ");
                             txtAmountInText.setText(convertNumberToWords(amount));
                             txtDetail.setText(desc);
-                            txtPayDate.setText(rawPayTime.isEmpty() ? "Vừa xong" : rawPayTime);
+                            // Hiển thị thời gian thanh toán rõ ràng hơn
+                            String displayTime = rawPayTime.isEmpty() ? "Vừa xong" : "Thời gian thanh toán: " + rawPayTime;
+                            txtPayDate.setText(displayTime);
 
                             invoiceDetailView.setVisibility(View.VISIBLE);
 

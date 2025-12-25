@@ -16,7 +16,7 @@ import androidx.annotation.Nullable;
 import androidx.recyclerview.widget.GridLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
-import com.android.volley.AuthFailureError; // Import thêm
+import com.android.volley.AuthFailureError;
 import com.android.volley.Request;
 import com.android.volley.RequestQueue;
 import com.android.volley.toolbox.JsonArrayRequest;
@@ -100,6 +100,9 @@ public class CreateFinanceActivity extends BaseActivity {
         recyclerRooms = findViewById(R.id.recyclerRooms);
         txtSelectedRooms = findViewById(R.id.txtSelectedRooms);
         chkSelectAllRooms = findViewById(R.id.chkSelectAllRooms);
+
+        // Khóa nhập tay ngày sinh
+        edtDueDate.setFocusable(false);
     }
 
     private void setupToolbar() {
@@ -115,14 +118,16 @@ public class CreateFinanceActivity extends BaseActivity {
     private void setupDueDate() {
         edtDueDate.setOnClickListener(v -> {
             Calendar calendar = Calendar.getInstance();
-            new DatePickerDialog(this, (view, year, month, dayOfMonth) -> {
+            DatePickerDialog datePicker = new DatePickerDialog(this, (view, year, month, dayOfMonth) -> {
                 String selectedDate = String.format(Locale.getDefault(), "%02d/%02d/%d",
                         dayOfMonth, month + 1, year);
                 edtDueDate.setText(selectedDate);
             }, calendar.get(Calendar.YEAR),
                     calendar.get(Calendar.MONTH),
-                    calendar.get(Calendar.DAY_OF_MONTH))
-                    .show();
+                    calendar.get(Calendar.DAY_OF_MONTH));
+
+            datePicker.getDatePicker().setMinDate(System.currentTimeMillis());
+            datePicker.show();
         });
     }
 
@@ -131,6 +136,13 @@ public class CreateFinanceActivity extends BaseActivity {
         ArrayAdapter<String> adapter = new ArrayAdapter<>(this, android.R.layout.simple_dropdown_item_1line, types);
         spinnerType.setAdapter(adapter);
         spinnerType.setText(types[0], false);
+
+        spinnerType.setOnItemClickListener((parent, view, position, id) -> {
+            String selectedType = types[position];
+            if (selectedType.equals("Tiền điện") || selectedType.equals("Tiền nước") || selectedType.equals("Phí dịch vụ")) {
+                Toast.makeText(this, "Hệ thống: " + selectedType + " là loại phí bắt buộc", Toast.LENGTH_SHORT).show();
+            }
+        });
     }
 
     private void setupSelectAllCheckbox() {
@@ -187,13 +199,11 @@ public class CreateFinanceActivity extends BaseActivity {
                 },
                 error -> {
                     if (error.networkResponse != null && error.networkResponse.statusCode == 401) {
-                        // Xử lý logout nếu cần hoặc thông báo
                         Toast.makeText(this, "Phiên đăng nhập hết hạn", Toast.LENGTH_SHORT).show();
                     } else {
                         Toast.makeText(this, "Lỗi tải danh sách phòng", Toast.LENGTH_SHORT).show();
                     }
                 }) {
-            // 🔥 THÊM HEADER AUTH
             @Override
             public Map<String, String> getHeaders() throws AuthFailureError {
                 Map<String, String> headers = new HashMap<>();
@@ -274,6 +284,8 @@ public class CreateFinanceActivity extends BaseActivity {
             try { amount = Double.parseDouble(amountStr); } catch (NumberFormatException e) { return; }
         }
 
+        boolean isMandatory = !type.equalsIgnoreCase("Tự nguyện");
+
         try {
             JSONArray targetRooms = new JSONArray();
             if (chkSelectAllRooms.isChecked() || (selectedRooms.isEmpty() && spinnerFloor.getText().toString().equals("Tất cả các tầng"))) {
@@ -296,6 +308,8 @@ public class CreateFinanceActivity extends BaseActivity {
             body.put("target_rooms", targetRooms);
             body.put("created_by", adminId);
 
+            body.put("is_mandatory", isMandatory);
+
             btnCreateFee.setEnabled(false);
             btnCreateFee.setText("Đang xử lý...");
 
@@ -310,7 +324,6 @@ public class CreateFinanceActivity extends BaseActivity {
                         btnCreateFee.setText("Tạo khoản thu");
                         Toast.makeText(this, "Lỗi khi tạo khoản thu", Toast.LENGTH_SHORT).show();
                     }) {
-                // 🔥 THÊM HEADER AUTH CHO API POST
                 @Override
                 public Map<String, String> getHeaders() throws AuthFailureError {
                     Map<String, String> headers = new HashMap<>();

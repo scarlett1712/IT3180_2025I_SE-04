@@ -98,7 +98,10 @@ public class ChangePasswordActivity extends BaseActivity {
         }
 
         if (oldPassword.equals(newPassword)) {
-            editTextNewPassword.setError("Mật khẩu mới không được trùng với mật khẩu cũ");
+            String errorMsg = "Mật khẩu mới không được trùng với mật khẩu cũ!";
+            editTextNewPassword.setError(errorMsg);
+            Toast.makeText(this, errorMsg, Toast.LENGTH_LONG).show(); // Thêm Toast để cảnh báo rõ hơn
+            editTextNewPassword.requestFocus();
             return;
         }
 
@@ -161,10 +164,15 @@ public class ChangePasswordActivity extends BaseActivity {
             String finalMessage = message;
             runOnUiThread(() -> {
                 if (responseCode == 200) {
-                    Toast.makeText(this, finalMessage, Toast.LENGTH_LONG).show();
+                    Toast.makeText(this, "Đổi mật khẩu thành công!", Toast.LENGTH_SHORT).show();
                     finish();
                 } else {
-                    Toast.makeText(this, finalMessage, Toast.LENGTH_LONG).show();
+                    Toast.makeText(this, "Thất bại: " + finalMessage, Toast.LENGTH_LONG).show();
+
+                    if (finalMessage.toLowerCase().contains("trùng") || finalMessage.toLowerCase().contains("same")) {
+                        editTextNewPassword.setError(finalMessage);
+                        editTextNewPassword.requestFocus();
+                    }
                 }
             });
 

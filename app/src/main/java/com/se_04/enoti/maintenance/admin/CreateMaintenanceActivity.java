@@ -60,8 +60,21 @@ public class CreateMaintenanceActivity extends BaseActivity {
         initViews();
         setupToolbar();
 
-        // Sự kiện chọn ngày
+        // Sự kiện chọn ngày - Thêm cho cả TextInputLayout và EditText
         edtDate.setOnClickListener(v -> showDatePicker());
+        edtDate.setOnFocusChangeListener((v, hasFocus) -> {
+            if (hasFocus) {
+                edtDate.clearFocus();
+                showDatePicker();
+            }
+        });
+        
+        // Thêm click listener cho TextInputLayout
+        com.google.android.material.textfield.TextInputLayout inputLayoutDate = findViewById(R.id.inputLayoutDate);
+        if (inputLayoutDate != null) {
+            inputLayoutDate.setEndIconOnClickListener(v -> showDatePicker());
+            inputLayoutDate.setOnClickListener(v -> showDatePicker());
+        }
 
         // Sự kiện nút tạo
         btnCreate.setOnClickListener(v -> createSchedule());

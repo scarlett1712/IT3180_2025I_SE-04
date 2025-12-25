@@ -1,5 +1,6 @@
 package com.se_04.enoti.maintenance.admin;
 
+import android.app.DatePickerDialog;
 import android.content.ClipData;
 import android.content.Intent;
 import android.graphics.Bitmap;
@@ -33,8 +34,11 @@ import org.json.JSONObject;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Calendar;
 import java.util.List;
+import java.util.Locale;
 
 public class AddAssetActivity extends BaseActivity {
 
@@ -45,6 +49,8 @@ public class AddAssetActivity extends BaseActivity {
     private AssetImageAdapter imageAdapter;
     private final List<String> selectedImageUris = new ArrayList<>(); // List URI để hiển thị
     private final List<String> base64Images = new ArrayList<>();      // List Base64 để gửi đi
+    
+    private final SimpleDateFormat displayDateFormat = new SimpleDateFormat("dd/MM/yyyy", Locale.getDefault());
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -63,6 +69,22 @@ public class AddAssetActivity extends BaseActivity {
 
         setupRecyclerView();
 
+        // 🔥 Thêm date picker cho ngày mua
+        edtDate.setOnClickListener(v -> showDatePicker());
+        edtDate.setOnFocusChangeListener((v, hasFocus) -> {
+            if (hasFocus) {
+                edtDate.clearFocus();
+                showDatePicker();
+            }
+        });
+        
+        // Thêm click listener cho TextInputLayout
+        com.google.android.material.textfield.TextInputLayout inputLayoutDate = findViewById(R.id.inputLayoutDate);
+        if (inputLayoutDate != null) {
+            inputLayoutDate.setEndIconOnClickListener(v -> showDatePicker());
+            inputLayoutDate.setOnClickListener(v -> showDatePicker());
+        }
+
         btnSelectImages.setOnClickListener(v -> openImagePicker());
         btnAdd.setOnClickListener(v -> submitAsset());
     }
@@ -73,6 +95,14 @@ public class AddAssetActivity extends BaseActivity {
             imageAdapter = new AssetImageAdapter(selectedImageUris, null); // Null listener vì preview không cần click
             recyclerImages.setAdapter(imageAdapter);
         }
+    }
+    
+    private void showDatePicker() {
+        Calendar c = Calendar.getInstance();
+        new DatePickerDialog(this, (view, year, month, dayOfMonth) -> {
+            c.set(year, month, dayOfMonth);
+            edtDate.setText(displayDateFormat.format(c.getTime()));
+        }, c.get(Calendar.YEAR), c.get(Calendar.MONTH), c.get(Calendar.DAY_OF_MONTH)).show();
     }
 
     private void openImagePicker() {
@@ -137,11 +167,24 @@ public class AddAssetActivity extends BaseActivity {
     private void submitAsset() {
         String name = edtName.getText().toString().trim();
         String location = edtLocation.getText().toString().trim();
-        String date = edtDate.getText().toString().trim();
+        String dateStr = edtDate.getText().toString().trim();
 
         if (TextUtils.isEmpty(name) || TextUtils.isEmpty(location)) {
             Toast.makeText(this, "Vui lòng nhập tên và vị trí", Toast.LENGTH_SHORT).show();
             return;
+        }
+        
+        // 🔥 Chuyển đổi ngày từ dd/MM/yyyy sang yyyy-MM-dd cho API
+        String date = "";
+        if (!TextUtils.isEmpty(dateStr)) {
+            try {
+                java.util.Date parsedDate = displayDateFormat.parse(dateStr);
+                SimpleDateFormat apiFormat = new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault());
+                date = apiFormat.format(parsedDate);
+            } catch (Exception e) {
+                // Nếu parse lỗi, dùng nguyên chuỗi (có thể user nhập tay)
+                date = dateStr;
+            }
         }
 
         // Disable nút để tránh spam click
@@ -176,7 +219,31 @@ public class AddAssetActivity extends BaseActivity {
                     finish();
                 },
                 error -> {
-                    Toast.makeText(this, "Lỗi khi thêm thiết bị", Toast.LENGTH_SHORT).show();
+                    String errorMsg = "Lỗi khi thêm thiết bị";
+                    
+                    // 🔥 Hiển thị lỗi chi tiết hơn
+                    if (error.networkResponse != null) {
+                        int statusCode = error.networkResponse.statusCode;
+                        try {
+                            String responseBody = new String(error.networkResponse.data, "UTF-8");
+                            android.util.Log.e("AddAsset", "Error response: " + responseBody);
+                            
+                            if (statusCode == 400) {
+                                errorMsg = "Dữ liệu không hợp lệ. Vui lòng kiểm tra lại.";
+                            } else if (statusCode == 500) {
+                                errorMsg = "Lỗi server. Vui lòng thử lại sau.";
+                            } else {
+                                errorMsg = "Lỗi: " + statusCode;
+                            }
+                        } catch (Exception e) {
+                            errorMsg = "Lỗi kết nối: " + error.getMessage();
+                        }
+                    } else {
+                        errorMsg = "Không có kết nối mạng. Vui lòng kiểm tra internet.";
+                    }
+                    
+                    Toast.makeText(this, errorMsg, Toast.LENGTH_LONG).show();
+                    android.util.Log.e("AddAsset", "Error: " + error.toString());
                     btnAdd.setEnabled(true);
                     btnAdd.setText("Thêm thiết bị");
                 }

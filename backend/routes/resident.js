@@ -40,8 +40,12 @@ router.get("/", verifySession, async (req, res) => {
     //    return res.status(403).json({ error: "Không có quyền truy cập danh sách này." });
     // }
 
+    // 🔥 FIX: Tránh trùng lặp cư dân - Nếu 1 cư dân có nhiều căn hộ, chỉ lấy căn hộ chính (is_head_of_household = TRUE)
+    // Nếu không có căn hộ chính, lấy căn hộ đầu tiên
+    // 🔥 FIX: Xử lý trường hợp 1 người vừa là BQT (role 2,3,4) vừa là cư dân (role 1)
+    // Chỉ hiển thị trong danh sách cư dân nếu họ có role_id = 1 (ngay cả khi có role khác)
     const queryStr = `
-      SELECT
+      SELECT DISTINCT ON (ui.user_id)
         ui.user_id AS user_id,
         ui.full_name,
         ui.email,
@@ -51,7 +55,11 @@ router.get("/", verifySession, async (req, res) => {
         ui.job,
         ui.identity_card,
         ui.home_town,
-        ur.role_id,
+        -- Lấy role_id = 1 nếu có, nếu không có thì lấy role đầu tiên
+        COALESCE(
+          (SELECT role_id FROM userrole WHERE user_id = ui.user_id AND role_id = 1 LIMIT 1),
+          (SELECT role_id FROM userrole WHERE user_id = ui.user_id LIMIT 1)
+        ) AS role_id,
         r.relationship_id,
         r.apartment_id,
         a.apartment_number,
@@ -59,14 +67,26 @@ router.get("/", verifySession, async (req, res) => {
         a.area,
         r.relationship_with_the_head_of_household,
         ui.is_living,
-        ui.avatar_path
+        ui.avatar_path,
+        -- Thêm cột để biết user này có phải là BQT không (có role 2,3,4)
+        EXISTS(
+          SELECT 1 FROM userrole 
+          WHERE user_id = ui.user_id 
+          AND role_id IN (2, 3, 4)
+        ) AS is_staff
       FROM user_item ui
       LEFT JOIN users u ON ui.user_id = u.user_id
-      LEFT JOIN userrole ur ON ui.user_id = ur.user_id
       LEFT JOIN relationship r ON ui.relationship = r.relationship_id
       LEFT JOIN apartment a ON r.apartment_id = a.apartment_id
-      WHERE ur.role_id = 1
-      ORDER BY ui.full_name;
+      WHERE EXISTS (
+        -- Chỉ lấy user nếu họ có role_id = 1 (cư dân)
+        SELECT 1 FROM userrole ur 
+        WHERE ur.user_id = ui.user_id 
+        AND ur.role_id = 1
+      )
+      ORDER BY ui.user_id, 
+               CASE WHEN r.is_head_of_household = TRUE THEN 0 ELSE 1 END,
+               a.apartment_number ASC;
     `;
 
     const result = await pool.query(queryStr);
