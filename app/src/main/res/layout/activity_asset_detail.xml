@@ -145,16 +145,18 @@
                             tools:text="Hoạt động tốt" />
                     </LinearLayout>
 
-                </LinearLayout>
+                    <!-- 🔥 Di chuyển RecyclerView ảnh vào trong LinearLayout, sau nội dung -->
+                    <androidx.recyclerview.widget.RecyclerView
+                        android:id="@+id/recyclerAssetImages"
+                        android:layout_width="match_parent"
+                        android:layout_height="140dp"
+                        android:layout_marginTop="16dp"
+                        android:layout_marginBottom="8dp"
+                        android:clipToPadding="false"
+                        android:paddingStart="4dp"
+                        android:visibility="gone"/>
 
-                <androidx.recyclerview.widget.RecyclerView
-                    android:id="@+id/recyclerAssetImages"
-                    android:layout_width="match_parent"
-                    android:layout_height="140dp"
-                    android:layout_marginTop="16dp"
-                    android:clipToPadding="false"
-                    android:paddingStart="4dp"
-                    android:visibility="gone"/>
+                </LinearLayout>
 
             </com.google.android.material.card.MaterialCardView>
 
