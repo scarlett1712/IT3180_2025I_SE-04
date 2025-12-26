@@ -96,7 +96,9 @@ public class InvoiceBottomSheet extends BottomSheetDialogFragment {
                         txtAmount.setText(new DecimalFormat("#,###,###").format(amount) + " đ");
                         txtAmountWords.setText("(" + VnNumberToWords.convert(amount) + ")");
                         txtDesc.setText(desc);
-                        txtTime.setText(time);
+                        // Hiển thị thời gian thanh toán rõ ràng hơn
+                        String displayTime = time.equals("N/A") ? "Chưa có thông tin" : "Thời gian thanh toán: " + time;
+                        txtTime.setText(displayTime);
 
                     } catch (Exception e) {
                         Toast.makeText(getContext(), "Lỗi hiển thị dữ liệu", Toast.LENGTH_SHORT).show();
