@@ -3,6 +3,7 @@ import { pool } from "../db.js";
 import admin from "firebase-admin";
 import ExcelJS from 'exceljs';
 import { sendNotification } from "../utils/firebaseHelper.js";
+import { verifySession } from "../middleware/authMiddleware.js";
 
 const router = express.Router();
 const query = (text, params) => pool.query(text, params);
@@ -50,9 +51,9 @@ export const createFinanceTables = async () => {
 };
 
 // ==================================================================
-// 🟢 [GET] LẤY DANH SÁCH CÁC KHOẢN THU (ADMIN)
+// 🟢 [GET] LẤY DANH SÁCH CÁC KHOẢN THU (ADMIN/KẾ TOÁN)
 // ==================================================================
-router.get("/admin", async (req, res) => {
+router.get("/admin", verifySession, async (req, res) => {
   try {
     console.log("📊 Fetching all finances (admin view)");
 
