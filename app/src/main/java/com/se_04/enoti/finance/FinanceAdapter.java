@@ -189,7 +189,22 @@ public class FinanceAdapter extends RecyclerView.Adapter<FinanceAdapter.ViewHold
         List<FinanceItem> filteredList = new ArrayList<>();
         if (type == null || "Tất cả".equalsIgnoreCase(type)) {
             filteredList.addAll(financeListFull);
+        } else if ("Bắt buộc".equalsIgnoreCase(type)) {
+            // 🔥 Hiển thị tất cả các khoản thu KHÔNG phải "Tự nguyện"
+            for (FinanceItem item : financeListFull) {
+                if (item.getType() != null && !item.getType().equalsIgnoreCase("Tự nguyện")) {
+                    filteredList.add(item);
+                }
+            }
+        } else if ("Tự nguyện".equalsIgnoreCase(type)) {
+            // 🔥 Hiển thị chỉ các khoản thu "Tự nguyện"
+            for (FinanceItem item : financeListFull) {
+                if (item.getType() != null && item.getType().equalsIgnoreCase("Tự nguyện")) {
+                    filteredList.add(item);
+                }
+            }
         } else {
+            // Fallback: So sánh trực tiếp với type (cho các filter khác nếu có)
             for (FinanceItem item : financeListFull) {
                 if (item.getType() != null && item.getType().equalsIgnoreCase(type)) {
                     filteredList.add(item);
