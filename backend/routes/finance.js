@@ -78,16 +78,11 @@ router.get("/admin", verifySession, async (req, res) => {
           THEN a.apartment_number
         END) FILTER (WHERE f.type != 'chi_phi') AS paid_rooms,
 
-        -- Total collected from invoices (join through user_finances)
-        COALESCE((
-            SELECT SUM(inv.amount)
-            FROM user_finances uf_inner
-            LEFT JOIN invoice inv ON inv.finance_id = uf_inner.id
-            WHERE uf_inner.finance_id = f.id
-        ), 0) AS total_collected_real
+        COALESCE(SUM(inv.amount) FILTER (WHERE inv.invoice_id IS NOT NULL), 0) AS total_collected_real
 
       FROM finances f
       LEFT JOIN user_finances uf ON f.id = uf.finance_id
+      LEFT JOIN invoice inv ON inv.finance_id = uf.id  -- JOIN trực tiếp với invoice qua user_finances.id
       LEFT JOIN user_item creator ON f.created_by = creator.user_id
       LEFT JOIN user_item ui ON uf.user_id = ui.user_id
       LEFT JOIN relationship r ON ui.relationship = r.relationship_id
