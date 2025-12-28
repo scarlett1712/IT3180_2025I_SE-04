@@ -107,4 +107,5 @@ public class UserItem implements Serializable {
     public String getPhone() { return phone; }
     public String getIdentityCard() { return identityCard; }
     public String getHomeTown() { return homeTown; }
+
 }

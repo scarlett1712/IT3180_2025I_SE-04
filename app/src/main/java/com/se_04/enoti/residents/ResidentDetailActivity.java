@@ -253,11 +253,11 @@ public class ResidentDetailActivity extends BaseActivity {
                 return;
             }
 
-            String normalizedPhone = phoneInput.replace("+84", "0");
+            String phoneForDb = phoneInput.startsWith("0") ? "+84" + phoneInput.substring(1) : phoneInput;
 
             updateResidentInfo(
                     edtName.getText().toString().trim(),
-                    normalizedPhone,
+                    phoneForDb,
                     edtEmail.getText().toString().trim(),
                     edtGender.getText().toString().trim(),
                     edtDob.getText().toString().trim(),
@@ -311,7 +311,6 @@ public class ResidentDetailActivity extends BaseActivity {
                             String responseBody = new String(error.networkResponse.data, "utf-8");
                             JSONObject data = new JSONObject(responseBody);
 
-                            // Tìm message từ các key phổ biến
                             String serverMsg = data.optString("message", data.optString("error", ""));
 
                             if (serverMsg.isEmpty() && (error.networkResponse.statusCode == 400 || error.networkResponse.statusCode == 409)) {
