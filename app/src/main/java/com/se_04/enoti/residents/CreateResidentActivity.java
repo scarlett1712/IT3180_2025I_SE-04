@@ -1,7 +1,5 @@
 package com.se_04.enoti.residents;
 
-import static com.se_04.enoti.utils.ValidatePhoneNumberUtil.normalizePhoneNumber;
-
 import android.app.DatePickerDialog;
 import android.os.Bundle;
 import android.text.InputFilter;
@@ -112,7 +110,6 @@ public class CreateResidentActivity extends BaseActivity {
             edtBirthDate.setText(formatted);
         }, calendar.get(Calendar.YEAR), calendar.get(Calendar.MONTH), calendar.get(Calendar.DAY_OF_MONTH));
 
-        // CHẶN NGÀY TƯƠNG LAI
         datePicker.getDatePicker().setMaxDate(System.currentTimeMillis());
         datePicker.show();
     }
@@ -126,27 +123,41 @@ public class CreateResidentActivity extends BaseActivity {
         String birthDateDisplay = edtBirthDate.getText().toString().trim();
         String phoneRaw = edtPhone.getText().toString().trim();
         String identityCard = edtIdentityCard != null ? edtIdentityCard.getText().toString().trim() : "";
+        String floorRaw = edtFloor.getText().toString().trim();
 
-        // 1. Kiểm tra trống
         if (TextUtils.isEmpty(fullName) || TextUtils.isEmpty(birthDateDisplay) || TextUtils.isEmpty(phoneRaw)) {
             Toast.makeText(this, "Vui lòng nhập đầy đủ thông tin bắt buộc!", Toast.LENGTH_SHORT).show();
             return;
         }
+        int floorValue = 0;
+        try {
+            floorValue = Integer.parseInt(floorRaw.replaceAll("\\D", ""));
+        } catch (Exception e) { floorValue = 0; }
 
-        // 2. Kiểm tra định dạng SĐT
+        if (floorValue <= 0) {
+            edtFloor.setError("Tầng phải bắt đầu từ tầng 1!");
+            Toast.makeText(this, "Số tầng không hợp lệ!", Toast.LENGTH_SHORT).show();
+            edtFloor.requestFocus();
+            return;
+        }
+
         if (!isValidPhone(phoneRaw)) {
             Toast.makeText(this, "Số điện thoại không hợp lệ!", Toast.LENGTH_SHORT).show();
             return;
         }
 
-        // 3. Kiểm tra độ dài CCCD
         if (!identityCard.isEmpty() && identityCard.length() != 9 && identityCard.length() != 12) {
             Toast.makeText(this, "Số CCCD/CMND phải là 9 hoặc 12 chữ số!", Toast.LENGTH_SHORT).show();
             return;
         }
 
-        String phone = normalizePhoneNumber(phoneRaw).replace("+84", "0");
-        // ... (Các logic lấy dữ liệu khác giữ nguyên) ...
+        String phoneForDb;
+        if (phoneRaw.startsWith("0")) {
+            phoneForDb = "+84" + phoneRaw.substring(1);
+        } else {
+            phoneForDb = phoneRaw;
+        }
+
         String floor = edtFloor.getText().toString().trim().replaceAll("\\D", "");
         String room = edtRoom.getText().toString().trim().replaceAll("\\D", "");
         boolean isHead = checkboxIsHouseholder.isChecked();
@@ -154,7 +165,7 @@ public class CreateResidentActivity extends BaseActivity {
 
         try {
             JSONObject body = new JSONObject();
-            body.put("phone", phone);
+            body.put("phone", phoneForDb); // Sử dụng số đã định dạng +84
             body.put("full_name", fullName);
             body.put("gender", spinnerGender.getSelectedItem().toString());
             body.put("dob", apiFormat.format(displayFormat.parse(birthDateDisplay)));
@@ -176,17 +187,13 @@ public class CreateResidentActivity extends BaseActivity {
                     error -> {
                         if (error.networkResponse != null) {
                             try {
-                                // Đọc dữ liệu lỗi từ Server
                                 String responseBody = new String(error.networkResponse.data, "utf-8");
                                 JSONObject data = new JSONObject(responseBody);
-
-                                // Thử lấy message từ nhiều nguồn khác nhau (message, error, hoặc msg)
                                 String serverMsg = data.optString("message", data.optString("error", data.optString("msg", "")));
 
-                                // Nếu vẫn trống nhưng mã lỗi là 400 hoặc 409 (Trùng lặp)
                                 if (serverMsg.isEmpty()) {
                                     if (error.networkResponse.statusCode == 400 || error.networkResponse.statusCode == 409) {
-                                        serverMsg = "Dữ liệu (SĐT hoặc CCCD) đã tồn tại trong hệ thống!";
+                                        serverMsg = "Dữ liệu đã tồn tại trong hệ thống!";
                                     } else {
                                         serverMsg = "Lỗi không xác định từ máy chủ.";
                                     }
@@ -194,19 +201,17 @@ public class CreateResidentActivity extends BaseActivity {
 
                                 String lowerMsg = serverMsg.toLowerCase();
                                 if (lowerMsg.contains("phone") || lowerMsg.contains("số điện thoại")) {
-                                    Toast.makeText(this, "Số điện thoại đã được đăng ký cho cư dân khác!", Toast.LENGTH_LONG).show();
-                                } else if (lowerMsg.contains("identity") || lowerMsg.contains("cccd") || lowerMsg.contains("cmnd")) {
-                                    Toast.makeText(this, "Số CCCD/CMND đã tồn tại trong hệ thống!", Toast.LENGTH_LONG).show();
+                                    Toast.makeText(this, "Số điện thoại đã được đăng ký!", Toast.LENGTH_LONG).show();
+                                } else if (lowerMsg.contains("identity") || lowerMsg.contains("cccd")) {
+                                    Toast.makeText(this, "Số CCCD/CMND đã tồn tại!", Toast.LENGTH_LONG).show();
                                 } else {
-                                    // Hiển thị trực tiếp nội dung lỗi nếu không phải trùng lặp
                                     Toast.makeText(this, "Lỗi: " + serverMsg, Toast.LENGTH_LONG).show();
                                 }
                             } catch (Exception e) {
-                                // Nếu không parse được JSON, hiển thị thông báo chung cho lỗi trùng lặp
-                                Toast.makeText(this, "Dữ liệu (SĐT/CCCD) đã tồn tại hoặc không hợp lệ!", Toast.LENGTH_LONG).show();
+                                Toast.makeText(this, "Dữ liệu trùng lặp hoặc không hợp lệ!", Toast.LENGTH_LONG).show();
                             }
                         } else {
-                            Toast.makeText(this, "Lỗi kết nối máy chủ, vui lòng kiểm tra mạng!", Toast.LENGTH_SHORT).show();
+                            Toast.makeText(this, "Lỗi kết nối máy chủ!", Toast.LENGTH_SHORT).show();
                         }
                     }
             );

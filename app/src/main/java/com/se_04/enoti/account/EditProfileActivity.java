@@ -240,6 +240,13 @@ public class EditProfileActivity extends BaseActivity {
             return;
         }
 
+        String phone;
+        if (phoneRaw.startsWith("0")) {
+            phone = "+84" + phoneRaw.substring(1);
+        } else {
+            phone = phoneRaw; // Nếu đã có +84 thì giữ nguyên
+        }
+
         if (!identityCard.isEmpty() && identityCard.length() != 9 && identityCard.length() != 12) {
             Toast.makeText(this, "Số CCCD/CMND phải là 9 hoặc 12 chữ số!", Toast.LENGTH_SHORT).show();
             return;
@@ -259,13 +266,11 @@ public class EditProfileActivity extends BaseActivity {
             return;
         }
 
-        String phone = phoneRaw.replace("+84", "0");
-
         JSONObject body = new JSONObject();
         try {
             body.put("user_id", Integer.parseInt(currentUser.getId()));
             body.put("full_name", fullName);
-            body.put("phone", phone);
+            body.put("phone", phone); // Gửi số đã có +84 lên DB
             body.put("email", email);
             body.put("gender", gender);
             body.put("dob", dobApi);
