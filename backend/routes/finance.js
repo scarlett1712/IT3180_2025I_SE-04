@@ -220,7 +220,12 @@ router.get("/:financeId/users", async (req, res) => {
       JOIN relationship r ON ui.relationship = r.relationship_id
       JOIN apartment a ON r.apartment_id = a.apartment_id
       WHERE uf.finance_id = $1
-      ORDER BY a.apartment_number ASC
+      ORDER BY 
+        -- 🔥 Sắp xếp phòng theo số học (101, 102, 201, 202, 1211, 1300) thay vì chuỗi
+        CASE 
+          WHEN a.apartment_number ~ '^\d+$' THEN a.apartment_number::INTEGER
+          ELSE COALESCE((regexp_replace(a.apartment_number, '\D', '', 'g'))::INTEGER, 0)
+        END ASC
     `, [financeId]);
 
     console.log(`✅ Found ${result.rows.length} users for finance ${financeId}`);

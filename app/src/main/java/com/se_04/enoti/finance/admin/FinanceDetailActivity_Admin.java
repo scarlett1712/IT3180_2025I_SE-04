@@ -161,19 +161,11 @@ public class FinanceDetailActivity_Admin extends BaseActivity {
 
         List<String> sortedRooms = new ArrayList<>(roomStatusMap.keySet());
 
+        // 🔥 Sắp xếp phòng theo số học (101, 102, 201, 202, 1211, 1300) thay vì chuỗi
         Collections.sort(sortedRooms, (room1, room2) -> {
-            try {
-                if (room1.length() < 3 || room2.length() < 3) return room1.compareTo(room2);
-                int floor1 = Integer.parseInt(room1.substring(0, room1.length() - 2));
-                int number1 = Integer.parseInt(room1.substring(room1.length() - 2));
-                int floor2 = Integer.parseInt(room2.substring(0, room2.length() - 2));
-                int number2 = Integer.parseInt(room2.substring(room2.length() - 2));
-
-                int floorCompare = Integer.compare(floor1, floor2);
-                return (floorCompare != 0) ? floorCompare : Integer.compare(number1, number2);
-            } catch (Exception e) {
-                return room1.compareTo(room2);
-            }
+            int num1 = extractRoomNumber(room1);
+            int num2 = extractRoomNumber(room2);
+            return Integer.compare(num1, num2);
         });
 
         for (String room : sortedRooms) {
@@ -409,5 +401,16 @@ public class FinanceDetailActivity_Admin extends BaseActivity {
             }
         };
         requestQueue.add(request);
+    }
+
+    // 🔥 Helper function để extract số phòng (số học) từ chuỗi
+    private int extractRoomNumber(String room) {
+        try {
+            // Loại bỏ tất cả ký tự không phải số và chuyển thành số
+            String numbers = room.replaceAll("\\D+", "");
+            return numbers.isEmpty() ? 0 : Integer.parseInt(numbers);
+        } catch (Exception e) {
+            return 0;
+        }
     }
 }

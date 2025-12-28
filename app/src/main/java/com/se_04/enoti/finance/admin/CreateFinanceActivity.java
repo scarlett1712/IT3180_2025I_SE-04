@@ -181,7 +181,12 @@ public class CreateFinanceActivity extends BaseActivity {
                         }
 
                         allRooms.addAll(uniqueRooms);
-                        Collections.sort(allRooms);
+                        // 🔥 Sắp xếp phòng theo số học (101, 102, 201, 202, 1211, 1300) thay vì chuỗi
+                        Collections.sort(allRooms, (room1, room2) -> {
+                            int num1 = extractRoomNumber(room1);
+                            int num2 = extractRoomNumber(room2);
+                            return Integer.compare(num1, num2);
+                        });
 
                         for (String room : allRooms) {
                             String floor = extractFloorFromRoom(room);
@@ -246,6 +251,17 @@ public class CreateFinanceActivity extends BaseActivity {
             return "Tầng " + floorPart;
         } catch (Exception e) {
             return "Khác";
+        }
+    }
+
+    // 🔥 Helper function để extract số phòng (số học) từ chuỗi
+    private int extractRoomNumber(String room) {
+        try {
+            // Loại bỏ tất cả ký tự không phải số và chuyển thành số
+            String numbers = room.replaceAll("\\D+", "");
+            return numbers.isEmpty() ? 0 : Integer.parseInt(numbers);
+        } catch (Exception e) {
+            return 0;
         }
     }
 

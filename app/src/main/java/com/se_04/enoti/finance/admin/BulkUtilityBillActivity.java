@@ -115,7 +115,12 @@ public class BulkUtilityBillActivity extends BaseActivity {
                             if (!TextUtils.isEmpty(room)) uniqueRooms.add(room);
                         }
                         List<String> sortedRooms = new ArrayList<>(uniqueRooms);
-                        Collections.sort(sortedRooms);
+                        // 🔥 Sắp xếp phòng theo số học (101, 102, 201, 202, 1211, 1300) thay vì chuỗi
+                        Collections.sort(sortedRooms, (room1, room2) -> {
+                            int num1 = extractRoomNumber(room1);
+                            int num2 = extractRoomNumber(room2);
+                            return Integer.compare(num1, num2);
+                        });
                         for (String room : sortedRooms) {
                             inputList.add(new UtilityInputItem(room));
                         }
@@ -224,5 +229,16 @@ public class BulkUtilityBillActivity extends BaseActivity {
         };
 
         Volley.newRequestQueue(this).add(request);
+    }
+
+    // 🔥 Helper function để extract số phòng (số học) từ chuỗi
+    private int extractRoomNumber(String room) {
+        try {
+            // Loại bỏ tất cả ký tự không phải số và chuyển thành số
+            String numbers = room.replaceAll("\\D+", "");
+            return numbers.isEmpty() ? 0 : Integer.parseInt(numbers);
+        } catch (Exception e) {
+            return 0;
+        }
     }
 }
