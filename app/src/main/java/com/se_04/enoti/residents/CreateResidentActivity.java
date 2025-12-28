@@ -84,6 +84,7 @@ public class CreateResidentActivity extends BaseActivity {
         btnSaveResident = findViewById(R.id.btnSaveResident);
         btnCancel = findViewById(R.id.btnCancel);
 
+        // Giới hạn nhập liệu 12 ký tự để chứa vừa đủ +84XXXXXXXXX
         edtPhone.setInputType(InputType.TYPE_CLASS_PHONE);
         edtPhone.setFilters(new InputFilter[]{new InputFilter.LengthFilter(12)});
 
