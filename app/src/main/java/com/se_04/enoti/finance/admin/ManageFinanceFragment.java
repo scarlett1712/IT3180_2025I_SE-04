@@ -380,7 +380,13 @@ public class ManageFinanceFragment extends Fragment {
                         updateListUI(finances);
                         if (swipeRefreshLayout != null) swipeRefreshLayout.setRefreshing(false);
                     }
-                    @Override public void onError(String message) { if (swipeRefreshLayout != null) swipeRefreshLayout.setRefreshing(false); }
+                    @Override 
+                    public void onError(String message) { 
+                        if (swipeRefreshLayout != null) swipeRefreshLayout.setRefreshing(false);
+                        if (getContext() != null) {
+                            Toast.makeText(getContext(), "Lỗi tải danh sách khoản thu: " + message, Toast.LENGTH_LONG).show();
+                        }
+                    }
                 });
     }
 

@@ -65,16 +65,29 @@ public class FinanceRepository {
         getRequestQueue(context).add(request);
     }
 
-    // 🧮 Dành cho admin
+    // 🧮 Dành cho admin/kế toán
     public void fetchAdminFinances(Context context, FinanceCallback callback) {
         String url = ApiConfig.BASE_URL + "/api/finance/admin";
         Log.d("FinanceRepo", "Fetching all finances (admin view): " + url);
 
         JsonArrayRequest request = new JsonArrayRequest(Request.Method.GET, url, null,
-                response -> callback.onSuccess(parseFinanceList(response)),
+                response -> {
+                    Log.d("FinanceRepo", "Response length: " + (response != null ? response.length() : 0));
+                    callback.onSuccess(parseFinanceList(response));
+                },
                 error -> {
-                    Log.e("FinanceRepo", "Error fetching admin finances", error);
-                    callback.onError("Không thể tải dữ liệu khoản thu (admin)");
+                    String errorMsg = "Không thể tải dữ liệu khoản thu";
+                    if (error.networkResponse != null) {
+                        int statusCode = error.networkResponse.statusCode;
+                        errorMsg += " (Status: " + statusCode + ")";
+                        Log.e("FinanceRepo", "Error fetching admin finances - Status: " + statusCode);
+                        if (statusCode == 401) {
+                            errorMsg = "Phiên đăng nhập hết hạn. Vui lòng đăng nhập lại.";
+                        }
+                    } else {
+                        Log.e("FinanceRepo", "Error fetching admin finances", error);
+                    }
+                    callback.onError(errorMsg);
                 }) {
             // 🔥 THÊM HEADER ĐỂ GỬI TOKEN (Tránh lỗi 401)
             @Override

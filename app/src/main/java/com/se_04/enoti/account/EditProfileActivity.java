@@ -3,6 +3,8 @@ package com.se_04.enoti.account;
 import android.app.DatePickerDialog;
 import android.graphics.Color;
 import android.os.Bundle;
+import android.text.InputFilter;
+import android.text.InputType;
 import android.text.TextUtils;
 import android.view.MenuItem;
 import android.view.View;
@@ -11,12 +13,10 @@ import android.widget.AutoCompleteTextView;
 import android.widget.Button;
 import android.widget.CheckBox;
 import android.widget.LinearLayout;
-import android.widget.TextView; // Đảm bảo import TextView
 import android.widget.Toast;
 import androidx.appcompat.widget.Toolbar;
 
 import androidx.annotation.Nullable;
-import androidx.appcompat.app.AppCompatActivity;
 
 import com.android.volley.Request;
 import com.android.volley.toolbox.JsonObjectRequest;
@@ -46,7 +46,7 @@ public class EditProfileActivity extends BaseActivity {
     private Button btnSubmit;
     private UserItem currentUser;
     private Toolbar toolbar;
-    private LinearLayout txtWarning; // Cảnh báo "Chỉ user thường mới cần duyệt"
+    private LinearLayout txtWarning;
 
     private final SimpleDateFormat displayDateFormat = new SimpleDateFormat("dd-MM-yyyy", Locale.getDefault());
     private final SimpleDateFormat apiDateFormat = new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault());
@@ -82,7 +82,6 @@ public class EditProfileActivity extends BaseActivity {
 
         currentUser = UserManager.getInstance(this).getCurrentUser();
 
-        // Xử lý giao diện theo Role
         if (currentUser != null) {
             setupViewsByRole(currentUser.getRole());
             loadUserData();
@@ -92,22 +91,12 @@ public class EditProfileActivity extends BaseActivity {
     }
 
     private void setupViewsByRole(Role role) {
-        if (role == Role.ADMIN) {
-            // Ẩn các trường không cần thiết cho Admin
+        if (role == Role.ADMIN || role == Role.ACCOUNTANT || role == Role.AGENCY) {
             checkboxIsHouseholder.setVisibility(View.GONE);
             hideInputLayout(edtRoom);
             hideInputLayout(edtFloor);
             hideInputLayout(edtRelation);
-
-            // Ẩn cảnh báo (nếu có trong XML)
             if (txtWarning != null) txtWarning.setVisibility(View.GONE);
-        }
-
-        if (role == Role.ACCOUNTANT || role == Role.AGENCY){
-            checkboxIsHouseholder.setVisibility(View.GONE);
-            hideInputLayout(edtRoom);
-            hideInputLayout(edtFloor);
-            hideInputLayout(edtRelation);
         }
     }
 
@@ -126,18 +115,25 @@ public class EditProfileActivity extends BaseActivity {
         edtGender = findViewById(R.id.edtGender);
         edtDob = findViewById(R.id.edtDob);
         edtJob = findViewById(R.id.edtJob);
-
         edtIdentityCard = findViewById(R.id.edtIdentityCard);
         edtHomeTown = findViewById(R.id.edtHomeTown);
-
         edtRoom = findViewById(R.id.edtRoom);
         edtFloor = findViewById(R.id.edtFloor);
         edtRelation = findViewById(R.id.edtRelation);
         checkboxIsHouseholder = findViewById(R.id.checkboxIsHouseholder);
         btnSubmit = findViewById(R.id.btnSubmit);
-
-        // Nếu file XML có TextView cảnh báo
         txtWarning = findViewById(R.id.layoutWarning);
+
+        edtPhone.setInputType(InputType.TYPE_CLASS_PHONE);
+        edtPhone.setFilters(new InputFilter[]{new InputFilter.LengthFilter(12)});
+
+        if (edtIdentityCard != null) {
+            edtIdentityCard.setInputType(InputType.TYPE_CLASS_NUMBER);
+            edtIdentityCard.setFilters(new InputFilter[]{new InputFilter.LengthFilter(12)});
+        }
+
+        edtDob.setFocusable(false);
+        edtDob.setClickable(true);
 
         edtRoom.setEnabled(false);
         edtFloor.setEnabled(false);
@@ -151,9 +147,6 @@ public class EditProfileActivity extends BaseActivity {
 
     private void setupDatePicker() {
         edtDob.setOnClickListener(v -> showDatePicker());
-        edtDob.setOnFocusChangeListener((v, hasFocus) -> {
-            if (hasFocus) showDatePicker();
-        });
     }
 
     private void showDatePicker() {
@@ -181,6 +174,8 @@ public class EditProfileActivity extends BaseActivity {
                     selectedCal.set(year1, monthOfYear, dayOfMonth);
                     edtDob.setText(displayDateFormat.format(selectedCal.getTime()));
                 }, year, month, day);
+
+        datePickerDialog.getDatePicker().setMaxDate(System.currentTimeMillis());
         datePickerDialog.show();
     }
 
@@ -193,18 +188,14 @@ public class EditProfileActivity extends BaseActivity {
         edtHomeTown.setText(currentUser.getHomeTown());
 
         if (currentUser.getGender() != null) {
-            String genderString = getGenderString(currentUser.getGender());
-            edtGender.setText(genderString, false);
+            edtGender.setText(getGenderString(currentUser.getGender()), false);
         }
 
         if (currentUser.getDob() != null && !currentUser.getDob().isEmpty()) {
             try {
                 Date date = apiDateFormat.parse(currentUser.getDob());
-                if (date != null) {
-                    edtDob.setText(displayDateFormat.format(date));
-                } else {
-                    edtDob.setText(currentUser.getDob());
-                }
+                if (date != null) edtDob.setText(displayDateFormat.format(date));
+                else edtDob.setText(currentUser.getDob());
             } catch (ParseException e) {
                 edtDob.setText(currentUser.getDob());
             }
@@ -216,11 +207,9 @@ public class EditProfileActivity extends BaseActivity {
                 edtRoom.setText(currentRoom);
                 edtFloor.setText(calculateFloorFromRoom(currentRoom));
             }
-
             if (currentUser.getRelationship() != null) {
                 edtRelation.setText(currentUser.getRelationship());
-                boolean isHead = "Bản thân".equalsIgnoreCase(currentUser.getRelationship()) ||
-                        "Chủ hộ".equalsIgnoreCase(currentUser.getRelationship());
+                boolean isHead = "Bản thân".equalsIgnoreCase(currentUser.getRelationship()) || "Chủ hộ".equalsIgnoreCase(currentUser.getRelationship());
                 checkboxIsHouseholder.setChecked(isHead);
                 edtRelation.setEnabled(!isHead);
             }
@@ -232,9 +221,13 @@ public class EditProfileActivity extends BaseActivity {
         return room.substring(0, room.length() - 2);
     }
 
+    private boolean isValidPhone(String phone) {
+        return phone != null && phone.matches("^(0|\\+84)[0-9]{9}$");
+    }
+
     private void submitUpdate() {
         String fullName = edtFullName.getText().toString().trim();
-        String phone = edtPhone.getText().toString().trim();
+        String phoneRaw = edtPhone.getText().toString().trim();
         String email = edtEmail.getText().toString().trim();
         String gender = edtGender.getText().toString().trim();
         String job = edtJob.getText().toString().trim();
@@ -242,19 +235,24 @@ public class EditProfileActivity extends BaseActivity {
         String identityCard = edtIdentityCard.getText().toString().trim();
         String homeTown = edtHomeTown.getText().toString().trim();
 
-        boolean isHead = false;
-        String relation = "";
-
-        if (currentUser.getRole() != Role.ADMIN && currentUser.getRole() != Role.ACCOUNTANT && currentUser.getRole() != Role.AGENCY) {
-            isHead = checkboxIsHouseholder.isChecked();
-            relation = isHead ? "Bản thân" : edtRelation.getText().toString().trim();
-            if (!isHead && TextUtils.isEmpty(relation)) {
-                Toast.makeText(this, "Vui lòng nhập quan hệ với chủ hộ!", Toast.LENGTH_SHORT).show();
-                return;
-            }
+        if (!isValidPhone(phoneRaw)) {
+            Toast.makeText(this, "Số điện thoại không hợp lệ!", Toast.LENGTH_SHORT).show();
+            return;
         }
 
-        if (TextUtils.isEmpty(fullName) || TextUtils.isEmpty(phone) || TextUtils.isEmpty(dobDisplay)) {
+        String phone;
+        if (phoneRaw.startsWith("0")) {
+            phone = "+84" + phoneRaw.substring(1);
+        } else {
+            phone = phoneRaw; // Nếu đã có +84 thì giữ nguyên
+        }
+
+        if (!identityCard.isEmpty() && identityCard.length() != 9 && identityCard.length() != 12) {
+            Toast.makeText(this, "Số CCCD/CMND phải là 9 hoặc 12 chữ số!", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        if (TextUtils.isEmpty(fullName) || TextUtils.isEmpty(phoneRaw) || TextUtils.isEmpty(dobDisplay)) {
             Toast.makeText(this, "Vui lòng nhập đầy đủ: Họ tên, SĐT, Ngày sinh", Toast.LENGTH_SHORT).show();
             return;
         }
@@ -272,7 +270,7 @@ public class EditProfileActivity extends BaseActivity {
         try {
             body.put("user_id", Integer.parseInt(currentUser.getId()));
             body.put("full_name", fullName);
-            body.put("phone", phone);
+            body.put("phone", phone); // Gửi số đã có +84 lên DB
             body.put("email", email);
             body.put("gender", gender);
             body.put("dob", dobApi);
@@ -280,45 +278,45 @@ public class EditProfileActivity extends BaseActivity {
             body.put("identity_card", identityCard);
             body.put("home_town", homeTown);
 
-            if (currentUser.getRole() != Role.ADMIN || currentUser.getRole() != Role.ACCOUNTANT || currentUser.getRole() != Role.AGENCY) {
-                body.put("relationship", relation);
+            if (currentUser.getRole() != Role.ADMIN && currentUser.getRole() != Role.ACCOUNTANT && currentUser.getRole() != Role.AGENCY) {
+                boolean isHead = checkboxIsHouseholder.isChecked();
+                body.put("relationship", isHead ? "Bản thân" : edtRelation.getText().toString().trim());
                 body.put("is_head", isHead);
             }
-
-        } catch (JSONException e) {
-            e.printStackTrace();
-        }
+        } catch (JSONException e) { e.printStackTrace(); }
 
         String url = ApiConfig.BASE_URL + "/api/profile-requests/create";
 
         JsonObjectRequest request = new JsonObjectRequest(Request.Method.POST, url, body,
                 response -> {
-                    try {
-                        if (response.has("success") && response.getBoolean("success")) {
-
-                            // 🔥 LOGIC THÔNG BÁO THÔNG MINH
-                            // Kiểm tra cờ từ server trả về (nếu backend đã update theo Phần 1)
-                            boolean isAutoApproved = response.optBoolean("is_auto_approved", false);
-
-                            if (isAutoApproved || currentUser.getRole() == Role.ADMIN) {
-                                // Admin: Thành công ngay
-                                Toast.makeText(this, "Cập nhật thông tin thành công!", Toast.LENGTH_LONG).show();
-
-                            } else {
-                                // User thường: Chờ duyệt
-                                Toast.makeText(this, "Đã gửi yêu cầu! Vui lòng chờ BQT duyệt.", Toast.LENGTH_LONG).show();
-                            }
-
-                            finish();
+                    if (response.optBoolean("success")) {
+                        boolean isAutoApproved = response.optBoolean("is_auto_approved", false);
+                        if (isAutoApproved || currentUser.getRole() == Role.ADMIN) {
+                            Toast.makeText(this, "Cập nhật thông tin thành công!", Toast.LENGTH_LONG).show();
                         } else {
-                            String msg = response.optString("error", "Có lỗi xảy ra");
-                            Toast.makeText(this, msg, Toast.LENGTH_SHORT).show();
+                            Toast.makeText(this, "Đã gửi yêu cầu! Vui lòng chờ BQT duyệt.", Toast.LENGTH_LONG).show();
                         }
-                    } catch (JSONException e) {
-                        e.printStackTrace();
+                        finish();
+                    } else {
+                        Toast.makeText(this, response.optString("error", "Có lỗi xảy ra"), Toast.LENGTH_SHORT).show();
                     }
                 },
-                error -> Toast.makeText(this, "Lỗi kết nối", Toast.LENGTH_SHORT).show()
+                error -> {
+                    if (error.networkResponse != null) {
+                        try {
+                            String responseBody = new String(error.networkResponse.data, "utf-8");
+                            JSONObject data = new JSONObject(responseBody);
+                            String msg = data.optString("message", "").toLowerCase();
+                            if (msg.contains("phone") || msg.contains("số điện thoại")) {
+                                Toast.makeText(this, "SĐT này đã thuộc về người khác!", Toast.LENGTH_LONG).show();
+                            } else if (msg.contains("identity") || msg.contains("cccd")) {
+                                Toast.makeText(this, "Số CCCD này đã tồn tại trong hệ thống!", Toast.LENGTH_LONG).show();
+                            } else {
+                                Toast.makeText(this, "Lỗi: " + data.optString("message"), Toast.LENGTH_SHORT).show();
+                            }
+                        } catch (Exception e) { Toast.makeText(this, "Trùng dữ liệu cá nhân!", Toast.LENGTH_SHORT).show(); }
+                    } else { Toast.makeText(this, "Lỗi kết nối", Toast.LENGTH_SHORT).show(); }
+                }
         );
 
         Volley.newRequestQueue(this).add(request);
@@ -326,10 +324,7 @@ public class EditProfileActivity extends BaseActivity {
 
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
-        if (item.getItemId() == android.R.id.home) {
-            finish();
-            return true;
-        }
+        if (item.getItemId() == android.R.id.home) { finish(); return true; }
         return super.onOptionsItemSelected(item);
     }
 
@@ -338,7 +333,7 @@ public class EditProfileActivity extends BaseActivity {
         switch (gender) {
             case MALE: return "Nam";
             case FEMALE: return "Nữ";
-            case OTHER: default: return "Khác";
+            default: return "Khác";
         }
     }
 }

@@ -1,9 +1,9 @@
 package com.se_04.enoti.residents;
 
-import static com.se_04.enoti.utils.ValidatePhoneNumberUtil.normalizePhoneNumber;
-
 import android.app.DatePickerDialog;
 import android.os.Bundle;
+import android.text.InputFilter;
+import android.text.InputType;
 import android.text.TextUtils;
 import android.widget.*;
 import androidx.appcompat.app.AppCompatActivity;
@@ -30,17 +30,13 @@ import java.util.Locale;
 
 public class CreateResidentActivity extends BaseActivity {
 
-    // 🔥 Đã thêm edtIdentityCard, edtHomeTown vào danh sách biến
     private TextInputEditText edtFullName, edtBirthDate, edtJob, edtRelation, edtPhone, edtEmail, edtRoom, edtFloor, edtIdentityCard, edtHomeTown;
     private Spinner spinnerGender;
     private CheckBox checkboxIsHouseholder;
     private MaterialButton btnSaveResident, btnCancel;
     private RequestQueue requestQueue;
 
-    // ⚙️ API endpoint
     private static final String BASE_URL = ApiConfig.BASE_URL + "/api/create_user/create";
-
-    // ⚙️ Date formatters
     private final SimpleDateFormat displayFormat = new SimpleDateFormat("dd-MM-yyyy", Locale.getDefault());
     private final SimpleDateFormat apiFormat = new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault());
 
@@ -52,32 +48,22 @@ public class CreateResidentActivity extends BaseActivity {
         initViews();
         requestQueue = Volley.newRequestQueue(this);
 
-        // Toolbar back
         MaterialToolbar toolbar = findViewById(R.id.toolbar_add_resident);
         setSupportActionBar(toolbar);
-
         if (getSupportActionBar() != null) {
             getSupportActionBar().setDisplayHomeAsUpEnabled(true);
-            getSupportActionBar().setDisplayShowTitleEnabled(true);
             getSupportActionBar().setTitle("Thêm cư dân mới");
-            toolbar.setTitleTextColor(ContextCompat.getColor(this, android.R.color.white));
         }
-
         toolbar.setNavigationOnClickListener(v -> onBackPressed());
 
-        // Date picker
         edtBirthDate.setOnClickListener(v -> showDatePickerDialog());
-
-        // Gender spinner
         setupGenderSpinner();
 
-        // Checkbox chủ hộ
         checkboxIsHouseholder.setOnCheckedChangeListener((buttonView, isChecked) -> {
             edtRelation.setEnabled(!isChecked);
             if (isChecked) edtRelation.setText("");
         });
 
-        // Buttons
         btnSaveResident.setOnClickListener(v -> createResident());
         btnCancel.setOnClickListener(v -> finish());
     }
@@ -91,15 +77,24 @@ public class CreateResidentActivity extends BaseActivity {
         edtEmail = findViewById(R.id.edtEmail);
         edtRoom = findViewById(R.id.edtRoom);
         edtFloor = findViewById(R.id.edtFloor);
-
-        // 🔥 Ánh xạ view mới (Bạn cần đảm bảo ID này tồn tại trong layout XML)
         edtIdentityCard = findViewById(R.id.edtIdentityCard);
         edtHomeTown = findViewById(R.id.edtHomeTown);
-
         spinnerGender = findViewById(R.id.spinnerGender);
         checkboxIsHouseholder = findViewById(R.id.checkboxIsHouseholder);
         btnSaveResident = findViewById(R.id.btnSaveResident);
         btnCancel = findViewById(R.id.btnCancel);
+
+        // Giới hạn nhập liệu 12 ký tự để chứa vừa đủ +84XXXXXXXXX
+        edtPhone.setInputType(InputType.TYPE_CLASS_PHONE);
+        edtPhone.setFilters(new InputFilter[]{new InputFilter.LengthFilter(12)});
+
+        if (edtIdentityCard != null) {
+            edtIdentityCard.setInputType(InputType.TYPE_CLASS_NUMBER);
+            edtIdentityCard.setFilters(new InputFilter[]{new InputFilter.LengthFilter(12)});
+        }
+
+        edtBirthDate.setFocusable(false);
+        edtBirthDate.setClickable(true);
     }
 
     private void setupGenderSpinner() {
@@ -111,102 +106,119 @@ public class CreateResidentActivity extends BaseActivity {
 
     private void showDatePickerDialog() {
         final Calendar calendar = Calendar.getInstance();
-        int year = calendar.get(Calendar.YEAR);
-        int month = calendar.get(Calendar.MONTH);
-        int day = calendar.get(Calendar.DAY_OF_MONTH);
+        DatePickerDialog datePicker = new DatePickerDialog(this, (view, y, m, d) -> {
+            String formatted = String.format(Locale.getDefault(), "%02d-%02d-%04d", d, m + 1, y);
+            edtBirthDate.setText(formatted);
+        }, calendar.get(Calendar.YEAR), calendar.get(Calendar.MONTH), calendar.get(Calendar.DAY_OF_MONTH));
 
-        DatePickerDialog datePicker = new DatePickerDialog(this,
-                (view, y, m, d) -> {
-                    // Hiển thị dạng dd-MM-yyyy
-                    String formatted = String.format(Locale.getDefault(), "%02d-%02d-%04d", d, m + 1, y);
-                    edtBirthDate.setText(formatted);
-                },
-                year, month, day);
+        datePicker.getDatePicker().setMaxDate(System.currentTimeMillis());
         datePicker.show();
+    }
+
+    private boolean isValidPhone(String phone) {
+        return phone != null && phone.matches("^(0|\\+84)[0-9]{9}$");
     }
 
     private void createResident() {
         String fullName = edtFullName.getText().toString().trim();
         String birthDateDisplay = edtBirthDate.getText().toString().trim();
-        String job = edtJob.getText().toString().trim();
-        String gender = spinnerGender.getSelectedItem().toString();
-        String floorInput = edtFloor.getText().toString().trim();
-        String roomInput = edtRoom.getText().toString().trim();
-        boolean isHead = checkboxIsHouseholder.isChecked();
-        String relation;
-        if (isHead) relation = "Bản thân";
-        else relation =  edtRelation.getText().toString().trim();
-        String phoneBeforeNormalized = edtPhone.getText().toString().trim();
-        String phone = normalizePhoneNumber(phoneBeforeNormalized);
-        String email = edtEmail.getText().toString().trim();
-
-        // 🔥 Lấy dữ liệu mới (Kiểm tra null để tránh lỗi nếu view chưa được khởi tạo)
+        String phoneRaw = edtPhone.getText().toString().trim();
         String identityCard = edtIdentityCard != null ? edtIdentityCard.getText().toString().trim() : "";
-        String homeTown = edtHomeTown != null ? edtHomeTown.getText().toString().trim() : "";
+        String floorRaw = edtFloor.getText().toString().trim();
 
-        if (TextUtils.isEmpty(fullName) || TextUtils.isEmpty(birthDateDisplay) || TextUtils.isEmpty(phone)) {
+        if (TextUtils.isEmpty(fullName) || TextUtils.isEmpty(birthDateDisplay) || TextUtils.isEmpty(phoneRaw)) {
             Toast.makeText(this, "Vui lòng nhập đầy đủ thông tin bắt buộc!", Toast.LENGTH_SHORT).show();
             return;
         }
-
-        if (!isHead && TextUtils.isEmpty(relation)) {
-            Toast.makeText(this, "Vui lòng nhập quan hệ với chủ hộ!", Toast.LENGTH_SHORT).show();
-            return;
-        }
-
-        // Chuyển định dạng ngày dd-MM-yyyy -> yyyy-MM-dd
-        String birthDateApi;
+        int floorValue = 0;
         try {
-            birthDateApi = apiFormat.format(displayFormat.parse(birthDateDisplay));
-        } catch (ParseException e) {
-            Toast.makeText(this, "Định dạng ngày sinh không hợp lệ!", Toast.LENGTH_SHORT).show();
+            floorValue = Integer.parseInt(floorRaw.replaceAll("\\D", ""));
+        } catch (Exception e) { floorValue = 0; }
+
+        if (floorValue <= 0) {
+            edtFloor.setError("Tầng phải bắt đầu từ tầng 1!");
+            Toast.makeText(this, "Số tầng không hợp lệ!", Toast.LENGTH_SHORT).show();
+            edtFloor.requestFocus();
             return;
         }
 
-        // 🧹 Lọc số từ input phòng và tầng
-        String floor = floorInput.replaceAll("\\D", "");  // chỉ lấy số
-        String room = roomInput.replaceAll("\\D", "");    // chỉ lấy số
-
-        if (floor.isEmpty() || room.isEmpty()) {
-            Toast.makeText(this, "Vui lòng nhập tầng và phòng hợp lệ (chứa số)!", Toast.LENGTH_SHORT).show();
+        if (!isValidPhone(phoneRaw)) {
+            Toast.makeText(this, "Số điện thoại không hợp lệ!", Toast.LENGTH_SHORT).show();
             return;
         }
+
+        if (!identityCard.isEmpty() && identityCard.length() != 9 && identityCard.length() != 12) {
+            Toast.makeText(this, "Số CCCD/CMND phải là 9 hoặc 12 chữ số!", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        String phoneForDb;
+        if (phoneRaw.startsWith("0")) {
+            phoneForDb = "+84" + phoneRaw.substring(1);
+        } else {
+            phoneForDb = phoneRaw;
+        }
+
+        String floor = edtFloor.getText().toString().trim().replaceAll("\\D", "");
+        String room = edtRoom.getText().toString().trim().replaceAll("\\D", "");
+        boolean isHead = checkboxIsHouseholder.isChecked();
+        String relation = isHead ? "Bản thân" : edtRelation.getText().toString().trim();
 
         try {
             JSONObject body = new JSONObject();
-            body.put("phone", phone);
+            body.put("phone", phoneForDb); // Sử dụng số đã định dạng +84
             body.put("full_name", fullName);
-            body.put("gender", gender);
-            body.put("dob", birthDateApi);  // yyyy-MM-dd
-            body.put("job", job);
-            body.put("email", email);
+            body.put("gender", spinnerGender.getSelectedItem().toString());
+            body.put("dob", apiFormat.format(displayFormat.parse(birthDateDisplay)));
+            body.put("job", edtJob.getText().toString().trim());
+            body.put("email", edtEmail.getText().toString().trim());
             body.put("room", room);
             body.put("floor", floor);
             body.put("is_head", isHead);
             body.put("relationship_name", relation);
-
-            // 🔥 Gửi thêm 2 trường mới lên server
             body.put("identity_card", identityCard);
-            body.put("home_town", homeTown);
+            body.put("home_town", edtHomeTown.getText().toString().trim());
 
-            JsonObjectRequest request = new JsonObjectRequest(
-                    Request.Method.POST,
-                    BASE_URL,
-                    body,
+            JsonObjectRequest request = new JsonObjectRequest(Request.Method.POST, BASE_URL, body,
                     response -> {
                         Toast.makeText(this, "Tạo cư dân thành công!", Toast.LENGTH_LONG).show();
                         setResult(RESULT_OK);
                         finish();
                     },
                     error -> {
-                        String message = (error.getMessage() != null) ? error.getMessage() : "Không thể kết nối máy chủ.";
-                        Toast.makeText(this, "Lỗi khi tạo cư dân: " + message, Toast.LENGTH_LONG).show();
+                        if (error.networkResponse != null) {
+                            try {
+                                String responseBody = new String(error.networkResponse.data, "utf-8");
+                                JSONObject data = new JSONObject(responseBody);
+                                String serverMsg = data.optString("message", data.optString("error", data.optString("msg", "")));
+
+                                if (serverMsg.isEmpty()) {
+                                    if (error.networkResponse.statusCode == 400 || error.networkResponse.statusCode == 409) {
+                                        serverMsg = "Dữ liệu đã tồn tại trong hệ thống!";
+                                    } else {
+                                        serverMsg = "Lỗi không xác định từ máy chủ.";
+                                    }
+                                }
+
+                                String lowerMsg = serverMsg.toLowerCase();
+                                if (lowerMsg.contains("phone") || lowerMsg.contains("số điện thoại")) {
+                                    Toast.makeText(this, "Số điện thoại đã được đăng ký!", Toast.LENGTH_LONG).show();
+                                } else if (lowerMsg.contains("identity") || lowerMsg.contains("cccd")) {
+                                    Toast.makeText(this, "Số CCCD/CMND đã tồn tại!", Toast.LENGTH_LONG).show();
+                                } else {
+                                    Toast.makeText(this, "Lỗi: " + serverMsg, Toast.LENGTH_LONG).show();
+                                }
+                            } catch (Exception e) {
+                                Toast.makeText(this, "Dữ liệu trùng lặp hoặc không hợp lệ!", Toast.LENGTH_LONG).show();
+                            }
+                        } else {
+                            Toast.makeText(this, "Lỗi kết nối máy chủ!", Toast.LENGTH_SHORT).show();
+                        }
                     }
             );
-
             requestQueue.add(request);
-        } catch (JSONException e) {
-            Toast.makeText(this, "Lỗi khi xử lý dữ liệu gửi đi!", Toast.LENGTH_SHORT).show();
+        } catch (Exception e) {
+            Toast.makeText(this, "Lỗi xử lý dữ liệu!", Toast.LENGTH_SHORT).show();
         }
     }
 }

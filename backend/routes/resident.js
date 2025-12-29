@@ -46,6 +46,7 @@ router.get("/", verifySession, async (req, res) => {
     // Chỉ hiển thị trong danh sách cư dân nếu họ có role_id = 1 (ngay cả khi có role khác)
     const queryStr = `
       SELECT DISTINCT ON (ui.user_id)
+        ui.user_item_id,
         ui.user_id AS user_id,
         ui.full_name,
         ui.email,
@@ -55,6 +56,7 @@ router.get("/", verifySession, async (req, res) => {
         ui.job,
         ui.identity_card,
         ui.home_town,
+        ui.family_id,
         -- Lấy role_id = 1 nếu có, nếu không có thì lấy role đầu tiên
         COALESCE(
           (SELECT role_id FROM userrole WHERE user_id = ui.user_id AND role_id = 1 LIMIT 1),
@@ -86,7 +88,11 @@ router.get("/", verifySession, async (req, res) => {
       )
       ORDER BY ui.user_id, 
                CASE WHEN r.is_head_of_household = TRUE THEN 0 ELSE 1 END,
-               a.apartment_number ASC;
+               -- 🔥 Sắp xếp phòng theo số học (101, 102, 201, 202, 1211, 1300) thay vì chuỗi
+               CASE 
+                 WHEN a.apartment_number ~ '^\d+$' THEN a.apartment_number::INTEGER
+                 ELSE COALESCE((regexp_replace(a.apartment_number, '\D', '', 'g'))::INTEGER, 0)
+               END ASC;
     `;
 
     const result = await pool.query(queryStr);

@@ -3,6 +3,7 @@ import { pool } from "../db.js";
 import admin from "firebase-admin";
 import ExcelJS from 'exceljs';
 import { sendNotification } from "../utils/firebaseHelper.js";
+import { verifySession } from "../middleware/authMiddleware.js";
 
 const router = express.Router();
 const query = (text, params) => pool.query(text, params);
@@ -50,9 +51,9 @@ export const createFinanceTables = async () => {
 };
 
 // ==================================================================
-// 🟢 [GET] LẤY DANH SÁCH CÁC KHOẢN THU (ADMIN)
+// 🟢 [GET] LẤY DANH SÁCH CÁC KHOẢN THU (ADMIN/KẾ TOÁN)
 // ==================================================================
-router.get("/admin", async (req, res) => {
+router.get("/admin", verifySession, async (req, res) => {
   try {
     console.log("📊 Fetching all finances (admin view)");
 
@@ -77,16 +78,11 @@ router.get("/admin", async (req, res) => {
           THEN a.apartment_number
         END) FILTER (WHERE f.type != 'chi_phi') AS paid_rooms,
 
-        -- Total collected from invoices (join through user_finances)
-        COALESCE((
-            SELECT SUM(inv.amount)
-            FROM user_finances uf_inner
-            LEFT JOIN invoice inv ON inv.finance_id = uf_inner.id
-            WHERE uf_inner.finance_id = f.id
-        ), 0) AS total_collected_real
+        COALESCE(SUM(inv.amount) FILTER (WHERE inv.invoice_id IS NOT NULL), 0) AS total_collected_real
 
       FROM finances f
       LEFT JOIN user_finances uf ON f.id = uf.finance_id
+      LEFT JOIN invoice inv ON inv.finance_id = uf.id  -- JOIN trực tiếp với invoice qua user_finances.id
       LEFT JOIN user_item creator ON f.created_by = creator.user_id
       LEFT JOIN user_item ui ON uf.user_id = ui.user_id
       LEFT JOIN relationship r ON ui.relationship = r.relationship_id
@@ -220,7 +216,12 @@ router.get("/:financeId/users", async (req, res) => {
       JOIN relationship r ON ui.relationship = r.relationship_id
       JOIN apartment a ON r.apartment_id = a.apartment_id
       WHERE uf.finance_id = $1
-      ORDER BY a.apartment_number ASC
+      ORDER BY 
+        -- 🔥 Sắp xếp phòng theo số học (101, 102, 201, 202, 1211, 1300) thay vì chuỗi
+        CASE 
+          WHEN a.apartment_number ~ '^\d+$' THEN a.apartment_number::INTEGER
+          ELSE COALESCE((regexp_replace(a.apartment_number, '\D', '', 'g'))::INTEGER, 0)
+        END ASC
     `, [financeId]);
 
     console.log(`✅ Found ${result.rows.length} users for finance ${financeId}`);
