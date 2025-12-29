@@ -20,6 +20,7 @@ import profileRequestRoutes from "./routes/profileRequests.js";
 import maintenanceRoutes from "./routes/maintenance.js";
 import reportsRoutes from "./routes/reports.js";
 import authorityRoutes, { createAuthorityMessagesTable } from "./routes/authority.js";
+import apartmentRoutes from "./routes/apartment.js";
 import appUpdateRoutes from "./routes/app_update.js";
 import testDbRoutes from "./routes/test_db.js";
 import { pool } from "./db.js";
@@ -68,6 +69,7 @@ app.use("/api/profile-requests", profileRequestRoutes);
 app.use("/api/maintenance", maintenanceRoutes);
 app.use("/api/reports", reportsRoutes);
 app.use("/api/authority", authorityRoutes);
+app.use("/api/apartments", apartmentRoutes);
 
 // 🔥 Route cập nhật app (Mới)
 app.use("/api/app-update", appUpdateRoutes);
