@@ -97,7 +97,7 @@ public class InvoiceBottomSheet extends BottomSheetDialogFragment {
                         txtAmountWords.setText("(" + VnNumberToWords.convert(amount) + ")");
                         txtDesc.setText(desc);
                         // Hiển thị thời gian thanh toán rõ ràng hơn
-                        String displayTime = time.equals("N/A") ? "Chưa có thông tin" : "Thời gian thanh toán: " + time;
+                        String displayTime = time.equals("N/A") ? "Chưa có thông tin" : time;
                         txtTime.setText(displayTime);
 
                     } catch (Exception e) {

@@ -71,7 +71,7 @@ router.post("/store", async (req, res) => {
 
     const invResult = await client.query(
       `INSERT INTO invoice (finance_id, amount, description, ordercode, currency, paytime)
-       VALUES ($1, $2, $3, $4, $5, NOW() + INTERVAL '7 hours')
+       VALUES ($1, $2, $3, $4, $5, NOW())
        RETURNING *`,
       [finalUserFinanceId, amount, description, ordercode, currency || "VND"]
     );
