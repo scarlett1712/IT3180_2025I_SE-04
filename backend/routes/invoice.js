@@ -7,15 +7,14 @@ const router = express.Router();
 const query = (text, params) => pool.query(text, params);
 
 // ==================================================================
-// 🔥 0. KHỞI TẠO TABLE (Chỉ chạy kiểm tra, không drop)
+// 🔥 0. KHỞI TẠO TABLE
 // ==================================================================
 export const createInvoiceTable = async () => {
   try {
-    // 1. Tạo bảng cơ bản nếu chưa có
     await query(`
       CREATE TABLE IF NOT EXISTS invoice (
         invoice_id SERIAL PRIMARY KEY,
-        finance_id INTEGER NOT NULL, -- Link tới user_finances(id)
+        finance_id INTEGER NOT NULL,
         amount NUMERIC(12, 2) NOT NULL,
         description TEXT,
         ordercode VARCHAR(255) UNIQUE NOT NULL,
@@ -24,30 +23,7 @@ export const createInvoiceTable = async () => {
         created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
       );
     `);
-
-    // 2. Kiểm tra và thêm ràng buộc nếu thiếu (An toàn)
-    // Script này đảm bảo finance_id trỏ đúng vào bảng user_finances
-    await query(`
-      DO $$
-      BEGIN
-        -- Xóa cột user_id nếu còn tồn tại (do logic cũ)
-        IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='invoice' AND column_name='user_id') THEN
-            ALTER TABLE invoice DROP COLUMN user_id;
-        END IF;
-
-        -- Thêm FK tới user_finances nếu chưa có
-        IF NOT EXISTS (SELECT 1 FROM information_schema.table_constraints WHERE constraint_name='invoice_finance_id_fkey') THEN
-            ALTER TABLE invoice ADD CONSTRAINT invoice_finance_id_fkey FOREIGN KEY (finance_id) REFERENCES user_finances(id) ON DELETE CASCADE;
-        END IF;
-
-        -- Thêm Unique nếu chưa có (Mỗi dòng user_finance chỉ có 1 hóa đơn)
-        IF NOT EXISTS (SELECT 1 FROM information_schema.table_constraints WHERE constraint_name='invoice_finance_id_key') THEN
-            ALTER TABLE invoice ADD CONSTRAINT invoice_finance_id_key UNIQUE (finance_id);
-        END IF;
-      END
-      $$;
-    `);
-
+    // Bỏ qua các lệnh check constraint phức tạp để tránh lỗi khi deploy lại
     console.log("✅ Invoice table verified.");
   } catch (err) {
     console.error("❌ Error checking invoice table:", err);
@@ -55,7 +31,7 @@ export const createInvoiceTable = async () => {
 };
 
 // ==================================================================
-// 🧾 1. TẠO INVOICE (Tự động Map ID từ finance_id chung + user_id)
+// 🧾 1. TẠO INVOICE
 // ==================================================================
 router.post("/store", async (req, res) => {
   const { finance_id, user_id, amount, description, ordercode, currency } = req.body;
@@ -68,7 +44,7 @@ router.post("/store", async (req, res) => {
   try {
     await client.query("BEGIN");
 
-    // 1. Tìm ID của user_finances (Bảng trung gian) dựa trên finance_id chung và user_id
+    // Tìm ID của user_finances
     let ufResult = await client.query(
       "SELECT id FROM user_finances WHERE finance_id = $1 AND user_id = $2",
       [finance_id, user_id]
@@ -79,8 +55,6 @@ router.post("/store", async (req, res) => {
     if (ufResult.rows.length > 0) {
       finalUserFinanceId = ufResult.rows[0].id;
     } else {
-      // Nếu chưa có (ví dụ: đóng góp tự nguyện chưa được gán), tự tạo mới
-      console.log(`⚠️ Creating new user_finance for User ${user_id} - Finance ${finance_id}`);
       const newUf = await client.query(
         "INSERT INTO user_finances (user_id, finance_id, status) VALUES ($1, $2, 'chua_thanh_toan') RETURNING id",
         [user_id, finance_id]
@@ -88,36 +62,21 @@ router.post("/store", async (req, res) => {
       finalUserFinanceId = newUf.rows[0].id;
     }
 
-    // 2. Kiểm tra đã có hóa đơn cho khoản này chưa
-    const existing = await client.query(
-      "SELECT invoice_id FROM invoice WHERE finance_id = $1",
-      [finalUserFinanceId]
-    );
+    const existing = await client.query("SELECT invoice_id FROM invoice WHERE finance_id = $1", [finalUserFinanceId]);
 
     if (existing.rows.length > 0) {
       await client.query("ROLLBACK");
-      // Trả về 200 kèm invoice cũ để App hiển thị luôn mà không báo lỗi
-      return res.status(200).json({
-        success: true,
-        message: "Hóa đơn đã tồn tại",
-        invoice: existing.rows[0]
-      });
+      return res.status(200).json({ success: true, message: "Hóa đơn đã tồn tại", invoice: existing.rows[0] });
     }
 
-    // 3. Tạo Invoice
-    // Lưu ý: finance_id trong bảng invoice lưu ID của user_finances
     const invResult = await client.query(
       `INSERT INTO invoice (finance_id, amount, description, ordercode, currency, paytime)
-       VALUES ($1, $2, $3, $4, $5, NOW())
+       VALUES ($1, $2, $3, $4, $5, NOW() + INTERVAL '7 hours')
        RETURNING *`,
       [finalUserFinanceId, amount, description, ordercode, currency || "VND"]
     );
 
-    // 4. Update trạng thái thanh toán trong user_finances
-    await client.query(
-      "UPDATE user_finances SET status = 'da_thanh_toan' WHERE id = $1",
-      [finalUserFinanceId]
-    );
+    await client.query("UPDATE user_finances SET status = 'da_thanh_toan' WHERE id = $1", [finalUserFinanceId]);
 
     await client.query("COMMIT");
     res.json({ success: true, invoice: invResult.rows[0] });
@@ -142,32 +101,63 @@ router.get("/:ordercode", async (req, res) => {
     );
     if (result.rowCount === 0) return res.status(404).json({ error: "Không tìm thấy" });
     res.json(result.rows[0]);
-  } catch (err) {
-    res.status(500).json({ error: "Lỗi Server" });
-  }
+  } catch (err) { res.status(500).json({ error: "Lỗi Server" }); }
 });
 
 // ==================================================================
-// 🔥 3. LẤY INVOICE THEO FINANCE_ID + USER_ID (Cho App & Admin xem chi tiết)
+// 🔥 3. LẤY INVOICE THEO FINANCE_ID (Fix Lỗi 404 cho Admin)
 // ==================================================================
 router.get("/by-finance/:financeId", async (req, res) => {
   try {
-    const { financeId } = req.params; // ID khoản thu chung (finances.id)
+    const { financeId } = req.params; // ID khoản thu chung
     const { user_id } = req.query;    // ID người dùng
 
     if (!user_id) return res.status(400).json({ error: "Thiếu user_id" });
 
-    // JOIN bảng user_finances để tìm invoice tương ứng
-    const result = await query(
-      `SELECT i.*, TO_CHAR(i.paytime, 'DD/MM/YYYY HH24:MI') as pay_time_formatted
+    // 🔥 FIX: Logic tìm kiếm thông minh hơn
+    // 1. Thử tìm chính xác theo User ID trước
+    let queryStr = `
+       SELECT i.*, TO_CHAR(i.paytime, 'DD/MM/YYYY HH24:MI') as pay_time_formatted
        FROM invoice i
        JOIN user_finances uf ON i.finance_id = uf.id
        WHERE uf.finance_id = $1 AND uf.user_id = $2
-       LIMIT 1`,
-      [financeId, user_id]
-    );
+       LIMIT 1
+    `;
+    let result = await query(queryStr, [financeId, user_id]);
 
-    if (result.rowCount === 0) return res.status(404).json({ message: "Invoice not found" });
+    // 2. Nếu không tìm thấy (do Admin tick chọn nhưng hóa đơn lại gắn vào User ID khác trong cùng phòng)
+    // -> Tìm hóa đơn của BẤT KỲ ai trong cùng phòng (dựa vào phòng của user_id hiện tại)
+    if (result.rowCount === 0) {
+        console.log(`⚠️ Invoice not found for User ${user_id}. Searching room-mate...`);
+
+        // Tìm phòng của user này
+        const roomRes = await query(`
+            SELECT a.apartment_id
+            FROM user_item ui
+            JOIN relationship r ON ui.relationship = r.relationship_id
+            JOIN apartment a ON r.apartment_id = a.apartment_id
+            WHERE ui.user_id = $1
+        `, [user_id]);
+
+        if (roomRes.rows.length > 0) {
+            const apartmentId = roomRes.rows[0].apartment_id;
+
+            // Tìm hóa đơn của bất kỳ user nào thuộc phòng này và finance này
+            result = await query(`
+               SELECT i.*, TO_CHAR(i.paytime, 'DD/MM/YYYY HH24:MI') as pay_time_formatted
+               FROM invoice i
+               JOIN user_finances uf ON i.finance_id = uf.id
+               JOIN user_item ui ON uf.user_id = ui.user_id
+               JOIN relationship r ON ui.relationship = r.relationship_id
+               WHERE uf.finance_id = $1 AND r.apartment_id = $2
+               LIMIT 1
+            `, [financeId, apartmentId]);
+        }
+    }
+
+    if (result.rowCount === 0) {
+        return res.status(404).json({ message: "Invoice not found" });
+    }
 
     res.json(result.rows[0]);
 
