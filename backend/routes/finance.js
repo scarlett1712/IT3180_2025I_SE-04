@@ -336,7 +336,7 @@ router.put("/update-status", async (req, res) => {
         // 🔥 Insert với số tiền thực tế (real_amount) của phòng đó
         await client.query(`
           INSERT INTO invoice (finance_id, amount, description, ordercode, currency, paytime)
-          VALUES ($1, $2, $3, $4, 'VND', NOW() + INTERVAL '7 hours')
+          VALUES ($1, $2, $3, $4, 'VND', NOW())
         `, [targetIds[0], representative.real_amount, representative.title, ordercode]);
       }
     } else {
@@ -388,7 +388,7 @@ router.put("/user/update-status", async (req, res) => {
             // 🔥 Insert với số tiền thực tế (real_amount)
             await client.query(`
               INSERT INTO invoice (finance_id, amount, description, ordercode, currency, paytime)
-              VALUES ($1, $2, $3, $4, 'VND', NOW() + INTERVAL '7 hours')
+              VALUES ($1, $2, $3, $4, 'VND', NOW())
             `, [userFinanceId, row.real_amount, row.title, ordercode]);
         }
     } else {
