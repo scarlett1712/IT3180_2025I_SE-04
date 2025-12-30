@@ -351,28 +351,45 @@ public class ApartmentResidentsActivity extends BaseActivity {
         JSONObject body = new JSONObject();
         try {
             body.put("user_id", userId);
-
             if (apartmentId == null) {
-                // TRƯỜNG HỢP XÓA (Đuổi ra)
                 body.put("apartment_id", JSONObject.NULL);
             } else {
-                // TRƯỜNG HỢP THÊM (Có quan hệ)
                 body.put("apartment_id", apartmentId);
                 body.put("relationship", relationship);
                 body.put("is_head", isHead);
             }
-
         } catch (JSONException e) { e.printStackTrace(); }
 
         JsonObjectRequest request = new JsonObjectRequest(Request.Method.PUT, url, body,
                 response -> {
                     String msg = (apartmentId == null) ? "Đã mời ra khỏi phòng" : "Đã thêm thành công!";
                     Toast.makeText(this, msg, Toast.LENGTH_SHORT).show();
-                    loadAllResidents(); // Tải lại để cập nhật danh sách
+                    loadAllResidents();
                 },
                 error -> {
-                    Toast.makeText(this, "Lỗi cập nhật: " + error.getMessage(), Toast.LENGTH_SHORT).show();
-                    error.printStackTrace();
+                    // 🔥 XỬ LÝ HIỂN THỊ NỘI DUNG LỖI TỪ SERVER (QUAN TRỌNG)
+                    String message = "Lỗi kết nối";
+                    if (error.networkResponse != null && error.networkResponse.data != null) {
+                        try {
+                            String errorData = new String(error.networkResponse.data, "UTF-8");
+                            JSONObject errJson = new JSONObject(errorData);
+                            if (errJson.has("error")) {
+                                message = errJson.getString("error");
+                            }
+                        } catch (Exception e) {
+                            e.printStackTrace();
+                        }
+                    } else if (error.getMessage() != null) {
+                        message = error.getMessage();
+                    }
+
+                    // Hiển thị Dialog báo lỗi thay vì Toast để user dễ đọc
+                    new AlertDialog.Builder(this)
+                            .setTitle("Không thể thêm")
+                            .setMessage(message) // Sẽ hiện: "LỖI: Phòng này đã có Chủ hộ rồi!..."
+                            .setPositiveButton("Đóng", null)
+                            .setIcon(android.R.drawable.ic_dialog_alert)
+                            .show();
                 }
         ) {
             @Override

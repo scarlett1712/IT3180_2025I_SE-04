@@ -44,6 +44,61 @@ router.get("/fix-relationship-constraint", async (req, res) => {
 });
 
 // ==================================================================
+// 🛠️ API FIX LỖI: DỌN DẸP CÁC PHÒNG CÓ 2 CHỦ HỘ
+// (Giữ lại người nhập đầu tiên, hạ chức những người nhập sau)
+// ==================================================================
+router.get("/fix-duplicate-heads", async (req, res) => {
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+
+    console.log("🧹 Đang quét các phòng có nhiều hơn 1 chủ hộ...");
+
+    // 1. Hạ chức những chủ hộ "thừa"
+    // Logic: Nếu 1 phòng có nhiều dòng is_head=true, giữ lại dòng có ID nhỏ nhất (nhập trước),
+    // update các dòng còn lại thành false và quan hệ là 'Thành viên'
+    const result = await client.query(`
+        UPDATE relationship
+        SET is_head_of_household = FALSE,
+            relationship_with_the_head_of_household = 'Thành viên'
+        WHERE is_head_of_household = TRUE
+        AND relationship_id NOT IN (
+            -- Subquery: Tìm ID của chủ hộ "xịn" (ID nhỏ nhất trong nhóm chủ hộ của mỗi phòng)
+            SELECT MIN(relationship_id)
+            FROM relationship
+            WHERE is_head_of_household = TRUE
+            GROUP BY apartment_id
+        )
+    `);
+
+    console.log(`✅ Đã sửa ${result.rowCount} trường hợp bị trùng chủ hộ.`);
+
+    // 2. Sau khi dữ liệu đã sạch, TẠO LUẬT CẤM TRÙNG (Constraint)
+    // Nếu chạy lệnh này thành công nghĩa là dữ liệu đã chuẩn 100%
+    await client.query(`
+        DROP INDEX IF EXISTS unique_head_per_apartment;
+        CREATE UNIQUE INDEX unique_head_per_apartment
+        ON relationship (apartment_id)
+        WHERE is_head_of_household = TRUE;
+    `);
+
+    await client.query("COMMIT");
+    res.send(`
+        <h1>✅ Đã dọn dẹp thành công!</h1>
+        <p>Đã hạ chức ${result.rowCount} chủ hộ thừa.</p>
+        <p>Đã tạo khóa bảo vệ: Từ giờ Database sẽ từ chối nếu có 2 chủ hộ.</p>
+    `);
+
+  } catch (err) {
+    await client.query("ROLLBACK");
+    console.error("Lỗi fix DB:", err);
+    res.status(500).send("<h1>❌ Lỗi: " + err.message + "</h1>");
+  } finally {
+    client.release();
+  }
+});
+
+// ==================================================================
 // 📋 1. [GET] LẤY DANH SÁCH TẤT CẢ CĂN HỘ
 // API: /api/apartments
 // ==================================================================
@@ -171,7 +226,9 @@ router.put("/update/:id", verifySession, async (req, res) => {
   }
 });
 
-// 🗑️ 5. [DELETE] XÓA PHÒNG
+// ==================================================================
+// 🗑️ API: XÓA CĂN HỘ (Cập nhật mới: Xóa sạch relationship)
+// ==================================================================
 router.delete("/delete/:id", verifySession, async (req, res) => {
   const { id } = req.params;
   const client = await pool.connect();
@@ -179,17 +236,29 @@ router.delete("/delete/:id", verifySession, async (req, res) => {
   try {
     await client.query("BEGIN");
 
-    // 1. Cập nhật bảng relationship: Set apartment_id = NULL cho tất cả cư dân trong phòng này
-    // Đồng thời set is_head_of_household = FALSE (vì không còn phòng để làm chủ hộ)
+    // BƯỚC 1: Cắt đứt liên kết trong bảng user_item
+    // Tìm tất cả cư dân đang ở trong phòng này (thông qua relationship)
+    // Và set cột relationship của họ thành NULL (trở thành tự do)
+    await client.query(`
+        UPDATE user_item
+        SET relationship = NULL
+        WHERE relationship IN (
+            SELECT relationship_id FROM relationship WHERE apartment_id = $1
+        )
+    `, [id]);
+
+    // BƯỚC 2: Xóa sạch các dòng trong bảng relationship thuộc về phòng này
+    // Vì user_item đã set NULL rồi nên xóa dòng này thoải mái không lo lỗi khóa ngoại
     await client.query(
-        `UPDATE relationship
-         SET apartment_id = NULL, is_head_of_household = FALSE
-         WHERE apartment_id = $1`,
-         [id]
+        "DELETE FROM relationship WHERE apartment_id = $1",
+        [id]
     );
 
-    // 3. Tiến hành xóa phòng
-    const result = await client.query("DELETE FROM apartment WHERE apartment_id = $1 RETURNING apartment_id", [id]);
+    // BƯỚC 3: Xóa Căn hộ
+    const result = await client.query(
+        "DELETE FROM apartment WHERE apartment_id = $1 RETURNING apartment_id",
+        [id]
+    );
 
     if (result.rows.length === 0) {
       await client.query("ROLLBACK");
@@ -197,7 +266,7 @@ router.delete("/delete/:id", verifySession, async (req, res) => {
     }
 
     await client.query("COMMIT");
-    res.json({ success: true, message: "Đã xóa phòng. Cư dân đã được chuyển sang danh sách 'Vô gia cư'." });
+    res.json({ success: true, message: "Đã xóa phòng. Cư dân đã được chuyển sang danh sách 'Vô gia cư' và xóa dữ liệu quan hệ cũ." });
 
   } catch (err) {
     await client.query("ROLLBACK");
