@@ -81,6 +81,7 @@
         <activity android:name=".apartment.ApartmentEditorActivity"/>
         <activity android:name=".apartment.ApartmentManagerActivity"/>
         <activity android:name=".apartment.ApartmentResidentsActivity"/>
+        <activity android:name=".residents.user.MyApartmentActivity"/>
         <activity android:name=".settings.SettingsActivity" />
 
         <activity android:name=".finance.FinanceDetailActivity"

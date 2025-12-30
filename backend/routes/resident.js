@@ -419,4 +419,22 @@ router.put("/assign-apartment", verifySession, async (req, res) => {
     }
 });
 
+router.get("/list-for-selection", async (req, res) => {
+  try {
+    // Lấy số phòng và tầng, sắp xếp theo tầng rồi đến phòng
+    const result = await pool.query(`
+      SELECT apartment_number, floor
+      FROM apartment
+      ORDER BY
+        CASE WHEN floor ~ '^\d+$' THEN floor::INTEGER ELSE 0 END ASC,
+        apartment_number ASC
+    `);
+
+    res.json(result.rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Lỗi lấy danh sách phòng" });
+  }
+});
+
 export default router;

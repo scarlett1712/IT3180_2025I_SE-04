@@ -5,24 +5,27 @@ import android.os.Bundle;
 import android.text.InputFilter;
 import android.text.InputType;
 import android.text.TextUtils;
+import android.view.View;
+import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
 import android.widget.CheckBox;
 import android.widget.Spinner;
 import android.widget.Toast;
 
 import androidx.appcompat.app.AppCompatActivity;
-import com.google.mlkit.vision.codescanner.GmsBarcodeScanner;
-import com.google.mlkit.vision.codescanner.GmsBarcodeScannerOptions;
-import com.google.mlkit.vision.codescanner.GmsBarcodeScanning;
-import com.google.mlkit.vision.barcode.common.Barcode;
 
 import com.android.volley.Request;
 import com.android.volley.RequestQueue;
+import com.android.volley.toolbox.JsonArrayRequest;
 import com.android.volley.toolbox.JsonObjectRequest;
 import com.android.volley.toolbox.Volley;
 import com.google.android.material.appbar.MaterialToolbar;
 import com.google.android.material.button.MaterialButton;
 import com.google.android.material.textfield.TextInputEditText;
+import com.google.mlkit.vision.barcode.common.Barcode;
+import com.google.mlkit.vision.codescanner.GmsBarcodeScanner;
+import com.google.mlkit.vision.codescanner.GmsBarcodeScannerOptions;
+import com.google.mlkit.vision.codescanner.GmsBarcodeScanning;
 import com.se_04.enoti.R;
 import com.se_04.enoti.utils.ApiConfig;
 import com.se_04.enoti.utils.BaseActivity;
@@ -31,25 +34,43 @@ import com.se_04.enoti.utils.UserManager;
 import org.json.JSONObject;
 
 import java.text.SimpleDateFormat;
+import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 
 public class CreateResidentActivity extends BaseActivity {
 
-    private TextInputEditText edtFullName, edtBirthDate, edtJob, edtRelation, edtPhone, edtEmail, edtRoom, edtFloor, edtIdentityCard, edtHomeTown;
+    // Khai báo View
+    private TextInputEditText edtFullName, edtBirthDate, edtJob, edtRelation, edtPhone, edtEmail, edtIdentityCard, edtHomeTown;
     private Spinner spinnerGender;
+
+    // 🔥 Thay thế EditText bằng Spinner cho Tầng và Phòng
+    private Spinner spnFloor, spnRoom;
+
     private CheckBox checkboxIsHouseholder;
     private MaterialButton btnSaveResident, btnCancel, btnScanQR;
     private RequestQueue requestQueue;
 
     // URL API
     private static final String CREATE_URL = ApiConfig.BASE_URL + "/api/create_user/create";
+    // 🔥 URL lấy danh sách phòng để đổ vào Spinner
+    private static final String APARTMENT_LIST_URL = ApiConfig.BASE_URL + "/api/residents/list-for-selection";
 
-    // Định dạng ngày: Hiển thị (dd-MM-yyyy) và Gửi đi (yyyy-MM-dd)
+    // Định dạng ngày
     private final SimpleDateFormat displayFormat = new SimpleDateFormat("dd-MM-yyyy", Locale.getDefault());
     private final SimpleDateFormat apiFormat = new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault());
+
+    // 🔥 Dữ liệu lưu trữ cho Spinner Phòng
+    private Map<String, List<String>> floorRoomsMap = new HashMap<>();
+    private List<String> floorList = new ArrayList<>();
+    private List<String> currentRoomList = new ArrayList<>();
+
+    private ArrayAdapter<String> floorAdapter;
+    private ArrayAdapter<String> roomAdapter;
+    private String selectedRoomNumber = "";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -68,30 +89,30 @@ public class CreateResidentActivity extends BaseActivity {
         }
         toolbar.setNavigationOnClickListener(v -> onBackPressed());
 
-        // Setup DatePicker
+        // Setup các thành phần
         edtBirthDate.setOnClickListener(v -> showDatePickerDialog());
-
-        // Setup Spinner
         setupGenderSpinner();
+
+        // 🔥 Setup Spinner Phòng & Tầng + Gọi API tải dữ liệu
+        setupApartmentSpinners();
+        fetchApartmentData();
 
         // Logic Checkbox Chủ hộ
         checkboxIsHouseholder.setOnCheckedChangeListener((buttonView, isChecked) -> {
             if (isChecked) {
-                // TRƯỜNG HỢP: Tích chọn là Chủ Hộ
-                edtRelation.setText("Bản thân");      // 1. Tự động điền
-                edtRelation.setEnabled(false);        // 2. Khóa không cho sửa
-                edtRelation.setAlpha(0.7f);           // 3. Làm mờ đi cho dễ nhận biết
-                edtRelation.setError(null);           // 4. Xóa báo lỗi cũ (nếu có)
+                edtRelation.setText("Bản thân");
+                edtRelation.setEnabled(false);
+                edtRelation.setAlpha(0.7f);
+                edtRelation.setError(null);
             } else {
-                // TRƯỜNG HỢP: Bỏ chọn (Là thành viên)
-                edtRelation.setText("");              // 1. Xóa chữ "Bản thân"
-                edtRelation.setEnabled(true);         // 2. Mở khóa cho nhập lại
-                edtRelation.setAlpha(1.0f);           // 3. Làm sáng lại
-                edtRelation.requestFocus();           // 4. Focus vào để nhập luôn
+                edtRelation.setText("");
+                edtRelation.setEnabled(true);
+                edtRelation.setAlpha(1.0f);
+                edtRelation.requestFocus();
             }
         });
 
-        // Sự kiện nút Lưu & Hủy
+        // Sự kiện nút
         btnSaveResident.setOnClickListener(v -> createResident());
         btnCancel.setOnClickListener(v -> finish());
         btnScanQR.setOnClickListener(v -> startQRScanner());
@@ -104,36 +125,28 @@ public class CreateResidentActivity extends BaseActivity {
         edtRelation = findViewById(R.id.edtRelation);
         edtPhone = findViewById(R.id.edtPhone);
         edtEmail = findViewById(R.id.edtEmail);
-        edtRoom = findViewById(R.id.edtRoom);
-        edtFloor = findViewById(R.id.edtFloor);
         edtIdentityCard = findViewById(R.id.edtIdentityCard);
         edtHomeTown = findViewById(R.id.edtHomeTown);
         spinnerGender = findViewById(R.id.spinnerGender);
+
+        // 🔥 Ánh xạ Spinner mới
+        spnFloor = findViewById(R.id.spnFloor);
+        spnRoom = findViewById(R.id.spnRoom);
+
         checkboxIsHouseholder = findViewById(R.id.checkboxIsHouseholder);
         btnSaveResident = findViewById(R.id.btnSaveResident);
         btnCancel = findViewById(R.id.btnCancel);
         btnScanQR = findViewById(R.id.btnScanQR);
 
-        // --- CẤU HÌNH INPUT TYPE (QUAN TRỌNG) ---
-
-        // 1. Số điện thoại: Chỉ nhập số
+        // Config Input Type
         edtPhone.setInputType(InputType.TYPE_CLASS_PHONE);
         edtPhone.setFilters(new InputFilter[]{new InputFilter.LengthFilter(12)});
 
-        // 2. CCCD: Chỉ nhập số
         if (edtIdentityCard != null) {
             edtIdentityCard.setInputType(InputType.TYPE_CLASS_NUMBER);
             edtIdentityCard.setFilters(new InputFilter[]{new InputFilter.LengthFilter(12)});
         }
 
-        // 3. Số phòng & Tầng: Chỉ nhập số dương (TYPE_CLASS_NUMBER)
-        // Vì bạn yêu cầu "chỉ là dương, không có chữ cái"
-        edtRoom.setInputType(InputType.TYPE_CLASS_NUMBER);
-        edtFloor.setEnabled(false); // Không cho nhập
-        edtFloor.setText("Tự động"); // Điền chữ để user hiểu
-        edtFloor.setAlpha(0.7f); // Làm mờ đi một chút
-
-        // Ngày sinh: Không cho gõ phím, phải chọn lịch
         edtBirthDate.setFocusable(false);
         edtBirthDate.setClickable(true);
     }
@@ -145,61 +158,147 @@ public class CreateResidentActivity extends BaseActivity {
         spinnerGender.setAdapter(adapter);
     }
 
+    // 🔥 1. CẤU HÌNH SPINNER PHÒNG & TẦNG
+    private void setupApartmentSpinners() {
+        floorAdapter = new ArrayAdapter<>(this, android.R.layout.simple_spinner_item, floorList);
+        floorAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+        spnFloor.setAdapter(floorAdapter);
+
+        roomAdapter = new ArrayAdapter<>(this, android.R.layout.simple_spinner_item, currentRoomList);
+        roomAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+        spnRoom.setAdapter(roomAdapter);
+
+        // Khi chọn Tầng -> Lọc lại danh sách Phòng
+        spnFloor.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
+            @Override
+            public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
+                if (position >= 0 && position < floorList.size()) {
+                    String selectedFloor = floorList.get(position);
+                    updateRoomSpinner(selectedFloor);
+                }
+            }
+            @Override
+            public void onNothingSelected(AdapterView<?> parent) {}
+        });
+
+        // Khi chọn Phòng -> Lưu lại
+        spnRoom.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
+            @Override
+            public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
+                if (position >= 0 && position < currentRoomList.size()) {
+                    selectedRoomNumber = currentRoomList.get(position);
+                }
+            }
+            @Override
+            public void onNothingSelected(AdapterView<?> parent) {
+                selectedRoomNumber = "";
+            }
+        });
+    }
+
+    // 🔥 2. CẬP NHẬT SPINNER PHÒNG DỰA TRÊN TẦNG
+    private void updateRoomSpinner(String floor) {
+        currentRoomList.clear();
+        if (floorRoomsMap.containsKey(floor)) {
+            List<String> rooms = floorRoomsMap.get(floor);
+            if (rooms != null) {
+                currentRoomList.addAll(rooms);
+            }
+        }
+
+        if (currentRoomList.isEmpty()) {
+            currentRoomList.add("Trống");
+            selectedRoomNumber = "";
+        } else {
+            selectedRoomNumber = currentRoomList.get(0);
+        }
+
+        roomAdapter.notifyDataSetChanged();
+        spnRoom.setSelection(0);
+    }
+
+    // 🔥 3. GỌI API LẤY DANH SÁCH TÒA NHÀ
+    private void fetchApartmentData() {
+        JsonArrayRequest request = new JsonArrayRequest(Request.Method.GET, APARTMENT_LIST_URL, null,
+                response -> {
+                    try {
+                        floorRoomsMap.clear();
+                        floorList.clear();
+
+                        for (int i = 0; i < response.length(); i++) {
+                            JSONObject obj = response.getJSONObject(i);
+                            String floor = obj.getString("floor");
+                            String room = obj.getString("apartment_number");
+
+                            if (!floorRoomsMap.containsKey(floor)) {
+                                floorRoomsMap.put(floor, new ArrayList<>());
+                                floorList.add(floor);
+                            }
+                            floorRoomsMap.get(floor).add(room);
+                        }
+
+                        if (floorList.isEmpty()) floorList.add("Không có dữ liệu");
+                        floorAdapter.notifyDataSetChanged();
+
+                        // Chọn mặc định
+                        if (!floorList.isEmpty()) {
+                            spnFloor.setSelection(0);
+                            updateRoomSpinner(floorList.get(0));
+                        }
+
+                    } catch (Exception e) { e.printStackTrace(); }
+                },
+                error -> Toast.makeText(this, "Lỗi tải danh sách phòng", Toast.LENGTH_SHORT).show()
+        );
+        requestQueue.add(request);
+    }
+
     private void showDatePickerDialog() {
         final Calendar calendar = Calendar.getInstance();
         DatePickerDialog datePicker = new DatePickerDialog(this, (view, y, m, d) -> {
             String formatted = String.format(Locale.getDefault(), "%02d-%02d-%04d", d, m + 1, y);
             edtBirthDate.setText(formatted);
         }, calendar.get(Calendar.YEAR), calendar.get(Calendar.MONTH), calendar.get(Calendar.DAY_OF_MONTH));
-
         datePicker.getDatePicker().setMaxDate(System.currentTimeMillis());
         datePicker.show();
     }
 
-    // Kiểm tra định dạng SĐT Việt Nam cơ bản
     private boolean isValidPhone(String phone) {
         return phone != null && phone.matches("^(0|\\+84)[0-9]{9}$");
     }
 
     private void createResident() {
-        // Lấy dữ liệu thô
         String fullName = edtFullName.getText().toString().trim();
         String birthDateDisplay = edtBirthDate.getText().toString().trim();
         String phoneRaw = edtPhone.getText().toString().trim();
         String identityCard = edtIdentityCard != null ? edtIdentityCard.getText().toString().trim() : "";
-        String floorRaw = edtFloor.getText().toString().trim();
-        String roomRaw = edtRoom.getText().toString().trim();
 
-        // 1. Validate bắt buộc
+        // 🔥 Lấy dữ liệu từ Spinner thay vì EditText
+        String room = selectedRoomNumber;
+        String floor = (spnFloor.getSelectedItem() != null) ? spnFloor.getSelectedItem().toString() : "0";
+
         if (TextUtils.isEmpty(fullName) || TextUtils.isEmpty(birthDateDisplay) || TextUtils.isEmpty(phoneRaw)) {
             Toast.makeText(this, "Vui lòng nhập Tên, Ngày sinh và SĐT!", Toast.LENGTH_SHORT).show();
             return;
         }
 
-        // 2. Validate Phòng
-        if (TextUtils.isEmpty(roomRaw)) {
-            edtRoom.setError("Vui lòng nhập số phòng");
+        // Validate Phòng
+        if (TextUtils.isEmpty(room) || room.equals("Trống")) {
+            Toast.makeText(this, "Vui lòng chọn phòng!", Toast.LENGTH_SHORT).show();
             return;
         }
 
-        // 3. Validate SĐT
         if (!isValidPhone(phoneRaw)) {
             edtPhone.setError("SĐT không hợp lệ");
             return;
         }
 
-        // 4. Validate CCCD (Nếu có nhập)
         if (!identityCard.isEmpty() && identityCard.length() != 9 && identityCard.length() != 12) {
             edtIdentityCard.setError("CCCD phải là 9 hoặc 12 số");
             return;
         }
 
-        // Chuẩn hóa dữ liệu gửi đi
         String phoneForDb = phoneRaw.startsWith("0") ? "+84" + phoneRaw.substring(1) : phoneRaw;
-
-        // Vì bạn nói phòng chỉ là số dương, ta dùng replaceAll để chắc chắn loại bỏ ký tự lạ (an toàn)
-        String room = roomRaw.replaceAll("\\D", "");
-        String floor = floorRaw.replaceAll("\\D", "");
 
         boolean isHead = checkboxIsHouseholder.isChecked();
         String relation = isHead ? "Bản thân" : edtRelation.getText().toString().trim();
@@ -216,8 +315,12 @@ public class CreateResidentActivity extends BaseActivity {
             body.put("dob", apiFormat.format(displayFormat.parse(birthDateDisplay)));
             body.put("job", edtJob.getText().toString().trim());
             body.put("email", edtEmail.getText().toString().trim());
+
+            // 🔥 Gửi số phòng đã chọn từ Spinner
             body.put("room", room);
-            body.put("floor", "0");
+            // Gửi số tầng (dù backend tự check nhưng cứ gửi cho đủ bộ)
+            body.put("floor", floor);
+
             body.put("is_head", isHead);
             body.put("relationship_name", relation);
             body.put("identity_card", identityCard);
@@ -226,26 +329,19 @@ public class CreateResidentActivity extends BaseActivity {
             JsonObjectRequest request = new JsonObjectRequest(Request.Method.POST, CREATE_URL, body,
                     response -> {
                         Toast.makeText(this, "✅ Tạo cư dân thành công!", Toast.LENGTH_LONG).show();
-                        setResult(RESULT_OK); // Báo cho Activity cha biết là đã thêm OK
+                        setResult(RESULT_OK);
                         finish();
                     },
                     error -> {
-                        // Xử lý hiển thị lỗi chi tiết từ Server
                         String message = "Lỗi kết nối máy chủ";
                         if (error.networkResponse != null && error.networkResponse.data != null) {
                             try {
                                 String responseBody = new String(error.networkResponse.data, "utf-8");
                                 JSONObject data = new JSONObject(responseBody);
-
-                                // Ưu tiên lấy thông báo lỗi từ các key phổ biến
                                 message = data.optString("error", data.optString("message", ""));
-
                                 if (message.isEmpty()) {
-                                    if (error.networkResponse.statusCode == 409) {
-                                        message = "Dữ liệu bị trùng (SĐT hoặc Phòng đã có chủ)!";
-                                    } else if (error.networkResponse.statusCode == 400) {
-                                        message = "Dữ liệu đầu vào không hợp lệ.";
-                                    }
+                                    if (error.networkResponse.statusCode == 409) message = "Dữ liệu bị trùng!";
+                                    else if (error.networkResponse.statusCode == 404) message = "Phòng chưa tồn tại trong hệ thống.";
                                 }
                             } catch (Exception e) { e.printStackTrace(); }
                         }
@@ -256,9 +352,7 @@ public class CreateResidentActivity extends BaseActivity {
                 public Map<String, String> getHeaders() {
                     Map<String, String> headers = new HashMap<>();
                     String token = UserManager.getInstance(getApplicationContext()).getAuthToken();
-                    if (token != null) {
-                        headers.put("Authorization", "Bearer " + token);
-                    }
+                    if (token != null) headers.put("Authorization", "Bearer " + token);
                     return headers;
                 }
             };
@@ -274,46 +368,29 @@ public class CreateResidentActivity extends BaseActivity {
         GmsBarcodeScannerOptions options = new GmsBarcodeScannerOptions.Builder()
                 .setBarcodeFormats(Barcode.FORMAT_QR_CODE)
                 .build();
-
         GmsBarcodeScanner scanner = GmsBarcodeScanning.getClient(this, options);
-
         scanner.startScan()
                 .addOnSuccessListener(barcode -> {
                     String rawValue = barcode.getRawValue();
-                    if (rawValue != null) {
-                        parseCCCDData(rawValue);
-                    } else {
-                        Toast.makeText(this, "Không đọc được dữ liệu!", Toast.LENGTH_SHORT).show();
-                    }
+                    if (rawValue != null) parseCCCDData(rawValue);
+                    else Toast.makeText(this, "Không đọc được dữ liệu!", Toast.LENGTH_SHORT).show();
                 })
-                .addOnCanceledListener(() -> {
-                    // Người dùng bấm hủy, không làm gì cả
-                })
-                .addOnFailureListener(e -> {
-                    Toast.makeText(this, "Lỗi Camera: " + e.getMessage(), Toast.LENGTH_SHORT).show();
-                });
+                .addOnFailureListener(e -> Toast.makeText(this, "Lỗi Camera: " + e.getMessage(), Toast.LENGTH_SHORT).show());
     }
 
     private void parseCCCDData(String rawData) {
         try {
-            // Dữ liệu CCCD cách nhau bởi dấu gạch đứng "|"
-            // Cấu trúc: CCCD|CMND(cũ)|Tên|NgàySinh(ddMMyyyy)|GiớiTinh|ĐịaChỉ|NgàyCấp
             String[] parts = rawData.split("\\|");
-
             if (parts.length >= 6) {
                 String cccd = parts[0];
                 String name = parts[2];
-                String dobRaw = parts[3]; // format: ddMMyyyy
+                String dobRaw = parts[3];
                 String gender = parts[4];
                 String address = parts[5];
 
-                // 1. Điền Số CCCD
                 if (edtIdentityCard != null) edtIdentityCard.setText(cccd);
-
-                // 2. Điền Họ Tên (Viết hoa hết cho đẹp hoặc giữ nguyên)
                 edtFullName.setText(name.toUpperCase());
 
-                // 3. Xử lý Ngày sinh (từ ddMMyyyy -> dd-MM-yyyy)
                 if (dobRaw.length() == 8) {
                     String day = dobRaw.substring(0, 2);
                     String month = dobRaw.substring(2, 4);
@@ -321,22 +398,14 @@ public class CreateResidentActivity extends BaseActivity {
                     edtBirthDate.setText(day + "-" + month + "-" + year);
                 }
 
-                // 5. Chọn Giới tính
-                // Spinner đang có: "Nam", "Nữ", "Khác"
-                if (gender.equalsIgnoreCase("Nam")) {
-                    spinnerGender.setSelection(0);
-                } else if (gender.equalsIgnoreCase("Nữ") || gender.equalsIgnoreCase("Nu")) {
-                    spinnerGender.setSelection(1);
-                } else {
-                    spinnerGender.setSelection(2);
-                }
+                if (gender.equalsIgnoreCase("Nam")) spinnerGender.setSelection(0);
+                else if (gender.equalsIgnoreCase("Nữ") || gender.equalsIgnoreCase("Nu")) spinnerGender.setSelection(1);
+                else spinnerGender.setSelection(2);
 
                 Toast.makeText(this, "✅ Đã điền thông tin từ CCCD!", Toast.LENGTH_SHORT).show();
             } else {
-                // Trường hợp quét mã QR không phải của CCCD hoặc chuẩn cũ
-                Toast.makeText(this, "Mã QR không đúng định dạng CCCD gắn chip!", Toast.LENGTH_LONG).show();
+                Toast.makeText(this, "Mã QR không đúng định dạng!", Toast.LENGTH_LONG).show();
             }
-
         } catch (Exception e) {
             e.printStackTrace();
             Toast.makeText(this, "Lỗi xử lý dữ liệu: " + e.getMessage(), Toast.LENGTH_SHORT).show();

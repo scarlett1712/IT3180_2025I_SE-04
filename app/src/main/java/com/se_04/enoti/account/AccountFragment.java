@@ -41,6 +41,7 @@ import com.android.volley.toolbox.JsonArrayRequest;
 import com.android.volley.toolbox.JsonObjectRequest;
 import com.android.volley.toolbox.Volley;
 import com.se_04.enoti.R;
+import com.se_04.enoti.residents.user.MyApartmentActivity;
 import com.se_04.enoti.utils.ApiConfig;
 import com.se_04.enoti.utils.UserManager;
 
@@ -150,8 +151,13 @@ public class AccountFragment extends Fragment {
         });
 
         if (currentUser.getRole() != Role.USER) {
-            btnAppartmentInfo.setVisibility(View.VISIBLE);
+            btnAppartmentInfo.setVisibility(View.GONE);
         };
+
+        btnAppartmentInfo.setOnClickListener(v -> {
+            Intent intent = new Intent(requireContext(), MyApartmentActivity.class);
+            startActivity(intent);
+        });
 
         return view;
     }

@@ -37,9 +37,7 @@ public class MyApartmentActivity extends BaseActivity {
     private MyRoomMemberAdapter adapter;
     private List<JSONObject> memberList = new ArrayList<>();
 
-    // 🔥 URL API (Bạn kiểm tra lại prefix là /auth hay /residents dựa vào file app.js nhé)
-    // Vì nãy tôi gộp code vào auth.js nên khả năng cao là /api/auth/my-apartment
-    private static final String API_URL = ApiConfig.BASE_URL + "/api/auth/my-apartment";
+    private static final String API_URL = ApiConfig.BASE_URL + "/api/users/my-apartment";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {

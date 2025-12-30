@@ -5,20 +5,22 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="#F5F7FA"> <com.google.android.material.appbar.AppBarLayout
-    android:layout_width="match_parent"
-    android:layout_height="wrap_content"
-    android:background="@android:color/transparent"
-    app:elevation="0dp">
+    android:background="#F5F7FA">
 
-    <com.google.android.material.appbar.MaterialToolbar
-        android:id="@+id/toolbar_add_resident"
+    <com.google.android.material.appbar.AppBarLayout
         android:layout_width="match_parent"
-        android:layout_height="?attr/actionBarSize"
-        app:title="Thêm cư dân mới"
-        app:titleTextColor="@color/white"
-        app:navigationIcon="@drawable/ic_arrow_back"/>
-</com.google.android.material.appbar.AppBarLayout>
+        android:layout_height="wrap_content"
+        android:background="@android:color/transparent"
+        app:elevation="0dp">
+
+        <com.google.android.material.appbar.MaterialToolbar
+            android:id="@+id/toolbar_add_resident"
+            android:layout_width="match_parent"
+            android:layout_height="?attr/actionBarSize"
+            app:title="Thêm cư dân mới"
+            app:titleTextColor="@color/white"
+            app:navigationIcon="@drawable/ic_arrow_back"/>
+    </com.google.android.material.appbar.AppBarLayout>
 
     <androidx.core.widget.NestedScrollView
         android:id="@+id/scrollView_add_resident"
@@ -41,9 +43,7 @@
                 app:cardBackgroundColor="@color/white"
                 app:layout_constraintTop_toTopOf="parent"
                 app:cardCornerRadius="16dp"
-                app:cardElevation="4dp"
-                tools:layout_editor_absoluteX="16dp"
-                tools:layout_editor_absoluteY="60dp">
+                app:cardElevation="4dp">
 
                 <LinearLayout
                     android:layout_width="match_parent"
@@ -132,8 +132,6 @@
                                 android:spinnerMode="dropdown" />
                         </LinearLayout>
                     </LinearLayout>
-
-
 
                     <com.google.android.material.textfield.TextInputLayout
                         android:id="@+id/inputLayoutIdentity"
@@ -225,44 +223,52 @@
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:orientation="horizontal"
-                        android:layout_marginBottom="16dp">
+                        android:layout_marginBottom="16dp"
+                        android:weightSum="2">
 
-                        <com.google.android.material.textfield.TextInputLayout
-                            android:id="@+id/inputLayoutFloor"
+                        <LinearLayout
                             android:layout_width="0dp"
                             android:layout_height="wrap_content"
                             android:layout_weight="1"
-                            android:hint="Tầng*"
-                            style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
-                            app:boxCornerRadiusTopStart="12dp"
-                            app:boxCornerRadiusTopEnd="12dp"
-                            app:boxCornerRadiusBottomStart="12dp"
-                            app:boxCornerRadiusBottomEnd="12dp"
+                            android:orientation="vertical"
                             android:layout_marginEnd="8dp">
-                            <com.google.android.material.textfield.TextInputEditText
-                                android:id="@+id/edtFloor"
-                                android:layout_width="match_parent"
-                                android:layout_height="wrap_content"
-                                android:inputType="number" />
-                        </com.google.android.material.textfield.TextInputLayout>
 
-                        <com.google.android.material.textfield.TextInputLayout
-                            android:id="@+id/inputLayoutRoom"
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="Chọn Tầng *"
+                                android:textSize="12sp"
+                                android:textColor="#666"
+                                android:layout_marginBottom="4dp"/>
+
+                            <Spinner
+                                android:id="@+id/spnFloor"
+                                android:layout_width="match_parent"
+                                android:layout_height="50dp"
+                                android:background="@drawable/bg_input_rounded_border" />
+                        </LinearLayout>
+
+                        <LinearLayout
                             android:layout_width="0dp"
                             android:layout_height="wrap_content"
                             android:layout_weight="1"
-                            android:hint="Phòng*"
-                            style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
-                            app:boxCornerRadiusTopStart="12dp"
-                            app:boxCornerRadiusTopEnd="12dp"
-                            app:boxCornerRadiusBottomStart="12dp"
-                            app:boxCornerRadiusBottomEnd="12dp">
-                            <com.google.android.material.textfield.TextInputEditText
-                                android:id="@+id/edtRoom"
-                                android:layout_width="match_parent"
+                            android:orientation="vertical"
+                            android:layout_marginStart="8dp">
+
+                            <TextView
+                                android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
-                                android:inputType="text" />
-                        </com.google.android.material.textfield.TextInputLayout>
+                                android:text="Chọn Phòng *"
+                                android:textSize="12sp"
+                                android:textColor="#666"
+                                android:layout_marginBottom="4dp"/>
+
+                            <Spinner
+                                android:id="@+id/spnRoom"
+                                android:layout_width="match_parent"
+                                android:layout_height="50dp"
+                                android:background="@drawable/bg_input_rounded_border" />
+                        </LinearLayout>
                     </LinearLayout>
 
                     <CheckBox

@@ -20,7 +20,7 @@
             android:id="@+id/imgAvatar"
             android:layout_width="48dp"
             android:layout_height="48dp"
-            android:src="@drawable/ic_default_avatar"
+            android:src="@drawable/ic_account"
             android:background="@drawable/bg_circle_gray"
             android:padding="8dp"
             app:tint="#555555"/>
