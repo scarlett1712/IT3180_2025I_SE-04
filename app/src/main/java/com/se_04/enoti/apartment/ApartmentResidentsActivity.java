@@ -315,16 +315,36 @@ public class ApartmentResidentsActivity extends BaseActivity {
 
         AlertDialog dialog = builder.setView(view).create();
 
-        btnConfirm.setOnClickListener(v -> {
-            String relationship = edtRelation.getText().toString().trim();
-            boolean isHead = chkIsHead.isChecked();
+        // 🔥 LOGIC MỚI: TỰ ĐỘNG ĐIỀN "BẢN THÂN" VÀ KHÓA Ô NHẬP 🔥
+        chkIsHead.setOnCheckedChangeListener((buttonView, isChecked) -> {
+            if (isChecked) {
+                // TRƯỜNG HỢP: Tích chọn là Chủ Hộ
+                edtRelation.setText("Bản thân");      // 1. Tự động điền
+                edtRelation.setEnabled(false);        // 2. Khóa không cho sửa
+                edtRelation.setAlpha(0.7f);           // 3. Làm mờ đi
+                edtRelation.setError(null);           // 4. Xóa lỗi cũ
+            } else {
+                // TRƯỜNG HỢP: Bỏ chọn (Là thành viên)
+                edtRelation.setText("");              // 1. Xóa chữ
+                edtRelation.setEnabled(true);         // 2. Mở khóa
+                edtRelation.setAlpha(1.0f);           // 3. Làm sáng lại
+                edtRelation.requestFocus();           // 4. Focus để nhập
+            }
+        });
 
-            if (relationship.isEmpty()) {
-                edtRelation.setError("Vui lòng nhập quan hệ");
+        btnConfirm.setOnClickListener(v -> {
+            // Lấy dữ liệu
+            boolean isHead = chkIsHead.isChecked();
+            // Nếu là chủ hộ thì lấy cứng "Bản thân", nếu không thì lấy từ ô nhập
+            String relationship = isHead ? "Bản thân" : edtRelation.getText().toString().trim();
+
+            // Validate: Nếu không phải chủ hộ mà để trống quan hệ thì báo lỗi
+            if (!isHead && relationship.isEmpty()) {
+                edtRelation.setError("Vui lòng nhập quan hệ (VD: Vợ, Con...)");
                 return;
             }
 
-            // Gọi API với đầy đủ thông tin
+            // Gọi API
             updateResidentApartment(user.getUserId(), currentApartment.getId(), relationship, isHead);
             dialog.dismiss();
         });
@@ -351,28 +371,45 @@ public class ApartmentResidentsActivity extends BaseActivity {
         JSONObject body = new JSONObject();
         try {
             body.put("user_id", userId);
-
             if (apartmentId == null) {
-                // TRƯỜNG HỢP XÓA (Đuổi ra)
                 body.put("apartment_id", JSONObject.NULL);
             } else {
-                // TRƯỜNG HỢP THÊM (Có quan hệ)
                 body.put("apartment_id", apartmentId);
                 body.put("relationship", relationship);
                 body.put("is_head", isHead);
             }
-
         } catch (JSONException e) { e.printStackTrace(); }
 
         JsonObjectRequest request = new JsonObjectRequest(Request.Method.PUT, url, body,
                 response -> {
                     String msg = (apartmentId == null) ? "Đã mời ra khỏi phòng" : "Đã thêm thành công!";
                     Toast.makeText(this, msg, Toast.LENGTH_SHORT).show();
-                    loadAllResidents(); // Tải lại để cập nhật danh sách
+                    loadAllResidents();
                 },
                 error -> {
-                    Toast.makeText(this, "Lỗi cập nhật: " + error.getMessage(), Toast.LENGTH_SHORT).show();
-                    error.printStackTrace();
+                    // 🔥 XỬ LÝ HIỂN THỊ NỘI DUNG LỖI TỪ SERVER (QUAN TRỌNG)
+                    String message = "Lỗi kết nối";
+                    if (error.networkResponse != null && error.networkResponse.data != null) {
+                        try {
+                            String errorData = new String(error.networkResponse.data, "UTF-8");
+                            JSONObject errJson = new JSONObject(errorData);
+                            if (errJson.has("error")) {
+                                message = errJson.getString("error");
+                            }
+                        } catch (Exception e) {
+                            e.printStackTrace();
+                        }
+                    } else if (error.getMessage() != null) {
+                        message = error.getMessage();
+                    }
+
+                    // Hiển thị Dialog báo lỗi thay vì Toast để user dễ đọc
+                    new AlertDialog.Builder(this)
+                            .setTitle("Không thể thêm")
+                            .setMessage(message) // Sẽ hiện: "LỖI: Phòng này đã có Chủ hộ rồi!..."
+                            .setPositiveButton("Đóng", null)
+                            .setIcon(android.R.drawable.ic_dialog_alert)
+                            .show();
                 }
         ) {
             @Override

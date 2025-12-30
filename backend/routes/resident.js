@@ -252,10 +252,9 @@ router.put("/status/:userId", verifySession, async (req, res) => {
 });
 
 // ==================================================================
-// 🏠 API: CẬP NHẬT PHÒNG CHO CƯ DÂN & QUAN HỆ VỚI CHỦ HỘ
+// 🏠 API: CẬP NHẬT PHÒNG (BÁO LỖI NẾU TRÙNG CHỦ HỘ)
 // ==================================================================
 router.put("/assign-apartment", verifySession, async (req, res) => {
-    // Nhận thêm: relationship (VD: Con cái) và is_head (true/false)
     const { user_id, apartment_id, relationship, is_head } = req.body;
 
     if (!user_id) return res.status(400).json({ error: "Thiếu user_id" });
@@ -264,36 +263,79 @@ router.put("/assign-apartment", verifySession, async (req, res) => {
     try {
         await client.query("BEGIN");
 
-        // 1. Tìm relationship_id
-        const relRes = await client.query("SELECT relationship FROM user_item WHERE user_id = $1", [user_id]);
+        // 1. Lấy thông tin relationship hiện tại
+        const userRes = await client.query("SELECT relationship FROM user_item WHERE user_id = $1", [user_id]);
+        if (userRes.rows.length === 0) {
+            await client.query("ROLLBACK");
+            return res.status(404).json({ error: "Cư dân không tồn tại" });
+        }
+        const currentUserRelationshipId = userRes.rows[0].relationship;
 
-        if (relRes.rows.length === 0) {
-             await client.query("ROLLBACK");
-             return res.status(404).json({ error: "User chưa có relationship id" });
+        // ==========================================================
+        // 🔥 KIỂM TRA LOGIC CHỦ HỘ (Chặn trùng chủ hộ)
+        // ==========================================================
+        if (apartment_id && is_head === true) {
+            const checkHead = await client.query(
+                `SELECT relationship_id
+                 FROM relationship
+                 WHERE apartment_id = $1 AND is_head_of_household = TRUE`,
+                [apartment_id]
+            );
+
+            if (checkHead.rows.length > 0) {
+                const existingHeadId = checkHead.rows[0].relationship_id;
+                if (!currentUserRelationshipId || existingHeadId !== currentUserRelationshipId) {
+                    await client.query("ROLLBACK");
+                    return res.status(400).json({
+                        error: "LỖI: Phòng này đã có Chủ hộ rồi! Vui lòng gỡ quyền chủ hộ cũ trước hoặc chọn vai trò 'Thành viên'."
+                    });
+                }
+            }
         }
 
-        const relationshipId = relRes.rows[0].relationship;
+        // ==========================================================
+        // 2. XỬ LÝ CẬP NHẬT
+        // ==========================================================
 
-        // 2. Logic xử lý
-        // Nếu apartment_id là NULL (Đuổi ra) -> Reset các trường quan hệ
+        // TRƯỜNG HỢP: ĐUỔI KHỎI PHÒNG (apartment_id = null)
         if (!apartment_id) {
-            await client.query(
-                `UPDATE relationship
-                 SET apartment_id = NULL,
-                     relationship_with_the_head_of_household = NULL,
-                     is_head_of_household = FALSE
-                 WHERE relationship_id = $1`,
-                [relationshipId]
+            await client.query("UPDATE user_item SET relationship = NULL WHERE user_id = $1", [user_id]);
+            if (currentUserRelationshipId) {
+                await client.query("DELETE FROM relationship WHERE relationship_id = $1", [currentUserRelationshipId]);
+            }
+        }
+
+        // TRƯỜNG HỢP: THÊM/CHUYỂN VÀO PHÒNG
+        else {
+            const finalRelationship = is_head ? 'Bản thân' : (relationship || "Thành viên");
+
+            // B1: Tạo Relationship Mới
+            const insertRel = await client.query(
+                `INSERT INTO relationship
+                (apartment_id, relationship_with_the_head_of_household, is_head_of_household)
+                VALUES ($1, $2, $3)
+                RETURNING relationship_id`,
+                [apartment_id, finalRelationship, is_head || false]
             );
-        } else {
-            // Nếu Thêm vào phòng -> Cập nhật đầy đủ
+
+            const newRelationshipId = insertRel.rows[0].relationship_id;
+
+            // B2: Gắn ID mới vào user_item
             await client.query(
-                `UPDATE relationship
-                 SET apartment_id = $1,
-                     relationship_with_the_head_of_household = COALESCE($2, relationship_with_the_head_of_household),
-                     is_head_of_household = COALESCE($3, FALSE)
-                 WHERE relationship_id = $4`,
-                [apartment_id, relationship, is_head, relationshipId]
+                "UPDATE user_item SET relationship = $1 WHERE user_id = $2",
+                [newRelationshipId, user_id]
+            );
+
+            // B3: Dọn dẹp relationship cũ
+            if (currentUserRelationshipId && currentUserRelationshipId !== newRelationshipId) {
+                await client.query("DELETE FROM relationship WHERE relationship_id = $1", [currentUserRelationshipId]);
+            }
+
+            // 🔥 LOGIC 2: CẬP NHẬT TRẠNG THÁI PHÒNG -> 'Occupied'
+            // Đảm bảo phòng chuyển sang trạng thái "Có người ở"
+            await client.query(
+                "UPDATE apartment SET status = 'Occupied' WHERE apartment_id = $1",
+                [apartment_id]
             );
         }
 
@@ -303,7 +345,10 @@ router.put("/assign-apartment", verifySession, async (req, res) => {
     } catch (err) {
         await client.query("ROLLBACK");
         console.error("Assign Apartment Error:", err);
-        res.status(500).json({ error: err.message });
+        if (err.code === '23505') {
+            return res.status(400).json({ error: "Dữ liệu bị xung đột (Lỗi CSDL)." });
+        }
+        res.status(500).json({ error: "Lỗi Server: " + err.message });
     } finally {
         client.release();
     }

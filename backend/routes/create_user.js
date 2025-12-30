@@ -6,9 +6,8 @@ const router = express.Router();
 
 /**
  * POST /api/create_user/create
- * Tạo một cư dân mới.
- * - Nếu is_head = true: Tạo một chủ hộ và một căn hộ mới.
- * - Nếu is_head = false: Thêm một thành viên vào một căn hộ đã tồn tại.
+ * - Chỉ cho phép thêm người vào các phòng ĐÃ CÓ SẴN trong Database.
+ * - Tuyệt đối KHÔNG tạo phòng mới.
  */
 router.post("/create", async (req, res) => {
   const {
@@ -18,12 +17,12 @@ router.post("/create", async (req, res) => {
     dob,
     job,
     email,
-    room, // Tên căn hộ, ví dụ "A101"
-    floor,
-    is_head,
-    relationship_name, // Bắt buộc nếu is_head = false
+    room,           // Số phòng (VD: "101")
+    is_head,        // true/false
+    relationship_name, // Quan hệ với chủ hộ (nếu is_head = false)
     identity_card,
     home_town
+    // Lưu ý: Biến 'floor' gửi lên sẽ bị bỏ qua, vì ta lấy tầng từ DB có sẵn
   } = req.body;
 
   // --- ✅ 1. Validate Input ---
@@ -35,19 +34,55 @@ router.post("/create", async (req, res) => {
   }
 
   const client = await pool.connect();
+
   try {
-    // --- ✅ 2. Kiểm tra dữ liệu đã tồn tại chưa ---
+    // --- ✅ 2. Check SĐT trùng ---
     const existingUser = await client.query("SELECT user_id FROM users WHERE phone = $1", [phone]);
     if (existingUser.rows.length > 0) {
-      return res.status(409).json({ error: "Số điện thoại đã được đăng ký." });
+      return res.status(409).json({ error: "Số điện thoại này đã được đăng ký." });
     }
 
-    // Bắt đầu transaction
+    // 🔥 BẮT ĐẦU TRANSACTION 🔥
     await client.query("BEGIN");
 
-    // --- ✅ 3. Tạo tài khoản người dùng chung ---
+    // --- ✅ 3. KIỂM TRA PHÒNG CÓ TỒN TẠI KHÔNG? (QUAN TRỌNG NHẤT) ---
+    // Chúng ta tìm phòng dựa trên số phòng (room)
+    const existingApt = await client.query(
+        "SELECT apartment_id, status FROM apartment WHERE apartment_number = $1",
+        [room]
+    );
+
+    // ❌ NẾU PHÒNG KHÔNG TỒN TẠI -> BÁO LỖI NGAY
+    if (existingApt.rows.length === 0) {
+        await client.query("ROLLBACK");
+        return res.status(404).json({
+            error: `Phòng ${room} không có trong hệ thống. Vui lòng liên hệ Admin để tạo phòng trước.`
+        });
+    }
+
+    const apartment_id = existingApt.rows[0].apartment_id;
+
+    // --- ✅ 4. Kiểm tra Logic Chủ hộ / Thành viên ---
+    if (is_head) {
+        // Nếu muốn làm Chủ hộ -> Phải chắc chắn phòng chưa có ai cầm cờ chủ hộ
+        const checkHead = await client.query(
+            `SELECT relationship_id FROM relationship
+             WHERE apartment_id = $1 AND is_head_of_household = TRUE`,
+            [apartment_id]
+        );
+
+        if (checkHead.rows.length > 0) {
+            await client.query("ROLLBACK");
+            return res.status(409).json({
+                error: `Phòng ${room} đã có Chủ hộ rồi! Không thể thêm chủ hộ mới.`
+            });
+        }
+    }
+
+    // --- ✅ 5. Tạo User (Bảng users) ---
     const defaultPassword = "123456";
     const password_hash = await bcrypt.hash(defaultPassword, 10);
+
     const userRes = await client.query(
       `INSERT INTO users (password_hash, phone, created_at)
        VALUES ($1, $2, NOW()) RETURNING user_id`,
@@ -55,66 +90,28 @@ router.post("/create", async (req, res) => {
     );
     const user_id = userRes.rows[0].user_id;
 
-    // Gán quyền mặc định (ví dụ role_id = 1 là 'USER')
+    // Gán quyền Resident (role_id = 1)
     await client.query(
       `INSERT INTO userrole (user_id, role_id) VALUES ($1, 1)`,
       [user_id]
     );
 
-    let apartment_id;
-    let relationship_id;
+    // --- ✅ 6. Tạo Relationship (Gắn vào phòng đã tìm thấy ở bước 3) ---
+    const relRes = await client.query(
+      `INSERT INTO relationship (apartment_id, is_head_of_household, relationship_with_the_head_of_household)
+       VALUES ($1, $2, $3) RETURNING relationship_id`,
+      [
+          apartment_id,
+          is_head, // true hoặc false
+          is_head ? 'Bản thân' : relationship_name // Nếu là chủ hộ thì là 'Bản thân', không thì lấy tên quan hệ
+      ]
+    );
+    const relationship_id = relRes.rows[0].relationship_id;
 
-    // --- ✅ 4. Phân nhánh logic dựa trên is_head ---
-    if (is_head) {
-      // --- LOGIC TẠO CHỦ HỘ VÀ CĂN HỘ MỚI ---
-
-      // Kiểm tra xem căn hộ đã tồn tại và có chủ hộ chưa
-      const existingApt = await client.query("SELECT apartment_id FROM apartment WHERE apartment_number = $1", [room]);
-      if (existingApt.rows.length > 0) {
-        await client.query("ROLLBACK"); // Hoàn tác việc tạo user
-        return res.status(409).json({ error: `Căn hộ ${room} đã tồn tại.` });
-      }
-
-      // a. Tạo căn hộ mới
-      const aptRes = await client.query(
-        `INSERT INTO apartment (building_id, apartment_number, floor, status)
-         VALUES (1, $1, $2, 'Occupied') RETURNING apartment_id`,
-        [room, floor]
-      );
-      apartment_id = aptRes.rows[0].apartment_id;
-
-      // b. Tạo relationship cho chủ hộ (quan hệ là NULL)
-      const relRes = await client.query(
-        `INSERT INTO relationship (apartment_id, is_head_of_household, relationship_with_the_head_of_household)
-         VALUES ($1, TRUE, 'Bản thân') RETURNING relationship_id`,
-        [apartment_id]
-      );
-      relationship_id = relRes.rows[0].relationship_id;
-
-    } else {
-      // --- LOGIC THÊM THÀNH VIÊN VÀO CĂN HỘ ĐÃ CÓ ---
-
-      // a. Tìm căn hộ đã tồn tại
-      const existingApt = await client.query("SELECT apartment_id FROM apartment WHERE apartment_number = $1", [room]);
-      if (existingApt.rows.length === 0) {
-        await client.query("ROLLBACK");
-        return res.status(404).json({ error: `Căn hộ ${room} không tồn tại.` });
-      }
-      apartment_id = existingApt.rows[0].apartment_id;
-
-      // b. Tạo relationship cho thành viên mới
-      const relRes = await client.query(
-        `INSERT INTO relationship (apartment_id, is_head_of_household, relationship_with_the_head_of_household)
-         VALUES ($1, FALSE, $2) RETURNING relationship_id`,
-        [apartment_id, relationship_name]
-      );
-      relationship_id = relRes.rows[0].relationship_id;
-    }
-
-    // --- ✅ 5. Tạo user_item (thông tin chi tiết của người dùng) ---
-    // 🔥 Cập nhật câu lệnh INSERT để thêm identity_card và home_town
+    // --- ✅ 7. Lưu thông tin chi tiết (Bảng user_item) ---
     await client.query(
-      `INSERT INTO user_item (user_id, full_name, gender, dob, job, relationship, is_living, email, identity_card, home_town)
+      `INSERT INTO user_item
+       (user_id, full_name, gender, dob, job, relationship, is_living, email, identity_card, home_town)
        VALUES ($1, $2, $3, $4, $5, $6, TRUE, $7, $8, $9)`,
       [
           user_id,
@@ -124,29 +121,33 @@ router.post("/create", async (req, res) => {
           job || null,
           relationship_id,
           email,
-          identity_card || null, // Nếu không có thì để null
-          home_town || null      // Nếu không có thì để null
+          identity_card || null,
+          home_town || null
       ]
     );
 
-    // Kết thúc transaction
+    // Cập nhật trạng thái phòng thành "Occupied" nếu chưa (cho chắc chắn)
+    await client.query("UPDATE apartment SET status = 'Occupied' WHERE apartment_id = $1", [apartment_id]);
+
+    // 🔥 KẾT THÚC TRANSACTION 🔥
     await client.query("COMMIT");
 
     res.status(201).json({
-      message: `✅ Tạo cư dân "${full_name}" thành công!`,
+      success: true,
+      message: `✅ Thêm cư dân vào phòng ${room} thành công!`,
       user_id,
-      apartment_id,
-      default_password: defaultPassword,
+      apartment_id
     });
 
   } catch (error) {
     await client.query("ROLLBACK");
     console.error("❌ Lỗi khi tạo cư dân:", error);
-    // Trả về lỗi cụ thể hơn nếu có thể
-    if (error.code === '23505') { // Lỗi unique_violation
-        return res.status(409).json({ error: 'Dữ liệu bị trùng lặp. Vui lòng kiểm tra lại.' });
+
+    if (error.code === '23505') {
+        return res.status(409).json({ error: 'Dữ liệu bị trùng lặp (SĐT hoặc CCCD).' });
     }
-    res.status(500).json({ error: "Đã xảy ra lỗi phía server." });
+
+    res.status(500).json({ error: "Lỗi Server: " + error.message });
   } finally {
     client.release();
   }
