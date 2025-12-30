@@ -72,7 +72,7 @@ public class ConfigRatesActivity extends BaseActivity {
     }
 
     private void setupRecyclerView() {
-        adapter = new ConfigRateAdapter(rateList);
+        adapter = new ConfigRateAdapter(rateList, currentType);
         recyclerRates.setLayoutManager(new LinearLayoutManager(this));
         recyclerRates.setAdapter(adapter);
     }
@@ -85,7 +85,16 @@ public class ConfigRatesActivity extends BaseActivity {
                     currentType = "electricity";
                 } else if (checkedId == R.id.btnWater) {
                     currentType = "water";
+                } else if (checkedId == R.id.btnManagement) {
+                    currentType = "management_fee";
+                } else if (checkedId == R.id.btnService) {
+                    currentType = "service_fee";
                 }
+                // Cập nhật adapter để hiển thị đúng định dạng
+                adapter.updateType(currentType);
+                // Ẩn/hiện nút thêm bậc
+                updateAddTierVisibility();
+
                 loadRates(); // Tải lại dữ liệu khi đổi tab
             }
         });
@@ -95,11 +104,20 @@ public class ConfigRatesActivity extends BaseActivity {
 
         // 3. Nút Thêm bậc mới (UI Logic)
         btnAddTier.setOnClickListener(v -> {
+            boolean isUtility = currentType.equals("electricity") || currentType.equals("water");
+            if (!isUtility) {
+                Toast.makeText(this, "Loại phí này chỉ có một bậc duy nhất", Toast.LENGTH_SHORT).show();
+                return;
+            }
             // Thêm một dòng trắng vào list
             rateList.add(new RateItem("Bậc " + (rateList.size() + 1), 0, 0, 0.0));
             adapter.notifyItemInserted(rateList.size() - 1);
             recyclerRates.scrollToPosition(rateList.size() - 1);
         });
+    }// Ẩn nút "Thêm bậc" khi là phí quản lý hoặc dịch vụ
+    private void updateAddTierVisibility() {
+        boolean isUtility = currentType.equals("electricity") || currentType.equals("water");
+        btnAddTier.setVisibility(isUtility ? View.VISIBLE : View.GONE);
     }
 
     // --- API CALLS ---
@@ -110,31 +128,50 @@ public class ConfigRatesActivity extends BaseActivity {
         JsonArrayRequest request = new JsonArrayRequest(Request.Method.GET, url, null,
                 response -> {
                     rateList.clear();
+
+                    boolean isFixedFee = currentType.equals("management_fee") || currentType.equals("service_fee");
+
                     try {
-                        for (int i = 0; i < response.length(); i++) {
-                            JSONObject obj = response.getJSONObject(i);
+                        if (response.length() == 0 && isFixedFee) {
+                            // Nếu là phí cố định và server chưa có dữ liệu → tự tạo 1 dòng mặc định
+                            String defaultName = currentType.equals("management_fee") ? "Phí quản lý" : "Phí dịch vụ";
+                            rateList.add(new RateItem(defaultName, 0, 0, 0.0));
+                        } else {
+                            // Có dữ liệu từ server → load bình thường
+                            for (int i = 0; i < response.length(); i++) {
+                                JSONObject obj = response.getJSONObject(i);
+                                Integer max = obj.isNull("max_usage") ? 0 : obj.getInt("max_usage");
 
-                            // Xử lý max_usage có thể là null (vô cực) trong database
-                            Integer max = obj.isNull("max_usage") ? 0 : obj.getInt("max_usage");
-
-                            rateList.add(new RateItem(
-                                    obj.getString("tier_name"),
-                                    obj.getInt("min_usage"),
-                                    max,
-                                    obj.getDouble("price")
-                            ));
+                                rateList.add(new RateItem(
+                                        obj.getString("tier_name"),
+                                        obj.getInt("min_usage"),
+                                        max,
+                                        obj.getDouble("price")
+                                ));
+                            }
                         }
+
                         adapter.notifyDataSetChanged();
+                        updateAddTierVisibility();
+
                     } catch (JSONException e) {
                         e.printStackTrace();
                         Toast.makeText(this, "Lỗi xử lý dữ liệu", Toast.LENGTH_SHORT).show();
                     }
                 },
                 error -> {
-                    Log.e("ConfigRate", "Error: " + error.toString());
+                    // Nếu lỗi mạng hoặc server → với phí cố định thì vẫn tạo dòng mặc định
+                    rateList.clear();
+                    if (currentType.equals("management_fee") || currentType.equals("service_fee")) {
+                        String defaultName = currentType.equals("management_fee") ? "Phí quản lý" : "Phí dịch vụ";
+                        rateList.add(new RateItem(defaultName, 0, 0, 0.0));
+                        adapter.notifyDataSetChanged();
+                        updateAddTierVisibility();
+                    }
                     Toast.makeText(this, "Không thể tải bảng giá", Toast.LENGTH_SHORT).show();
                 }
         );
+
         Volley.newRequestQueue(this).add(request);
     }
 
@@ -147,7 +184,13 @@ public class ConfigRatesActivity extends BaseActivity {
             Toast.makeText(this, "Danh sách trống, không thể lưu", Toast.LENGTH_SHORT).show();
             return;
         }
-
+        // Kiểm tra: Phí quản lý và dịch vụ chỉ được có đúng 1 bậc
+        if (currentType.equals("management_fee") || currentType.equals("service_fee")) {
+            if (itemsToSave.size() != 1) {
+                Toast.makeText(this, "Loại phí này phải có đúng một bậc", Toast.LENGTH_SHORT).show();
+                return;
+            }
+        }
         btnSaveRates.setEnabled(false);
         btnSaveRates.setText("Đang lưu...");
 

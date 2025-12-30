@@ -4,7 +4,6 @@ import android.app.Activity;
 import android.content.Intent;
 import android.os.Bundle;
 import android.text.TextUtils;
-import android.util.Log;
 import android.widget.Toast;
 
 import androidx.annotation.Nullable;
@@ -13,7 +12,6 @@ import androidx.recyclerview.widget.RecyclerView;
 
 import com.android.volley.AuthFailureError;
 import com.android.volley.Request;
-import com.android.volley.RequestQueue;
 import com.android.volley.toolbox.JsonArrayRequest;
 import com.android.volley.toolbox.JsonObjectRequest;
 import com.android.volley.toolbox.Volley;
@@ -97,13 +95,37 @@ public class BulkUtilityBillActivity extends BaseActivity {
 
         toggleGroupService.addOnButtonCheckedListener((group, checkedId, isChecked) -> {
             if (isChecked) {
-                Toast.makeText(this, "Đã chuyển loại dịch vụ", Toast.LENGTH_SHORT).show();
+                String type = getCurrentServiceType();
+                boolean isFixed = type.equals("management_fee") || type.equals("service_fee");
+
+                adapter.setInputMode(!isFixed);
+
+                btnSaveAll.setText(isFixed ? "Chốt phí" : "Lưu & Tính tiền");
+
+                String serviceName;
+                switch (type) {
+                    case "electricity":
+                        serviceName = "Điện";
+                        break;
+                    case "water":
+                        serviceName = "Nước";
+                        break;
+                    case "management_fee":
+                        serviceName = "Phí quản lý";
+                        break;
+                    case "service_fee":
+                        serviceName = "Phí dịch vụ";
+                        break;
+                    default:
+                        serviceName = "Dịch vụ";
+                        break;
+                }
+                getSupportActionBar().setTitle("Chốt số " + serviceName);
             }
         });
     }
 
     private void loadRoomsFromAPI() {
-        RequestQueue queue = Volley.newRequestQueue(this);
         JsonArrayRequest request = new JsonArrayRequest(Request.Method.GET, API_GET_RESIDENTS, null,
                 response -> {
                     inputList.clear();
@@ -112,21 +134,26 @@ public class BulkUtilityBillActivity extends BaseActivity {
                         for (int i = 0; i < response.length(); i++) {
                             JSONObject obj = response.getJSONObject(i);
                             String room = obj.optString("apartment_number", "").trim();
-                            if (!TextUtils.isEmpty(room)) uniqueRooms.add(room);
+                            if (!TextUtils.isEmpty(room)) {
+                                uniqueRooms.add(room);
+                            }
                         }
+
                         List<String> sortedRooms = new ArrayList<>(uniqueRooms);
-                        // 🔥 Sắp xếp phòng theo số học (101, 102, 201, 202, 1211, 1300) thay vì chuỗi
                         Collections.sort(sortedRooms, (room1, room2) -> {
                             int num1 = extractRoomNumber(room1);
                             int num2 = extractRoomNumber(room2);
                             return Integer.compare(num1, num2);
                         });
+
                         for (String room : sortedRooms) {
                             inputList.add(new UtilityInputItem(room));
                         }
                         adapter.notifyDataSetChanged();
 
-                    } catch (Exception e) { e.printStackTrace(); }
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                    }
                 },
                 error -> Toast.makeText(this, "Lỗi tải danh sách phòng", Toast.LENGTH_SHORT).show()
         ) {
@@ -134,25 +161,32 @@ public class BulkUtilityBillActivity extends BaseActivity {
             public Map<String, String> getHeaders() throws AuthFailureError {
                 Map<String, String> headers = new HashMap<>();
                 String token = UserManager.getInstance(getApplicationContext()).getAuthToken();
-                if (token != null) headers.put("Authorization", "Bearer " + token);
+                if (token != null) {
+                    headers.put("Authorization", "Bearer " + token);
+                }
                 return headers;
             }
         };
-        queue.add(request);
+
+        Volley.newRequestQueue(this).add(request);
     }
 
     private void submitAll() {
+        String type = getCurrentServiceType();
+        boolean isFixedFee = type.equals("management_fee") || type.equals("service_fee");
+
+        if (isFixedFee) {
+            confirmAndSaveFixedFee(type);
+            return;
+        }
+
         JSONArray jsonArray = new JSONArray();
         int count = 0;
 
         for (UtilityInputItem item : inputList) {
             String newStr = item.getNewIndex().trim();
-
-            // Chỉ xử lý nếu người dùng đã nhập chỉ số mới
             if (!newStr.isEmpty()) {
                 try {
-                    // 🔥 FIX: Xử lý an toàn cho chỉ số cũ
-                    // Nếu oldIndex rỗng hoặc null -> Mặc định là 0
                     int oldVal = 0;
                     String oldStr = item.getOldIndex();
                     if (!TextUtils.isEmpty(oldStr) && TextUtils.isDigitsOnly(oldStr)) {
@@ -161,9 +195,8 @@ public class BulkUtilityBillActivity extends BaseActivity {
 
                     int newVal = Integer.parseInt(newStr);
 
-                    // Kiểm tra logic: Chỉ số mới không được nhỏ hơn chỉ số cũ
                     if (newVal < oldVal) {
-                        Toast.makeText(this, "Lỗi: Phòng " + item.getRoomNumber() + " chỉ số mới nhỏ hơn cũ (" + oldVal + ")!", Toast.LENGTH_LONG).show();
+                        Toast.makeText(this, "Lỗi: Phòng " + item.getRoomNumber() + " chỉ số mới nhỏ hơn cũ!", Toast.LENGTH_LONG).show();
                         return;
                     }
 
@@ -175,10 +208,11 @@ public class BulkUtilityBillActivity extends BaseActivity {
                     count++;
 
                 } catch (NumberFormatException e) {
-                    // Nếu người dùng nhập ký tự không phải số vào ô "Mới"
                     Toast.makeText(this, "Lỗi định dạng số tại phòng " + item.getRoomNumber(), Toast.LENGTH_SHORT).show();
                     return;
-                } catch (JSONException e) { e.printStackTrace(); }
+                } catch (JSONException e) {
+                    e.printStackTrace();
+                }
             }
         }
 
@@ -187,43 +221,47 @@ public class BulkUtilityBillActivity extends BaseActivity {
             return;
         }
 
-        String type = (toggleGroupService.getCheckedButtonId() == R.id.btnElectricity) ? "electricity" : "water";
         int month = Calendar.getInstance().get(Calendar.MONTH) + 1;
         int year = Calendar.getInstance().get(Calendar.YEAR);
 
         sendBulkData(jsonArray, type, month, year);
     }
 
-    private void sendBulkData(JSONArray data, String type, int month, int year) {
-        String url = API_SAVE_UTILITY;
+    private void confirmAndSaveFixedFee(String type) {
+        int month = Calendar.getInstance().get(Calendar.MONTH) + 1;
+        int year = Calendar.getInstance().get(Calendar.YEAR);
+
         JSONObject body = new JSONObject();
         try {
             body.put("type", type);
             body.put("month", month);
             body.put("year", year);
-            body.put("data", data);
-        } catch (JSONException e) { e.printStackTrace(); }
+            body.put("auto_calculate", true);
+            } catch (JSONException e) {
+            e.printStackTrace();
+        }
 
         btnSaveAll.setEnabled(false);
-        btnSaveAll.setText("Đang lưu...");
+        btnSaveAll.setText("Đang chốt phí...");
 
-        JsonObjectRequest request = new JsonObjectRequest(Request.Method.POST, url, body,
+        JsonObjectRequest request = new JsonObjectRequest(Request.Method.POST, API_SAVE_UTILITY, body,
                 response -> {
-                    Toast.makeText(this, "Đã lưu thành công!", Toast.LENGTH_LONG).show();
+                    Toast.makeText(this, "Chốt " + getTypeName(type) + " thành công!", Toast.LENGTH_LONG).show();
                     setResult(Activity.RESULT_OK);
                     finish();
                 },
                 error -> {
                     btnSaveAll.setEnabled(true);
-                    btnSaveAll.setText("Lưu & Tính tiền");
-                    Toast.makeText(this, "Lỗi khi lưu dữ liệu: " + error.getMessage(), Toast.LENGTH_SHORT).show();
-                }
-        ) {
+                    btnSaveAll.setText("Chốt phí");
+                    Toast.makeText(this, "Lỗi khi chốt phí: " + error.getMessage(), Toast.LENGTH_SHORT).show();
+                }) {
             @Override
             public Map<String, String> getHeaders() throws AuthFailureError {
                 Map<String, String> headers = new HashMap<>();
                 String token = UserManager.getInstance(getApplicationContext()).getAuthToken();
-                if (token != null) headers.put("Authorization", "Bearer " + token);
+                if (token != null) {
+                    headers.put("Authorization", "Bearer " + token);
+                }
                 return headers;
             }
         };
@@ -231,10 +269,78 @@ public class BulkUtilityBillActivity extends BaseActivity {
         Volley.newRequestQueue(this).add(request);
     }
 
-    // 🔥 Helper function để extract số phòng (số học) từ chuỗi
+    private void sendBulkData(JSONArray data, String type, int month, int year) {
+        JSONObject body = new JSONObject();
+        try {
+            body.put("type", type);
+            body.put("month", month);
+            body.put("year", year);
+            body.put("data", data);
+        } catch (JSONException e) {
+            e.printStackTrace();
+        }
+
+        btnSaveAll.setEnabled(false);
+        btnSaveAll.setText("Đang lưu...");
+
+        JsonObjectRequest request = new JsonObjectRequest(Request.Method.POST, API_SAVE_UTILITY, body,
+                response -> {
+                    Toast.makeText(this, "Lưu và tính tiền thành công!", Toast.LENGTH_LONG).show();
+                    setResult(Activity.RESULT_OK);
+                    finish();
+                },
+                error -> {
+                    btnSaveAll.setEnabled(true);
+                    btnSaveAll.setText("Lưu & Tính tiền");
+                    Toast.makeText(this, "Lỗi khi lưu: " + error.getMessage(), Toast.LENGTH_SHORT).show();
+                }) {
+            @Override
+            public Map<String, String> getHeaders() throws AuthFailureError {
+                Map<String, String> headers = new HashMap<>();
+                String token = UserManager.getInstance(getApplicationContext()).getAuthToken();
+                if (token != null) {
+                    headers.put("Authorization", "Bearer " + token);
+                }
+                return headers;
+            }
+        };
+
+        Volley.newRequestQueue(this).add(request);
+    }
+
+    // SỬA: Dùng if-else thay switch để tránh lỗi "constant expression required"
+    private String getCurrentServiceType() {
+        int checkedId = toggleGroupService.getCheckedButtonId();
+        if (checkedId == R.id.btnElectricity) {
+            return "electricity";
+        } else if (checkedId == R.id.btnWater) {
+            return "water";
+        } else if (checkedId == R.id.btnManagement) {
+            return "management_fee";
+        } else if (checkedId == R.id.btnService) {
+            return "service_fee";
+        } else {
+            return "electricity";
+        }
+    }
+
+    private String getTypeName(String type) {
+        switch (type) {
+            case "electricity":
+                return "điện";
+            case "water":
+                return "nước";
+            case "management_fee":
+                return "phí quản lý";
+            case "service_fee":
+                return "phí dịch vụ";
+            default:
+                return "dịch vụ";
+        }
+    }
+
     private int extractRoomNumber(String room) {
         try {
-            // Loại bỏ tất cả ký tự không phải số và chuyển thành số
             String numbers = room.replaceAll("\\D+", "");
             return numbers.isEmpty() ? 0 : Integer.parseInt(numbers);
         } catch (Exception e) {

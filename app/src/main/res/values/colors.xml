@@ -16,6 +16,7 @@
     <color name="holo_green_dark">#388E3C</color>
     <color name="blue_primary">#1976D2</color>
     <color name="red_primary">#D32F2F</color>
+    <color name="gray">#FF888888</color>
 
     <color name="urgent_background">#FFEBEE</color> <!-- A light red color -->
 </resources>
