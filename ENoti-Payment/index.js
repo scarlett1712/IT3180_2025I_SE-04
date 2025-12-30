@@ -6,7 +6,6 @@ const PayOS = require("@payos/node");
 
 const app = express();
 
-// --- PAYOS --- //
 const payOS = new PayOS(
   process.env.PAYOS_CLIENT_ID,
   process.env.PAYOS_API_KEY,
@@ -21,29 +20,35 @@ app.use(express.urlencoded({ extended: true }));
 
 app.use("/", express.static("public"));
 
-/**
- * API nhận dữ liệu từ Android:
- * { title: "...", amount: ..., financeId: ..., userId: ... }
- */
 app.post("/create-payment-link", async (req, res) => {
-  // 🔥 KHÔNG nhận orderCode từ Android nữa
+  // 🔥 1. NHẬN userId TỪ ANDROID (Quan trọng)
+  // Android chỉ cần gửi: { title, amount, financeId, userId }
   const { title, amount, financeId, userId } = req.body;
 
-  // 🔥 SERVER TỰ TẠO MÃ ĐƠN
-  // (Dùng timestamp cắt gọn để đảm bảo duy nhất và là số)
-  const orderCode = Number(String(Date.now()).slice(-6) + Math.floor(Math.random() * 10));
+  if (!amount || amount <= 0) {
+    return res.status(400).json({ error: "Amount invalid" });
+  }
 
-  // Giới hạn description
+  // Kiểm tra userId để tránh lỗi sau này
+  if (!userId) {
+      console.log("⚠️ Cảnh báo: Android chưa gửi userId!");
+  }
+
+  const YOUR_DOMAIN = `https://it3180-2025i-se-04.onrender.com`;
+
   const fullDesc = `${title}`;
   const shortDesc = fullDesc.slice(0, 25);
 
-  // Tạo URL trả về (Vẫn gắn orderCode vào để success.html lưu được)
-  const YOUR_DOMAIN = `https://it3180-2025i-se-04.onrender.com`;
+  // 🔥 2. SERVER TỰ TẠO ORDER CODE (Android không cần gửi)
+  const orderCode = Number(String(Date.now()).slice(-6) + Math.floor(Math.random() * 10));
+
+  // 🔥 3. GẮN userId VÀO LINK TRẢ VỀ
+  // Đây là bước quan trọng nhất để lưu được hóa đơn
   const returnUrl = `${YOUR_DOMAIN}/success.html?user_id=${userId}&finance_id=${financeId}&amount=${amount}&description=${encodeURIComponent(title)}&ordercode=${orderCode}`;
   const cancelUrl = `${YOUR_DOMAIN}/cancel.html`;
 
   const body = {
-    orderCode: orderCode, // Dùng mã server vừa tạo
+    orderCode: orderCode,
     amount: amount,
     description: shortDesc,
     items: [
@@ -58,11 +63,26 @@ app.post("/create-payment-link", async (req, res) => {
   };
 
   try {
+    console.log("Request gửi sang PayOS:", body);
+
     const paymentLinkResponse = await payOS.createPaymentLink(body);
-    res.json({ checkoutUrl: paymentLinkResponse.checkoutUrl });
+
+    console.log("PayOS trả về:", paymentLinkResponse);
+
+    if (paymentLinkResponse.checkoutUrl) {
+      return res.json({ checkoutUrl: paymentLinkResponse.checkoutUrl });
+    } else if (paymentLinkResponse.data?.checkoutUrl) {
+      return res.json({ checkoutUrl: paymentLinkResponse.data.checkoutUrl });
+    }
+
+    return res.status(500).json({ error: "No checkoutUrl from PayOS" });
+
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ error: error.message });
+    console.log("PayOS ERROR:", error.response?.data || error);
+    return res.status(500).json({
+      error: "PayOS error",
+      detail: error.message,
+    });
   }
 });
 
