@@ -240,26 +240,35 @@ public class FinanceDetailActivity extends BaseActivity {
                         String ordercode = response.optString("ordercode", "---");
                         long amount = response.optLong("amount", 0);
                         String desc = response.optString("description", "");
-                        String rawPayTime = response.optString("pay_time_formatted", "Vừa xong");
-                        String paidBy = response.optString("paid_by_name", "");
+                        String rawPayTime = response.optString("pay_time_formatted", "---");
+
+                        // 🔥 Logic hiển thị mới
+                        boolean isDirectPayment = response.optBoolean("is_direct_payment", false);
+                        String paidByName = response.optString("paid_by_name", "");
 
                         txtOrderCode.setText(ordercode);
                         txtAmount.setText(new DecimalFormat("#,###,###").format(amount) + " đ");
                         txtAmountInText.setText(VnNumberToWords.convert(amount));
+                        txtPayDate.setText(rawPayTime);
 
-                        // Hiển thị nội dung kèm tên người trả tiền (nếu là người khác trong phòng)
-                        if (!paidBy.isEmpty()) {
-                            txtDetail.setText(desc + "\n(Người thanh toán: " + paidBy + ")");
-                        } else {
-                            txtDetail.setText(desc);
+                        // Hiển thị nội dung
+                        StringBuilder detailBuilder = new StringBuilder(desc);
+                        if (isDirectPayment) {
+                            // Nếu do Admin tạo -> Ghi là Nộp trực tiếp
+                            detailBuilder.append("\n(Hình thức: Nộp trực tiếp tại BQL)");
+                        } else if (!paidByName.isEmpty()) {
+                            // Nếu do User trả -> Ghi tên người trả
+                            detailBuilder.append("\n(Người thanh toán: ").append(paidByName).append(")");
                         }
 
-                        txtPayDate.setText(rawPayTime);
+                        txtDetail.setText(detailBuilder.toString());
                         invoiceDetailView.setVisibility(View.VISIBLE);
 
-                    } catch (Exception e) { e.printStackTrace(); }
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                    }
                 },
-                error -> Log.e(TAG, "Hóa đơn chưa sẵn sàng hoặc không tìm thấy")
+                error -> Log.e(TAG, "Lỗi lấy hóa đơn")
         ) {
             @Override
             public Map<String, String> getHeaders() {
@@ -269,7 +278,6 @@ public class FinanceDetailActivity extends BaseActivity {
                 return headers;
             }
         };
-        request.setRetryPolicy(new DefaultRetryPolicy(20000, 1, 1.0f));
         Volley.newRequestQueue(this).add(request);
     }
 

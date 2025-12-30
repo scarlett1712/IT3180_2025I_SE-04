@@ -124,9 +124,6 @@ router.get("/:ordercode", async (req, res) => {
   } catch (err) { res.status(500).json({ error: "Lỗi Server" }); }
 });
 
-// ==================================================================
-// 🔥 3. LẤY INVOICE THEO FINANCE_ID (Tìm thông minh cho cả phòng)
-// ==================================================================
 router.get("/by-finance/:financeId", async (req, res) => {
   try {
     const { financeId } = req.params;
@@ -134,49 +131,40 @@ router.get("/by-finance/:financeId", async (req, res) => {
 
     if (!user_id) return res.status(400).json({ error: "Thiếu user_id" });
 
-    // Bước 1: Tìm hóa đơn chính chủ trước
-    let queryStr = `
-       SELECT i.*, TO_CHAR(i.paytime, 'DD/MM/YYYY HH24:MI') as pay_time_formatted, ui.full_name as paid_by_name
+    // Truy vấn tìm hóa đơn cho cả phòng
+    const queryStr = `
+       SELECT
+          i.*,
+          TO_CHAR(i.paytime, 'DD/MM/YYYY HH24:MI') as pay_time_formatted,
+          ui.full_name as paid_by_name
        FROM invoice i
        JOIN user_finances uf ON i.finance_id = uf.id
        JOIN user_item ui ON uf.user_id = ui.user_id
-       WHERE uf.finance_id = $1 AND uf.user_id = $2
+       JOIN relationship r ON ui.relationship = r.relationship_id
+       WHERE uf.finance_id = $1
+       AND r.apartment_id = (
+            SELECT r2.apartment_id FROM user_item ui2
+            JOIN relationship r2 ON ui2.relationship = r2.relationship_id
+            WHERE ui2.user_id = $2
+       )
        LIMIT 1
     `;
-    let result = await query(queryStr, [financeId, user_id]);
 
-    // Bước 2: Nếu không thấy, tìm hóa đơn của bất kỳ ai trong phòng
-    if (result.rowCount === 0) {
-        const roomRes = await query(`
-            SELECT r.apartment_id
-            FROM user_item ui
-            JOIN relationship r ON ui.relationship = r.relationship_id
-            WHERE ui.user_id = $1
-        `, [user_id]);
-
-        if (roomRes.rows.length > 0) {
-            const apartmentId = roomRes.rows[0].apartment_id;
-
-            result = await query(`
-               SELECT i.*, TO_CHAR(i.paytime, 'DD/MM/YYYY HH24:MI') as pay_time_formatted, ui.full_name as paid_by_name
-               FROM invoice i
-               JOIN user_finances uf ON i.finance_id = uf.id
-               JOIN user_item ui ON uf.user_id = ui.user_id
-               JOIN relationship r ON ui.relationship = r.relationship_id
-               WHERE uf.finance_id = $1 AND r.apartment_id = $2
-               LIMIT 1
-            `, [financeId, apartmentId]);
-        }
-    }
+    const result = await query(queryStr, [financeId, user_id]);
 
     if (result.rowCount === 0) {
         return res.status(404).json({ message: "Invoice not found" });
     }
 
-    res.json(result.rows[0]);
+    const invoice = result.rows[0];
+
+    // 🔥 Thêm logic kiểm tra nếu ordercode bắt đầu bằng ADMIN-
+    invoice.is_direct_payment = invoice.ordercode.startsWith("ADMIN-");
+
+    res.json(invoice);
 
   } catch (error) {
-    console.error("Error fetching invoice:", error);
+    console.error(error);
     res.status(500).json({ message: "Lỗi Server" });
   }
 });
