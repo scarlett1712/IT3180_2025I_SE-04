@@ -46,6 +46,15 @@
             android:paddingHorizontal="24dp"
             android:paddingBottom="40dp">
 
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnScanQR"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Quét QR từ CCCD để điền nhanh"
+                android:icon="@android:drawable/ic_menu_camera"
+                android:layout_marginBottom="16dp"
+                android:background="@drawable/bg_button_gradient"/>
+
             <com.google.android.material.textfield.TextInputLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
@@ -172,7 +181,7 @@
                     android:layout_height="60dp"
                     android:background="@drawable/bg_input_rounded"
                     android:hint="Mã xác thực*"
-                    android:inputType="textPassword"
+                    android:inputType="text"
                     android:paddingHorizontal="20dp"/>
             </com.google.android.material.textfield.TextInputLayout>
 
@@ -188,7 +197,7 @@
                     android:layout_height="60dp"
                     android:background="@drawable/bg_input_rounded"
                     android:hint="Email"
-                    android:inputType="textPassword"
+                    android:inputType="text"
                     android:paddingHorizontal="20dp"/>
             </com.google.android.material.textfield.TextInputLayout>
 
@@ -204,7 +213,7 @@
                     android:layout_height="60dp"
                     android:background="@drawable/bg_input_rounded"
                     android:hint="CCCD"
-                    android:inputType="textPassword"
+                    android:inputType="text"
                     android:paddingHorizontal="20dp"/>
             </com.google.android.material.textfield.TextInputLayout>
 
@@ -220,7 +229,7 @@
                     android:layout_height="60dp"
                     android:background="@drawable/bg_input_rounded"
                     android:hint="Quê quán"
-                    android:inputType="textPassword"
+                    android:inputType="text"
                     android:paddingHorizontal="20dp"/>
             </com.google.android.material.textfield.TextInputLayout>
 

@@ -11,6 +11,10 @@ import android.widget.Spinner;
 import android.widget.Toast;
 
 import androidx.appcompat.app.AppCompatActivity;
+import com.google.mlkit.vision.codescanner.GmsBarcodeScanner;
+import com.google.mlkit.vision.codescanner.GmsBarcodeScannerOptions;
+import com.google.mlkit.vision.codescanner.GmsBarcodeScanning;
+import com.google.mlkit.vision.barcode.common.Barcode;
 
 import com.android.volley.Request;
 import com.android.volley.RequestQueue;
@@ -37,7 +41,7 @@ public class CreateResidentActivity extends BaseActivity {
     private TextInputEditText edtFullName, edtBirthDate, edtJob, edtRelation, edtPhone, edtEmail, edtRoom, edtFloor, edtIdentityCard, edtHomeTown;
     private Spinner spinnerGender;
     private CheckBox checkboxIsHouseholder;
-    private MaterialButton btnSaveResident, btnCancel;
+    private MaterialButton btnSaveResident, btnCancel, btnScanQR;
     private RequestQueue requestQueue;
 
     // URL API
@@ -90,6 +94,7 @@ public class CreateResidentActivity extends BaseActivity {
         // Sự kiện nút Lưu & Hủy
         btnSaveResident.setOnClickListener(v -> createResident());
         btnCancel.setOnClickListener(v -> finish());
+        btnScanQR.setOnClickListener(v -> startQRScanner());
     }
 
     private void initViews() {
@@ -107,6 +112,7 @@ public class CreateResidentActivity extends BaseActivity {
         checkboxIsHouseholder = findViewById(R.id.checkboxIsHouseholder);
         btnSaveResident = findViewById(R.id.btnSaveResident);
         btnCancel = findViewById(R.id.btnCancel);
+        btnScanQR = findViewById(R.id.btnScanQR);
 
         // --- CẤU HÌNH INPUT TYPE (QUAN TRỌNG) ---
 
@@ -261,6 +267,79 @@ public class CreateResidentActivity extends BaseActivity {
         } catch (Exception e) {
             e.printStackTrace();
             Toast.makeText(this, "Lỗi xử lý dữ liệu nội bộ", Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    private void startQRScanner() {
+        GmsBarcodeScannerOptions options = new GmsBarcodeScannerOptions.Builder()
+                .setBarcodeFormats(Barcode.FORMAT_QR_CODE)
+                .build();
+
+        GmsBarcodeScanner scanner = GmsBarcodeScanning.getClient(this, options);
+
+        scanner.startScan()
+                .addOnSuccessListener(barcode -> {
+                    String rawValue = barcode.getRawValue();
+                    if (rawValue != null) {
+                        parseCCCDData(rawValue);
+                    } else {
+                        Toast.makeText(this, "Không đọc được dữ liệu!", Toast.LENGTH_SHORT).show();
+                    }
+                })
+                .addOnCanceledListener(() -> {
+                    // Người dùng bấm hủy, không làm gì cả
+                })
+                .addOnFailureListener(e -> {
+                    Toast.makeText(this, "Lỗi Camera: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+                });
+    }
+
+    private void parseCCCDData(String rawData) {
+        try {
+            // Dữ liệu CCCD cách nhau bởi dấu gạch đứng "|"
+            // Cấu trúc: CCCD|CMND(cũ)|Tên|NgàySinh(ddMMyyyy)|GiớiTinh|ĐịaChỉ|NgàyCấp
+            String[] parts = rawData.split("\\|");
+
+            if (parts.length >= 6) {
+                String cccd = parts[0];
+                String name = parts[2];
+                String dobRaw = parts[3]; // format: ddMMyyyy
+                String gender = parts[4];
+                String address = parts[5];
+
+                // 1. Điền Số CCCD
+                if (edtIdentityCard != null) edtIdentityCard.setText(cccd);
+
+                // 2. Điền Họ Tên (Viết hoa hết cho đẹp hoặc giữ nguyên)
+                edtFullName.setText(name.toUpperCase());
+
+                // 3. Xử lý Ngày sinh (từ ddMMyyyy -> dd-MM-yyyy)
+                if (dobRaw.length() == 8) {
+                    String day = dobRaw.substring(0, 2);
+                    String month = dobRaw.substring(2, 4);
+                    String year = dobRaw.substring(4, 8);
+                    edtBirthDate.setText(day + "-" + month + "-" + year);
+                }
+
+                // 5. Chọn Giới tính
+                // Spinner đang có: "Nam", "Nữ", "Khác"
+                if (gender.equalsIgnoreCase("Nam")) {
+                    spinnerGender.setSelection(0);
+                } else if (gender.equalsIgnoreCase("Nữ") || gender.equalsIgnoreCase("Nu")) {
+                    spinnerGender.setSelection(1);
+                } else {
+                    spinnerGender.setSelection(2);
+                }
+
+                Toast.makeText(this, "✅ Đã điền thông tin từ CCCD!", Toast.LENGTH_SHORT).show();
+            } else {
+                // Trường hợp quét mã QR không phải của CCCD hoặc chuẩn cũ
+                Toast.makeText(this, "Mã QR không đúng định dạng CCCD gắn chip!", Toast.LENGTH_LONG).show();
+            }
+
+        } catch (Exception e) {
+            e.printStackTrace();
+            Toast.makeText(this, "Lỗi xử lý dữ liệu: " + e.getMessage(), Toast.LENGTH_SHORT).show();
         }
     }
 }

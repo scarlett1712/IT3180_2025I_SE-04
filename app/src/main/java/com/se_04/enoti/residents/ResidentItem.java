@@ -18,6 +18,7 @@ public class ResidentItem {
     // 🔥 Thêm 2 trường mới
     private String identityCard;
     private String homeTown;
+    private String floor;
 
     // Constructor đầy đủ (cho Admin quản lý)
     public ResidentItem(int id, int userId, String name, String gender, String dob, String job, String email, String phone,
@@ -74,10 +75,23 @@ public class ResidentItem {
     public String getHomeTown() { return homeTown; }         // Getter mới
 
     public String getFloor() {
-        if (room != null && room.length() > 1) {
-            return room.substring(0, room.length() - 2);
-        } else {
-            return "N/A";
+        // 1. Nếu phòng chưa có hoặc rỗng -> Trả về Vô gia cư
+        if (room == null || room.trim().isEmpty()) {
+            return "Vô gia cư";
         }
+
+        if (room.equals("Vô gia cư")) {
+            return "Vô gia cư";
+        }
+
+        if (room.length() > 2 && room.matches("\\d+")) {
+            return room.substring(0, room.length() - 2);
+        }
+
+        return "Khác";
+    }
+
+    public void setFloor(String floor) {
+        this.floor = floor;
     }
 }

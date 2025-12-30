@@ -22,6 +22,13 @@
         android:textColor="#2196F3"
         android:layout_marginBottom="16dp"/>
 
+    <CheckBox
+        android:id="@+id/chkIsHead"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Người này là Chủ Hộ"
+        android:layout_marginBottom="16dp"/>
+
     <com.google.android.material.textfield.TextInputLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
@@ -34,12 +41,7 @@
             android:inputType="textCapWords" />
     </com.google.android.material.textfield.TextInputLayout>
 
-    <CheckBox
-        android:id="@+id/chkIsHead"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="Người này là Chủ Hộ"
-        android:layout_marginTop="12dp"/>
+
 
     <Button
         android:id="@+id/btnConfirmAdd"

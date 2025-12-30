@@ -60,6 +60,15 @@
                         android:textSize="14sp"
                         android:textStyle="bold" />
 
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/btnScanQR"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="Quét QR từ CCCD để điền nhanh"
+                        android:icon="@android:drawable/ic_menu_camera"
+                        android:layout_marginBottom="16dp"
+                        android:background="@drawable/bg_button_gradient"/>
+
                     <com.google.android.material.textfield.TextInputLayout
                         android:id="@+id/inputLayoutFullName"
                         style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
@@ -124,24 +133,7 @@
                         </LinearLayout>
                     </LinearLayout>
 
-                    <com.google.android.material.textfield.TextInputLayout
-                        android:id="@+id/inputLayoutJob"
-                        style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_marginBottom="16dp"
-                        android:hint="Nghề nghiệp"
-                        app:boxCornerRadiusBottomEnd="12dp"
-                        app:boxCornerRadiusBottomStart="12dp"
-                        app:boxCornerRadiusTopEnd="12dp"
-                        app:boxCornerRadiusTopStart="12dp">
 
-                        <com.google.android.material.textfield.TextInputEditText
-                            android:id="@+id/edtJob"
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:inputType="text" />
-                    </com.google.android.material.textfield.TextInputLayout>
 
                     <com.google.android.material.textfield.TextInputLayout
                         android:id="@+id/inputLayoutIdentity"
@@ -175,6 +167,26 @@
 
                         <com.google.android.material.textfield.TextInputEditText
                             android:id="@+id/edtHomeTown"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:inputType="text" />
+                    </com.google.android.material.textfield.TextInputLayout>
+
+                    <com.google.android.material.textfield.TextInputLayout
+                        android:id="@+id/inputLayoutJob"
+                        style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="16dp"
+                        android:layout_marginBottom="16dp"
+                        android:hint="Nghề nghiệp"
+                        app:boxCornerRadiusBottomEnd="12dp"
+                        app:boxCornerRadiusBottomStart="12dp"
+                        app:boxCornerRadiusTopEnd="12dp"
+                        app:boxCornerRadiusTopStart="12dp">
+
+                        <com.google.android.material.textfield.TextInputEditText
+                            android:id="@+id/edtJob"
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
                             android:inputType="text" />
