@@ -14,7 +14,7 @@ export const createInvoiceTable = async () => {
     await query(`
       CREATE TABLE IF NOT EXISTS invoice (
         invoice_id SERIAL PRIMARY KEY,
-        finance_id INTEGER NOT NULL, -- Đây là ID của dòng user_finances (người đại diện trả)
+        finance_id INTEGER NOT NULL, -- ID của dòng user_finances người đại diện trả
         amount NUMERIC(12, 2) NOT NULL,
         description TEXT,
         ordercode VARCHAR(255) UNIQUE NOT NULL,
@@ -44,14 +44,12 @@ router.post("/store", async (req, res) => {
     await client.query("BEGIN");
 
     // 1. Tìm hoặc tạo dòng user_finances cho người trả tiền (Payer)
-    // (Để lấy ID làm khóa ngoại cho bảng invoice)
     let ufResult = await client.query(
       "SELECT id FROM user_finances WHERE finance_id = $1 AND user_id = $2",
       [finance_id, user_id]
     );
 
     let payerUserFinanceId;
-
     if (ufResult.rows.length > 0) {
       payerUserFinanceId = ufResult.rows[0].id;
     } else {
@@ -62,8 +60,11 @@ router.post("/store", async (req, res) => {
       payerUserFinanceId = newUf.rows[0].id;
     }
 
-    // 2. Kiểm tra xem đã có hóa đơn nào cho khoản này (dựa trên ID người trả) chưa
-    const existing = await client.query("SELECT invoice_id FROM invoice WHERE finance_id = $1", [payerUserFinanceId]);
+    // 2. Kiểm tra xem đã có hóa đơn nào cho nhóm này chưa (tránh trùng lặp)
+    const existing = await client.query(
+      "SELECT i.invoice_id FROM invoice i JOIN user_finances uf ON i.finance_id = uf.id WHERE uf.finance_id = $1 AND uf.user_id = $2",
+      [finance_id, user_id]
+    );
 
     if (existing.rows.length > 0) {
       await client.query("ROLLBACK");
@@ -78,20 +79,18 @@ router.post("/store", async (req, res) => {
       [payerUserFinanceId, amount, description, ordercode, currency || "VND"]
     );
 
-    // 🔥 4. QUAN TRỌNG: CẬP NHẬT TRẠNG THÁI CHO CẢ PHÒNG
-    // Logic: Tìm tất cả user_id thuộc cùng phòng với người trả tiền (Payer) và update khoản thu tương ứng
+    // 4. CẬP NHẬT TRẠNG THÁI CHO CẢ PHÒNG (Gạch nợ đồng bộ)
     await client.query(`
       UPDATE user_finances
       SET status = 'da_thanh_toan'
-      WHERE finance_id = $1 -- ID khoản thu gốc (ví dụ: tiền điện tháng 12)
+      WHERE finance_id = $1
       AND user_id IN (
-        -- Subquery: Tìm tất cả user_id trong cùng 1 căn hộ
         SELECT ui_member.user_id
         FROM user_item ui_payer
         JOIN relationship r_payer ON ui_payer.relationship = r_payer.relationship_id
         JOIN relationship r_member ON r_payer.apartment_id = r_member.apartment_id
         JOIN user_item ui_member ON r_member.relationship_id = ui_member.relationship
-        WHERE ui_payer.user_id = $2 -- ID người trả tiền
+        WHERE ui_payer.user_id = $2
       )
     `, [finance_id, user_id]);
 
@@ -113,7 +112,11 @@ router.post("/store", async (req, res) => {
 router.get("/:ordercode", async (req, res) => {
   try {
     const result = await query(
-      "SELECT *, TO_CHAR(paytime, 'DD/MM/YYYY HH24:MI') as pay_time_formatted FROM invoice WHERE ordercode = $1",
+      `SELECT i.*, TO_CHAR(i.paytime, 'DD/MM/YYYY HH24:MI') as pay_time_formatted, ui.full_name as paid_by_name
+       FROM invoice i
+       JOIN user_finances uf ON i.finance_id = uf.id
+       JOIN user_item ui ON uf.user_id = ui.user_id
+       WHERE i.ordercode = $1`,
       [req.params.ordercode]
     );
     if (result.rowCount === 0) return res.status(404).json({ error: "Không tìm thấy" });
@@ -122,7 +125,7 @@ router.get("/:ordercode", async (req, res) => {
 });
 
 // ==================================================================
-// 🔥 3. LẤY INVOICE THEO FINANCE_ID (Logic tìm thông minh)
+// 🔥 3. LẤY INVOICE THEO FINANCE_ID (Tìm thông minh cho cả phòng)
 // ==================================================================
 router.get("/by-finance/:financeId", async (req, res) => {
   try {
@@ -131,19 +134,19 @@ router.get("/by-finance/:financeId", async (req, res) => {
 
     if (!user_id) return res.status(400).json({ error: "Thiếu user_id" });
 
-    // 1. Thử tìm chính xác theo User ID trước
+    // Bước 1: Tìm hóa đơn chính chủ trước
     let queryStr = `
-       SELECT i.*, TO_CHAR(i.paytime, 'DD/MM/YYYY HH24:MI') as pay_time_formatted
+       SELECT i.*, TO_CHAR(i.paytime, 'DD/MM/YYYY HH24:MI') as pay_time_formatted, ui.full_name as paid_by_name
        FROM invoice i
        JOIN user_finances uf ON i.finance_id = uf.id
+       JOIN user_item ui ON uf.user_id = ui.user_id
        WHERE uf.finance_id = $1 AND uf.user_id = $2
        LIMIT 1
     `;
     let result = await query(queryStr, [financeId, user_id]);
 
-    // 2. Nếu không tìm thấy, tìm hóa đơn của BẤT KỲ ai trong cùng phòng
+    // Bước 2: Nếu không thấy, tìm hóa đơn của bất kỳ ai trong phòng
     if (result.rowCount === 0) {
-        // Tìm Apartment ID của user này
         const roomRes = await query(`
             SELECT r.apartment_id
             FROM user_item ui

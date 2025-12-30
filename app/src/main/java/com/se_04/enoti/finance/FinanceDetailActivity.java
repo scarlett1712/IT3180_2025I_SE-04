@@ -3,6 +3,7 @@ package com.se_04.enoti.finance;
 import android.content.Intent;
 import android.net.Uri;
 import android.os.Bundle;
+import android.os.Handler;
 import android.util.Log;
 import android.view.MenuItem;
 import android.view.View;
@@ -13,6 +14,7 @@ import android.widget.Toast;
 import androidx.annotation.Nullable;
 import androidx.core.content.ContextCompat;
 
+import com.android.volley.DefaultRetryPolicy;
 import com.android.volley.Request;
 import com.android.volley.toolbox.JsonObjectRequest;
 import com.android.volley.toolbox.Volley;
@@ -57,10 +59,10 @@ public class FinanceDetailActivity extends BaseActivity {
         readIntentData(getIntent());
         fillBasicData();
 
-        // 3. Cập nhật UI ban đầu (tránh lag)
+        // 1. Cập nhật UI ban đầu dựa trên Intent để tránh màn hình trống
         updatePaymentUI();
 
-        // Sự kiện nút thanh toán
+        // 2. Sự kiện nút thanh toán
         btnPay.setOnClickListener(v -> {
             Intent payIntent = new Intent(FinanceDetailActivity.this, PayActivity.class);
             payIntent.putExtra("title", title);
@@ -71,15 +73,13 @@ public class FinanceDetailActivity extends BaseActivity {
         });
     }
 
-    // 🔥 QUAN TRỌNG: Kiểm tra lại trạng thái mỗi khi màn hình hiện lên
+    // 🔥 Cập nhật trạng thái mới nhất mỗi khi màn hình quay lại (Resume)
     @Override
     protected void onResume() {
         super.onResume();
-        // Delay 0.5s để đảm bảo server đã xử lý xong nếu vừa thanh toán
-        new android.os.Handler().postDelayed(this::refreshPaymentStatus, 500);
+        refreshPaymentStatus();
     }
 
-    // Xử lý DeepLink PayOS
     @Override
     protected void onNewIntent(Intent intent) {
         super.onNewIntent(intent);
@@ -107,6 +107,7 @@ public class FinanceDetailActivity extends BaseActivity {
             getSupportActionBar().setTitle("Chi tiết khoản thu");
             toolbar.setTitleTextColor(ContextCompat.getColor(this, android.R.color.white));
         }
+        toolbar.setNavigationOnClickListener(v -> finish());
     }
 
     private void fillBasicData() {
@@ -130,7 +131,6 @@ public class FinanceDetailActivity extends BaseActivity {
         dueDate = intent.getStringExtra("due_date");
         sender = intent.getStringExtra("sender");
         price = intent.getLongExtra("price", 0L);
-
         String status = intent.getStringExtra("payment_status");
         if (status != null) paymentStatus = status;
     }
@@ -149,7 +149,7 @@ public class FinanceDetailActivity extends BaseActivity {
         }
     }
 
-    // 🔥 API Lấy trạng thái mới nhất
+    // 🔥 API Lấy trạng thái mới nhất - Đã xử lý 404 thông minh
     private void refreshPaymentStatus() {
         int userId;
         try {
@@ -164,12 +164,19 @@ public class FinanceDetailActivity extends BaseActivity {
                     paymentStatus = status;
                     updatePaymentUI();
 
-                    // Nếu đã thanh toán -> Tải hóa đơn về
                     if ("da_thanh_toan".equalsIgnoreCase(status)) {
                         fetchInvoice();
                     }
                 },
-                error -> Log.e(TAG, "Lỗi lấy trạng thái: " + error.toString())
+                error -> {
+                    // 🔥 Xử lý 404: Nếu không có bản ghi nợ -> Coi như chưa thanh toán
+                    if (error.networkResponse != null && error.networkResponse.statusCode == 404) {
+                        paymentStatus = "chua_thanh_toan";
+                        updatePaymentUI();
+                    } else {
+                        Log.e(TAG, "Error fetching status: " + error.toString());
+                    }
+                }
         ) {
             @Override
             public Map<String, String> getHeaders() {
@@ -179,9 +186,12 @@ public class FinanceDetailActivity extends BaseActivity {
                 return headers;
             }
         };
+        // Tăng thời gian chờ lên 30s
+        request.setRetryPolicy(new DefaultRetryPolicy(30000, 1, 1.0f));
         Volley.newRequestQueue(this).add(request);
     }
 
+    // 🔥 Cập nhật giao diện dựa trên trạng thái (Ẩn/Hiện nút và hóa đơn)
     private void updatePaymentUI() {
         if ("da_thanh_toan".equalsIgnoreCase(paymentStatus)) {
             btnPay.setVisibility(View.GONE);
@@ -195,42 +205,31 @@ public class FinanceDetailActivity extends BaseActivity {
         }
     }
 
-    // API update trạng thái (khi PayOS trả về)
     private void updatePaymentStatusToServer(boolean success) {
-        String newStatus = success ? "da_thanh_toan" : "da_huy";
-        paymentStatus = newStatus;
-        updatePaymentUI();
+        if (!success) {
+            paymentStatus = "da_huy";
+            updatePaymentUI();
+            return;
+        }
 
         int userId = Integer.parseInt(UserManager.getInstance(getApplicationContext()).getID());
         JSONObject body = new JSONObject();
         try {
             body.put("user_id", userId);
             body.put("finance_id", financeId);
-            body.put("status", newStatus);
+            body.put("status", "da_thanh_toan");
         } catch (Exception ignored) {}
 
         String url = ApiConfig.BASE_URL + "/api/finance/user/update-status";
 
         JsonObjectRequest req = new JsonObjectRequest(Request.Method.PUT, url, body,
-                response -> {
-                    if (success) {
-                        new android.os.Handler().postDelayed(this::fetchInvoice, 500);
-                    }
-                },
+                response -> refreshPaymentStatus(),
                 error -> Log.e(TAG, "Lỗi update status")
-        ) {
-            @Override
-            public Map<String, String> getHeaders() {
-                Map<String, String> headers = new HashMap<>();
-                String token = UserManager.getInstance(getApplicationContext()).getAuthToken();
-                if (token != null) headers.put("Authorization", "Bearer " + token);
-                return headers;
-            }
-        };
+        );
         Volley.newRequestQueue(this).add(req);
     }
 
-    // 🔥 API Lấy hóa đơn
+    // 🔥 Lấy hóa đơn - Hỗ trợ hiển thị tên người đã thanh toán hộ (cùng phòng)
     private void fetchInvoice() {
         int userId = Integer.parseInt(UserManager.getInstance(getApplicationContext()).getID());
         String url = ApiConfig.BASE_URL + "/api/invoice/by-finance/" + financeId + "?user_id=" + userId;
@@ -248,6 +247,7 @@ public class FinanceDetailActivity extends BaseActivity {
                         txtAmount.setText(new DecimalFormat("#,###,###").format(amount) + " đ");
                         txtAmountInText.setText(VnNumberToWords.convert(amount));
 
+                        // Hiển thị nội dung kèm tên người trả tiền (nếu là người khác trong phòng)
                         if (!paidBy.isEmpty()) {
                             txtDetail.setText(desc + "\n(Người thanh toán: " + paidBy + ")");
                         } else {
@@ -259,10 +259,7 @@ public class FinanceDetailActivity extends BaseActivity {
 
                     } catch (Exception e) { e.printStackTrace(); }
                 },
-                error -> {
-                    // Nếu lỗi 404 thì thôi, không retry loop nữa để tránh lỗi
-                    Log.w(TAG, "Chưa tìm thấy hóa đơn (có thể server chưa tạo xong)");
-                }
+                error -> Log.e(TAG, "Hóa đơn chưa sẵn sàng hoặc không tìm thấy")
         ) {
             @Override
             public Map<String, String> getHeaders() {
@@ -272,6 +269,7 @@ public class FinanceDetailActivity extends BaseActivity {
                 return headers;
             }
         };
+        request.setRetryPolicy(new DefaultRetryPolicy(20000, 1, 1.0f));
         Volley.newRequestQueue(this).add(request);
     }
 
