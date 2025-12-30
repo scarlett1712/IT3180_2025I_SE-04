@@ -26,17 +26,17 @@ public class NotificationAdapter extends RecyclerView.Adapter<NotificationAdapte
 
     private final List<NotificationItem> notificationList = new ArrayList<>();
     private OnNotificationClickListener clickListener;
+    private final int currentViewType;
 
-    // 🔥 Callback interface
     public interface OnNotificationClickListener {
         void onNotificationClicked(long notificationId);
     }
 
-    public NotificationAdapter(List<NotificationItem> initial, int viewTypeHighlighted) {
+    public NotificationAdapter(List<NotificationItem> initial, int viewType) {
         if (initial != null) notificationList.addAll(initial);
+        this.currentViewType = viewType;
     }
 
-    // 🔥 Set click listener
     public void setOnNotificationClickListener(OnNotificationClickListener listener) {
         this.clickListener = listener;
     }
@@ -45,12 +45,11 @@ public class NotificationAdapter extends RecyclerView.Adapter<NotificationAdapte
         notificationList.clear();
         if (newList != null) notificationList.addAll(newList);
         notifyDataSetChanged();
-        Log.d(TAG, "📋 List updated with " + notificationList.size() + " items");
     }
 
     @Override
     public int getItemViewType(int position) {
-        return (position < 6) ? VIEW_TYPE_HIGHLIGHTED : VIEW_TYPE_NORMAL;
+        return currentViewType;
     }
 
     @NonNull
@@ -72,25 +71,36 @@ public class NotificationAdapter extends RecyclerView.Adapter<NotificationAdapte
         NotificationItem notification = notificationList.get(position);
         if (notification == null) return;
 
-        holder.txtTitle.setText(notification.getTitle());
+        // --- ĐIỀU CHỈNH KÍCH THƯỚC ---
+        ViewGroup.LayoutParams params = holder.itemView.getLayoutParams();
+        if (currentViewType == VIEW_TYPE_HIGHLIGHTED) {
+            params.width = (int) (holder.itemView.getContext().getResources().getDisplayMetrics().widthPixels * 0.9);
+            int heightInDp = 160;
+            params.height = (int) (heightInDp * holder.itemView.getContext().getResources().getDisplayMetrics().density);
 
-        // Display date logic
-        String displayDate = notification.getExpired_date();
-        if (displayDate == null || displayDate.isEmpty()) {
-            displayDate = notification.getDate();
+            holder.itemView.setMinimumHeight(params.height);
+        } else {
+            params.width = ViewGroup.LayoutParams.MATCH_PARENT;
+            params.height = ViewGroup.LayoutParams.WRAP_CONTENT;
         }
-        holder.txtDate.setText(displayDate);
+        holder.itemView.setLayoutParams(params);
 
+        // Bind dữ liệu
+        holder.txtTitle.setText(notification.getTitle());
+        String displayDate = (notification.getExpired_date() == null || notification.getExpired_date().isEmpty())
+                ? notification.getDate() : notification.getExpired_date();
+        holder.txtDate.setText(displayDate);
         holder.txtContent.setText(notification.getContent());
 
-        // 🔥 Visual indicator for read/unread status
-        if (notification.isRead()) {
-            holder.itemView.setAlpha(0.7f); // Dim read notifications
+        // 🔥 LOGIC LÀM MỜ: Nếu là HIGHLIGHTED thì luôn rõ nét (1.0f)
+        if (currentViewType == VIEW_TYPE_HIGHLIGHTED) {
+            holder.itemView.setAlpha(1.0f);
         } else {
-            holder.itemView.setAlpha(1.0f); // Full opacity for unread
+            // Chỉ làm mờ ở trang danh sách thông báo bình thường
+            holder.itemView.setAlpha(notification.isRead() ? 0.7f : 1.0f);
         }
 
-        // Handle click event
+        // Xử lý Click
         holder.itemView.setOnClickListener(v -> {
             int pos = holder.getAdapterPosition();
             if (pos == RecyclerView.NO_POSITION) return;
@@ -98,40 +108,17 @@ public class NotificationAdapter extends RecyclerView.Adapter<NotificationAdapte
             NotificationItem clicked = notificationList.get(pos);
             Context context = holder.itemView.getContext();
 
-            Log.d(TAG, "🖱️ Clicked notification ID: " + clicked.getId() + " (isRead: " + clicked.isRead() + ")");
-
-            // 🔥 Mark as read locally FIRST for immediate UI feedback
-            boolean wasUnread = !clicked.isRead();
-            if (wasUnread) {
+            if (!clicked.isRead()) {
                 clicked.setRead(true);
                 notifyItemChanged(pos);
-                Log.d(TAG, "📝 Updated local item to isRead=true");
+                if (clickListener != null) clickListener.onNotificationClicked(clicked.getId());
 
-                // Notify fragment to update cache
-                if (clickListener != null) {
-                    Log.d(TAG, "📞 Calling fragment callback");
-                    clickListener.onNotificationClicked(clicked.getId());
-                } else {
-                    Log.e(TAG, "❌ WARNING: clickListener is NULL! Fragment won't be notified!");
-                }
-
-                // Mark as read on server
                 NotificationRepository.getInstance(context).markAsRead(clicked.getId(), new NotificationRepository.SimpleCallback() {
-                    @Override
-                    public void onSuccess() {
-                        Log.d(TAG, "✅ Server confirmed notification " + clicked.getId() + " marked as read");
-                    }
-
-                    @Override
-                    public void onError(String message) {
-                        Log.e(TAG, "❌ Server error marking as read: " + message);
-                    }
+                    @Override public void onSuccess() { Log.d(TAG, "Marked as read"); }
+                    @Override public void onError(String msg) { Log.e(TAG, "Error: " + msg); }
                 });
-            } else {
-                Log.d(TAG, "ℹ️ Notification already marked as read, skipping update");
             }
 
-            // Open detail activity
             Intent intent;
             if (UserManager.getInstance(context).isAdmin()) {
                 intent = new Intent(context, NotificationDetailActivity_Admin.class);
@@ -141,15 +128,9 @@ public class NotificationAdapter extends RecyclerView.Adapter<NotificationAdapte
 
             intent.putExtra("notification_id", clicked.getId());
             intent.putExtra("title", clicked.getTitle());
-
-            String expDate = clicked.getExpired_date();
-            if (expDate == null || expDate.equals("null")) expDate = "";
-            intent.putExtra("expired_date", expDate);
             intent.putExtra("content", clicked.getContent());
             intent.putExtra("sender", clicked.getSender());
             intent.putExtra("is_read", clicked.isRead());
-
-            // 🔥 4. TRUYỀN DỮ LIỆU FILE QUA INTENT (QUAN TRỌNG)
             intent.putExtra("file_url", clicked.getFileUrl());
             intent.putExtra("file_type", clicked.getFileType());
 

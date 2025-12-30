@@ -82,11 +82,11 @@
                     <androidx.recyclerview.widget.RecyclerView
                         android:id="@+id/recyclerHighlightedNotifications"
                         android:layout_width="match_parent"
-                        android:layout_height="160dp"
+                        android:layout_height="165dp"
                         android:orientation="horizontal"
                         app:layoutManager="androidx.recyclerview.widget.LinearLayoutManager"
                         android:clipToPadding="false"
-                        android:paddingTop="30dp"
+                        android:paddingTop="5dp"
                         android:paddingHorizontal="8dp"/>
 
                     <LinearLayout

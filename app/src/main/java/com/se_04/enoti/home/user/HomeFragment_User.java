@@ -1,6 +1,5 @@
 package com.se_04.enoti.home.user;
 
-import android.content.Context;
 import android.content.Intent;
 import android.os.Bundle;
 import android.os.Handler;
@@ -12,7 +11,6 @@ import android.view.ViewGroup;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.TextView;
-import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
@@ -22,7 +20,6 @@ import androidx.recyclerview.widget.PagerSnapHelper;
 import androidx.recyclerview.widget.RecyclerView;
 import androidx.recyclerview.widget.SnapHelper;
 
-import com.google.android.material.snackbar.Snackbar;
 import com.se_04.enoti.R;
 import com.se_04.enoti.account.UserItem;
 import com.se_04.enoti.notification.NotificationAdapter;
@@ -38,7 +35,8 @@ public class HomeFragment_User extends Fragment {
 
     private static final String TAG = "HomeFragment_User";
     private static final int MAX_HIGHLIGHTED_NOTIFICATIONS = 6;
-    private static final int REFRESH_INTERVAL = 3000; // Tự động làm mới mỗi 3 giây
+    private static final int AUTO_SCROLL_INTERVAL = 6300; // 6.3 giây trượt 1 lần
+    private static final int DATA_REFRESH_INTERVAL = 30000; // 30 giây load lại data từ server 1 lần
 
     private NotificationAdapter adapter;
     private RecyclerView recyclerView;
@@ -46,15 +44,37 @@ public class HomeFragment_User extends Fragment {
     private LinearLayoutManager layoutManager;
     private SnapHelper snapHelper;
 
-    // Handler để chạy auto-refresh
+    private int currentPage = 0;
     private final Handler handler = new Handler(Looper.getMainLooper());
-    private final Runnable refreshRunnable = new Runnable() {
+
+    // 🔥 Luồng 1: Tự động trượt Banner
+    private final Runnable autoScrollRunnable = new Runnable() {
+        @Override
+        public void run() {
+            if (!isAdded() || adapter == null || layoutManager == null) return;
+
+            int itemCount = adapter.getItemCount();
+            if (itemCount > 1) {
+                // Tính toán trang tiếp theo (Vòng lặp: nếu là cuối thì về 0)
+                currentPage = (currentPage + 1) % itemCount;
+
+                // Trượt mượt mà
+                recyclerView.smoothScrollToPosition(currentPage);
+
+                // Cập nhật dấu chấm
+                updateDots(currentPage, itemCount);
+            }
+            handler.postDelayed(this, AUTO_SCROLL_INTERVAL);
+        }
+    };
+
+    // 🔥 Luồng 2: Tự động cập nhật dữ liệu từ Server (Polling)
+    private final Runnable dataRefreshRunnable = new Runnable() {
         @Override
         public void run() {
             if (isAdded()) {
                 loadHighlightedNotifications();
-                // Lặp lại sau mỗi khoảng thời gian
-                handler.postDelayed(this, REFRESH_INTERVAL);
+                handler.postDelayed(this, DATA_REFRESH_INTERVAL);
             }
         }
     };
@@ -71,21 +91,26 @@ public class HomeFragment_User extends Fragment {
         return view;
     }
 
-    // 🔥 LIFECYCLE: Bắt đầu refresh khi màn hình hiện
     @Override
     public void onResume() {
         super.onResume();
-        Log.d(TAG, "▶️ HomeFragment_User resumed — starting auto-refresh");
+        Log.d(TAG, "▶️ HomeFragment_User resumed — starting auto-scroll & refresh");
         loadHighlightedNotifications();
-        handler.removeCallbacks(refreshRunnable); // Xóa callback cũ để tránh chồng chéo
-        handler.postDelayed(refreshRunnable, REFRESH_INTERVAL);
+
+        // Bắt đầu các tiến trình chạy tự động
+        handler.removeCallbacks(autoScrollRunnable);
+        handler.removeCallbacks(dataRefreshRunnable);
+        handler.postDelayed(autoScrollRunnable, AUTO_SCROLL_INTERVAL);
+        handler.postDelayed(dataRefreshRunnable, DATA_REFRESH_INTERVAL);
     }
 
-    // 🔥 LIFECYCLE: Dừng refresh khi màn hình ẩn
     @Override
     public void onPause() {
         super.onPause();
-        handler.removeCallbacks(refreshRunnable);
+        Log.d(TAG, "⏸️ HomeFragment_User paused — stopping auto-scroll");
+        // Dừng tất cả để tránh tốn pin và lỗi memory leak
+        handler.removeCallbacks(autoScrollRunnable);
+        handler.removeCallbacks(dataRefreshRunnable);
     }
 
     private void setupWelcomeViews(View view) {
@@ -94,8 +119,7 @@ public class HomeFragment_User extends Fragment {
 
         UserItem currentUser = UserManager.getInstance(requireContext()).getCurrentUser();
         String username = (currentUser != null && currentUser.getName() != null)
-                ? currentUser.getName()
-                : "Cư dân";
+                ? currentUser.getName() : "Cư dân";
 
         txtWelcome.setText(getString(R.string.welcome, username));
 
@@ -110,6 +134,7 @@ public class HomeFragment_User extends Fragment {
     private void setupRecyclerView(View view) {
         recyclerView = view.findViewById(R.id.recyclerHighlightedNotifications);
         indicatorLayout = view.findViewById(R.id.indicatorLayout);
+
         layoutManager = new LinearLayoutManager(requireContext(), LinearLayoutManager.HORIZONTAL, false);
         recyclerView.setLayoutManager(layoutManager);
 
@@ -118,67 +143,8 @@ public class HomeFragment_User extends Fragment {
 
         snapHelper = new PagerSnapHelper();
         snapHelper.attachToRecyclerView(recyclerView);
-    }
 
-    private void loadHighlightedNotifications() {
-        // Kiểm tra context để tránh crash khi fragment chưa gắn vào activity
-        if (!isAdded() || getContext() == null) return;
-
-        UserItem currentUser = UserManager.getInstance(requireContext()).getCurrentUser();
-        if (currentUser == null || currentUser.getId() == null) {
-            Log.e(TAG, "❌ Cannot load notifications: user or user ID is null.");
-            return;
-        }
-
-        long userId;
-        try {
-            userId = Long.parseLong(currentUser.getId());
-        } catch (NumberFormatException e) {
-            Log.e(TAG, "❌ Could not parse user ID: " + currentUser.getId(), e);
-            return;
-        }
-
-        NotificationRepository.getInstance(requireContext()).fetchNotifications(userId, new NotificationRepository.NotificationsCallback() {
-            @Override
-            public void onSuccess(List<NotificationItem> items) {
-                if (isAdded() && items != null) {
-                    // Lấy tối đa 6 thông báo mới nhất để hiển thị nổi bật
-                    int listSize = Math.min(items.size(), MAX_HIGHLIGHTED_NOTIFICATIONS);
-                    List<NotificationItem> limitedList = items.subList(0, listSize);
-
-                    adapter.updateList(limitedList);
-                    setupIndicator(limitedList.size());
-                }
-            }
-
-            @Override
-            public void onError(String message) {
-                if (isAdded()) {
-                    // Log lỗi âm thầm thay vì hiện Toast liên tục (vì đang chạy polling)
-                    Log.e(TAG, "⚠️ Failed to fetch notifications: " + message);
-                }
-            }
-        });
-    }
-
-    private void setupIndicator(int itemCount) {
-        indicatorLayout.removeAllViews();
-        if (itemCount <= 1) return;
-
-        ImageView[] dots = new ImageView[itemCount];
-        for (int i = 0; i < itemCount; i++) {
-            dots[i] = new ImageView(requireContext());
-            dots[i].setImageResource(i == 0 ? R.drawable.indicator_active : R.drawable.indicator_inactive);
-
-            LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
-                    ViewGroup.LayoutParams.WRAP_CONTENT,
-                    ViewGroup.LayoutParams.WRAP_CONTENT
-            );
-            params.setMargins(8, 0, 8, 0);
-            indicatorLayout.addView(dots[i], params);
-        }
-
-        recyclerView.clearOnScrollListeners();
+        // Lắng nghe sự kiện người dùng vuốt tay để cập nhật chỉ số trang hiện tại
         recyclerView.addOnScrollListener(new RecyclerView.OnScrollListener() {
             @Override
             public void onScrollStateChanged(@NonNull RecyclerView recyclerView, int newState) {
@@ -186,41 +152,85 @@ public class HomeFragment_User extends Fragment {
                 if (newState == RecyclerView.SCROLL_STATE_IDLE) {
                     View centerView = snapHelper.findSnapView(layoutManager);
                     if (centerView != null) {
-                        int pos = layoutManager.getPosition(centerView);
-                        for (int i = 0; i < itemCount; i++) {
-                            if (i < indicatorLayout.getChildCount()) {
-                                ImageView dot = (ImageView) indicatorLayout.getChildAt(i);
-                                dot.setImageResource(i == pos ? R.drawable.indicator_active : R.drawable.indicator_inactive);
-                            }
-                        }
+                        currentPage = layoutManager.getPosition(centerView);
+                        updateDots(currentPage, adapter.getItemCount());
                     }
                 }
             }
         });
     }
 
+    private void loadHighlightedNotifications() {
+        if (!isAdded() || getContext() == null) return;
+
+        UserItem currentUser = UserManager.getInstance(requireContext()).getCurrentUser();
+        if (currentUser == null || currentUser.getId() == null) return;
+
+        try {
+            long userId = Long.parseLong(currentUser.getId());
+            NotificationRepository.getInstance(requireContext()).fetchNotifications(userId, new NotificationRepository.NotificationsCallback() {
+                @Override
+                public void onSuccess(List<NotificationItem> items) {
+                    if (isAdded() && items != null && !items.isEmpty()) {
+                        int listSize = Math.min(items.size(), MAX_HIGHLIGHTED_NOTIFICATIONS);
+                        List<NotificationItem> limitedList = items.subList(0, listSize);
+
+                        adapter.updateList(limitedList);
+                        setupIndicator(limitedList.size());
+                    }
+                }
+
+                @Override
+                public void onError(String message) {
+                    Log.e(TAG, "⚠️ Load error: " + message);
+                }
+            });
+        } catch (Exception e) {
+            Log.e(TAG, "❌ Error parsing ID", e);
+        }
+    }
+
+    private void setupIndicator(int itemCount) {
+        if (indicatorLayout == null) return;
+        indicatorLayout.removeAllViews();
+        if (itemCount <= 1) return;
+
+        for (int i = 0; i < itemCount; i++) {
+            ImageView dot = new ImageView(requireContext());
+            // Highlight trang hiện tại
+            dot.setImageResource(i == currentPage ? R.drawable.indicator_active : R.drawable.indicator_inactive);
+
+            LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.WRAP_CONTENT,
+                    ViewGroup.LayoutParams.WRAP_CONTENT
+            );
+            params.setMargins(8, 0, 8, 0);
+            indicatorLayout.addView(dot, params);
+        }
+    }
+
+    private void updateDots(int position, int itemCount) {
+        if (indicatorLayout == null || itemCount <= 1) return;
+        for (int i = 0; i < itemCount; i++) {
+            if (i < indicatorLayout.getChildCount()) {
+                ImageView dot = (ImageView) indicatorLayout.getChildAt(i);
+                dot.setImageResource(i == position ? R.drawable.indicator_active : R.drawable.indicator_inactive);
+            }
+        }
+    }
+
     private void setupQuickNav(View view) {
         view.findViewById(R.id.layoutNotification).setOnClickListener(v -> {
-            if (getActivity() instanceof MainActivity_User) {
-                ((MainActivity_User) getActivity()).switchToNotificationsTab();
-            }
+            if (getActivity() instanceof MainActivity_User) ((MainActivity_User) getActivity()).switchToNotificationsTab();
         });
         view.findViewById(R.id.layoutFinance).setOnClickListener(v -> {
-            if (getActivity() instanceof MainActivity_User) {
-                ((MainActivity_User) getActivity()).switchToFinanceTab();
-            }
+            if (getActivity() instanceof MainActivity_User) ((MainActivity_User) getActivity()).switchToFinanceTab();
         });
         view.findViewById(R.id.layoutFeedback).setOnClickListener(v -> {
-            if (getActivity() instanceof MainActivity_User) {
-                ((MainActivity_User) getActivity()).switchToFeedbackTab();
-            }
+            if (getActivity() instanceof MainActivity_User) ((MainActivity_User) getActivity()).switchToFeedbackTab();
         });
-
         view.findViewById(R.id.layoutAsset).setOnClickListener(v -> {
-            if (getActivity() instanceof MainActivity_User) {
-                ((MainActivity_User) getActivity()).switchToAssetTab();
-            }
+            if (getActivity() instanceof MainActivity_User) ((MainActivity_User) getActivity()).switchToAssetTab();
         });
-
     }
 }
