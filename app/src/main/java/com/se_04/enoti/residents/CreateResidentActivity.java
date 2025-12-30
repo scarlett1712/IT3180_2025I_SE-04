@@ -72,11 +72,18 @@ public class CreateResidentActivity extends BaseActivity {
 
         // Logic Checkbox Chủ hộ
         checkboxIsHouseholder.setOnCheckedChangeListener((buttonView, isChecked) -> {
-            edtRelation.setEnabled(!isChecked);
             if (isChecked) {
-                edtRelation.setText("Bản thân"); // Tự động điền nếu là chủ hộ
+                // TRƯỜNG HỢP: Tích chọn là Chủ Hộ
+                edtRelation.setText("Bản thân");      // 1. Tự động điền
+                edtRelation.setEnabled(false);        // 2. Khóa không cho sửa
+                edtRelation.setAlpha(0.7f);           // 3. Làm mờ đi cho dễ nhận biết
+                edtRelation.setError(null);           // 4. Xóa báo lỗi cũ (nếu có)
             } else {
-                edtRelation.setText("");
+                // TRƯỜNG HỢP: Bỏ chọn (Là thành viên)
+                edtRelation.setText("");              // 1. Xóa chữ "Bản thân"
+                edtRelation.setEnabled(true);         // 2. Mở khóa cho nhập lại
+                edtRelation.setAlpha(1.0f);           // 3. Làm sáng lại
+                edtRelation.requestFocus();           // 4. Focus vào để nhập luôn
             }
         });
 

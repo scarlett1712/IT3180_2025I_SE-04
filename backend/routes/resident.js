@@ -263,7 +263,7 @@ router.put("/assign-apartment", verifySession, async (req, res) => {
     try {
         await client.query("BEGIN");
 
-        // 1. Lấy thông tin relationship hiện tại của user đang sửa
+        // 1. Lấy thông tin relationship hiện tại
         const userRes = await client.query("SELECT relationship FROM user_item WHERE user_id = $1", [user_id]);
         if (userRes.rows.length === 0) {
             await client.query("ROLLBACK");
@@ -272,10 +272,9 @@ router.put("/assign-apartment", verifySession, async (req, res) => {
         const currentUserRelationshipId = userRes.rows[0].relationship;
 
         // ==========================================================
-        // 🔥 KIỂM TRA LOGIC CHỦ HỘ (MỚI)
+        // 🔥 KIỂM TRA LOGIC CHỦ HỘ (Chặn trùng chủ hộ)
         // ==========================================================
         if (apartment_id && is_head === true) {
-            // Tìm xem phòng này hiện tại đã có ai là chủ hộ chưa?
             const checkHead = await client.query(
                 `SELECT relationship_id
                  FROM relationship
@@ -285,9 +284,6 @@ router.put("/assign-apartment", verifySession, async (req, res) => {
 
             if (checkHead.rows.length > 0) {
                 const existingHeadId = checkHead.rows[0].relationship_id;
-
-                // Nếu đã có chủ hộ, VÀ chủ hộ đó KHÔNG PHẢI là người mình đang sửa
-                // (Trường hợp currentUserRelationshipId null nghĩa là người này chưa có relationship -> chắc chắn khác existingHeadId)
                 if (!currentUserRelationshipId || existingHeadId !== currentUserRelationshipId) {
                     await client.query("ROLLBACK");
                     return res.status(400).json({
@@ -298,10 +294,10 @@ router.put("/assign-apartment", verifySession, async (req, res) => {
         }
 
         // ==========================================================
-        // 2. XỬ LÝ CẬP NHẬT (GIỮ NGUYÊN LOGIC CŨ)
+        // 2. XỬ LÝ CẬP NHẬT
         // ==========================================================
 
-        // TRƯỜNG HỢP: ĐUỔI KHỎI PHÒNG
+        // TRƯỜNG HỢP: ĐUỔI KHỎI PHÒNG (apartment_id = null)
         if (!apartment_id) {
             await client.query("UPDATE user_item SET relationship = NULL WHERE user_id = $1", [user_id]);
             if (currentUserRelationshipId) {
@@ -309,15 +305,17 @@ router.put("/assign-apartment", verifySession, async (req, res) => {
             }
         }
 
-        // TRƯỜNG HỢP: THÊM/CẬP NHẬT VÀO PHÒNG
+        // TRƯỜNG HỢP: THÊM/CHUYỂN VÀO PHÒNG
         else {
+            const finalRelationship = is_head ? 'Bản thân' : (relationship || "Thành viên");
+
             // B1: Tạo Relationship Mới
             const insertRel = await client.query(
                 `INSERT INTO relationship
                 (apartment_id, relationship_with_the_head_of_household, is_head_of_household)
                 VALUES ($1, $2, $3)
                 RETURNING relationship_id`,
-                [apartment_id, relationship || "Thành viên", is_head || false]
+                [apartment_id, finalRelationship, is_head || false]
             );
 
             const newRelationshipId = insertRel.rows[0].relationship_id;
@@ -328,10 +326,17 @@ router.put("/assign-apartment", verifySession, async (req, res) => {
                 [newRelationshipId, user_id]
             );
 
-            // B3: Dọn dẹp relationship cũ (nếu ID thay đổi)
+            // B3: Dọn dẹp relationship cũ
             if (currentUserRelationshipId && currentUserRelationshipId !== newRelationshipId) {
                 await client.query("DELETE FROM relationship WHERE relationship_id = $1", [currentUserRelationshipId]);
             }
+
+            // 🔥 LOGIC 2: CẬP NHẬT TRẠNG THÁI PHÒNG -> 'Occupied'
+            // Đảm bảo phòng chuyển sang trạng thái "Có người ở"
+            await client.query(
+                "UPDATE apartment SET status = 'Occupied' WHERE apartment_id = $1",
+                [apartment_id]
+            );
         }
 
         await client.query("COMMIT");
@@ -340,9 +345,8 @@ router.put("/assign-apartment", verifySession, async (req, res) => {
     } catch (err) {
         await client.query("ROLLBACK");
         console.error("Assign Apartment Error:", err);
-        // Nếu dính lỗi Constraint DB thì báo lỗi dễ hiểu
-        if (err.code === '23505') { // Unique violation
-            return res.status(400).json({ error: "Phòng này đã có chủ hộ (Lỗi CSDL)." });
+        if (err.code === '23505') {
+            return res.status(400).json({ error: "Dữ liệu bị xung đột (Lỗi CSDL)." });
         }
         res.status(500).json({ error: "Lỗi Server: " + err.message });
     } finally {
