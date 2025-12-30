@@ -133,40 +133,40 @@ router.put("/update/:id", verifySession, async (req, res) => {
   }
 });
 
-// ==================================================================
 // 🗑️ 5. [DELETE] XÓA PHÒNG
-// API: /api/apartments/delete/:id
-// ==================================================================
 router.delete("/delete/:id", verifySession, async (req, res) => {
   const { id } = req.params;
+  const client = await pool.connect();
 
   try {
-    // ⚠️ Kiểm tra xem phòng có đang có người ở không (bảng relationship/user_item)
-    // Nếu có, chặn xóa để tránh lỗi dữ liệu mồ côi
-    const checkOccupied = await query(
-        `SELECT r.relationship_id
-         FROM relationship r
-         WHERE r.apartment_id = $1`,
+    await client.query("BEGIN");
+
+    // 1. Cập nhật bảng relationship: Set apartment_id = NULL cho tất cả cư dân trong phòng này
+    // Đồng thời set is_head_of_household = FALSE (vì không còn phòng để làm chủ hộ)
+    await client.query(
+        `UPDATE relationship
+         SET apartment_id = NULL, is_head_of_household = FALSE
+         WHERE apartment_id = $1`,
          [id]
     );
 
-    if (checkOccupied.rows.length > 0) {
-        return res.status(400).json({
-            error: "Không thể xóa phòng này vì đang có cư dân hoặc lịch sử thuê. Hãy xóa cư dân trước."
-        });
-    }
-
-    const result = await query("DELETE FROM apartment WHERE apartment_id = $1 RETURNING apartment_id", [id]);
+    // 3. Tiến hành xóa phòng
+    const result = await client.query("DELETE FROM apartment WHERE apartment_id = $1 RETURNING apartment_id", [id]);
 
     if (result.rows.length === 0) {
+      await client.query("ROLLBACK");
       return res.status(404).json({ error: "Phòng không tồn tại" });
     }
 
-    res.json({ success: true, message: "Đã xóa phòng thành công" });
+    await client.query("COMMIT");
+    res.json({ success: true, message: "Đã xóa phòng. Cư dân đã được chuyển sang danh sách 'Vô gia cư'." });
 
   } catch (err) {
+    await client.query("ROLLBACK");
     console.error("Lỗi xóa phòng:", err);
-    res.status(500).json({ error: "Lỗi server (Có thể do ràng buộc khóa ngoại)" });
+    res.status(500).json({ error: "Lỗi server: " + err.message });
+  } finally {
+    client.release();
   }
 });
 

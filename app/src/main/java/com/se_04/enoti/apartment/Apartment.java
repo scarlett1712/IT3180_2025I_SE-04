@@ -22,4 +22,14 @@ public class Apartment implements Serializable {
     public int getFloor() { return floor; }
     public double getArea() { return area; }
     public String getStatus() { return status; }
+
+    public void setApartmentNumber(String apartment_number) {
+        this.apartment_number = apartment_number;
+    }
+    public void setFloor(int floor) {
+        this.floor = floor;
+    }
+    public void setArea(double area) {
+        this.area = area;
+    }
 }

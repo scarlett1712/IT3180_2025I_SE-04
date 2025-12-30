@@ -36,16 +36,13 @@ public class ApartmentManagerActivity extends BaseActivity {
 
     private RecyclerView recyclerView;
     private FloatingActionButton fabAdd;
-    private LinearLayout layoutEmpty;       // View hiển thị khi không có dữ liệu
-    private SearchView searchView;          // Thanh tìm kiếm
-    private Spinner spinnerStatus;          // Bộ lọc trạng thái
+    private LinearLayout layoutEmpty;
+    private SearchView searchView;
+    private Spinner spinnerStatus;
     private MaterialToolbar toolbar;
 
     private ApartmentAdapter adapter;
-
-    // fullList: Lưu toàn bộ dữ liệu tải từ Server
     private List<Apartment> fullList = new ArrayList<>();
-    // displayList: Lưu dữ liệu sau khi lọc để hiển thị lên màn hình
     private List<Apartment> displayList = new ArrayList<>();
 
     @Override
@@ -53,7 +50,6 @@ public class ApartmentManagerActivity extends BaseActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_apartment_manager);
 
-        // 1. Ánh xạ View theo Layout mới
         toolbar = findViewById(R.id.toolbar);
         recyclerView = findViewById(R.id.recyclerView);
         fabAdd = findViewById(R.id.fabAdd);
@@ -61,26 +57,32 @@ public class ApartmentManagerActivity extends BaseActivity {
         searchView = findViewById(R.id.searchView);
         spinnerStatus = findViewById(R.id.spinnerStatusFilter);
 
-        // 2. Setup Toolbar
         setSupportActionBar(toolbar);
+        if (getSupportActionBar() != null) {
+            getSupportActionBar().setTitle("Quản lý Căn hộ");
+            getSupportActionBar().setDisplayHomeAsUpEnabled(true);
+        }
         toolbar.setNavigationOnClickListener(v -> finish());
 
-        // 3. Setup RecyclerView
         recyclerView.setLayoutManager(new LinearLayoutManager(this));
-        // Lưu ý: Adapter sử dụng displayList (danh sách đã lọc)
+
+        // Cấu hình Adapter
         adapter = new ApartmentAdapter(displayList, new ApartmentAdapter.OnItemClickListener() {
             @Override
             public void onItemClick(Apartment apartment) {
-                Intent intent = new Intent(ApartmentManagerActivity.this, ApartmentEditorActivity.class);
+                // 🔥 SỬA ĐỔI QUAN TRỌNG:
+                // Bấm vào item -> Mở màn hình quản lý CƯ DÂN trong phòng đó
+                Intent intent = new Intent(ApartmentManagerActivity.this, ApartmentResidentsActivity.class);
                 intent.putExtra("apartment", apartment);
                 startActivity(intent);
             }
 
             @Override
             public void onItemLongClick(Apartment apartment) {
+                // Giữ lì -> Xóa phòng (Backend đã xử lý việc đẩy dân ra đường)
                 new AlertDialog.Builder(ApartmentManagerActivity.this)
                         .setTitle("Xóa phòng " + apartment.getApartmentNumber() + "?")
-                        .setMessage("Hành động này không thể hoàn tác.")
+                        .setMessage("Hành động này sẽ chuyển tất cả cư dân trong phòng sang danh sách 'Vô gia cư'. Bạn có chắc không?")
                         .setPositiveButton("Xóa", (dialog, which) -> deleteApartment(apartment.getId()))
                         .setNegativeButton("Hủy", null)
                         .show();
@@ -88,23 +90,23 @@ public class ApartmentManagerActivity extends BaseActivity {
         });
         recyclerView.setAdapter(adapter);
 
-        // 4. Setup Spinner (Bộ lọc trạng thái)
+        // Setup Spinner Lọc trạng thái
         String[] filters = {"Tất cả", "Trống", "Đã có người"};
         ArrayAdapter<String> spinnerAdapter = new ArrayAdapter<>(this, android.R.layout.simple_spinner_item, filters);
         spinnerAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
         spinnerStatus.setAdapter(spinnerAdapter);
 
-        // Sự kiện chọn Spinner
         spinnerStatus.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
             @Override
             public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
-                filterData(searchView.getQuery().toString());
+                String query = (searchView.getQuery() != null) ? searchView.getQuery().toString() : "";
+                filterData(query);
             }
             @Override
             public void onNothingSelected(AdapterView<?> parent) {}
         });
 
-        // 5. Setup SearchView (Tìm kiếm)
+        // Setup Tìm kiếm
         searchView.setOnQueryTextListener(new SearchView.OnQueryTextListener() {
             @Override
             public boolean onQueryTextSubmit(String query) {
@@ -119,8 +121,9 @@ public class ApartmentManagerActivity extends BaseActivity {
             }
         });
 
-        // 6. Sự kiện nút Thêm
+        // Nút thêm phòng mới
         fabAdd.setOnClickListener(v -> {
+            // Vẫn giữ tính năng thêm phòng mới (Editor)
             startActivity(new Intent(this, ApartmentEditorActivity.class));
         });
     }
@@ -135,24 +138,35 @@ public class ApartmentManagerActivity extends BaseActivity {
         String GET_APARTMENTS = ApiConfig.BASE_URL + "/api/apartments";
         JsonArrayRequest request = new JsonArrayRequest(Request.Method.GET, GET_APARTMENTS, null,
                 response -> {
-                    fullList.clear(); // Xóa danh sách gốc cũ
-                    try {
-                        for (int i = 0; i < response.length(); i++) {
+                    fullList.clear();
+                    for (int i = 0; i < response.length(); i++) {
+                        try {
                             JSONObject obj = response.getJSONObject(i);
+
+                            // Lọc bỏ dữ liệu lỗi (số phòng null)
+                            if (obj.isNull("apartment_number")) continue;
+                            String aptNum = obj.optString("apartment_number", "").trim();
+                            if (aptNum.isEmpty() || aptNum.equalsIgnoreCase("null")) continue;
+
                             fullList.add(new Apartment(
-                                    obj.getInt("apartment_id"),
-                                    obj.getString("apartment_number"),
-                                    obj.getInt("floor"),
-                                    obj.getDouble("area"),
+                                    obj.optInt("apartment_id", -1),
+                                    aptNum,
+                                    obj.optInt("floor", 0),
+                                    obj.optDouble("area", 0.0),
                                     obj.optString("status", "trong")
                             ));
+                        } catch (Exception e) {
+                            e.printStackTrace();
                         }
-                        // Sau khi tải xong, gọi hàm lọc để cập nhật displayList và UI
-                        filterData(searchView.getQuery().toString());
-
-                    } catch (Exception e) { e.printStackTrace(); }
+                    }
+                    // Cập nhật giao diện
+                    String currentQuery = (searchView.getQuery() != null) ? searchView.getQuery().toString() : "";
+                    filterData(currentQuery);
                 },
-                error -> Toast.makeText(this, "Lỗi tải dữ liệu", Toast.LENGTH_SHORT).show()
+                error -> {
+                    Toast.makeText(this, "Lỗi tải dữ liệu", Toast.LENGTH_SHORT).show();
+                    error.printStackTrace();
+                }
         ) {
             @Override
             public Map<String, String> getHeaders() {
@@ -165,35 +179,37 @@ public class ApartmentManagerActivity extends BaseActivity {
         Volley.newRequestQueue(this).add(request);
     }
 
-    // 🔥 Hàm lọc dữ liệu kết hợp Tìm kiếm & Spinner
     private void filterData(String keyword) {
         displayList.clear();
-        String selectedStatus = spinnerStatus.getSelectedItem().toString();
-        String searchLower = keyword.toLowerCase().trim();
+        String searchLower = (keyword == null) ? "" : keyword.toLowerCase().trim();
+
+        String selectedStatus = "Tất cả";
+        if (spinnerStatus.getSelectedItem() != null) {
+            selectedStatus = spinnerStatus.getSelectedItem().toString();
+        }
 
         for (Apartment item : fullList) {
-            // 1. Kiểm tra từ khóa tìm kiếm (Số phòng)
-            boolean matchesKeyword = item.getApartmentNumber().toLowerCase().contains(searchLower);
+            // 1. Tìm kiếm theo số phòng
+            String aptNum = item.getApartmentNumber();
+            boolean matchesKeyword = (aptNum != null) && aptNum.toLowerCase().contains(searchLower);
 
-            // 2. Kiểm tra trạng thái Spinner
+            // 2. Lọc theo trạng thái
             boolean matchesStatus = true;
+            String status = item.getStatus();
+
             if (selectedStatus.equals("Trống")) {
-                // Giả sử DB lưu 'trong' hoặc null là trống, 'occupied' là có người
-                matchesStatus = !"occupied".equalsIgnoreCase(item.getStatus());
+                matchesStatus = !"Occupied".equalsIgnoreCase(status);
             } else if (selectedStatus.equals("Đã có người")) {
-                matchesStatus = "occupied".equalsIgnoreCase(item.getStatus());
+                matchesStatus = "Occupied".equalsIgnoreCase(status);
             }
 
-            // Nếu thỏa mãn cả 2 điều kiện
             if (matchesKeyword && matchesStatus) {
                 displayList.add(item);
             }
         }
 
-        // Cập nhật giao diện
         adapter.notifyDataSetChanged();
 
-        // Hiển thị layout Empty nếu không có kết quả
         if (displayList.isEmpty()) {
             layoutEmpty.setVisibility(View.VISIBLE);
             recyclerView.setVisibility(View.GONE);
@@ -206,12 +222,13 @@ public class ApartmentManagerActivity extends BaseActivity {
     private void deleteApartment(int id) {
         String DELETE_APARTMENT = ApiConfig.BASE_URL + "/api/apartments/delete/";
         String url = DELETE_APARTMENT + id;
+
         JsonObjectRequest request = new JsonObjectRequest(Request.Method.DELETE, url, null,
                 response -> {
-                    Toast.makeText(this, "Đã xóa!", Toast.LENGTH_SHORT).show();
-                    loadData(); // Tải lại dữ liệu sau khi xóa
+                    Toast.makeText(this, "Đã xóa phòng!", Toast.LENGTH_SHORT).show();
+                    loadData();
                 },
-                error -> Toast.makeText(this, "Không thể xóa (Có thể đang có người ở)", Toast.LENGTH_LONG).show()
+                error -> Toast.makeText(this, "Lỗi xóa phòng: " + error.getMessage(), Toast.LENGTH_LONG).show()
         ) {
             @Override
             public Map<String, String> getHeaders() {

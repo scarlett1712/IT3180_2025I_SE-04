@@ -38,5 +38,10 @@
             android:textStyle="italic"
             android:textColor="#4CAF50"/>
     </LinearLayout>
-    <View android:layout_width="match_parent" android:layout_height="1dp" android:background="#E0E0E0" android:layout_marginTop="8dp"/>
+
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="1dp"
+        android:background="#E0E0E0"
+        android:layout_marginTop="8dp"/>
 </LinearLayout>
