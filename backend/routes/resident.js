@@ -7,25 +7,17 @@ const query = (text, params) => pool.query(text, params);
 
 /**
  * 🛠️ Helper: Chuẩn hóa ngày tháng sang định dạng YYYY-MM-DD cho Database
- * Input chấp nhận: "17-12-2005", "17/12/2005", "2005-12-17"
  */
 const formatDateForDB = (dateStr) => {
     if (!dateStr || typeof dateStr !== 'string' || dateStr.trim() === "") return null;
-
-    // 1. Nếu đã đúng chuẩn YYYY-MM-DD -> Giữ nguyên
     if (dateStr.match(/^\d{4}-\d{2}-\d{2}$/)) return dateStr;
-
-    // 2. Xử lý tách chuỗi (DD-MM-YYYY hoặc DD/MM/YYYY)
     const parts = dateStr.split(/[-/]/);
     if (parts.length === 3) {
-        // Kiểm tra sơ bộ tính hợp lệ (Năm phải có 4 chữ số)
         if (parts[2].length === 4) {
-            // Format: DD-MM-YYYY -> YYYY-MM-DD
             return `${parts[2]}-${parts[1]}-${parts[0]}`;
         }
     }
-
-    return null; // Trả về null để SQL giữ nguyên giá trị cũ (COALESCE)
+    return null;
 };
 
 // ==================================================================
@@ -35,8 +27,6 @@ router.get("/fix-phone-format", async (req, res) => {
     const client = await pool.connect();
     try {
         await client.query("BEGIN");
-
-        // 1. Lấy tất cả user có sđt bắt đầu bằng '0'
         const badUsers = await client.query("SELECT user_id, phone FROM users WHERE phone LIKE '0%'");
         console.log(`🔍 Tìm thấy ${badUsers.rowCount} số điện thoại lỗi format...`);
 
@@ -45,45 +35,27 @@ router.get("/fix-phone-format", async (req, res) => {
 
         for (const user of badUsers.rows) {
             const oldPhone = user.phone;
-            // Cắt số 0 đầu, thêm +84. VD: 0912 -> +84912
             const newPhone = "+84" + oldPhone.substring(1);
-
             try {
-                // Cố gắng update
                 await client.query(
                     "UPDATE users SET phone = $1 WHERE user_id = $2",
                     [newPhone, user.user_id]
                 );
                 updatedCount++;
             } catch (err) {
-                // Nếu lỗi 23505 (Unique Violation) -> Nghĩa là trong DB đã có số +84 chuẩn rồi
-                // => Thằng đang giữ số 0 này là thằng thừa -> XÓA NÓ ĐI
                 if (err.code === '23505') {
                     console.log(`⚠️ Trùng số ${newPhone}. Đang xóa bản ghi rác (ID: ${user.user_id})...`);
-
-                    // Xóa các bảng phụ trước (nếu có liên kết) để tránh lỗi khóa ngoại
                     await client.query("DELETE FROM userrole WHERE user_id = $1", [user.user_id]);
                     await client.query("DELETE FROM user_item WHERE user_id = $1", [user.user_id]);
-                    // Xóa user
                     await client.query("DELETE FROM users WHERE user_id = $1", [user.user_id]);
-
                     deletedCount++;
                 } else {
-                    throw err; // Lỗi khác thì ném ra ngoài
+                    throw err;
                 }
             }
         }
-
         await client.query("COMMIT");
-        res.send(`
-            <h1>✅ Đã dọn dẹp xong!</h1>
-            <ul>
-                <li>Tìm thấy: ${badUsers.rowCount} số lỗi.</li>
-                <li>Đã sửa thành công: ${updatedCount} số.</li>
-                <li>Đã xóa (do trùng): ${deletedCount} số rác.</li>
-            </ul>
-        `);
-
+        res.send(`<h1>✅ Đã dọn dẹp xong!</h1><ul><li>Updated: ${updatedCount}</li><li>Deleted: ${deletedCount}</li></ul>`);
     } catch (err) {
         await client.query("ROLLBACK");
         console.error(err);
@@ -100,59 +72,27 @@ router.get("/", verifySession, async (req, res) => {
   try {
     const queryStr = `
       SELECT DISTINCT ON (ui.user_id)
-        ui.user_item_id,
-        ui.user_id AS user_id,
-        ui.full_name,
-        ui.email,
-        u.phone,
-        TO_CHAR(ui.dob, 'DD-MM-YYYY') AS dob,
-        ui.gender,
-        ui.job,
-        ui.identity_card,
-        ui.home_town,
-        ui.family_id,
-        COALESCE(
-          (SELECT role_id FROM userrole WHERE user_id = ui.user_id AND role_id = 1 LIMIT 1),
-          (SELECT role_id FROM userrole WHERE user_id = ui.user_id LIMIT 1)
-        ) AS role_id,
-        r.relationship_id,
-        r.apartment_id,
-        a.apartment_number, -- Giá trị này sẽ là NULL nếu vô gia cư
-        a.floor,
-        a.area,
-        r.relationship_with_the_head_of_household,
-        ui.is_living,
-        ui.avatar_path,
-        EXISTS(
-          SELECT 1 FROM userrole
-          WHERE user_id = ui.user_id
-          AND role_id IN (2, 3, 4)
-        ) AS is_staff
+        ui.user_item_id, ui.user_id AS user_id, ui.full_name, ui.email, u.phone,
+        TO_CHAR(ui.dob, 'DD-MM-YYYY') AS dob, ui.gender, ui.job, ui.identity_card, ui.home_town, ui.family_id,
+        COALESCE((SELECT role_id FROM userrole WHERE user_id = ui.user_id AND role_id = 1 LIMIT 1),
+                 (SELECT role_id FROM userrole WHERE user_id = ui.user_id LIMIT 1)) AS role_id,
+        r.relationship_id, r.apartment_id, a.apartment_number, a.floor, a.area,
+        r.relationship_with_the_head_of_household, ui.is_living, ui.avatar_path,
+        EXISTS(SELECT 1 FROM userrole WHERE user_id = ui.user_id AND role_id IN (2, 3, 4)) AS is_staff
       FROM user_item ui
       LEFT JOIN users u ON ui.user_id = u.user_id
       LEFT JOIN relationship r ON ui.relationship = r.relationship_id
       LEFT JOIN apartment a ON r.apartment_id = a.apartment_id
-      WHERE EXISTS (
-        SELECT 1 FROM userrole ur
-        WHERE ur.user_id = ui.user_id
-        AND ur.role_id = 1
-      )
-
-      -- Đã comment lại để hiển thị cả người vô gia cư (NULL apartment)
-      -- AND a.apartment_number IS NOT NULL
-      -- AND a.apartment_number != ''
-      -- AND a.apartment_number != 'null'
-
+      WHERE EXISTS (SELECT 1 FROM userrole ur WHERE ur.user_id = ui.user_id AND ur.role_id = 1)
       ORDER BY ui.user_id,
                CASE WHEN r.is_head_of_household = TRUE THEN 0 ELSE 1 END,
-               -- Sắp xếp: Ai có phòng lên trước, Vô gia cư xuống dưới
                CASE WHEN a.apartment_number IS NULL THEN 1 ELSE 0 END,
+               -- 🔥 Fix lỗi sort integer ~ unknown bằng cách ép kiểu ::TEXT
                CASE
-                 WHEN a.apartment_number ~ '^\\d+$' THEN a.apartment_number::INTEGER
-                 ELSE COALESCE((regexp_replace(a.apartment_number, '\\D', '', 'g'))::INTEGER, 0)
+                 WHEN a.apartment_number::TEXT ~ '^[0-9]+$' THEN a.apartment_number::TEXT::INTEGER
+                 ELSE COALESCE((regexp_replace(a.apartment_number::TEXT, '\\D', '', 'g'))::INTEGER, 0)
                END ASC;
     `;
-
     const result = await pool.query(queryStr);
     res.json(result.rows);
   } catch (err) {
@@ -167,67 +107,38 @@ router.get("/", verifySession, async (req, res) => {
 router.put("/update/:userId", verifySession, async (req, res) => {
   const { userId } = req.params;
   const { full_name, gender, dob, job, email, phone, identity_card, home_town } = req.body;
-
-  // 🔥 Lấy thông tin người đang thực hiện request (từ token)
   const requester = req.user || req.currentUser;
 
   if (!userId) return res.status(400).json({ error: "Thiếu User ID" });
 
-  // 🛡️ Bảo mật: Chỉ Admin HOẶC Chính chủ mới được sửa
   const isAdmin = requester.role === 2 || requester.role === 'ADMIN' || requester.role_id === 2;
   const isOwner = parseInt(requester.id || requester.user_id) === parseInt(userId);
 
-  if (!isAdmin && !isOwner) {
-      return res.status(403).json({ error: "Bạn không có quyền sửa thông tin người khác." });
-  }
+  if (!isAdmin && !isOwner) return res.status(403).json({ error: "Không có quyền." });
 
   const formattedDob = formatDateForDB(dob);
-
   const client = await pool.connect();
   try {
     await client.query("BEGIN");
-
-    // 1. Cập nhật bảng user_item
     await client.query(
-      `UPDATE user_item
-       SET full_name = COALESCE($1::text, full_name),
-           gender = COALESCE($2::text, gender),
-           dob = COALESCE($3::date, dob),
-           job = COALESCE($4::text, job),
-           email = COALESCE($5::text, email),
-           identity_card = COALESCE($6::text, identity_card),
-           home_town = COALESCE($7::text, home_town)
+      `UPDATE user_item SET full_name = COALESCE($1::text, full_name), gender = COALESCE($2::text, gender),
+           dob = COALESCE($3::date, dob), job = COALESCE($4::text, job), email = COALESCE($5::text, email),
+           identity_card = COALESCE($6::text, identity_card), home_town = COALESCE($7::text, home_town)
        WHERE user_id = $8`,
       [full_name, gender, formattedDob, job, email, identity_card, home_town, userId]
     );
 
-    // 2. Cập nhật số điện thoại (Chỉ Admin hoặc chính chủ được đổi SĐT login)
     if (phone) {
-      // Check trùng SĐT
-      const checkPhone = await client.query(
-          "SELECT user_id FROM users WHERE phone = $1 AND user_id != $2",
-          [phone, userId]
-      );
-      if (checkPhone.rows.length > 0) {
-          throw new Error("Số điện thoại này đã được sử dụng.");
-      }
-
-      await client.query(
-        `UPDATE users SET phone = $1 WHERE user_id = $2`,
-        [phone, userId]
-      );
+      const checkPhone = await client.query("SELECT user_id FROM users WHERE phone = $1 AND user_id != $2", [phone, userId]);
+      if (checkPhone.rows.length > 0) throw new Error("SĐT đã được sử dụng.");
+      await client.query(`UPDATE users SET phone = $1 WHERE user_id = $2`, [phone, userId]);
     }
-
     await client.query("COMMIT");
     res.json({ success: true, message: "Cập nhật thành công." });
-
   } catch (err) {
     await client.query("ROLLBACK");
-    console.error("❌ Error updating resident:", err);
     res.status(500).json({ error: err.message });
-  } finally {
-    client.release();
-  }
+  } finally { client.release(); }
 });
 
 // ==================================================================
@@ -236,204 +147,131 @@ router.put("/update/:userId", verifySession, async (req, res) => {
 router.delete("/delete/:target_id", verifySession, async (req, res) => {
   const { target_id } = req.params;
   const requester = req.user || req.currentUser;
-
-  // 🛡️ Check quyền Admin
   const isAdmin = requester.role === 2 || requester.role === 'ADMIN' || requester.role_id === 2;
-
-  if (!isAdmin) {
-      return res.status(403).json({ error: "Chỉ Admin mới có quyền xóa cư dân." });
-  }
-
-  if (parseInt(target_id) === parseInt(requester.id || requester.user_id)) {
-      return res.status(400).json({ error: "Không thể tự xóa chính mình." });
-  }
+  if (!isAdmin) return res.status(403).json({ error: "Chỉ Admin mới có quyền xóa." });
+  if (parseInt(target_id) === parseInt(requester.id || requester.user_id)) return res.status(400).json({ error: "Không thể tự xóa chính mình." });
 
   const client = await pool.connect();
   try {
     await client.query("BEGIN");
-
-    // 1. Xóa các bảng phụ thuộc trước
     await client.query("DELETE FROM login_requests WHERE user_id = $1", [target_id]);
     await client.query("DELETE FROM user_notifications WHERE user_id = $1", [target_id]);
     await client.query("DELETE FROM user_finances WHERE user_id = $1", [target_id]);
     await client.query("DELETE FROM userrole WHERE user_id = $1", [target_id]);
 
-    // 2. Xử lý bảng user_item và relationship
     const relRes = await client.query("SELECT relationship FROM user_item WHERE user_id = $1", [target_id]);
     const relationshipId = relRes.rows.length > 0 ? relRes.rows[0].relationship : null;
 
     await client.query("DELETE FROM user_item WHERE user_id = $1", [target_id]);
+    if (relationshipId) await client.query("DELETE FROM relationship WHERE relationship_id = $1", [relationshipId]);
 
-    if (relationshipId) {
-       await client.query("DELETE FROM relationship WHERE relationship_id = $1", [relationshipId]);
-    }
-
-    // 3. Cuối cùng xóa users
     const deleteRes = await client.query("DELETE FROM users WHERE user_id = $1", [target_id]);
-
     if (deleteRes.rowCount === 0) {
         await client.query("ROLLBACK");
         return res.status(404).json({ error: "Người dùng không tồn tại." });
     }
-
     await client.query("COMMIT");
     res.json({ success: true, message: "Đã xóa cư dân thành công." });
-
   } catch (err) {
     await client.query("ROLLBACK");
-    console.error("Delete User Error:", err);
     res.status(500).json({ error: "Lỗi server khi xóa cư dân." });
-  } finally {
-    client.release();
-  }
+  } finally { client.release(); }
 });
 
 // ==================================================================
-// 👻 API: Ẩn/Hiện cư dân (Soft Delete) - Chỉ Admin
+// 👻 API: Ẩn/Hiện cư dân
 // ==================================================================
 router.put("/status/:userId", verifySession, async (req, res) => {
   const { userId } = req.params;
   const { is_living } = req.body;
   const requester = req.user || req.currentUser;
-
   const isAdmin = requester.role === 2 || requester.role === 'ADMIN' || requester.role_id === 2;
-  if (!isAdmin) return res.status(403).json({ error: "Bạn không có quyền này." });
-
+  if (!isAdmin) return res.status(403).json({ error: "Không có quyền." });
   if (is_living === undefined) return res.status(400).json({ error: "Thiếu params" });
 
   try {
-    await query(
-      `UPDATE user_item SET is_living = $1 WHERE user_id = $2`,
-      [is_living, userId]
-    );
-
-    const msg = is_living ? "Đã kích hoạt lại." : "Đã ẩn cư dân.";
-    res.json({ success: true, message: msg });
-
-  } catch (err) {
-    console.error("❌ Error changing status:", err);
-    res.status(500).json({ error: "Lỗi server." });
-  }
+    await query(`UPDATE user_item SET is_living = $1 WHERE user_id = $2`, [is_living, userId]);
+    res.json({ success: true, message: is_living ? "Đã kích hoạt lại." : "Đã ẩn cư dân." });
+  } catch (err) { res.status(500).json({ error: "Lỗi server." }); }
 });
 
 // ==================================================================
-// 🏠 API: CẬP NHẬT PHÒNG (BÁO LỖI NẾU TRÙNG CHỦ HỘ)
+// 🏠 API: CẬP NHẬT PHÒNG
 // ==================================================================
 router.put("/assign-apartment", verifySession, async (req, res) => {
     const { user_id, apartment_id, relationship, is_head } = req.body;
-
     if (!user_id) return res.status(400).json({ error: "Thiếu user_id" });
 
     const client = await pool.connect();
     try {
         await client.query("BEGIN");
-
-        // 1. Lấy thông tin relationship hiện tại
         const userRes = await client.query("SELECT relationship FROM user_item WHERE user_id = $1", [user_id]);
-        if (userRes.rows.length === 0) {
-            await client.query("ROLLBACK");
-            return res.status(404).json({ error: "Cư dân không tồn tại" });
-        }
+        if (userRes.rows.length === 0) { await client.query("ROLLBACK"); return res.status(404).json({ error: "Cư dân không tồn tại" }); }
         const currentUserRelationshipId = userRes.rows[0].relationship;
 
-        // ==========================================================
-        // 🔥 KIỂM TRA LOGIC CHỦ HỘ (Chặn trùng chủ hộ)
-        // ==========================================================
+        // Check trùng chủ hộ
         if (apartment_id && is_head === true) {
             const checkHead = await client.query(
-                `SELECT relationship_id
-                 FROM relationship
-                 WHERE apartment_id = $1 AND is_head_of_household = TRUE`,
+                `SELECT relationship_id FROM relationship WHERE apartment_id = $1 AND is_head_of_household = TRUE`,
                 [apartment_id]
             );
-
             if (checkHead.rows.length > 0) {
                 const existingHeadId = checkHead.rows[0].relationship_id;
                 if (!currentUserRelationshipId || existingHeadId !== currentUserRelationshipId) {
                     await client.query("ROLLBACK");
-                    return res.status(400).json({
-                        error: "LỖI: Phòng này đã có Chủ hộ rồi! Vui lòng gỡ quyền chủ hộ cũ trước hoặc chọn vai trò 'Thành viên'."
-                    });
+                    return res.status(400).json({ error: "LỖI: Phòng này đã có Chủ hộ rồi!" });
                 }
             }
         }
 
-        // ==========================================================
-        // 2. XỬ LÝ CẬP NHẬT
-        // ==========================================================
-
-        // TRƯỜNG HỢP: ĐUỔI KHỎI PHÒNG (apartment_id = null)
         if (!apartment_id) {
             await client.query("UPDATE user_item SET relationship = NULL WHERE user_id = $1", [user_id]);
-            if (currentUserRelationshipId) {
-                await client.query("DELETE FROM relationship WHERE relationship_id = $1", [currentUserRelationshipId]);
-            }
-        }
-
-        // TRƯỜNG HỢP: THÊM/CHUYỂN VÀO PHÒNG
-        else {
+            if (currentUserRelationshipId) await client.query("DELETE FROM relationship WHERE relationship_id = $1", [currentUserRelationshipId]);
+        } else {
             const finalRelationship = is_head ? 'Bản thân' : (relationship || "Thành viên");
-
-            // B1: Tạo Relationship Mới
             const insertRel = await client.query(
-                `INSERT INTO relationship
-                (apartment_id, relationship_with_the_head_of_household, is_head_of_household)
-                VALUES ($1, $2, $3)
-                RETURNING relationship_id`,
+                `INSERT INTO relationship (apartment_id, relationship_with_the_head_of_household, is_head_of_household)
+                VALUES ($1, $2, $3) RETURNING relationship_id`,
                 [apartment_id, finalRelationship, is_head || false]
             );
-
             const newRelationshipId = insertRel.rows[0].relationship_id;
 
-            // B2: Gắn ID mới vào user_item
-            await client.query(
-                "UPDATE user_item SET relationship = $1 WHERE user_id = $2",
-                [newRelationshipId, user_id]
-            );
-
-            // B3: Dọn dẹp relationship cũ
+            await client.query("UPDATE user_item SET relationship = $1 WHERE user_id = $2", [newRelationshipId, user_id]);
             if (currentUserRelationshipId && currentUserRelationshipId !== newRelationshipId) {
                 await client.query("DELETE FROM relationship WHERE relationship_id = $1", [currentUserRelationshipId]);
             }
-
-            // 🔥 LOGIC 2: CẬP NHẬT TRẠNG THÁI PHÒNG -> 'Occupied'
-            // Đảm bảo phòng chuyển sang trạng thái "Có người ở"
-            await client.query(
-                "UPDATE apartment SET status = 'Occupied' WHERE apartment_id = $1",
-                [apartment_id]
-            );
+            await client.query("UPDATE apartment SET status = 'Occupied' WHERE apartment_id = $1", [apartment_id]);
         }
-
         await client.query("COMMIT");
         res.json({ success: true, message: "Cập nhật thành công" });
-
     } catch (err) {
         await client.query("ROLLBACK");
-        console.error("Assign Apartment Error:", err);
-        if (err.code === '23505') {
-            return res.status(400).json({ error: "Dữ liệu bị xung đột (Lỗi CSDL)." });
-        }
+        if (err.code === '23505') return res.status(400).json({ error: "Dữ liệu bị xung đột." });
         res.status(500).json({ error: "Lỗi Server: " + err.message });
-    } finally {
-        client.release();
-    }
+    } finally { client.release(); }
 });
 
+// ==================================================================
+// 🏢 API: LẤY DANH SÁCH PHÒNG (CHO SPINNER)
+// ==================================================================
 router.get("/list-for-selection", async (req, res) => {
   try {
-    // Lấy số phòng và tầng, sắp xếp theo tầng rồi đến phòng
+    // 🔥 ĐÃ SỬA: Chỉ gọi bảng apartment, không gọi ui, r, a vì không có JOIN
     const result = await pool.query(`
       SELECT apartment_number, floor
       FROM apartment
-      ORDER BY ui.user_id,
-               CASE WHEN r.is_head_of_household = TRUE THEN 0 ELSE 1 END,
-               CASE WHEN a.apartment_number IS NULL THEN 1 ELSE 0 END,
+      ORDER BY
+        -- 1. Sắp xếp theo Tầng (Số tăng dần)
+        CASE
+            WHEN floor::TEXT ~ '^[0-9]+$' THEN floor::TEXT::INTEGER
+            ELSE 0
+        END ASC,
 
-               -- 🔥 SỬA ĐOẠN NÀY: Thêm ::TEXT để tránh lỗi integer ~ unknown
-               CASE
-                 WHEN a.apartment_number::TEXT ~ '^\d+$' THEN a.apartment_number::TEXT::INTEGER
-                 ELSE COALESCE((regexp_replace(a.apartment_number::TEXT, '\D', '', 'g'))::INTEGER, 0)
-               END ASC;
+        -- 2. Sắp xếp theo Phòng (Số tăng dần)
+        CASE
+            WHEN apartment_number::TEXT ~ '^[0-9]+$' THEN apartment_number::TEXT::INTEGER
+            ELSE 0
+        END ASC
     `);
 
     res.json(result.rows);
