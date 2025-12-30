@@ -5,20 +5,22 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="#F5F7FA"> <com.google.android.material.appbar.AppBarLayout
-    android:layout_width="match_parent"
-    android:layout_height="wrap_content"
-    android:background="@android:color/transparent"
-    app:elevation="0dp">
+    android:background="#F5F7FA">
 
-    <com.google.android.material.appbar.MaterialToolbar
-        android:id="@+id/toolbar"
+    <com.google.android.material.appbar.AppBarLayout
         android:layout_width="match_parent"
-        android:layout_height="?attr/actionBarSize"
-        app:title="Chốt số hàng loạt"
-        app:titleTextColor="@color/white"
-        app:navigationIcon="@drawable/ic_arrow_back" />
-</com.google.android.material.appbar.AppBarLayout>
+        android:layout_height="wrap_content"
+        android:background="@android:color/transparent"
+        app:elevation="0dp">
+
+        <com.google.android.material.appbar.MaterialToolbar
+            android:id="@+id/toolbar"
+            android:layout_width="match_parent"
+            android:layout_height="?attr/actionBarSize"
+            app:title="Chốt số hàng loạt"
+            app:titleTextColor="@color/white"
+            app:navigationIcon="@drawable/ic_arrow_back" />
+    </com.google.android.material.appbar.AppBarLayout>
 
     <androidx.constraintlayout.widget.ConstraintLayout
         android:layout_width="match_parent"
@@ -34,22 +36,23 @@
             app:cardBackgroundColor="@color/white"
             app:cardCornerRadius="16dp"
             app:cardElevation="4dp"
-            app:layout_constraintBottom_toTopOf="@+id/layoutBottomActions"
             app:layout_constraintTop_toTopOf="parent"
-            tools:layout_editor_absoluteX="16dp">
+            app:layout_constraintBottom_toTopOf="@+id/layoutBottomActions">
 
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="match_parent"
                 android:orientation="vertical">
 
+                <!-- Phần header: Toggle + Tiêu đề bảng -->
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:background="@color/white"
                     android:orientation="vertical"
-                    android:padding="16dp">
+                    android:padding="16dp"
+                    android:background="@color/white">
 
+                    <!-- 🔥 THÊM ĐỦ 4 NÚT TOGGLE -->
                     <com.google.android.material.button.MaterialButtonToggleGroup
                         android:id="@+id/toggleGroupService"
                         android:layout_width="match_parent"
@@ -67,7 +70,8 @@
                             android:layout_weight="1"
                             android:text="Điện"
                             android:textStyle="bold"
-                            app:icon="@drawable/ic_electric" />
+                            app:icon="@drawable/ic_electric"
+                            app:iconGravity="textStart" />
 
                         <com.google.android.material.button.MaterialButton
                             android:id="@+id/btnWater"
@@ -77,43 +81,65 @@
                             android:layout_weight="1"
                             android:text="Nước"
                             android:textStyle="bold"
-                            app:icon="@drawable/ic_water_drop" />
+                            app:icon="@drawable/ic_water_drop"
+                            app:iconGravity="textStart" />
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/btnManagement"
+                            style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:text="Phí quản lý"
+                            android:textStyle="bold"
+                            app:iconGravity="textStart" />
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/btnService"
+                            style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:text="Phí dịch vụ"
+                            android:textStyle="bold"
+                            app:iconGravity="textStart" />
                     </com.google.android.material.button.MaterialButtonToggleGroup>
 
+                    <!-- Tiêu đề bảng -->
                     <LinearLayout
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:background="#F5F5F5"
+                        android:background="#F8F9FA"
                         android:orientation="horizontal"
-                        android:paddingVertical="10dp"
+                        android:paddingVertical="12dp"
                         android:weightSum="10">
 
                         <TextView
                             android:layout_width="0dp"
                             android:layout_height="wrap_content"
-                            android:layout_weight="2"
+                            android:layout_weight="2.5"
                             android:gravity="center"
                             android:text="Phòng"
-                            android:textColor="#333"
-                            android:textStyle="bold" />
+                            android:textStyle="bold"
+                            android:textColor="#333333" />
 
                         <TextView
                             android:layout_width="0dp"
                             android:layout_height="wrap_content"
-                            android:layout_weight="4"
+                            android:layout_weight="3.75"
                             android:gravity="center"
                             android:text="Chỉ số Cũ"
-                            android:textColor="#555"
-                            android:textStyle="bold" />
+                            android:textStyle="bold"
+                            android:textColor="#666666" />
 
                         <TextView
                             android:layout_width="0dp"
                             android:layout_height="wrap_content"
-                            android:layout_weight="4"
+                            android:layout_weight="3.75"
                             android:gravity="center"
                             android:text="Chỉ số Mới"
-                            android:textColor="?attr/colorPrimary"
-                            android:textStyle="bold" />
+                            android:textStyle="bold"
+                            android:textColor="?attr/colorPrimary" />
                     </LinearLayout>
                 </LinearLayout>
 
@@ -122,46 +148,48 @@
                     android:layout_height="1dp"
                     android:background="#E0E0E0" />
 
+                <!-- Danh sách phòng -->
                 <androidx.recyclerview.widget.RecyclerView
                     android:id="@+id/recyclerBulkInput"
                     android:layout_width="match_parent"
                     android:layout_height="0dp"
                     android:layout_weight="1"
                     android:clipToPadding="false"
-                    android:paddingBottom="16dp"
+                    android:padding="8dp"
                     tools:listitem="@layout/item_bulk_meter" />
 
             </LinearLayout>
         </com.google.android.material.card.MaterialCardView>
 
+        <!-- Nút hành động dưới cùng -->
         <LinearLayout
             android:id="@+id/layoutBottomActions"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="horizontal"
             android:padding="16dp"
-            app:layout_constraintBottom_toBottomOf="parent"
-            android:background="#F5F7FA">
+            android:background="#F5F7FA"
+            app:layout_constraintBottom_toBottomOf="parent">
 
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/btnCheckRates"
                 style="@style/Widget.MaterialComponents.Button.OutlinedButton"
                 android:layout_width="0dp"
                 android:layout_height="56dp"
-                android:layout_weight="0.8"
-                android:text="Đơn giá"
+                android:layout_weight="1"
+                android:text="Xem đơn giá"
                 android:textColor="?attr/colorPrimary"
                 app:strokeColor="?attr/colorPrimary"
                 app:icon="@drawable/ic_search"
                 app:iconTint="?attr/colorPrimary"
                 app:cornerRadius="12dp"
-                android:layout_marginEnd="8dp"/>
+                android:layout_marginEnd="12dp"/>
 
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/btnSaveAll"
                 android:layout_width="0dp"
                 android:layout_height="56dp"
-                android:layout_weight="1.2"
+                android:layout_weight="1.5"
                 android:text="Lưu &amp; Tính tiền"
                 android:textSize="16sp"
                 android:textStyle="bold"
@@ -170,9 +198,8 @@
                 app:cornerRadius="12dp"
                 app:icon="@drawable/ic_save"
                 app:iconGravity="textStart"
-                android:layout_marginStart="8dp"/>
+                android:layout_marginStart="12dp"/>
         </LinearLayout>
 
     </androidx.constraintlayout.widget.ConstraintLayout>
-
 </androidx.coordinatorlayout.widget.CoordinatorLayout>

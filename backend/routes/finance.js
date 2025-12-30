@@ -108,118 +108,246 @@ router.get("/admin", async (req, res) => {
 // 🟢 [POST] TẠO HÓA ĐƠN ĐIỆN/NƯỚC HÀNG LOẠT (GOM 1 ID)
 // ==================================================================
 router.post("/create-utility-bulk", async (req, res) => {
-  const { data, type, month, year } = req.body;
-  if (!data || data.length === 0) return res.status(400).json({ error: "Dữ liệu sai" });
+  const { data, type, month, year, auto_calculate } = req.body;
+
+  // 🔥 Xử lý phí cố định (quản lý / dịch vụ)
+  if (auto_calculate === true) {
+    return await createFixedFeeInvoice(req, res, type, month, year);
+  }
+
+  // 🔥 Xử lý Điện / Nước (có chỉ số)
+  if (!data || !Array.isArray(data) || data.length === 0) {
+    return res.status(400).json({ error: "Dữ liệu trống hoặc sai định dạng" });
+  }
 
   const client = await pool.connect();
-  let successCount = 0, errors = [];
+  let successCount = 0;
+  let errors = [];
   let totalAmountAllRooms = 0;
-
-  // Chuẩn bị danh sách user cần insert
   let insertData = [];
 
   try {
     await client.query("BEGIN");
 
-    // 1. Lấy bảng giá
-    const ratesRes = await client.query("SELECT * FROM utility_rates WHERE type=$1 ORDER BY min_usage ASC", [type]);
+    // 1. Lấy bảng giá 1 lần
+    const ratesRes = await client.query(
+      "SELECT * FROM utility_rates WHERE type=$1 ORDER BY min_usage ASC",
+      [type]
+    );
     const rates = ratesRes.rows;
-    const typeName = type === 'electricity' ? "Tiền điện" : "Tiền nước";
-    const titlePattern = `${typeName} T${month}/${year}`; // Tiêu đề chung cho cả đợt
+    if (rates.length === 0) {
+      await client.query("ROLLBACK");
+      return res.status(400).json({ error: "Chưa cấu hình đơn giá" });
+    }
 
-    // 2. Tính toán tiền cho từng phòng
+    const typeName = type === 'electricity' ? "Tiền điện" : "Tiền nước";
+    const titlePattern = `${typeName} T${month}/${year}`;
+
+    // 2. Lấy thông tin tất cả phòng trong data 1 lần duy nhất (TỐI ƯU NHẤT!)
+    const roomNumbers = data.map(item => item.room);
+    const usersRes = await client.query(`
+      SELECT
+        a.apartment_number AS room,
+        ui.user_id,
+        u.fcm_token
+      FROM apartment a
+      JOIN relationship r ON a.apartment_id = r.apartment_id
+      JOIN user_item ui ON r.relationship_id = ui.relationship
+      JOIN users u ON ui.user_id = u.user_id
+      WHERE a.apartment_number = ANY($1)
+    `, [roomNumbers]);
+
+    // Tạo map để tra cứu nhanh
+    const roomToUsers = {};
+    usersRes.rows.forEach(row => {
+      if (!roomToUsers[row.room]) roomToUsers[row.room] = [];
+      roomToUsers[row.room].push({ user_id: row.user_id, fcm_token: row.fcm_token });
+    });
+
+    // 3. Tính tiền cho từng phòng
     for (const item of data) {
       const { room, old_index, new_index } = item;
-      if (!room || new_index < old_index) {
-        errors.push(`P${room}: Sai chỉ số`);
+      if (new_index < old_index) {
+        errors.push(`P${room}: Chỉ số mới nhỏ hơn cũ`);
         continue;
       }
 
-      // Tính tiền
       const usage = new_index - old_index;
-      let cost = 0, remaining = usage;
+      let cost = 0;
+      let remaining = usage;
+
       for (const tier of rates) {
         if (remaining <= 0) break;
-        const range = tier.max_usage ? (tier.max_usage - tier.min_usage + 1) : Infinity;
-        const used = Math.min(remaining, range);
+        const tierSize = tier.max_usage !== null
+          ? (tier.max_usage - tier.min_usage + 1)
+          : remaining;
+        const used = Math.min(remaining, tierSize);
         cost += used * parseFloat(tier.price);
         remaining -= used;
       }
+
       totalAmountAllRooms += cost;
 
-      // Tìm User ID của phòng
-      const userRes = await client.query(`
-        SELECT ui.user_id, u.fcm_token
-        FROM user_item ui
-        JOIN users u ON ui.user_id=u.user_id
-        JOIN relationship r ON ui.relationship=r.relationship_id
-        JOIN apartment a ON r.apartment_id=a.apartment_id
-        WHERE a.apartment_number=$1
-      `, [room]);
-
-      if (userRes.rows.length === 0) {
-        errors.push(`P${room}: Vắng chủ`);
+      const users = roomToUsers[room];
+      if (!users || users.length === 0) {
+        errors.push(`P${room}: Không tìm thấy chủ hộ`);
         continue;
       }
 
-      // Lưu lại thông tin để insert sau
-      for (const u of userRes.rows) {
+      users.forEach(u => {
         insertData.push({
           user_id: u.user_id,
           amount: cost,
           note: `Cũ: ${old_index} | Mới: ${new_index} | Dùng: ${usage}`,
           fcm_token: u.fcm_token,
-          room: room
+          room
         });
-      }
+      });
+
       successCount++;
     }
 
     if (insertData.length === 0) {
-        await client.query("ROLLBACK");
-        return res.json({ success: false, message: "Không tạo được hóa đơn nào.", errors });
+      await client.query("ROLLBACK");
+      return res.json({ success: false, message: "Không tạo được hóa đơn nào", errors });
     }
 
-    // 3. Tạo 1 bản ghi Finance Cha
+    // 4. Tạo finance cha
     const fRes = await client.query(`
       INSERT INTO finances (title, content, amount, type, due_date, created_by)
       VALUES ($1, $2, $3, 'bat_buoc', NOW() + INTERVAL '10 days', 1)
       RETURNING id
-    `, [titlePattern, `Tổng hợp ${typeName} tháng ${month}/${year}`, totalAmountAllRooms]);
+    `, [titlePattern, `Hóa đơn ${typeName} tháng ${month}/${year}`, totalAmountAllRooms]);
 
     const financeId = fRes.rows[0].id;
 
-    // 4. Insert vào user_finances với số tiền riêng (amount) và ghi chú riêng (note)
+    // 5. Insert user_finances
     for (const d of insertData) {
       await client.query(`
         INSERT INTO user_finances (user_id, finance_id, status, amount, note)
         VALUES ($1, $2, 'chua_thanh_toan', $3, $4)
-        ON CONFLICT DO NOTHING
+        ON CONFLICT (user_id, finance_id) DO UPDATE
+        SET amount = EXCLUDED.amount, note = EXCLUDED.note
       `, [d.user_id, financeId, d.amount, d.note]);
 
-      // Gửi thông báo
       if (d.fcm_token) {
         sendNotification(
           d.fcm_token,
-          `📢 ${typeName}`,
-          `P${d.room}: ${d.amount.toLocaleString()}đ. ${d.note}`,
+          `📢 ${typeName} tháng ${month}/${year}`,
+          `Phòng ${d.room}: ${d.amount.toLocaleString('vi-VN')}đ (${d.note})`,
           { type: "finance", id: financeId.toString() }
         );
       }
     }
 
     await client.query("COMMIT");
-    res.json({ success: true, message: `Đã tạo hóa đơn chung cho ${successCount} phòng.`, errors });
+    res.json({
+      success: true,
+      message: `Tạo hóa đơn thành công cho ${successCount} phòng`,
+      errors
+    });
 
   } catch (err) {
     await client.query("ROLLBACK");
-    console.error(err);
-    res.status(500).json({ error: "Lỗi server" });
+    console.error("Lỗi bulk utility:", err);
+    res.status(500).json({ error: "Lỗi server", detail: err.message });
   } finally {
     client.release();
   }
 });
+async function createFixedFeeInvoice(req, res, type, month, year) {
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
 
+    const rateRes = await client.query(
+      "SELECT price FROM utility_rates WHERE type = $1 LIMIT 1",
+      [type]
+    );
+
+    if (rateRes.rows.length === 0) {
+      await client.query("ROLLBACK");
+      return res.status(400).json({ error: "Chưa cấu hình đơn giá phí này" });
+    }
+
+    const pricePerM2 = parseFloat(rateRes.rows[0].price);
+    const typeName = type === "management_fee" ? "Phí quản lý" : "Phí dịch vụ";
+
+    // Lấy tất cả căn hộ có người ở + diện tích
+    const roomsRes = await client.query(`
+      SELECT
+        a.apartment_number AS room,
+        a.area,
+        ui.user_id,
+        u.fcm_token
+      FROM apartment a
+      JOIN relationship r ON a.apartment_id = r.apartment_id
+      JOIN user_item ui ON r.relationship_id = ui.relationship
+      JOIN users u ON ui.user_id = u.user_id
+      WHERE a.area IS NOT NULL AND a.area > 0
+    `);
+
+    let totalAmount = 0;
+    let insertData = [];
+
+    for (const row of roomsRes.rows) {
+      const amount = row.area * pricePerM2;
+      totalAmount += amount;
+
+      insertData.push({
+        user_id: row.user_id,
+        amount,
+        note: `Diện tích: ${row.area}m² × ${pricePerM2.toLocaleString()}đ/m²`,
+        fcm_token: row.fcm_token,
+        room: row.room
+      });
+    }
+
+    if (insertData.length === 0) {
+      await client.query("ROLLBACK");
+      return res.json({ success: false, message: "Không có căn hộ nào để tính phí" });
+    }
+
+    // Tạo finance cha
+    const title = `${typeName} T${month}/${year}`;
+    const fRes = await client.query(`
+      INSERT INTO finances (title, content, amount, type, due_date, created_by)
+      VALUES ($1, $2, $3, 'bat_buoc', NOW() + INTERVAL '10 days', 1)
+      RETURNING id
+    `, [title, `${typeName} tháng ${month}/${year}`, totalAmount]);
+
+    const financeId = fRes.rows[0].id;
+
+    // Insert user_finances
+    for (const d of insertData) {
+      await client.query(`
+        INSERT INTO user_finances (user_id, finance_id, status, amount, note)
+        VALUES ($1, $2, 'chua_thanh_toan', $3, $4)
+        ON CONFLICT (user_id, finance_id) DO UPDATE
+        SET amount = EXCLUDED.amount, note = EXCLUDED.note
+      `, [d.user_id, financeId, d.amount, d.note]);
+
+      if (d.fcm_token) {
+        sendNotification(
+          d.fcm_token,
+          `📢 ${typeName}`,
+          `Phòng ${d.room}: ${d.amount.toLocaleString('vi-VN')}đ (${d.note})`,
+          { type: "finance", id: financeId.toString() }
+        );
+      }
+    }
+
+    await client.query("COMMIT");
+    res.json({ success: true, message: `Chốt ${typeName} thành công cho ${insertData.length} căn hộ` });
+
+  } catch (err) {
+    await client.query("ROLLBACK");
+    console.error("Lỗi chốt phí cố định:", err);
+    res.status(500).json({ error: "Lỗi server" });
+  } finally {
+    client.release();
+  }
+}
 // ==================================================================
 // 🟢 [GET] CHI TIẾT DANH SÁCH PHÒNG CỦA 1 KHOẢN THU (Cập nhật lấy amount riêng)
 // ==================================================================

@@ -3,34 +3,37 @@
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:orientation="horizontal"
-    android:padding="12dp"
-    android:gravity="center_vertical">
+    android:padding="16dp"
+    android:gravity="center_vertical"
+    android:background="?android:attr/selectableItemBackground">
 
-    <LinearLayout
+    <TextView
+        android:id="@+id/txtTierName"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:layout_weight="1"
-        android:orientation="vertical">
-
-        <TextView
-            android:id="@+id/txtTierName"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="Bậc 1: 0 - 50 kWh"
-            android:textStyle="bold"/>
-    </LinearLayout>
+        android:textSize="16sp"
+        android:textStyle="bold"
+        android:textColor="@android:color/black" />
 
     <EditText
         android:id="@+id/edtPrice"
-        android:layout_width="120dp"
+        android:layout_width="140dp"
         android:layout_height="wrap_content"
-        android:hint="Giá tiền"
+        android:layout_marginStart="16dp"
+        android:background="@drawable/bg_input_rounded"
+        android:gravity="end|center_vertical"
+        android:hint="0"
         android:inputType="numberDecimal"
-        android:textAlignment="viewEnd"/>
+        android:padding="12dp"
+        android:textSize="16sp" />
 
     <TextView
+        android:id="@+id/tvUnit"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text=" đ"
-        android:layout_marginStart="4dp"/>
+        android:layout_marginStart="8dp"
+        android:textSize="16sp"
+        android:textColor="@color/gray" />
+
 </LinearLayout>

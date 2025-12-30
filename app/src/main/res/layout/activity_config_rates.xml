@@ -90,6 +90,26 @@
                         android:text="Nước"
                         app:icon="@drawable/ic_water_drop"
                         android:textStyle="bold"/>
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/btnManagement"
+                        style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="Phí quản lý"
+                        app:iconGravity="textStart"
+                        android:textStyle="bold"/>
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/btnService"
+                        style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="Phí dịch vụ"
+                        app:iconGravity="textStart"
+                        android:textStyle="bold"/>
                 </com.google.android.material.button.MaterialButtonToggleGroup>
 
                 <LinearLayout
