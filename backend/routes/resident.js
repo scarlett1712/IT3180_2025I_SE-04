@@ -425,9 +425,15 @@ router.get("/list-for-selection", async (req, res) => {
     const result = await pool.query(`
       SELECT apartment_number, floor
       FROM apartment
-      ORDER BY
-        CASE WHEN floor ~ '^\d+$' THEN floor::INTEGER ELSE 0 END ASC,
-        apartment_number ASC
+      ORDER BY ui.user_id,
+               CASE WHEN r.is_head_of_household = TRUE THEN 0 ELSE 1 END,
+               CASE WHEN a.apartment_number IS NULL THEN 1 ELSE 0 END,
+
+               -- 🔥 SỬA ĐOẠN NÀY: Thêm ::TEXT để tránh lỗi integer ~ unknown
+               CASE
+                 WHEN a.apartment_number::TEXT ~ '^\d+$' THEN a.apartment_number::TEXT::INTEGER
+                 ELSE COALESCE((regexp_replace(a.apartment_number::TEXT, '\D', '', 'g'))::INTEGER, 0)
+               END ASC;
     `);
 
     res.json(result.rows);

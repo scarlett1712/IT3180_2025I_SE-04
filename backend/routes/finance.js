@@ -359,7 +359,10 @@ router.get("/:financeId/users", async (req, res) => {
       WHERE uf.finance_id = $1
       AND a.apartment_number IS NOT NULL -- 🔥 Không hiện vô gia cư
       ORDER BY
-        CASE WHEN a.apartment_number ~ '^\d+$' THEN a.apartment_number::INTEGER ELSE 0 END ASC
+        CASE
+          WHEN a.apartment_number::TEXT ~ '^\d+$' THEN a.apartment_number::TEXT::INTEGER
+          ELSE COALESCE((regexp_replace(a.apartment_number::TEXT, '\D', '', 'g'))::INTEGER, 0)
+        END ASC
     `, [financeId]);
     res.json(result.rows);
   } catch (e) { res.status(500).json({error: "Lỗi server"}); }
