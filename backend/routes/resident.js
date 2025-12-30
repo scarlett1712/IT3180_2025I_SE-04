@@ -33,11 +33,6 @@ const formatDateForDB = (dateStr) => {
 // ==================================================================
 router.get("/", verifySession, async (req, res) => {
   try {
-    // 🛡️ Bảo mật: Chỉ Admin hoặc Ban quản lý (Role 2, 3, 4) mới xem được full list
-    // if (![2, 3, 4].includes(req.user.role)) {
-    //    return res.status(403).json({ error: "Không có quyền truy cập danh sách này." });
-    // }
-
     const queryStr = `
       SELECT DISTINCT ON (ui.user_id)
         ui.user_item_id,
@@ -51,20 +46,18 @@ router.get("/", verifySession, async (req, res) => {
         ui.identity_card,
         ui.home_town,
         ui.family_id,
-        -- Lấy role_id = 1 nếu có, nếu không có thì lấy role đầu tiên
         COALESCE(
           (SELECT role_id FROM userrole WHERE user_id = ui.user_id AND role_id = 1 LIMIT 1),
           (SELECT role_id FROM userrole WHERE user_id = ui.user_id LIMIT 1)
         ) AS role_id,
         r.relationship_id,
         r.apartment_id,
-        a.apartment_number,
+        a.apartment_number, -- Giá trị này sẽ là NULL nếu vô gia cư
         a.floor,
         a.area,
         r.relationship_with_the_head_of_household,
         ui.is_living,
         ui.avatar_path,
-        -- Thêm cột để biết user này có phải là BQT không (có role 2,3,4)
         EXISTS(
           SELECT 1 FROM userrole
           WHERE user_id = ui.user_id
@@ -75,19 +68,19 @@ router.get("/", verifySession, async (req, res) => {
       LEFT JOIN relationship r ON ui.relationship = r.relationship_id
       LEFT JOIN apartment a ON r.apartment_id = a.apartment_id
       WHERE EXISTS (
-        -- Chỉ lấy user nếu họ có role_id = 1 (cư dân)
         SELECT 1 FROM userrole ur
         WHERE ur.user_id = ui.user_id
         AND ur.role_id = 1
       )
-      -- 🔥 LỌC BỎ CƯ DÂN KHÔNG CÓ SỐ PHÒNG (NULL, RỖNG, HOẶC CHUỖI 'NULL')
-      AND a.apartment_number IS NOT NULL
-      AND a.apartment_number != ''
-      AND a.apartment_number != 'null'
+
+      -- AND a.apartment_number IS NOT NULL
+      -- AND a.apartment_number != ''
+      -- AND a.apartment_number != 'null'
 
       ORDER BY ui.user_id,
                CASE WHEN r.is_head_of_household = TRUE THEN 0 ELSE 1 END,
-               -- Sắp xếp phòng theo số học
+               -- Sắp xếp: Ai có phòng lên trước, Vô gia cư xuống dưới
+               CASE WHEN a.apartment_number IS NULL THEN 1 ELSE 0 END,
                CASE
                  WHEN a.apartment_number ~ '^\\d+$' THEN a.apartment_number::INTEGER
                  ELSE COALESCE((regexp_replace(a.apartment_number, '\\D', '', 'g'))::INTEGER, 0)
