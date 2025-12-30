@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:padding="24dp"
+    android:minWidth="300dp">
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Xác nhận thêm cư dân"
+        android:textSize="20sp"
+        android:textStyle="bold"
+        android:layout_marginBottom="16dp"/>
+
+    <TextView
+        android:id="@+id/tvTargetName"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Thêm Nguyễn Văn A vào P101"
+        android:textColor="#2196F3"
+        android:layout_marginBottom="16dp"/>
+
+    <com.google.android.material.textfield.TextInputLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="Quan hệ với chủ hộ (VD: Con, Vợ)">
+
+        <com.google.android.material.textfield.TextInputEditText
+            android:id="@+id/edtRelation"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:inputType="textCapWords" />
+    </com.google.android.material.textfield.TextInputLayout>
+
+    <CheckBox
+        android:id="@+id/chkIsHead"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Người này là Chủ Hộ"
+        android:layout_marginTop="12dp"/>
+
+    <Button
+        android:id="@+id/btnConfirmAdd"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Xác nhận thêm"
+        android:layout_marginTop="20dp"
+        android:backgroundTint="#4CAF50"/>
+
+</LinearLayout>

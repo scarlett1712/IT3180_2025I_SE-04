@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:orientation="horizontal"
+    android:padding="12dp"
+    android:gravity="center_vertical"
+    android:background="@drawable/bg_item_rounded"
+    android:layout_marginBottom="8dp">
+
+    <LinearLayout
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:orientation="vertical">
+
+        <TextView
+            android:id="@+id/tvName"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Nguyễn Văn A"
+            android:textStyle="bold"
+            android:textSize="16sp"
+            android:textColor="#333"/>
+
+        <TextView
+            android:id="@+id/tvRole"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Chủ hộ"
+            android:textSize="14sp"
+            android:textColor="#666"/>
+    </LinearLayout>
+
+    <ImageView
+        android:id="@+id/btnRemove"
+        android:layout_width="32dp"
+        android:layout_height="32dp"
+        android:src="@drawable/ic_delete"
+        android:padding="4dp"
+        app:tint="#F44336"/>
+</LinearLayout>

@@ -32,6 +32,7 @@ import com.se_04.enoti.R;
 import com.se_04.enoti.account.Role; // Import Role enum
 import com.se_04.enoti.account.UserItem;
 import com.se_04.enoti.account.admin.ApproveRequestsActivity;
+import com.se_04.enoti.apartment.ApartmentManagerActivity;
 import com.se_04.enoti.utils.ApiConfig;
 import com.se_04.enoti.utils.BaseActivity;
 import com.se_04.enoti.utils.DataCacheManager;
@@ -56,7 +57,7 @@ public class ManageResidentFragment extends Fragment {
     private RecyclerView recyclerViewResidents;
     private SearchView searchView;
     private Spinner spinnerFilterFloor, spinnerFilterRoom;
-    private FloatingActionButton btnExportExcel, btnAddResident;
+    private FloatingActionButton btnExportExcel, btnAddResident, btnManageApartments;
     private ExtendedFloatingActionButton btnApproveRequests;
 
     private ResidentAdapter adapter;
@@ -89,6 +90,7 @@ public class ManageResidentFragment extends Fragment {
         btnExportExcel = view.findViewById(R.id.btnExportExcel);
         btnAddResident = view.findViewById(R.id.btnAddResident);
         btnApproveRequests = view.findViewById(R.id.btnApproveRequests);
+        btnManageApartments = view.findViewById(R.id.btnManageApartments);
 
         UserItem currentUser = UserManager.getInstance(requireContext()).getCurrentUser();
         String username = (currentUser != null) ? currentUser.getName() : "Người dùng";
@@ -122,10 +124,11 @@ public class ManageResidentFragment extends Fragment {
             // Nếu là AGENCY: Ẩn nút thêm & nút duyệt
             if (btnAddResident != null) btnAddResident.setVisibility(View.GONE);
             if (btnApproveRequests != null) btnApproveRequests.setVisibility(View.GONE);
+            if (btnManageApartments != null) btnManageApartments.setVisibility(View.VISIBLE);
         } else {
             // Nếu là Admin: Hiện bình thường
             if (btnAddResident != null) btnAddResident.setVisibility(View.VISIBLE);
-            // Nút duyệt sẽ được check trong checkPendingRequests()
+            if (btnManageApartments != null) btnManageApartments.setVisibility(View.VISIBLE);
         }
     }
 
@@ -179,6 +182,13 @@ public class ManageResidentFragment extends Fragment {
         if (btnApproveRequests != null) {
             btnApproveRequests.setOnClickListener(v -> {
                 Intent intent = new Intent(requireContext(), ApproveRequestsActivity.class);
+                startActivity(intent);
+            });
+        }
+
+        if (btnManageApartments != null) {
+            btnManageApartments.setOnClickListener(v -> {
+                Intent intent = new Intent(requireContext(), ApartmentManagerActivity.class);
                 startActivity(intent);
             });
         }

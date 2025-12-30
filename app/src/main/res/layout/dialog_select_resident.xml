@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_marginHorizontal="12dp"
+    android:orientation="vertical"
+    android:background="@drawable/bg_bottomsheet_top_rounded"
+    android:paddingBottom="24dp">
+
+    <View
+        android:layout_width="40dp"
+        android:layout_height="4dp"
+        android:layout_marginTop="12dp"
+        android:layout_marginBottom="12dp"
+        android:layout_gravity="center_horizontal"
+        android:background="#E0E0E0" />
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Chọn cư dân thêm vào phòng"
+        android:textSize="18sp"
+        android:textStyle="bold"
+        android:textColor="#333"
+        android:paddingHorizontal="16dp"
+        android:layout_marginBottom="12dp"/>
+
+    <EditText
+        android:id="@+id/edtSearch"
+        android:layout_width="match_parent"
+        android:layout_height="45dp"
+        android:layout_marginHorizontal="16dp"
+        android:background="@drawable/bg_input_rounded"
+        android:hint="Tìm theo tên hoặc ID..."
+        android:paddingHorizontal="12dp"
+        android:textSize="14sp"
+        android:drawableStart="@android:drawable/ic_menu_search"
+        android:drawablePadding="8dp"
+        android:layout_marginBottom="12dp"/>
+
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/rvSelectResident"
+        android:layout_width="match_parent"
+        android:layout_height="400dp"
+        android:paddingHorizontal="8dp"/>
+
+</LinearLayout>

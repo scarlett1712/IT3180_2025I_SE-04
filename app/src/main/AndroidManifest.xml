@@ -78,6 +78,9 @@
         <activity android:name=".finance.admin.ConfigRatesActivity" />
         <activity android:name=".authority.AuthorityInboxActivity"/>
         <activity android:name=".authority.SendToAdminActivity"/>
+        <activity android:name=".apartment.ApartmentEditorActivity"/>
+        <activity android:name=".apartment.ApartmentManagerActivity"/>
+        <activity android:name=".apartment.ApartmentResidentsActivity"/>
         <activity android:name=".settings.SettingsActivity" />
 
         <activity android:name=".finance.FinanceDetailActivity"
