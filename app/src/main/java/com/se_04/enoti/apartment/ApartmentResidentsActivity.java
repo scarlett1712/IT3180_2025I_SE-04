@@ -7,7 +7,7 @@ import android.view.MenuItem;
 import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
-import android.widget.TextView;
+import com.google.android.material.bottomsheet.BottomSheetDialog;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
@@ -262,24 +262,45 @@ public class ApartmentResidentsActivity extends BaseActivity {
     // 2. Hiển thị Dialog danh sách người vô gia cư để thêm
     private void showAddUserDialog() {
         if (homelessList.isEmpty()) {
-            Toast.makeText(this, "Không có cư dân nào đang chờ xếp phòng (Vô gia cư).", Toast.LENGTH_LONG).show();
+            Toast.makeText(this, "Không có cư dân nào đang chờ xếp phòng.", Toast.LENGTH_LONG).show();
             return;
         }
 
-        // Tạo mảng tên để hiển thị trong Dialog
-        String[] names = new String[homelessList.size()];
-        for (int i = 0; i < homelessList.size(); i++) {
-            names[i] = homelessList.get(i).getName() + " (ID: " + homelessList.get(i).getUserId() + ")";
-        }
+        // 1. Khởi tạo BottomSheetDialog
+        BottomSheetDialog bottomSheetDialog = new BottomSheetDialog(this, R.style.BottomSheetDialogTheme);
+        View view = LayoutInflater.from(this).inflate(R.layout.dialog_select_resident, null);
 
-        new AlertDialog.Builder(this)
-                .setTitle("Chọn cư dân thêm vào phòng " + currentApartment.getApartmentNumber())
-                .setItems(names, (dialog, which) -> {
-                    ResidentItem selectedUser = homelessList.get(which);
-                    // Gọi API thêm người (assign vào phòng hiện tại)
-                    updateResidentApartment(selectedUser.getUserId(), currentApartment.getId());
-                })
-                .show();
+        // 2. Ánh xạ View
+        EditText edtSearch = view.findViewById(R.id.edtSearch);
+        RecyclerView rvSelect = view.findViewById(R.id.rvSelectResident);
+
+        // 3. Setup RecyclerView
+        rvSelect.setLayoutManager(new LinearLayoutManager(this));
+
+        SelectResidentAdapter selectAdapter = new SelectResidentAdapter(homelessList, selectedUser -> {
+            // Khi chọn user -> Gọi API thêm
+            updateResidentApartment(selectedUser.getUserId(), currentApartment.getId());
+
+            // Đóng BottomSheet sau khi chọn
+            bottomSheetDialog.dismiss();
+        });
+        rvSelect.setAdapter(selectAdapter);
+
+        // 4. Setup Tìm kiếm
+        edtSearch.addTextChangedListener(new android.text.TextWatcher() {
+            @Override
+            public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
+            @Override
+            public void onTextChanged(CharSequence s, int start, int before, int count) {
+                selectAdapter.filter(s.toString());
+            }
+            @Override
+            public void afterTextChanged(android.text.Editable s) {}
+        });
+
+        // 5. Hiển thị
+        bottomSheetDialog.setContentView(view);
+        bottomSheetDialog.show();
     }
 
     // 3. Xác nhận xóa người khỏi phòng

@@ -73,6 +73,7 @@ router.get("/", verifySession, async (req, res) => {
         AND ur.role_id = 1
       )
 
+      -- Đã comment lại để hiển thị cả người vô gia cư (NULL apartment)
       -- AND a.apartment_number IS NOT NULL
       -- AND a.apartment_number != ''
       -- AND a.apartment_number != 'null'
@@ -122,7 +123,6 @@ router.put("/update/:userId", verifySession, async (req, res) => {
     await client.query("BEGIN");
 
     // 1. Cập nhật bảng user_item
-    // 🔥 FIX: Thêm ép kiểu ::text, ::date để tránh lỗi "could not determine data type" khi giá trị là null
     await client.query(
       `UPDATE user_item
        SET full_name = COALESCE($1::text, full_name),
@@ -249,6 +249,50 @@ router.put("/status/:userId", verifySession, async (req, res) => {
     console.error("❌ Error changing status:", err);
     res.status(500).json({ error: "Lỗi server." });
   }
+});
+
+// ==================================================================
+// 🏠 API: CẬP NHẬT PHÒNG CHO CƯ DÂN (Thêm vào phòng / Đuổi khỏi phòng)
+// 🔥 ĐÃ THÊM MỚI TẠI ĐÂY
+// ==================================================================
+router.put("/assign-apartment", verifySession, async (req, res) => {
+    const { user_id, apartment_id } = req.body;
+    // apartment_id: ID phòng (int) hoặc NULL (nếu đuổi ra)
+
+    if (!user_id) return res.status(400).json({ error: "Thiếu user_id" });
+
+    const client = await pool.connect();
+    try {
+        await client.query("BEGIN");
+
+        // 1. Tìm relationship_id của user này
+        const relRes = await client.query("SELECT relationship FROM user_item WHERE user_id = $1", [user_id]);
+
+        if (relRes.rows.length === 0) {
+             await client.query("ROLLBACK");
+             return res.status(404).json({ error: "User chưa có relationship id" });
+        }
+
+        const relationshipId = relRes.rows[0].relationship;
+
+        // 2. Cập nhật bảng relationship
+        await client.query(
+            `UPDATE relationship
+             SET apartment_id = $1
+             WHERE relationship_id = $2`,
+            [apartment_id, relationshipId]
+        );
+
+        await client.query("COMMIT");
+        res.json({ success: true, message: "Cập nhật chỗ ở thành công" });
+
+    } catch (err) {
+        await client.query("ROLLBACK");
+        console.error("Assign Apartment Error:", err);
+        res.status(500).json({ error: err.message });
+    } finally {
+        client.release();
+    }
 });
 
 export default router;
