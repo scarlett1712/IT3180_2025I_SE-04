@@ -177,10 +177,9 @@ public class PayActivity extends BaseActivity {
                 json.put("amount", amount);
                 json.put("financeId", financeId);
                 json.put("userId", currentUserId);
-                json.put("orderCode", currentOrderCode); // Gửi mã đơn
 
                 RequestBody body = RequestBody.create(json.toString(), MediaType.parse("application/json; charset=utf-8"));
-                Request request = new Request.Builder().url("https://nmcnpm-se-04.onrender.com/create-payment-link").post(body).build();
+                Request request = new Request.Builder().url("https://it3180-2025i-se-04.onrender.com/create-payment-link").post(body).build();
                 Response response = client.newCall(request).execute();
 
                 if (response.isSuccessful() && response.body() != null) {
