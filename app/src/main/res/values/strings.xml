@@ -90,6 +90,7 @@
     <string name="asset">Cơ sở vật chất</string>
     <string name="no_notifications">Không có thông báo</string>
     <string name="feedback_reply_history">Lịch sử phản hồi</string>
+    <string name="apartmentNotification">Thông tin căn hộ</string>
 
     <string-array name="authority_message_categories">
         <item>Thông báo hành chính</item>

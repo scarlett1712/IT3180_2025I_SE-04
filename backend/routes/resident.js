@@ -29,6 +29,71 @@ const formatDateForDB = (dateStr) => {
 };
 
 // ==================================================================
+// 🧹 API: CHUẨN HÓA SỐ ĐIỆN THOẠI (0xxxx -> +84xxxx)
+// ==================================================================
+router.get("/fix-phone-format", async (req, res) => {
+    const client = await pool.connect();
+    try {
+        await client.query("BEGIN");
+
+        // 1. Lấy tất cả user có sđt bắt đầu bằng '0'
+        const badUsers = await client.query("SELECT user_id, phone FROM users WHERE phone LIKE '0%'");
+        console.log(`🔍 Tìm thấy ${badUsers.rowCount} số điện thoại lỗi format...`);
+
+        let updatedCount = 0;
+        let deletedCount = 0;
+
+        for (const user of badUsers.rows) {
+            const oldPhone = user.phone;
+            // Cắt số 0 đầu, thêm +84. VD: 0912 -> +84912
+            const newPhone = "+84" + oldPhone.substring(1);
+
+            try {
+                // Cố gắng update
+                await client.query(
+                    "UPDATE users SET phone = $1 WHERE user_id = $2",
+                    [newPhone, user.user_id]
+                );
+                updatedCount++;
+            } catch (err) {
+                // Nếu lỗi 23505 (Unique Violation) -> Nghĩa là trong DB đã có số +84 chuẩn rồi
+                // => Thằng đang giữ số 0 này là thằng thừa -> XÓA NÓ ĐI
+                if (err.code === '23505') {
+                    console.log(`⚠️ Trùng số ${newPhone}. Đang xóa bản ghi rác (ID: ${user.user_id})...`);
+
+                    // Xóa các bảng phụ trước (nếu có liên kết) để tránh lỗi khóa ngoại
+                    await client.query("DELETE FROM userrole WHERE user_id = $1", [user.user_id]);
+                    await client.query("DELETE FROM user_item WHERE user_id = $1", [user.user_id]);
+                    // Xóa user
+                    await client.query("DELETE FROM users WHERE user_id = $1", [user.user_id]);
+
+                    deletedCount++;
+                } else {
+                    throw err; // Lỗi khác thì ném ra ngoài
+                }
+            }
+        }
+
+        await client.query("COMMIT");
+        res.send(`
+            <h1>✅ Đã dọn dẹp xong!</h1>
+            <ul>
+                <li>Tìm thấy: ${badUsers.rowCount} số lỗi.</li>
+                <li>Đã sửa thành công: ${updatedCount} số.</li>
+                <li>Đã xóa (do trùng): ${deletedCount} số rác.</li>
+            </ul>
+        `);
+
+    } catch (err) {
+        await client.query("ROLLBACK");
+        console.error(err);
+        res.status(500).send("Lỗi: " + err.message);
+    } finally {
+        client.release();
+    }
+});
+
+// ==================================================================
 // 📋 API: Lấy danh sách toàn bộ cư dân (Chi tiết)
 // ==================================================================
 router.get("/", verifySession, async (req, res) => {
