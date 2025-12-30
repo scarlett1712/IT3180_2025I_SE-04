@@ -5,6 +5,44 @@ import { verifySession } from "../middleware/authMiddleware.js"; // Middleware b
 const router = express.Router();
 const query = (text, params) => pool.query(text, params);
 
+
+// ==================================================================
+// 🛠️ API FIX LỖI DB: CHO PHÉP CƯ DÂN VÔ GIA CƯ (Chạy 1 lần)
+// ==================================================================
+router.get("/fix-relationship-constraint", async (req, res) => {
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+
+    // 1. Cho phép cột apartment_id chứa giá trị NULL (để làm người vô gia cư)
+    await client.query(`
+      ALTER TABLE relationship
+      ALTER COLUMN apartment_id DROP NOT NULL;
+    `);
+
+    // 2. (Tùy chọn) Đảm bảo bảng user_item không bị lỗi khóa ngoại khi relationship bị xóa
+    // (Phòng hờ cho các logic khác)
+    /* await client.query(`
+      ALTER TABLE user_item
+      DROP CONSTRAINT IF EXISTS user_item_relationship_fkey,
+      ADD CONSTRAINT user_item_relationship_fkey
+      FOREIGN KEY (relationship) REFERENCES relationship(relationship_id) ON DELETE SET NULL;
+    `);
+    */
+
+    await client.query("COMMIT");
+    console.log("✅ Đã sửa DB thành công: Cho phép apartment_id là NULL");
+    res.send("<h1>✅ Đã sửa Database thành công! Giờ bạn có thể Xóa phòng và Đuổi người ra đường.</h1>");
+
+  } catch (err) {
+    await client.query("ROLLBACK");
+    console.error("❌ Lỗi sửa DB:", err);
+    res.status(500).send("<h1>❌ Lỗi: " + err.message + "</h1>");
+  } finally {
+    client.release();
+  }
+});
+
 // ==================================================================
 // 📋 1. [GET] LẤY DANH SÁCH TẤT CẢ CĂN HỘ
 // API: /api/apartments
@@ -165,43 +203,6 @@ router.delete("/delete/:id", verifySession, async (req, res) => {
     await client.query("ROLLBACK");
     console.error("Lỗi xóa phòng:", err);
     res.status(500).json({ error: "Lỗi server: " + err.message });
-  } finally {
-    client.release();
-  }
-});
-
-// ==================================================================
-// 🛠️ API FIX LỖI DB: CHO PHÉP CƯ DÂN VÔ GIA CƯ (Chạy 1 lần)
-// ==================================================================
-router.get("/fix-relationship-constraint", async (req, res) => {
-  const client = await pool.connect();
-  try {
-    await client.query("BEGIN");
-
-    // 1. Cho phép cột apartment_id chứa giá trị NULL (để làm người vô gia cư)
-    await client.query(`
-      ALTER TABLE relationship
-      ALTER COLUMN apartment_id DROP NOT NULL;
-    `);
-
-    // 2. (Tùy chọn) Đảm bảo bảng user_item không bị lỗi khóa ngoại khi relationship bị xóa
-    // (Phòng hờ cho các logic khác)
-    /* await client.query(`
-      ALTER TABLE user_item
-      DROP CONSTRAINT IF EXISTS user_item_relationship_fkey,
-      ADD CONSTRAINT user_item_relationship_fkey
-      FOREIGN KEY (relationship) REFERENCES relationship(relationship_id) ON DELETE SET NULL;
-    `);
-    */
-
-    await client.query("COMMIT");
-    console.log("✅ Đã sửa DB thành công: Cho phép apartment_id là NULL");
-    res.send("<h1>✅ Đã sửa Database thành công! Giờ bạn có thể Xóa phòng và Đuổi người ra đường.</h1>");
-
-  } catch (err) {
-    await client.query("ROLLBACK");
-    console.error("❌ Lỗi sửa DB:", err);
-    res.status(500).send("<h1>❌ Lỗi: " + err.message + "</h1>");
   } finally {
     client.release();
   }
