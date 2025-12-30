@@ -72,6 +72,7 @@ public class ManageResidentFragment extends Fragment {
     private static final String API_URL = ApiConfig.BASE_URL + "/api/residents";
     private static final String API_PENDING_REQUESTS = ApiConfig.BASE_URL + "/api/profile-requests/pending";
     private static final String CACHE_FILE_RESIDENTS = DataCacheManager.CACHE_RESIDENTS;
+    private static final String LABEL_HOMELESS = "Vô gia cư";
 
     @Nullable
     @Override
@@ -271,7 +272,21 @@ public class ManageResidentFragment extends Fragment {
             fullList.clear();
             for (int i = 0; i < response.length(); i++) {
                 JSONObject obj = response.getJSONObject(i);
-                fullList.add(new ResidentItem(
+
+                // 1. Kiểm tra số phòng
+                String rawRoom = obj.optString("apartment_number");
+                String displayRoom;
+
+                // Nếu dữ liệu null/rỗng -> Gán nhãn "Vô gia cư"
+                if (rawRoom == null || rawRoom.trim().isEmpty() || rawRoom.equalsIgnoreCase("null")) {
+                    displayRoom = "Vô gia cư";
+                } else {
+                    displayRoom = rawRoom;
+                }
+
+                // 2. Tạo đối tượng ResidentItem
+                // (Class ResidentItem sẽ tự động tính toán Tầng dựa trên displayRoom thông qua hàm getFloor mà bạn vừa sửa)
+                ResidentItem item = new ResidentItem(
                         obj.optInt("user_item_id"),
                         obj.optInt("user_id"),
                         obj.optString("full_name"),
@@ -283,15 +298,36 @@ public class ManageResidentFragment extends Fragment {
                         obj.optString("relationship_with_the_head_of_household"),
                         obj.optString("family_id"),
                         obj.optBoolean("is_living"),
-                        obj.optString("apartment_number"),
+                        displayRoom,  // Truyền "Vô gia cư" hoặc số phòng (VD: "101")
                         obj.optString("identity_card", ""),
                         obj.optString("home_town", "")
-                ));
+                );
+
+                // ❌ KHÔNG CẦN GỌI setFloor() NỮA
+                // Vì logic nằm trong ResidentItem.java rồi.
+
+                fullList.add(item);
             }
 
+            // 3. Sắp xếp: Phòng thường lên trên, Vô gia cư xuống đáy
             Collections.sort(fullList, (a, b) -> {
+                String labelHomeless = "Vô gia cư"; // Đảm bảo chuỗi này khớp với displayRoom ở trên
+                boolean aHomeless = a.getRoom().equals(labelHomeless);
+                boolean bHomeless = b.getRoom().equals(labelHomeless);
+
+                // Nếu A vô gia cư, B có phòng -> A nằm sau (return 1)
+                if (aHomeless && !bHomeless) return 1;
+
+                // Nếu A có phòng, B vô gia cư -> A nằm trước (return -1)
+                if (!aHomeless && bHomeless) return -1;
+
+                // Nếu cả 2 cùng vô gia cư -> Xếp theo tên A-Z
+                if (aHomeless && bHomeless) return a.getName().compareToIgnoreCase(b.getName());
+
+                // Nếu cả 2 có phòng -> Xếp theo số phòng rồi đến tên
                 int roomA = extractRoomNumber(a.getRoom());
                 int roomB = extractRoomNumber(b.getRoom());
+
                 if (roomA != roomB) return Integer.compare(roomA, roomB);
                 return a.getName().compareToIgnoreCase(b.getName());
             });
@@ -314,9 +350,34 @@ public class ManageResidentFragment extends Fragment {
     private void setupFloorSpinner() {
         allFloors.clear();
         allFloors.add("Tất cả tầng");
+
+        List<String> realFloors = new ArrayList<>();
+        boolean hasHomeless = false;
+
         for (ResidentItem item : fullList) {
             String floor = item.getFloor();
-            if (floor != null && !allFloors.contains(floor)) allFloors.add(floor);
+            // Nếu là vô gia cư
+            if (item.getRoom().equals(LABEL_HOMELESS)) {
+                hasHomeless = true;
+            } else if (floor != null && !realFloors.contains(floor)) {
+                realFloors.add(floor);
+            }
+        }
+
+        // Sắp xếp tầng số tăng dần
+        Collections.sort(realFloors, (s1, s2) -> {
+            try {
+                return Integer.compare(Integer.parseInt(s1), Integer.parseInt(s2));
+            } catch (Exception e) {
+                return s1.compareTo(s2);
+            }
+        });
+
+        allFloors.addAll(realFloors);
+
+        // Thêm mục "Vô gia cư" vào cuối danh sách lọc tầng
+        if (hasHomeless) {
+            allFloors.add(LABEL_HOMELESS);
         }
 
         ArrayAdapter<String> floorAdapter = new ArrayAdapter<>(requireContext(),
@@ -328,18 +389,30 @@ public class ManageResidentFragment extends Fragment {
     private void updateRoomSpinner() {
         String selectedFloor = spinnerFilterFloor.getSelectedItem() != null ? spinnerFilterFloor.getSelectedItem().toString() : "Tất cả tầng";
         allRooms.clear();
+        allRooms.add("Tất cả phòng");
 
         if (selectedFloor.equals("Tất cả tầng")) {
             spinnerFilterRoom.setEnabled(false);
-            allRooms.add("Tất cả phòng");
+        } else if (selectedFloor.equals(LABEL_HOMELESS)) {
+            // Nếu chọn tầng là "Vô gia cư" -> Phòng cũng chỉ có thể là "Vô gia cư"
+            spinnerFilterRoom.setEnabled(true);
+            allRooms.add(LABEL_HOMELESS);
         } else {
             spinnerFilterRoom.setEnabled(true);
-            allRooms.add("Tất cả phòng");
             for (ResidentItem item : fullList) {
-                if (item.getFloor().equals(selectedFloor) && !allRooms.contains(item.getRoom())) {
+                // Chỉ lấy phòng thuộc tầng đã chọn VÀ không phải vô gia cư (vì vô gia cư đã lọc ở case trên)
+                if (item.getFloor() != null && item.getFloor().equals(selectedFloor)
+                        && !item.getRoom().equals(LABEL_HOMELESS)
+                        && !allRooms.contains(item.getRoom())) {
                     allRooms.add(item.getRoom());
                 }
             }
+            // Sắp xếp phòng
+            Collections.sort(allRooms.subList(1, allRooms.size()), (s1, s2) -> {
+                try {
+                    return Integer.compare(Integer.parseInt(s1.replaceAll("\\D+","")), Integer.parseInt(s2.replaceAll("\\D+","")));
+                } catch (Exception e) { return s1.compareTo(s2); }
+            });
         }
 
         ArrayAdapter<String> roomAdapter = new ArrayAdapter<>(requireContext(),
@@ -361,8 +434,27 @@ public class ManageResidentFragment extends Fragment {
 
         for (ResidentItem item : fullList) {
             boolean matchesSearch = item.getName().toLowerCase(Locale.ROOT).contains(searchQuery);
-            boolean matchesFloor = selectedFloor.equals("Tất cả tầng") || item.getFloor().equals(selectedFloor);
-            boolean matchesRoom = selectedRoom.equals("Tất cả phòng") || item.getRoom().equals(selectedRoom);
+
+            // Logic so sánh tầng
+            boolean matchesFloor = false;
+            if (selectedFloor.equals("Tất cả tầng")) {
+                matchesFloor = true;
+            } else if (selectedFloor.equals(LABEL_HOMELESS)) {
+                // Nếu lọc "Vô gia cư", kiểm tra xem phòng có phải vô gia cư ko
+                matchesFloor = item.getRoom().equals(LABEL_HOMELESS);
+            } else {
+                // Lọc tầng thường
+                matchesFloor = item.getFloor() != null && item.getFloor().equals(selectedFloor);
+            }
+
+            // Logic so sánh phòng
+            boolean matchesRoom = false;
+            if (selectedRoom.equals("Tất cả phòng")) {
+                matchesRoom = true;
+            } else {
+                matchesRoom = item.getRoom().equals(selectedRoom);
+            }
+
             if (matchesSearch && matchesFloor && matchesRoom) filteredList.add(item);
         }
 
