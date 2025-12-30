@@ -24,15 +24,14 @@ export const createFinanceTables = async () => {
         created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
       );
     `);
-    // Cập nhật bảng user_finances có thêm amount và note
     await query(`
       CREATE TABLE IF NOT EXISTS user_finances (
         id SERIAL PRIMARY KEY,
         user_id INTEGER NOT NULL,
         finance_id INTEGER NOT NULL REFERENCES finances(id) ON DELETE CASCADE,
         status VARCHAR(100) DEFAULT 'chua_thanh_toan',
-        amount NUMERIC(12, 2) DEFAULT NULL, -- 🔥 Số tiền riêng từng hộ
-        note TEXT DEFAULT '',               -- 🔥 Ghi chú riêng (Chỉ số cũ/mới)
+        amount NUMERIC(12, 2) DEFAULT NULL,
+        note TEXT DEFAULT '',
         UNIQUE(user_id, finance_id)
       );
     `);
@@ -64,32 +63,19 @@ export const createFinanceTables = async () => {
 };
 
 // ==================================================================
-// 🟢 [GET] ADMIN: DANH SÁCH KHOẢN THU (Đã gom nhóm)
+// 🟢 [GET] ADMIN: DANH SÁCH KHOẢN THU
 // ==================================================================
 router.get("/admin", async (req, res) => {
   try {
-    // Chỉ lấy từ bảng finances, số liệu thống kê được tính tổng từ user_finances
     const result = await query(`
       SELECT
-        f.id,
-        f.title,
-        f.content,
-        f.amount AS price, -- Đây là tổng tiền dự kiến
-        f.type,
+        f.id, f.title, f.content, f.amount AS price, f.type,
         TO_CHAR(f.due_date, 'DD-MM-YYYY') AS due_date,
         f.created_at AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Ho_Chi_Minh' as created_at,
-        f.created_by,
-        COALESCE(creator.full_name, 'Ban quản lý') AS sender,
-
-        -- Đếm số phòng tham gia
+        f.created_by, COALESCE(creator.full_name, 'Ban quản lý') AS sender,
         COUNT(DISTINCT uf.user_id) AS total_rooms,
-
-        -- Đếm số phòng đã thanh toán
         COUNT(DISTINCT CASE WHEN uf.status = 'da_thanh_toan' THEN uf.user_id END) AS paid_rooms,
-
-        -- Tổng tiền thực tế đã thu (từ Invoice)
         COALESCE(SUM(inv.amount), 0) AS total_collected_real
-
       FROM finances f
       LEFT JOIN user_finances uf ON f.id = uf.finance_id
       LEFT JOIN invoice inv ON inv.finance_id = uf.id
@@ -110,12 +96,10 @@ router.get("/admin", async (req, res) => {
 router.post("/create-utility-bulk", async (req, res) => {
   const { data, type, month, year, auto_calculate } = req.body;
 
-  // 🔥 Xử lý phí cố định (quản lý / dịch vụ)
   if (auto_calculate === true) {
     return await createFixedFeeInvoice(req, res, type, month, year);
   }
 
-  // 🔥 Xử lý Điện / Nước (có chỉ số)
   if (!data || !Array.isArray(data) || data.length === 0) {
     return res.status(400).json({ error: "Dữ liệu trống hoặc sai định dạng" });
   }
@@ -129,7 +113,7 @@ router.post("/create-utility-bulk", async (req, res) => {
   try {
     await client.query("BEGIN");
 
-    // 1. Lấy bảng giá 1 lần
+    // 1. Lấy bảng giá
     const ratesRes = await client.query(
       "SELECT * FROM utility_rates WHERE type=$1 ORDER BY min_usage ASC",
       [type]
@@ -143,8 +127,11 @@ router.post("/create-utility-bulk", async (req, res) => {
     const typeName = type === 'electricity' ? "Tiền điện" : "Tiền nước";
     const titlePattern = `${typeName} T${month}/${year}`;
 
-    // 2. Lấy thông tin tất cả phòng trong data 1 lần duy nhất (TỐI ƯU NHẤT!)
-    const roomNumbers = data.map(item => item.room);
+    // 🔥 LỌC DỮ LIỆU ĐẦU VÀO: Bỏ qua các item không có room hoặc room = null
+    const validData = data.filter(item => item.room && item.room !== 'null' && item.room !== 'Vô gia cư');
+    const roomNumbers = validData.map(item => item.room);
+
+    // 2. Lấy thông tin phòng (CHỈ LẤY PHÒNG CÓ SỐ PHÒNG HỢP LỆ)
     const usersRes = await client.query(`
       SELECT
         a.apartment_number AS room,
@@ -155,17 +142,18 @@ router.post("/create-utility-bulk", async (req, res) => {
       JOIN user_item ui ON r.relationship_id = ui.relationship
       JOIN users u ON ui.user_id = u.user_id
       WHERE a.apartment_number = ANY($1)
+      AND a.apartment_number IS NOT NULL -- 🔥 CHẶN NULL
+      AND a.apartment_number != 'null'
     `, [roomNumbers]);
 
-    // Tạo map để tra cứu nhanh
     const roomToUsers = {};
     usersRes.rows.forEach(row => {
       if (!roomToUsers[row.room]) roomToUsers[row.room] = [];
       roomToUsers[row.room].push({ user_id: row.user_id, fcm_token: row.fcm_token });
     });
 
-    // 3. Tính tiền cho từng phòng
-    for (const item of data) {
+    // 3. Tính tiền
+    for (const item of validData) {
       const { room, old_index, new_index } = item;
       if (new_index < old_index) {
         errors.push(`P${room}: Chỉ số mới nhỏ hơn cũ`);
@@ -186,13 +174,13 @@ router.post("/create-utility-bulk", async (req, res) => {
         remaining -= used;
       }
 
-      totalAmountAllRooms += cost;
-
       const users = roomToUsers[room];
       if (!users || users.length === 0) {
-        errors.push(`P${room}: Không tìm thấy chủ hộ`);
+        // Có thể phòng chưa có người ở, hoặc vô gia cư -> Bỏ qua
         continue;
       }
+
+      totalAmountAllRooms += cost;
 
       users.forEach(u => {
         insertData.push({
@@ -209,7 +197,7 @@ router.post("/create-utility-bulk", async (req, res) => {
 
     if (insertData.length === 0) {
       await client.query("ROLLBACK");
-      return res.json({ success: false, message: "Không tạo được hóa đơn nào", errors });
+      return res.json({ success: false, message: "Không tạo được hóa đơn nào (Có thể do phòng trống hoặc không có người)", errors });
     }
 
     // 4. Tạo finance cha
@@ -255,6 +243,10 @@ router.post("/create-utility-bulk", async (req, res) => {
     client.release();
   }
 });
+
+// ==================================================================
+// 🟢 HÀM PHỤ: TÍNH PHÍ CỐ ĐỊNH (DIỆN TÍCH)
+// ==================================================================
 async function createFixedFeeInvoice(req, res, type, month, year) {
   const client = await pool.connect();
   try {
@@ -273,7 +265,7 @@ async function createFixedFeeInvoice(req, res, type, month, year) {
     const pricePerM2 = parseFloat(rateRes.rows[0].price);
     const typeName = type === "management_fee" ? "Phí quản lý" : "Phí dịch vụ";
 
-    // Lấy tất cả căn hộ có người ở + diện tích
+    // 🔥 CHỈ LẤY CĂN HỘ CÓ SỐ PHÒNG HỢP LỆ (KHÔNG NULL)
     const roomsRes = await client.query(`
       SELECT
         a.apartment_number AS room,
@@ -284,7 +276,10 @@ async function createFixedFeeInvoice(req, res, type, month, year) {
       JOIN relationship r ON a.apartment_id = r.apartment_id
       JOIN user_item ui ON r.relationship_id = ui.relationship
       JOIN users u ON ui.user_id = u.user_id
-      WHERE a.area IS NOT NULL AND a.area > 0
+      WHERE a.area IS NOT NULL
+      AND a.area > 0
+      AND a.apartment_number IS NOT NULL -- 🔥 CHẶN NULL
+      AND a.apartment_number != 'null'
     `);
 
     let totalAmount = 0;
@@ -305,7 +300,7 @@ async function createFixedFeeInvoice(req, res, type, month, year) {
 
     if (insertData.length === 0) {
       await client.query("ROLLBACK");
-      return res.json({ success: false, message: "Không có căn hộ nào để tính phí" });
+      return res.json({ success: false, message: "Không có căn hộ hợp lệ nào để tính phí" });
     }
 
     // Tạo finance cha
@@ -318,7 +313,6 @@ async function createFixedFeeInvoice(req, res, type, month, year) {
 
     const financeId = fRes.rows[0].id;
 
-    // Insert user_finances
     for (const d of insertData) {
       await client.query(`
         INSERT INTO user_finances (user_id, finance_id, status, amount, note)
@@ -348,74 +342,55 @@ async function createFixedFeeInvoice(req, res, type, month, year) {
     client.release();
   }
 }
-// ==================================================================
-// 🟢 [GET] CHI TIẾT DANH SÁCH PHÒNG CỦA 1 KHOẢN THU (Cập nhật lấy amount riêng)
-// ==================================================================
+
+// ... (Các API GET chi tiết, GET user giữ nguyên) ...
 router.get("/:financeId/users", async (req, res) => {
   try {
     const financeId = req.params.financeId;
-    // 🔥 Lấy COALESCE(uf.amount, f.amount) để nếu user có tiền riêng thì lấy, ko thì lấy tiền chung
     const result = await query(`
       SELECT
-        ui.full_name,
-        uf.user_id,
-        a.apartment_number AS room,
-        uf.status,
-        uf.id AS user_finance_id,
-        COALESCE(uf.amount, f.amount) AS amount, -- 🔥 Lấy số tiền
-        uf.note -- 🔥 Lấy chỉ số điện nước
+        ui.full_name, uf.user_id, a.apartment_number AS room, uf.status, uf.id AS user_finance_id,
+        COALESCE(uf.amount, f.amount) AS amount, uf.note
       FROM user_finances uf
       JOIN finances f ON uf.finance_id = f.id
       JOIN user_item ui ON uf.user_id = ui.user_id
       JOIN relationship r ON ui.relationship = r.relationship_id
       JOIN apartment a ON r.apartment_id = a.apartment_id
       WHERE uf.finance_id = $1
+      AND a.apartment_number IS NOT NULL -- 🔥 Không hiện vô gia cư
       ORDER BY
-        CASE
-          WHEN a.apartment_number ~ '^\d+$' THEN a.apartment_number::INTEGER
-          ELSE COALESCE((regexp_replace(a.apartment_number, '\D', '', 'g'))::INTEGER, 0)
-        END ASC
+        CASE WHEN a.apartment_number ~ '^\d+$' THEN a.apartment_number::INTEGER ELSE 0 END ASC
     `, [financeId]);
     res.json(result.rows);
   } catch (e) { res.status(500).json({error: "Lỗi server"}); }
 });
 
-// ==================================================================
-// 🟢 [GET] KHOẢN THU CỦA USER (Cập nhật hiển thị tiền riêng)
-// ==================================================================
 router.get("/user/:userId", async (req, res) => {
   try {
     const userId = req.params.userId;
     const result = await query(`
       SELECT
-        f.id,
-        f.title,
-        -- 🔥 Ghép ghi chú riêng vào nội dung chung nếu có
-        CASE
-            WHEN uf.note IS NOT NULL AND uf.note != '' THEN f.content || ' (' || uf.note || ')'
-            ELSE f.content
-        END as content,
-        -- 🔥 Ưu tiên lấy tiền riêng của user
-        COALESCE(uf.amount, f.amount) AS price,
-        f.type,
+        f.id, f.title,
+        CASE WHEN uf.note IS NOT NULL AND uf.note != '' THEN f.content || ' (' || uf.note || ')' ELSE f.content END as content,
+        COALESCE(uf.amount, f.amount) AS price, f.type,
         TO_CHAR(f.due_date, 'DD-MM-YYYY') AS due_date,
-        f.created_by,
-        COALESCE(ui.full_name, 'Ban quản lý') AS sender,
-        uf.status,
-        uf.id AS user_finance_id
+        f.created_by, COALESCE(ui.full_name, 'Ban quản lý') AS sender,
+        uf.status, uf.id AS user_finance_id
       FROM finances f
       JOIN user_finances uf ON f.id = uf.finance_id
       LEFT JOIN user_item ui ON f.created_by = ui.user_id
+      LEFT JOIN relationship r ON (SELECT relationship FROM user_item WHERE user_id = uf.user_id) = r.relationship_id
+      LEFT JOIN apartment a ON r.apartment_id = a.apartment_id
       WHERE uf.user_id = $1 AND f.type != 'chi_phi'
+      -- Chỉ hiện nếu user đang ở trong 1 phòng hợp lệ (để an toàn)
+      AND (a.apartment_number IS NOT NULL OR f.type = 'tu_nguyen')
       ORDER BY f.due_date ASC NULLS LAST
     `, [userId]);
     res.json(result.rows);
   } catch (e) { res.status(500).json({ error: "Lỗi server", detail: e.message }); }
 });
 
-// ==================================================================
-// 🔵 [PUT] CẬP NHẬT TRẠNG THÁI THANH TOÁN (ADMIN) - FIX TIỀN RIÊNG
-// ==================================================================
+// ... (Các API Update status giữ nguyên) ...
 router.put("/update-status", async (req, res) => {
   const { room, finance_id, status } = req.body;
   if (!finance_id || !status) return res.status(400).json({ error: "Thiếu thông tin" });
@@ -434,6 +409,7 @@ router.put("/update-status", async (req, res) => {
           JOIN relationship r ON ui.relationship = r.relationship_id
           JOIN apartment a ON r.apartment_id = a.apartment_id
           WHERE uf.finance_id = $1 AND a.apartment_number = $2
+          AND a.apartment_number IS NOT NULL -- 🔥 Chặn room null
         `, [finance_id, room]);
     } else {
         userFinanceRows = await client.query(`
@@ -452,16 +428,12 @@ router.put("/update-status", async (req, res) => {
     const targetIds = userFinanceRows.rows.map(r => r.id);
     const representative = userFinanceRows.rows[0];
 
-    // Cập nhật trạng thái
     await client.query(`UPDATE user_finances SET status = $1 WHERE id = ANY($2::int[])`, [status, targetIds]);
 
     if (status === 'da_thanh_toan') {
       const ordercode = `ADMIN-${Date.now()}-${representative.user_id}`;
-      // Kiểm tra tồn tại
       const existing = await client.query("SELECT invoice_id FROM invoice WHERE finance_id = ANY($1::int[])", [targetIds]);
-
       if (existing.rows.length === 0) {
-        // 🔥 Insert với số tiền thực tế (real_amount) của phòng đó
         await client.query(`
           INSERT INTO invoice (finance_id, amount, description, ordercode, currency, paytime)
           VALUES ($1, $2, $3, $4, 'VND', NOW())
@@ -473,24 +445,15 @@ router.put("/update-status", async (req, res) => {
 
     await client.query("COMMIT");
     res.json({ success: true });
-  } catch (err) {
-    await client.query("ROLLBACK");
-    res.status(500).json({ error: err.message });
-  } finally { client.release(); }
+  } catch (err) { await client.query("ROLLBACK"); res.status(500).json({ error: err.message }); } finally { client.release(); }
 });
 
-// ==================================================================
-// 🔵 [PUT] CẬP NHẬT TRẠNG THÁI THANH TOÁN (USER) - FIX TIỀN RIÊNG
-// ==================================================================
 router.put("/user/update-status", async (req, res) => {
   const { user_id, finance_id, status } = req.body;
   if (!user_id || !finance_id || !status) return res.status(400).json({ error: "Thiếu thông tin" });
-
   const client = await pool.connect();
   try {
     await client.query("BEGIN");
-
-    // Lấy thông tin bao gồm số tiền riêng
     const ufResult = await client.query(`
       SELECT uf.id, COALESCE(uf.amount, f.amount) as real_amount, f.title
       FROM user_finances uf
@@ -498,49 +461,29 @@ router.put("/user/update-status", async (req, res) => {
       WHERE uf.finance_id = $1 AND uf.user_id = $2
     `, [finance_id, user_id]);
 
-    if (ufResult.rows.length === 0) {
-      await client.query("ROLLBACK");
-      return res.status(404).json({ error: "Không tìm thấy khoản thu" });
-    }
-
+    if (ufResult.rows.length === 0) { await client.query("ROLLBACK"); return res.status(404).json({ error: "Không tìm thấy khoản thu" }); }
     const row = ufResult.rows[0];
     const userFinanceId = row.id;
-
     await client.query(`UPDATE user_finances SET status = $1 WHERE id = $2`, [status, userFinanceId]);
 
     if (status === 'da_thanh_toan') {
         const ordercode = `USER-${Date.now()}-${user_id}`;
         const existing = await client.query("SELECT invoice_id FROM invoice WHERE finance_id = $1", [userFinanceId]);
-
         if (existing.rows.length === 0) {
-            // 🔥 Insert với số tiền thực tế (real_amount)
-            await client.query(`
-              INSERT INTO invoice (finance_id, amount, description, ordercode, currency, paytime)
-              VALUES ($1, $2, $3, $4, 'VND', NOW())
-            `, [userFinanceId, row.real_amount, row.title, ordercode]);
+            await client.query(`INSERT INTO invoice (finance_id, amount, description, ordercode, currency, paytime) VALUES ($1, $2, $3, $4, 'VND', NOW())`, [userFinanceId, row.real_amount, row.title, ordercode]);
         }
     } else {
         await client.query("DELETE FROM invoice WHERE finance_id = $1", [userFinanceId]);
     }
-
     await client.query("COMMIT");
     res.json({ success: true });
-  } catch (err) {
-    await client.query("ROLLBACK");
-    res.status(500).json({ error: "Lỗi server" });
-  } finally { client.release(); }
+  } catch (err) { await client.query("ROLLBACK"); res.status(500).json({ error: "Lỗi server" }); } finally { client.release(); }
 });
 
-// ... Các API khác giữ nguyên (create, put, delete, statistics...)
-// API Fix DB (Để chạy lần đầu)
+// ... API Fix DB, Update, Delete giữ nguyên ...
 router.get("/upgrade-database-schema", async (req, res) => {
   const client = await pool.connect();
-  try {
-    await client.query("BEGIN");
-    await client.query(`ALTER TABLE user_finances ADD COLUMN IF NOT EXISTS amount NUMERIC(12, 2) DEFAULT NULL, ADD COLUMN IF NOT EXISTS note TEXT DEFAULT '';`);
-    await client.query("COMMIT");
-    res.send("<h1>✅ Database Upgraded!</h1>");
-  } catch (err) { await client.query("ROLLBACK"); res.status(500).send("Error: " + err.message); } finally { client.release(); }
+  try { await client.query("BEGIN"); await client.query(`ALTER TABLE user_finances ADD COLUMN IF NOT EXISTS amount NUMERIC(12, 2) DEFAULT NULL, ADD COLUMN IF NOT EXISTS note TEXT DEFAULT '';`); await client.query("COMMIT"); res.send("<h1>✅ Database Upgraded!</h1>"); } catch (err) { await client.query("ROLLBACK"); res.status(500).send("Error: " + err.message); } finally { client.release(); }
 });
 
 router.put("/:id", async (req, res) => {
@@ -564,15 +507,36 @@ router.delete("/:id", async (req, res) => {
   } catch (err) { res.status(500).json({ error: "Lỗi server" }); }
 });
 
+// ==================================================================
+// 🟢 [POST] TẠO KHOẢN THU THỦ CÔNG (ĐÃ FIX ROOM NULL)
+// ==================================================================
 router.post("/create", async (req, res) => {
   const { title, content, amount, due_date, target_rooms, type, created_by } = req.body;
   if (!title || !target_rooms) return res.status(400).json({ error: "Thiếu dữ liệu" });
+
+  // 🔥 Lọc bỏ null rooms trong input (nếu có)
+  const validRooms = target_rooms.filter(r => r && r !== 'null' && r !== 'Vô gia cư');
+
   const client = await pool.connect();
   try {
     await client.query("BEGIN");
+
+    // Tạo khoản thu
     const financeResult = await client.query(`INSERT INTO finances (title, content, amount, due_date, type, created_by) VALUES ($1, $2, $3, TO_DATE($4, 'DD-MM-YYYY'), $5, $6) RETURNING id`, [title, content || "", amount, due_date, type || "Bắt buộc", created_by]);
     const newId = financeResult.rows[0].id;
-    const userResult = await client.query(`SELECT ui.user_id, u.fcm_token FROM user_item ui JOIN users u ON ui.user_id=u.user_id LEFT JOIN relationship r ON ui.relationship=r.relationship_id LEFT JOIN apartment a ON r.apartment_id=a.apartment_id WHERE a.apartment_number=ANY($1)`, [target_rooms]);
+
+    // Tìm user trong các phòng đó (CHỈ LẤY USER CÓ PHÒNG HỢP LỆ)
+    const userResult = await client.query(`
+      SELECT ui.user_id, u.fcm_token
+      FROM user_item ui
+      JOIN users u ON ui.user_id=u.user_id
+      LEFT JOIN relationship r ON ui.relationship=r.relationship_id
+      LEFT JOIN apartment a ON r.apartment_id=a.apartment_id
+      WHERE a.apartment_number = ANY($1)
+      AND a.apartment_number IS NOT NULL -- 🔥 CHẶN NULL
+      AND a.apartment_number != 'null'
+    `, [validRooms]);
+
     for (const row of userResult.rows) {
       await client.query(`INSERT INTO user_finances (user_id, finance_id, status) VALUES ($1, $2, 'chua_thanh_toan') ON CONFLICT DO NOTHING`, [row.user_id, newId]);
       if (row.fcm_token) sendNotification(row.fcm_token, "📢 Phí mới", `Khoản thu mới: "${title}"`, { type: "finance", id: newId.toString() });
@@ -582,6 +546,7 @@ router.post("/create", async (req, res) => {
   } catch (err) { await client.query("ROLLBACK"); res.status(500).json({ error: err.message }); } finally { client.release(); }
 });
 
+// ... Các API Statistics, Utility rates giữ nguyên ...
 router.get("/statistics", async (req, res) => {
   try {
     const { month, year } = req.query;
@@ -615,37 +580,9 @@ router.get("/utility-rates", async (req, res) => {
   } catch (e) { res.status(500).json({error:"Lỗi"}); }
 });
 
-// ==================================================================
-// 🛠️ API FIX LỖI FOREIGN KEY INVOICE (Chạy 1 lần)
-// ==================================================================
 router.get("/fix-invoice-constraint", async (req, res) => {
   const client = await pool.connect();
-  try {
-    await client.query("BEGIN");
-
-    console.log("🔄 Đang gỡ bỏ ràng buộc khóa ngoại cũ...");
-
-    // Gỡ bỏ ràng buộc khóa ngoại đang trỏ sai vào bảng finances
-    await client.query(`
-      ALTER TABLE invoice
-      DROP CONSTRAINT IF EXISTS invoice_finance_id_fkey;
-    `);
-
-    // (Tùy chọn) Nếu bạn muốn chuẩn chỉ, hãy trỏ nó sang bảng user_finances
-    // Tuy nhiên, để tránh lỗi với dữ liệu cũ, ta chỉ cần Drop là đủ để code chạy được.
-
-    console.log("✅ Đã gỡ bỏ constraint invoice_finance_id_fkey");
-
-    await client.query("COMMIT");
-    res.send("<h1>✅ Đã sửa lỗi Invoice Constraint thành công! Hãy thử thanh toán lại.</h1>");
-
-  } catch (err) {
-    await client.query("ROLLBACK");
-    console.error("❌ Lỗi khi sửa DB:", err);
-    res.status(500).send("<h1>❌ Lỗi: " + err.message + "</h1>");
-  } finally {
-    client.release();
-  }
+  try { await client.query("BEGIN"); await client.query(`ALTER TABLE invoice DROP CONSTRAINT IF EXISTS invoice_finance_id_fkey;`); await client.query("COMMIT"); res.send("<h1>✅ Constraint Fixed</h1>"); } catch (err) { await client.query("ROLLBACK"); res.status(500).send("Error: " + err.message); } finally { client.release(); }
 });
 
 export default router;
