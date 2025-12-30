@@ -5,20 +5,22 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="#F5F7FA"> <com.google.android.material.appbar.AppBarLayout
-    android:layout_width="match_parent"
-    android:layout_height="wrap_content"
-    android:background="@android:color/transparent"
-    app:elevation="0dp">
+    android:background="#F5F7FA">
 
-    <com.google.android.material.appbar.MaterialToolbar
-        android:id="@+id/toolbar"
+    <com.google.android.material.appbar.AppBarLayout
         android:layout_width="match_parent"
-        android:layout_height="?attr/actionBarSize"
-        app:title="Chi tiết hóa đơn"
-        app:titleTextColor="@color/white"
-        app:navigationIcon="@drawable/ic_arrow_back" />
-</com.google.android.material.appbar.AppBarLayout>
+        android:layout_height="wrap_content"
+        android:background="@android:color/transparent"
+        app:elevation="0dp">
+
+        <com.google.android.material.appbar.MaterialToolbar
+            android:id="@+id/toolbar"
+            android:layout_width="match_parent"
+            android:layout_height="?attr/actionBarSize"
+            app:title="Chi tiết hóa đơn"
+            app:titleTextColor="@color/white"
+            app:navigationIcon="@drawable/ic_arrow_back" />
+    </com.google.android.material.appbar.AppBarLayout>
 
     <androidx.core.widget.NestedScrollView
         android:id="@+id/scrollView"
@@ -106,9 +108,8 @@
                         android:layout_height="1dp"
                         android:background="#E0E0E0"
                         android:layout_marginBottom="16dp"
-                        android:layerType="software"
-                        android:backgroundTint="#000000"
-                        style="@style/Widget.AppCompat.ProgressBar.Horizontal" />
+                        android:layerType="software" />
+
                     <LinearLayout
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
@@ -156,10 +157,10 @@
                         android:layout_height="wrap_content"
                         android:orientation="vertical"
                         android:background="@drawable/bg_input_rounded_border"
-                        android:padding="16dp">
+                        android:padding="16dp"
+                        android:visibility="gone">
 
                         <TextView
-                            android:id="@+id/txtinvoiceDetailTitle"
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
                             android:text="Chi tiết giao dịch"
@@ -168,9 +169,64 @@
                             android:textColor="@color/black"
                             android:layout_marginBottom="12dp" />
 
-                        <include layout="@layout/item_detail_row_small" android:id="@+id/rowOrderCode"/>
-                        <include layout="@layout/item_detail_row_small" android:id="@+id/rowPayDate"/>
-                        <include layout="@layout/item_detail_row_small" android:id="@+id/rowAmount"/>
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:orientation="horizontal"
+                            android:layout_marginBottom="8dp">
+                            <TextView
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="1"
+                                android:text="Mã giao dịch:"
+                                android:textColor="#757575"/>
+                            <TextView
+                                android:id="@+id/txtOrderCode"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                tools:text="ORD-123456"
+                                android:textStyle="bold"
+                                android:textColor="@color/black"/>
+                        </LinearLayout>
+
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:orientation="horizontal"
+                            android:layout_marginBottom="8dp">
+                            <TextView
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="1"
+                                android:text="Thời gian:"
+                                android:textColor="#757575"/>
+                            <TextView
+                                android:id="@+id/txtPayDate"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                tools:text="12/10/2023 10:30"
+                                android:textColor="@color/black"/>
+                        </LinearLayout>
+
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:orientation="horizontal"
+                            android:layout_marginBottom="8dp">
+                            <TextView
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="1"
+                                android:text="Thanh toán:"
+                                android:textColor="#757575"/>
+                            <TextView
+                                android:id="@+id/txtAmount"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                tools:text="500,000 đ"
+                                android:textStyle="bold"
+                                android:textColor="#388E3C"/>
+                        </LinearLayout>
 
                         <View
                             android:layout_width="match_parent"
@@ -196,22 +252,17 @@
                         <TextView
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
-                            android:text="Ghi chú:"
+                            android:text="Nội dung CK:"
                             android:textSize="12sp"
                             android:textColor="#757575"/>
                         <TextView
                             android:id="@+id/txtDetail"
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
-                            tools:text="CK 24/7"
+                            tools:text="Phi dich vu T10"
                             android:textColor="@color/black"/>
 
-                        <TextView android:id="@+id/txtOrderCode" android:visibility="gone" android:layout_width="0dp" android:layout_height="0dp"/>
-                        <TextView android:id="@+id/txtPayDate" android:visibility="gone" android:layout_width="0dp" android:layout_height="0dp"/>
-                        <TextView android:id="@+id/txtAmount" android:visibility="gone" android:layout_width="0dp" android:layout_height="0dp"/>
-
                     </LinearLayout>
-
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
 

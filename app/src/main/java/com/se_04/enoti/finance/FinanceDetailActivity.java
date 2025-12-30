@@ -11,7 +11,6 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.annotation.Nullable;
-import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.content.ContextCompat;
 
 import com.android.volley.Request;
@@ -27,77 +26,46 @@ import com.se_04.enoti.utils.VnNumberToWords;
 import org.json.JSONObject;
 
 import java.text.DecimalFormat;
-import java.text.SimpleDateFormat;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.TimeZone;
-import java.util.Objects;
 
 public class FinanceDetailActivity extends BaseActivity {
 
     private static final String TAG = "FinanceDetailActivity";
 
+    // Data Variables
     private int financeId;
     private long price;
     private String title, content, dueDate, sender, paymentStatus;
 
+    // UI Variables
     private Button btnPay;
     private TextView txtPaymentStatus;
 
-    // INVOICE UI
-    private TextView txtOrderCode, txtAmount, txtAmountInText, txtDetail, txtPayDate;
+    // Invoice Detail UI (Ẩn/Hiện)
     private View invoiceDetailView;
+    private TextView txtOrderCode, txtAmount, txtAmountInText, txtDetail, txtPayDate;
 
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_finance_detail);
 
-        // --- View Binding ---
-        TextView txtReceiptTitle = findViewById(R.id.txtReceiptTitle);
-        TextView txtReceiptDeadline = findViewById(R.id.txtReceiptDeadline);
-        TextView txtPrice = findViewById(R.id.txtPrice);
-        TextView txtDetailContent = findViewById(R.id.txtDetailContent);
-        TextView txtSender = findViewById(R.id.txtSender);
-        btnPay = findViewById(R.id.buttonPay);
-        txtPaymentStatus = findViewById(R.id.txtPaymentStatus);
+        initViews();
+        setupToolbar();
 
-        // Invoice UI
-        invoiceDetailView = findViewById(R.id.invoiceDetail);
-        txtOrderCode = findViewById(R.id.txtOrderCode);
-        txtAmount = findViewById(R.id.txtAmount);
-        txtAmountInText = findViewById(R.id.txtAmountInText);
-        txtDetail = findViewById(R.id.txtDetail);
-        txtPayDate = findViewById(R.id.txtPayDate);
-
-        MaterialToolbar toolbar = findViewById(R.id.toolbar);
-
-        // Toolbar
-        setSupportActionBar(toolbar);
-        if (getSupportActionBar() != null) {
-            getSupportActionBar().setDisplayHomeAsUpEnabled(true);
-            getSupportActionBar().setTitle(R.string.finance_detail_title);
-            toolbar.setTitleTextColor(ContextCompat.getColor(this, android.R.color.white));
-        }
-
-        // Intent data
+        // 1. Lấy dữ liệu từ Intent
         readIntentData(getIntent());
 
-        txtReceiptTitle.setText(title);
-        txtReceiptDeadline.setText("Hạn: " + dueDate);
-        txtSender.setText("Người gửi: " + sender);
-        txtDetailContent.setText(content);
-
-        if (price > 0) {
-            txtPrice.setText(new DecimalFormat("#,###,###").format(price) + " đ");
-        } else {
-            txtPrice.setText("Khoản tự nguyện");
-        }
+        // 2. Điền thông tin cơ bản lên màn hình
+        fillBasicData();
 
         Log.d(TAG, "📋 onCreate - financeId: " + financeId + ", paymentStatus: " + paymentStatus);
 
-        updatePaymentUI();
+        // 3. Kiểm tra trạng thái thanh toán từ Server (để quyết định ẩn/hiện nút Pay)
+        refreshPaymentStatus();
 
+        // Sự kiện bấm nút thanh toán
         btnPay.setOnClickListener(v -> {
             Intent payIntent = new Intent(FinanceDetailActivity.this, PayActivity.class);
             payIntent.putExtra("title", title);
@@ -108,15 +76,53 @@ public class FinanceDetailActivity extends BaseActivity {
         });
     }
 
+    private void initViews() {
+        btnPay = findViewById(R.id.buttonPay);
+        txtPaymentStatus = findViewById(R.id.txtPaymentStatus);
+
+        // Phần chi tiết hóa đơn (Ban đầu ẩn)
+        invoiceDetailView = findViewById(R.id.invoiceDetail);
+        txtOrderCode = findViewById(R.id.txtOrderCode);
+        txtAmount = findViewById(R.id.txtAmount);
+        txtAmountInText = findViewById(R.id.txtAmountInText);
+        txtDetail = findViewById(R.id.txtDetail);
+        txtPayDate = findViewById(R.id.txtPayDate);
+    }
+
+    private void setupToolbar() {
+        MaterialToolbar toolbar = findViewById(R.id.toolbar);
+        setSupportActionBar(toolbar);
+        if (getSupportActionBar() != null) {
+            getSupportActionBar().setDisplayHomeAsUpEnabled(true);
+            getSupportActionBar().setTitle(R.string.finance_detail_title);
+            toolbar.setTitleTextColor(ContextCompat.getColor(this, android.R.color.white));
+        }
+    }
+
+    private void fillBasicData() {
+        TextView txtReceiptTitle = findViewById(R.id.txtReceiptTitle);
+        TextView txtReceiptDeadline = findViewById(R.id.txtReceiptDeadline);
+        TextView txtPrice = findViewById(R.id.txtPrice);
+        TextView txtDetailContent = findViewById(R.id.txtDetailContent);
+        TextView txtSender = findViewById(R.id.txtSender);
+
+        txtReceiptTitle.setText(title);
+        txtReceiptDeadline.setText("Hạn: " + dueDate);
+        txtSender.setText(sender);
+        txtDetailContent.setText(content);
+
+        if (price > 0) {
+            txtPrice.setText(new DecimalFormat("#,###,###").format(price) + " đ");
+        } else {
+            txtPrice.setText("Khoản tự nguyện");
+        }
+    }
+
     @Override
     protected void onResume() {
         super.onResume();
-        Log.d(TAG, "🔄 onResume - Refreshing payment status");
-
-        // 🔥 Add a small delay to ensure server has processed the payment
-        new android.os.Handler().postDelayed(() -> {
-            refreshPaymentStatus();
-        }, 500);
+        // Khi quay lại từ màn hình thanh toán, check lại trạng thái
+        new android.os.Handler().postDelayed(this::refreshPaymentStatus, 500);
     }
 
     @Override
@@ -134,115 +140,78 @@ public class FinanceDetailActivity extends BaseActivity {
         sender = intent.getStringExtra("sender");
         price = intent.getLongExtra("price", 0L);
         paymentStatus = intent.getStringExtra("payment_status");
-
-        Log.d(TAG, "📋 Finance ID: " + financeId);
-        Log.d(TAG, "💰 Price: " + price);
-        Log.d(TAG, "📊 Payment Status: " + paymentStatus);
     }
 
+    // Xử lý khi PayOS trả về kết quả qua DeepLink
     private void handlePayOSDeepLink(Intent intent) {
         if (!Intent.ACTION_VIEW.equals(intent.getAction())) return;
-
         Uri data = intent.getData();
-        if (data == null) return;
+        if (data == null || data.getPath() == null) return;
 
-        String path = data.getPath();
-        if (path == null) return;
-
-        if (path.contains("success")) {
+        if (data.getPath().contains("success")) {
             Toast.makeText(this, "Thanh toán thành công!", Toast.LENGTH_SHORT).show();
             updatePaymentStatus(true);
-        } else if (path.contains("cancel")) {
+        } else if (data.getPath().contains("cancel")) {
             Toast.makeText(this, "Bạn đã hủy thanh toán", Toast.LENGTH_SHORT).show();
             updatePaymentStatus(false);
         }
     }
 
+    // Kiểm tra trạng thái thanh toán từ Server
     private void refreshPaymentStatus() {
-        String url = ApiConfig.BASE_URL + "/api/finance/user/payment-status/" + financeId;
-
         int userId;
         try {
             userId = Integer.parseInt(UserManager.getInstance(getApplicationContext()).getID());
-        } catch (Exception e) {
-            Log.e(TAG, "Failed to get user ID", e);
-            return;
-        }
+        } catch (Exception e) { return; }
 
-        url += "?user_id=" + userId;
+        String url = ApiConfig.BASE_URL + "/api/finance/user/payment-status/" + financeId + "?user_id=" + userId;
 
-        Log.d(TAG, "🔍 Checking payment status: " + url);
-
-        JsonObjectRequest request = new JsonObjectRequest(
-                Request.Method.GET, url, null,
+        JsonObjectRequest request = new JsonObjectRequest(Request.Method.GET, url, null,
                 response -> {
-                    try {
-                        String status = response.optString("status", "chua_thanh_toan");
-                        Log.d(TAG, "✅ Current payment status: " + status);
+                    String status = response.optString("status", "chua_thanh_toan");
+                    paymentStatus = status;
+                    updatePaymentUI(); // Cập nhật giao diện (Ẩn nút Pay / Hiện Invoice)
 
-                        paymentStatus = status;
-                        updatePaymentUI();
-
-                        // If paid, fetch invoice with a small delay
-                        if ("da_thanh_toan".equalsIgnoreCase(status)) {
-                            // 🔥 Add delay to ensure invoice is created
-                            new android.os.Handler().postDelayed(() -> {
-                                fetchInvoice();
-                            }, 1000);
-                        }
-                    } catch (Exception e) {
-                        Log.e(TAG, "Error parsing payment status", e);
+                    // Nếu đã thanh toán -> Gọi API lấy chi tiết hóa đơn
+                    if ("da_thanh_toan".equalsIgnoreCase(status)) {
+                        new android.os.Handler().postDelayed(this::fetchInvoice, 500);
                     }
                 },
-                error -> {
-                    Log.e(TAG, "❌ Error fetching payment status: " + error.toString());
-
-                    if (error.networkResponse != null && error.networkResponse.statusCode == 401) {
-                        UserManager.getInstance(this).checkAndForceLogout(error);
-                    }
-                }
+                error -> Log.e(TAG, "Error fetching status: " + error.toString())
         ) {
             @Override
             public Map<String, String> getHeaders() {
                 Map<String, String> headers = new HashMap<>();
                 String token = UserManager.getInstance(getApplicationContext()).getAuthToken();
-                if (token != null && !token.isEmpty()) {
-                    headers.put("Authorization", "Bearer " + token);
-                }
+                if (token != null) headers.put("Authorization", "Bearer " + token);
                 return headers;
             }
         };
-
         Volley.newRequestQueue(this).add(request);
     }
 
+    // Cập nhật giao diện dựa trên trạng thái thanh toán
     private void updatePaymentUI() {
-        Log.d(TAG, "🎨 Updating UI - paymentStatus: " + paymentStatus);
-
         if ("da_thanh_toan".equalsIgnoreCase(paymentStatus)) {
             btnPay.setVisibility(View.GONE);
             txtPaymentStatus.setVisibility(View.VISIBLE);
             txtPaymentStatus.setText("✅ Đã thanh toán");
+            // Hiện khung chi tiết hóa đơn
             invoiceDetailView.setVisibility(View.VISIBLE);
-            Log.d(TAG, "✅ Showing invoice section");
         } else {
             btnPay.setVisibility(View.VISIBLE);
             txtPaymentStatus.setVisibility(View.GONE);
             invoiceDetailView.setVisibility(View.GONE);
-            Log.d(TAG, "💳 Showing payment button");
         }
     }
 
+    // Cập nhật trạng thái lên Server (khi PayOS trả về thành công)
     private void updatePaymentStatus(boolean success) {
         String newStatus = success ? "da_thanh_toan" : "da_huy";
         paymentStatus = newStatus;
-
         updatePaymentUI();
 
-        int userId = Integer.parseInt(
-                UserManager.getInstance(getApplicationContext()).getID()
-        );
-
+        int userId = Integer.parseInt(UserManager.getInstance(getApplicationContext()).getID());
         JSONObject body = new JSONObject();
         try {
             body.put("user_id", userId);
@@ -252,151 +221,69 @@ public class FinanceDetailActivity extends BaseActivity {
 
         String url = ApiConfig.BASE_URL + "/api/finance/user/update-status";
 
-        JsonObjectRequest req = new JsonObjectRequest(
-                Request.Method.PUT, url, body,
+        JsonObjectRequest req = new JsonObjectRequest(Request.Method.PUT, url, body,
                 response -> {
-                    Log.d(TAG, "✅ Payment status updated successfully");
                     if (success) {
+                        // Sau khi update thành công, lấy hóa đơn về hiển thị
                         new android.os.Handler().postDelayed(this::fetchInvoice, 500);
                     }
                 },
-                error -> {
-                    Log.e(TAG, "❌ Error updating payment status: " + error.toString());
-                    Toast.makeText(this, "Lỗi API cập nhật", Toast.LENGTH_SHORT).show();
-                }
+                error -> Toast.makeText(this, "Lỗi cập nhật trạng thái", Toast.LENGTH_SHORT).show()
         ) {
             @Override
             public Map<String, String> getHeaders() {
                 Map<String, String> headers = new HashMap<>();
                 String token = UserManager.getInstance(getApplicationContext()).getAuthToken();
-                if (token != null && !token.isEmpty()) {
-                    headers.put("Authorization", "Bearer " + token);
-                }
+                if (token != null) headers.put("Authorization", "Bearer " + token);
                 return headers;
             }
         };
-
         Volley.newRequestQueue(this).add(req);
     }
 
+    // Lấy chi tiết hóa đơn (Mã GD, Thời gian, Số tiền thực)
     private void fetchInvoice() {
-        int userId;
-        try {
-            userId = Integer.parseInt(UserManager.getInstance(getApplicationContext()).getID());
-        } catch (Exception e) {
-            Log.e(TAG, "Failed to get user ID", e);
-            Toast.makeText(this, "Lỗi lấy thông tin người dùng", Toast.LENGTH_SHORT).show();
-            return;
-        }
-
+        int userId = Integer.parseInt(UserManager.getInstance(getApplicationContext()).getID());
         String url = ApiConfig.BASE_URL + "/api/invoice/by-finance/" + financeId + "?user_id=" + userId;
 
-        Log.d(TAG, "🔍 Fetching invoice from: " + url);
-
-        JsonObjectRequest request = new JsonObjectRequest(
-                Request.Method.GET, url, null,
+        JsonObjectRequest request = new JsonObjectRequest(Request.Method.GET, url, null,
                 response -> {
-                    Log.d(TAG, "✅ Invoice response: " + response.toString());
                     try {
                         String ordercode = response.getString("ordercode");
                         long amount = response.getLong("amount");
                         String desc = response.getString("description");
-                        String rawPayTime = response.optString("pay_time_formatted", "");
+                        String rawPayTime = response.optString("pay_time_formatted", "Vừa xong");
 
-                        // 🔥 Update UI on main thread
-                        runOnUiThread(() -> {
-                            txtOrderCode.setText(ordercode);
-                            txtAmount.setText(new DecimalFormat("#,###,###").format(amount) + " đ");
-                            txtAmountInText.setText(convertNumberToWords(amount));
-                            txtDetail.setText(desc);
-                            // Hiển thị thời gian thanh toán rõ ràng hơn
-                            String displayTime = rawPayTime.isEmpty() ? "Vừa xong" : "Thời gian thanh toán: " + rawPayTime;
-                            txtPayDate.setText(displayTime);
+                        // Điền dữ liệu vào phần Chi tiết giao dịch
+                        txtOrderCode.setText(ordercode);
+                        txtAmount.setText(new DecimalFormat("#,###,###").format(amount) + " đ");
+                        txtAmountInText.setText(VnNumberToWords.convert(amount));
+                        txtDetail.setText(desc);
+                        txtPayDate.setText(rawPayTime);
 
-                            invoiceDetailView.setVisibility(View.VISIBLE);
-
-                            Log.d(TAG, "✅ Invoice displayed successfully");
-                            Log.d(TAG, "📋 Order: " + ordercode + ", Amount: " + amount);
-                        });
+                        // Đảm bảo View hiện lên
+                        invoiceDetailView.setVisibility(View.VISIBLE);
 
                     } catch (Exception e) {
-                        Log.e(TAG, "❌ Error parsing invoice: " + e.getMessage(), e);
-                        runOnUiThread(() ->
-                                Toast.makeText(this, "Lỗi hiển thị hóa đơn: " + e.getMessage(), Toast.LENGTH_LONG).show()
-                        );
+                        e.printStackTrace();
                     }
                 },
                 error -> {
-                    Log.e(TAG, "❌ Error fetching invoice: " + error.toString());
-
-                    if (error.networkResponse != null) {
-                        Log.e(TAG, "Status code: " + error.networkResponse.statusCode);
-
-                        // 🔥 Log full error response
-                        if (error.networkResponse.data != null) {
-                            String errorBody = new String(error.networkResponse.data);
-                            Log.e(TAG, "Error body: " + errorBody);
-                        }
-
-                        if (error.networkResponse.statusCode == 401) {
-                            UserManager.getInstance(this).checkAndForceLogout(error);
-                            return;
-                        }
-
-                        // 🔥 Show specific error message
-                        if (error.networkResponse.statusCode == 404) {
-                            runOnUiThread(() ->
-                                    Toast.makeText(this, "Hóa đơn chưa được tạo. Vui lòng thử lại sau.", Toast.LENGTH_LONG).show()
-                            );
-
-                            // Retry after 2 seconds
-                            new android.os.Handler().postDelayed(this::fetchInvoice, 2000);
-                            return;
-                        }
+                    if (error.networkResponse != null && error.networkResponse.statusCode == 404) {
+                        // Nếu chưa có hóa đơn (server xử lý chậm), thử lại sau 2s
+                        new android.os.Handler().postDelayed(this::fetchInvoice, 2000);
                     }
-
-                    runOnUiThread(() ->
-                            Toast.makeText(this, "Không lấy được hóa đơn!", Toast.LENGTH_SHORT).show()
-                    );
                 }
         ) {
             @Override
             public Map<String, String> getHeaders() {
                 Map<String, String> headers = new HashMap<>();
                 String token = UserManager.getInstance(getApplicationContext()).getAuthToken();
-                if (token != null && !token.isEmpty()) {
-                    headers.put("Authorization", "Bearer " + token);
-                    Log.d(TAG, "✅ Sending token: " + token.substring(0, Math.min(10, token.length())) + "...");
-                } else {
-                    Log.e(TAG, "⚠️ WARNING: No token available!");
-                }
+                if (token != null) headers.put("Authorization", "Bearer " + token);
                 return headers;
             }
         };
-
         Volley.newRequestQueue(this).add(request);
-    }
-
-    private String convertUtcToLocal(String utcTime) {
-        if (utcTime == null || utcTime.isEmpty()) return "Vừa xong";
-        try {
-            SimpleDateFormat inputFormat = new SimpleDateFormat("dd/MM/yyyy HH:mm");
-            inputFormat.setTimeZone(TimeZone.getTimeZone("UTC"));
-
-            java.util.Date date = inputFormat.parse(utcTime);
-
-            SimpleDateFormat outputFormat = new SimpleDateFormat("dd/MM/yyyy HH:mm");
-            outputFormat.setTimeZone(TimeZone.getDefault());
-
-            return outputFormat.format(date);
-        } catch (Exception e) {
-            Log.e(TAG, "Error converting UTC time: " + e.getMessage());
-            return utcTime;
-        }
-    }
-
-    private String convertNumberToWords(long number) {
-        return VnNumberToWords.convert(number);
     }
 
     @Override
