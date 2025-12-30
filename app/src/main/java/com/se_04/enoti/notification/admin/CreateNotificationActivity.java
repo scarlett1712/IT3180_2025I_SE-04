@@ -45,7 +45,6 @@ import com.se_04.enoti.utils.BaseActivity;
 import com.se_04.enoti.utils.UserManager;
 
 import org.json.JSONArray;
-import org.json.JSONException;
 import org.json.JSONObject;
 
 import java.io.ByteArrayOutputStream;
@@ -55,6 +54,7 @@ import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -74,9 +74,9 @@ public class CreateNotificationActivity extends BaseActivity {
     private TextView txtSelectedResidents;
     private CheckBox chkSendAll;
 
-    // 🔥 CÁC BIẾN MỚI ĐỂ XỬ LÝ FILE
-    private MaterialButton btnSelectImage; // Nút chọn file
-    private TextView txtFileName;          // Hiển thị tên file
+    // File handling variables
+    private MaterialButton btnSelectImage;
+    private TextView txtFileName;
     private static final int PICK_FILE_REQUEST = 999;
     private String fileBase64;
     private String fileName;
@@ -123,7 +123,6 @@ public class CreateNotificationActivity extends BaseActivity {
         txtSelectedResidents = findViewById(R.id.txtSelectedResidents);
         chkSendAll = findViewById(R.id.chkSendAll);
         edtExpirationDate.setFocusable(false);
-        // 🔥 Ánh xạ View mới
         btnSelectImage = findViewById(R.id.btnSelectImage);
         txtFileName = findViewById(R.id.txtFileName);
     }
@@ -155,7 +154,6 @@ public class CreateNotificationActivity extends BaseActivity {
         btnSendNow.setText("Lưu thay đổi");
         btnSendNow.setOnClickListener(v -> updateNotification());
 
-        // Ẩn chức năng file khi edit (để đơn giản hóa)
         if(btnSelectImage != null) btnSelectImage.setVisibility(View.GONE);
         if(txtFileName != null) txtFileName.setVisibility(View.GONE);
     }
@@ -168,7 +166,9 @@ public class CreateNotificationActivity extends BaseActivity {
         });
         recyclerResidents.setLayoutManager(new LinearLayoutManager(this));
         recyclerResidents.setAdapter(adapter);
-        recyclerResidents.setVisibility(View.GONE);
+
+        // 🔥 THAY ĐỔI: Hiển thị ngay lập tức, không ẩn đi
+        recyclerResidents.setVisibility(View.VISIBLE);
 
         setupSearch();
         setupExpirationDatePicker();
@@ -177,7 +177,6 @@ public class CreateNotificationActivity extends BaseActivity {
         btnSendNow.setOnClickListener(v -> sendNow());
         btnSendLater.setOnClickListener(v -> showSendOptionsBottomSheet());
 
-        // 🔥 SỰ KIỆN CHỌN FILE
         if (btnSelectImage != null) {
             btnSelectImage.setOnClickListener(v -> openFilePicker());
         }
@@ -185,7 +184,6 @@ public class CreateNotificationActivity extends BaseActivity {
         fetchResidentsFromAPI();
     }
 
-    // 🔥 HÀM MỞ FILE PICKER (Ảnh, Video, PDF)
     private void openFilePicker() {
         Intent intent = new Intent(Intent.ACTION_GET_CONTENT);
         intent.setType("*/*");
@@ -194,18 +192,13 @@ public class CreateNotificationActivity extends BaseActivity {
         startActivityForResult(intent, PICK_FILE_REQUEST);
     }
 
-    // 🔥 XỬ LÝ KẾT QUẢ CHỌN FILE
     @Override
     protected void onActivityResult(int requestCode, int resultCode, @Nullable Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
         if (requestCode == PICK_FILE_REQUEST && resultCode == RESULT_OK && data != null && data.getData() != null) {
             Uri fileUri = data.getData();
-
-            // Lấy tên file
             fileName = getFileName(fileUri);
             if(txtFileName != null) txtFileName.setText("Đã đính kèm: " + fileName);
-
-            // Chuyển sang Base64
             convertFileToBase64(fileUri);
         }
     }
@@ -220,13 +213,9 @@ public class CreateNotificationActivity extends BaseActivity {
                 outputStream.write(buffer, 0, len);
             }
             byte[] bytes = outputStream.toByteArray();
-
-            // Lấy MIME type
             String mimeType = getContentResolver().getType(uri);
             if (mimeType == null) mimeType = "application/octet-stream";
-
             fileBase64 = "data:" + mimeType + ";base64," + Base64.encodeToString(bytes, Base64.DEFAULT);
-
         } catch (IOException e) {
             e.printStackTrace();
             Toast.makeText(this, "Lỗi đọc file: " + e.getMessage(), Toast.LENGTH_SHORT).show();
@@ -288,6 +277,18 @@ public class CreateNotificationActivity extends BaseActivity {
                 JSONObject obj = response.getJSONObject(i);
                 if (obj.optInt("role_id", 0) != 1) continue;
 
+                // 🔥 XỬ LÝ PHÒNG NULL -> "Vô gia cư"
+                String roomRaw = obj.optString("apartment_number");
+                if (TextUtils.isEmpty(roomRaw) || roomRaw.equalsIgnoreCase("null")) {
+                    roomRaw = "Vô gia cư";
+                }
+
+                String floorRaw = obj.optString("floor");
+                if (TextUtils.isEmpty(floorRaw) || floorRaw.equalsIgnoreCase("null") || floorRaw.equals("0")) {
+                    // Nếu là vô gia cư thì tầng cũng để trống hoặc để "Khác"
+                    floorRaw = roomRaw.equals("Vô gia cư") ? "Khác" : floorRaw;
+                }
+
                 allResidents.add(new ResidentItem(
                         obj.optInt("user_item_id"),
                         obj.optInt("user_id"),
@@ -300,11 +301,39 @@ public class CreateNotificationActivity extends BaseActivity {
                         obj.optString("relationship_with_the_head_of_household"),
                         obj.optString("family_id"),
                         obj.optBoolean("is_living"),
-                        obj.optString("apartment_number"),
+                        roomRaw, // Sử dụng giá trị đã xử lý
                         obj.optString("identity_card", ""),
                         obj.optString("home_town", "")
                 ));
             }
+
+            // 🔥 SẮP XẾP DANH SÁCH: Phòng số nhỏ -> Lớn -> Vô gia cư
+            Collections.sort(allResidents, new Comparator<ResidentItem>() {
+                @Override
+                public int compare(ResidentItem r1, ResidentItem r2) {
+                    String room1 = r1.getRoom();
+                    String room2 = r2.getRoom();
+
+                    boolean isHomeless1 = room1.equals("Vô gia cư");
+                    boolean isHomeless2 = room2.equals("Vô gia cư");
+
+                    if (isHomeless1 && isHomeless2) return 0;
+                    if (isHomeless1) return 1; // Vô gia cư xuống cuối
+                    if (isHomeless2) return -1;
+
+                    // Cố gắng so sánh theo số
+                    try {
+                        int i1 = Integer.parseInt(room1.replaceAll("\\D", "")); // Lấy số từ chuỗi
+                        int i2 = Integer.parseInt(room2.replaceAll("\\D", ""));
+                        int result = Integer.compare(i1, i2);
+                        if (result != 0) return result;
+                    } catch (Exception e) {
+                        // Nếu không phải số thì so sánh chuỗi
+                    }
+                    return room1.compareTo(room2);
+                }
+            });
+
             filteredResidents.clear();
             filteredResidents.addAll(allResidents);
             adapter.updateList(filteredResidents);
@@ -314,13 +343,42 @@ public class CreateNotificationActivity extends BaseActivity {
     }
 
     private void setupFloorAndRoom() {
-        List<String> floors = new ArrayList<>(Collections.singletonList("Tất cả"));
-        List<String> rooms = new ArrayList<>(Collections.singletonList("Tất cả"));
+        Set<String> floorSet = new HashSet<>();
+        Set<String> roomSet = new HashSet<>();
 
         for (ResidentItem r : allResidents) {
-            if (!floors.contains(r.getFloor())) floors.add(r.getFloor());
-            if (!rooms.contains(r.getRoom())) rooms.add(r.getRoom());
+            floorSet.add(r.getFloor());
+            roomSet.add(r.getRoom());
         }
+
+        // Chuyển sang List để sắp xếp
+        List<String> floors = new ArrayList<>(floorSet);
+        List<String> rooms = new ArrayList<>(roomSet);
+
+        // Comparator cho chuỗi số (Tương tự ở trên)
+        Comparator<String> numericStringComparator = (s1, s2) -> {
+            boolean isSpecial1 = s1.equals("Vô gia cư") || s1.equals("Khác");
+            boolean isSpecial2 = s2.equals("Vô gia cư") || s2.equals("Khác");
+
+            if (isSpecial1 && isSpecial2) return s1.compareTo(s2);
+            if (isSpecial1) return 1;
+            if (isSpecial2) return -1;
+
+            try {
+                int i1 = Integer.parseInt(s1.replaceAll("\\D", ""));
+                int i2 = Integer.parseInt(s2.replaceAll("\\D", ""));
+                return Integer.compare(i1, i2);
+            } catch (Exception e) {
+                return s1.compareTo(s2);
+            }
+        };
+
+        Collections.sort(floors, numericStringComparator);
+        Collections.sort(rooms, numericStringComparator);
+
+        // Thêm "Tất cả" vào đầu
+        floors.add(0, "Tất cả");
+        rooms.add(0, "Tất cả");
 
         ArrayAdapter<String> floorAdapter = new ArrayAdapter<>(this, android.R.layout.simple_dropdown_item_1line, floors);
         spinnerReceiverFloor.setAdapter(floorAdapter);
@@ -357,7 +415,8 @@ public class CreateNotificationActivity extends BaseActivity {
             if (matchesName && matchesFloor && matchesRoom) filteredResidents.add(r);
         }
         adapter.updateList(filteredResidents);
-        if (!chkSendAll.isChecked()) recyclerResidents.setVisibility(filteredResidents.isEmpty() ? View.GONE : View.VISIBLE);
+        // 🔥 THAY ĐỔI: Luôn hiển thị trừ khi chọn gửi tất cả
+        if (!chkSendAll.isChecked()) recyclerResidents.setVisibility(View.VISIBLE);
     }
 
     private void setupSendAllCheckbox() {
@@ -445,7 +504,6 @@ public class CreateNotificationActivity extends BaseActivity {
     private void sendLater(Date scheduledTime) { sendNotification(scheduledTime); }
 
     private void sendNotification(Date scheduledTime) {
-        // ... (Logic kiểm tra selectedResidents giữ nguyên)
         if (selectedResidents.isEmpty()) {
             Toast.makeText(this, "Chưa chọn người nhận, hệ thống sẽ gửi cho TẤT CẢ cư dân!", Toast.LENGTH_SHORT).show();
             selectedResidents = new HashSet<>(allResidents);
@@ -480,7 +538,6 @@ public class CreateNotificationActivity extends BaseActivity {
             JSONArray userIds = new JSONArray();
             for (ResidentItem r : selectedResidents) userIds.put(r.getUserId());
 
-            // Check nếu gửi tất cả thì thêm flag để server xử lý nhanh hơn
             boolean sendToAll = chkSendAll.isChecked();
 
             UserItem currentUser = UserManager.getInstance(this).getCurrentUser();
@@ -493,13 +550,12 @@ public class CreateNotificationActivity extends BaseActivity {
             body.put("sender_id", senderId);
             body.put("expired_date", expiredDate);
             body.put("target_user_ids", userIds);
-            body.put("send_to_all", sendToAll); // Gửi cờ này cho Server
+            body.put("send_to_all", sendToAll);
 
             if (scheduledTime != null) body.put("scheduled_time", formattedScheduledTime);
 
-            // 🔥 THÊM FILE BASE64 VÀO BODY
             if (fileBase64 != null) {
-                body.put("file_base64", fileBase64); // Dùng key chung là image_base64 cho cả file
+                body.put("file_base64", fileBase64);
                 body.put("file_name", fileName);
             }
 
@@ -520,9 +576,8 @@ public class CreateNotificationActivity extends BaseActivity {
                 }
             };
 
-            // 🔥 TĂNG TIMEOUT VÌ GỬI FILE NẶNG
             request.setRetryPolicy(new DefaultRetryPolicy(
-                    30000, // 30 giây
+                    30000,
                     DefaultRetryPolicy.DEFAULT_MAX_RETRIES,
                     DefaultRetryPolicy.DEFAULT_BACKOFF_MULT));
 
