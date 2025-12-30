@@ -63,7 +63,7 @@ public class AccountFragment extends Fragment {
     private ImageView imgAvatar;
     private TextView txtFullName, txtApartment, email, phoneNumber, relationship, startDate;
     private ImageButton btnSettings;
-    private Button btnChangeInformtion, btnChangePassword, btnSignOut;
+    private Button btnChangeInformtion, btnChangePassword, btnSignOut, btnAppartmentInfo;
 
     private static final int REQUEST_IMAGE_CAPTURE = 1;
     private static final int REQUEST_IMAGE_PICK = 2;
@@ -102,6 +102,9 @@ public class AccountFragment extends Fragment {
         btnChangePassword = view.findViewById(R.id.btnChangePassword);
         btnSignOut = view.findViewById(R.id.btnSignOut);
         btnSettings = view.findViewById(R.id.btnSettings);
+        btnAppartmentInfo = view.findViewById(R.id.btnApartmentInfo);
+
+        // Lấy đối tượng UserManager
 
         // Lấy thông tin user
         UserManager userManager = UserManager.getInstance(requireContext());
@@ -145,6 +148,10 @@ public class AccountFragment extends Fragment {
             Intent intent = new Intent(requireContext(), com.se_04.enoti.settings.SettingsActivity.class);
             startActivity(intent);
         });
+
+        if (currentUser.getRole() != Role.USER) {
+            btnAppartmentInfo.setVisibility(View.VISIBLE);
+        };
 
         return view;
     }
