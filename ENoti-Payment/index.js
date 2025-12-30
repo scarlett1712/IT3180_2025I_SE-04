@@ -13,42 +13,37 @@ const payOS = new PayOS(
   process.env.PAYOS_CHECKSUM_KEY
 );
 
-// Render YÊU CẦU dùng PORT từ ENV
 const PORT = process.env.PORT || 3030;
 
 app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Serve static for success.html / cancel.html
 app.use("/", express.static("public"));
 
 /**
  * API nhận dữ liệu từ Android:
- * { title: "Tên hóa đơn", amount: 150000, financeId: 123 }
+ * { title: "...", amount: ..., financeId: ..., userId: ... }
  */
 app.post("/create-payment-link", async (req, res) => {
-  const { title, amount, financeId } = req.body;
+  // 🔥 KHÔNG nhận orderCode từ Android nữa
+  const { title, amount, financeId, userId } = req.body;
 
-  if (!amount || amount <= 0) {
-    return res.status(400).json({ error: "Amount invalid" });
-  }
+  // 🔥 SERVER TỰ TẠO MÃ ĐƠN
+  // (Dùng timestamp cắt gọn để đảm bảo duy nhất và là số)
+  const orderCode = Number(String(Date.now()).slice(-6) + Math.floor(Math.random() * 10));
 
-  if (!financeId) {
-      return res.status(400).json({ error: "Missing financeId" });
-  }
-
-  const YOUR_DOMAIN = `https://it3180-2025i-se-04.onrender.com`;
-
-  // 🔥 Giới hạn description ≤ 25 ký tự
+  // Giới hạn description
   const fullDesc = `${title}`;
   const shortDesc = fullDesc.slice(0, 25);
 
-  // 🔥 TẠO ORDER CODE Ở ĐÂY
-  const orderCode = Number(String(Date.now()).slice(-6));
+  // Tạo URL trả về (Vẫn gắn orderCode vào để success.html lưu được)
+  const YOUR_DOMAIN = `https://it3180-2025i-se-04.onrender.com`;
+  const returnUrl = `${YOUR_DOMAIN}/success.html?user_id=${userId}&finance_id=${financeId}&amount=${amount}&description=${encodeURIComponent(title)}&ordercode=${orderCode}`;
+  const cancelUrl = `${YOUR_DOMAIN}/cancel.html`;
 
   const body = {
-    orderCode: orderCode, // Sử dụng orderCode đã tạo
+    orderCode: orderCode, // Dùng mã server vừa tạo
     amount: amount,
     description: shortDesc,
     items: [
@@ -58,37 +53,16 @@ app.post("/create-payment-link", async (req, res) => {
         price: amount,
       },
     ],
-    // 🔥 FIX: Thêm TOÀN BỘ data cần thiết vào returnUrl
-    // (Lưu ý: PayOS cũng sẽ tự động thêm orderCode, nhưng chúng ta thêm thủ công
-    // để đảm bảo 100% dữ liệu có mặt)
-    // Chúng ta dùng encodeURIComponent(title) để xử lý các tiêu đề có dấu
-    returnUrl: `${YOUR_DOMAIN}/success.html?finance_id=${financeId}&amount=${amount}&description=${encodeURIComponent(title)}&ordercode=${orderCode}`,
-    cancelUrl: `${YOUR_DOMAIN}/cancel.html`,
+    returnUrl: returnUrl,
+    cancelUrl: cancelUrl,
   };
 
   try {
-    console.log("Request gửi sang PayOS:", body);
-
     const paymentLinkResponse = await payOS.createPaymentLink(body);
-
-    console.log("PayOS trả về:", paymentLinkResponse);
-
-    if (paymentLinkResponse.checkoutUrl) {
-      return res.json({ checkoutUrl: paymentLinkResponse.checkoutUrl });
-    }
-
-    if (paymentLinkResponse.data?.checkoutUrl) {
-      return res.json({ checkoutUrl: paymentLinkResponse.data.checkoutUrl });
-    }
-
-    return res.status(500).json({ error: "No checkoutUrl from PayOS" });
-
+    res.json({ checkoutUrl: paymentLinkResponse.checkoutUrl });
   } catch (error) {
-    console.log("PayOS ERROR:", error.response?.data || error);
-    return res.status(500).json({
-      error: "PayOS error",
-      detail: error.message,
-    });
+    console.error(error);
+    res.status(500).json({ error: error.message });
   }
 });
 

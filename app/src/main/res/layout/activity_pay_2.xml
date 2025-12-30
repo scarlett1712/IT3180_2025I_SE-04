@@ -162,7 +162,6 @@
                         <com.google.android.material.textfield.TextInputLayout
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
-                            android:hint="Nhập số tiền đóng góp (VNĐ)"
                             style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
                             app:boxStrokeColor="?attr/colorPrimary">
 

@@ -79,9 +79,7 @@
 
 <!-- 🔥 SỬA TOÀN BỘ SCRIPT Ở ĐÂY -->
 <script>
-  // Chạy ngay khi DOM được load
   document.addEventListener("DOMContentLoaded", () => {
-    // Gọi hàm xử lý bất đồng bộ
     handleInvoiceAndRedirect();
   });
 
@@ -91,59 +89,65 @@
     try {
       const params = new URLSearchParams(window.location.search);
 
-      // 1. Lấy TẤT CẢ dữ liệu từ URL
-      // (PayOS có thể trả về orderCode, nhưng chúng ta ưu tiên
-      // ordercode (chữ thường) mà chúng ta tự thêm vào)
+      // 1. Lấy dữ liệu từ URL (THÊM user_id)
       const finance_id = params.get("finance_id");
+      const user_id = params.get("user_id"); // 🔥 QUAN TRỌNG: Lấy user_id
       const amount = params.get("amount");
       const description = params.get("description");
-      const ordercode = params.get("ordercode") || params.get("orderCode"); // Lấy 1 trong 2
-      const currency = params.get("currency") || "VND"; // Mặc định VND
+      const ordercode = params.get("ordercode") || params.get("orderCode");
+      const currency = params.get("currency") || "VND";
 
-      // 2. Kiểm tra dữ liệu
-      if (!finance_id || !amount || !description || !ordercode) {
-        console.error("Dữ liệu URL bị thiếu:", { finance_id, amount, description, ordercode });
-        statusMessage.innerText = "Lỗi: Dữ liệu thanh toán bị thiếu.";
-        // Vẫn redirect về app
+      // 2. Validate dữ liệu
+      if (!finance_id || !user_id || !amount || !ordercode) {
+        console.error("Thiếu dữ liệu:", { finance_id, user_id, amount, ordercode });
+        statusMessage.innerText = "Lỗi: Thiếu thông tin giao dịch (User ID/Order Code).";
         redirectToApp(3000);
         return;
       }
 
-      console.log("Đang gửi đi:", { finance_id, amount, description, ordercode, currency });
+      console.log("Đang xử lý hóa đơn...");
 
-      // 3. Gọi API /store và CHỜ (await)
+      // 3. Gọi API /store
       const response = await fetch("https://nmcnpm-se-04.onrender.com/api/invoice/store", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          finance_id: parseInt(finance_id), // Đảm bảo là số
-          amount: parseInt(amount),         // Đảm bảo là số
+          finance_id: parseInt(finance_id),
+          user_id: parseInt(user_id), // 🔥 QUAN TRỌNG: Gửi user_id lên
+          amount: parseInt(amount),
           description: description,
           ordercode: ordercode,
           currency: currency
         })
       });
 
-      if (response.ok) {
-        console.log("Tạo invoice thành công!");
-        statusMessage.innerText = "Đã xử lý hóa đơn. Đang quay về ứng dụng...";
+      const resData = await response.json();
+
+      if (response.ok && resData.success) {
+        console.log("Lưu hóa đơn thành công!");
+        statusMessage.innerText = "Giao dịch thành công! Đang quay về ứng dụng...";
       } else {
-        const errorData = await response.json();
-        console.error("Lỗi tạo invoice:", errorData);
-        statusMessage.innerText = "Lỗi khi lưu hóa đơn.";
+        console.error("Lỗi API:", resData);
+        // Nếu hóa đơn đã tồn tại thì vẫn coi là thành công để user không lo lắng
+        if(resData.message && resData.message.includes("đã tồn tại")) {
+             statusMessage.innerText = "Giao dịch đã được ghi nhận trước đó.";
+        } else {
+             statusMessage.innerText = "Có lỗi khi lưu hóa đơn: " + (resData.error || "Không rõ");
+        }
       }
 
     } catch (err) {
-      console.error("Lỗi fetch:", err);
-      statusMessage.innerText = "Lỗi mạng khi xử lý hóa đơn.";
+      console.error("Lỗi mạng:", err);
+      statusMessage.innerText = "Lỗi kết nối đến máy chủ.";
     }
 
-    // 4. Redirect về app sau khi đã xử lý xong
+    // 4. Redirect về app
     redirectToApp(2000);
   }
 
   function redirectToApp(delay) {
     setTimeout(() => {
+      // Deep link quay về Android
       window.location.href = "enoti://payment/success";
     }, delay);
   }
