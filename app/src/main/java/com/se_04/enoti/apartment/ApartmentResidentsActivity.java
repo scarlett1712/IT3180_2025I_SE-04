@@ -8,6 +8,8 @@ import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
 import com.google.android.material.bottomsheet.BottomSheetDialog;
+
+import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
@@ -259,34 +261,29 @@ public class ApartmentResidentsActivity extends BaseActivity {
         Volley.newRequestQueue(this).add(request);
     }
 
-    // 2. Hiển thị Dialog danh sách người vô gia cư để thêm
     private void showAddUserDialog() {
         if (homelessList.isEmpty()) {
             Toast.makeText(this, "Không có cư dân nào đang chờ xếp phòng.", Toast.LENGTH_LONG).show();
             return;
         }
 
-        // 1. Khởi tạo BottomSheetDialog
         BottomSheetDialog bottomSheetDialog = new BottomSheetDialog(this, R.style.BottomSheetDialogTheme);
         View view = LayoutInflater.from(this).inflate(R.layout.dialog_select_resident, null);
 
-        // 2. Ánh xạ View
         EditText edtSearch = view.findViewById(R.id.edtSearch);
         RecyclerView rvSelect = view.findViewById(R.id.rvSelectResident);
 
-        // 3. Setup RecyclerView
         rvSelect.setLayoutManager(new LinearLayoutManager(this));
 
         SelectResidentAdapter selectAdapter = new SelectResidentAdapter(homelessList, selectedUser -> {
-            // Khi chọn user -> Gọi API thêm
-            updateResidentApartment(selectedUser.getUserId(), currentApartment.getId());
-
-            // Đóng BottomSheet sau khi chọn
-            bottomSheetDialog.dismiss();
+            // 🔥 THAY ĐỔI Ở ĐÂY:
+            // Không gọi API ngay, mà mở Dialog nhập quan hệ trước
+            bottomSheetDialog.dismiss(); // Đóng list chọn
+            showInputRelationshipDialog(selectedUser); // Mở dialog nhập liệu
         });
         rvSelect.setAdapter(selectAdapter);
 
-        // 4. Setup Tìm kiếm
+        // Logic tìm kiếm (giữ nguyên)
         edtSearch.addTextChangedListener(new android.text.TextWatcher() {
             @Override
             public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
@@ -298,41 +295,85 @@ public class ApartmentResidentsActivity extends BaseActivity {
             public void afterTextChanged(android.text.Editable s) {}
         });
 
-        // 5. Hiển thị
         bottomSheetDialog.setContentView(view);
         bottomSheetDialog.show();
+    }
+
+    // ==================================================================
+    // 2. THÊM HÀM MỚI: HIỂN THỊ DIALOG NHẬP QUAN HỆ
+    // ==================================================================
+    private void showInputRelationshipDialog(ResidentItem user) {
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        View view = LayoutInflater.from(this).inflate(R.layout.dialog_input_relationship, null);
+
+        TextView tvTargetName = view.findViewById(R.id.tvTargetName);
+        EditText edtRelation = view.findViewById(R.id.edtRelation);
+        android.widget.CheckBox chkIsHead = view.findViewById(R.id.chkIsHead);
+        Button btnConfirm = view.findViewById(R.id.btnConfirmAdd);
+
+        tvTargetName.setText("Thêm " + user.getName() + " vào P" + currentApartment.getApartmentNumber());
+
+        AlertDialog dialog = builder.setView(view).create();
+
+        btnConfirm.setOnClickListener(v -> {
+            String relationship = edtRelation.getText().toString().trim();
+            boolean isHead = chkIsHead.isChecked();
+
+            if (relationship.isEmpty()) {
+                edtRelation.setError("Vui lòng nhập quan hệ");
+                return;
+            }
+
+            // Gọi API với đầy đủ thông tin
+            updateResidentApartment(user.getUserId(), currentApartment.getId(), relationship, isHead);
+            dialog.dismiss();
+        });
+
+        dialog.show();
     }
 
     // 3. Xác nhận xóa người khỏi phòng
     private void confirmRemoveUser(ResidentItem item) {
         new AlertDialog.Builder(this)
                 .setTitle("Cảnh báo")
-                .setMessage("Bạn muốn xóa " + item.getName() + " khỏi phòng này?\nHọ sẽ trở thành 'Vô gia cư'.")
+                .setMessage("Bạn muốn xóa " + item.getName() + " khỏi phòng này?")
                 .setPositiveButton("Đồng ý", (dialog, which) -> {
-                    // Gọi API xóa người (assign vào null)
-                    updateResidentApartment(item.getUserId(), null);
+                    // Gọi API xóa: apartmentId = null, relationship = null, isHead = false
+                    updateResidentApartment(item.getUserId(), null, null, false);
                 })
                 .setNegativeButton("Hủy", null)
                 .show();
     }
 
     // 4. Gọi API Backend để cập nhật phòng cho cư dân
-    private void updateResidentApartment(int userId, Integer apartmentId) {
+    private void updateResidentApartment(int userId, Integer apartmentId, String relationship, boolean isHead) {
         String url = ApiConfig.BASE_URL + "/api/residents/assign-apartment";
         JSONObject body = new JSONObject();
         try {
             body.put("user_id", userId);
-            // Nếu apartmentId là null -> Gửi null (Backend sẽ hiểu là xóa khỏi phòng)
-            body.put("apartment_id", apartmentId == null ? JSONObject.NULL : apartmentId);
+
+            if (apartmentId == null) {
+                // TRƯỜNG HỢP XÓA (Đuổi ra)
+                body.put("apartment_id", JSONObject.NULL);
+            } else {
+                // TRƯỜNG HỢP THÊM (Có quan hệ)
+                body.put("apartment_id", apartmentId);
+                body.put("relationship", relationship);
+                body.put("is_head", isHead);
+            }
+
         } catch (JSONException e) { e.printStackTrace(); }
 
         JsonObjectRequest request = new JsonObjectRequest(Request.Method.PUT, url, body,
                 response -> {
-                    String msg = (apartmentId == null) ? "Đã mời ra khỏi phòng" : "Đã thêm vào phòng";
+                    String msg = (apartmentId == null) ? "Đã mời ra khỏi phòng" : "Đã thêm thành công!";
                     Toast.makeText(this, msg, Toast.LENGTH_SHORT).show();
-                    loadAllResidents(); // Tải lại danh sách để cập nhật UI
+                    loadAllResidents(); // Tải lại để cập nhật danh sách
                 },
-                error -> Toast.makeText(this, "Lỗi cập nhật: " + error.getMessage(), Toast.LENGTH_SHORT).show()
+                error -> {
+                    Toast.makeText(this, "Lỗi cập nhật: " + error.getMessage(), Toast.LENGTH_SHORT).show();
+                    error.printStackTrace();
+                }
         ) {
             @Override
             public Map<String, String> getHeaders() {

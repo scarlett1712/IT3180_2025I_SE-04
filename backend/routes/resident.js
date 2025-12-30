@@ -252,12 +252,11 @@ router.put("/status/:userId", verifySession, async (req, res) => {
 });
 
 // ==================================================================
-// 🏠 API: CẬP NHẬT PHÒNG CHO CƯ DÂN (Thêm vào phòng / Đuổi khỏi phòng)
-// 🔥 ĐÃ THÊM MỚI TẠI ĐÂY
+// 🏠 API: CẬP NHẬT PHÒNG CHO CƯ DÂN & QUAN HỆ VỚI CHỦ HỘ
 // ==================================================================
 router.put("/assign-apartment", verifySession, async (req, res) => {
-    const { user_id, apartment_id } = req.body;
-    // apartment_id: ID phòng (int) hoặc NULL (nếu đuổi ra)
+    // Nhận thêm: relationship (VD: Con cái) và is_head (true/false)
+    const { user_id, apartment_id, relationship, is_head } = req.body;
 
     if (!user_id) return res.status(400).json({ error: "Thiếu user_id" });
 
@@ -265,7 +264,7 @@ router.put("/assign-apartment", verifySession, async (req, res) => {
     try {
         await client.query("BEGIN");
 
-        // 1. Tìm relationship_id của user này
+        // 1. Tìm relationship_id
         const relRes = await client.query("SELECT relationship FROM user_item WHERE user_id = $1", [user_id]);
 
         if (relRes.rows.length === 0) {
@@ -275,16 +274,31 @@ router.put("/assign-apartment", verifySession, async (req, res) => {
 
         const relationshipId = relRes.rows[0].relationship;
 
-        // 2. Cập nhật bảng relationship
-        await client.query(
-            `UPDATE relationship
-             SET apartment_id = $1
-             WHERE relationship_id = $2`,
-            [apartment_id, relationshipId]
-        );
+        // 2. Logic xử lý
+        // Nếu apartment_id là NULL (Đuổi ra) -> Reset các trường quan hệ
+        if (!apartment_id) {
+            await client.query(
+                `UPDATE relationship
+                 SET apartment_id = NULL,
+                     relationship_with_the_head_of_household = NULL,
+                     is_head_of_household = FALSE
+                 WHERE relationship_id = $1`,
+                [relationshipId]
+            );
+        } else {
+            // Nếu Thêm vào phòng -> Cập nhật đầy đủ
+            await client.query(
+                `UPDATE relationship
+                 SET apartment_id = $1,
+                     relationship_with_the_head_of_household = COALESCE($2, relationship_with_the_head_of_household),
+                     is_head_of_household = COALESCE($3, FALSE)
+                 WHERE relationship_id = $4`,
+                [apartment_id, relationship, is_head, relationshipId]
+            );
+        }
 
         await client.query("COMMIT");
-        res.json({ success: true, message: "Cập nhật chỗ ở thành công" });
+        res.json({ success: true, message: "Cập nhật thành công" });
 
     } catch (err) {
         await client.query("ROLLBACK");
