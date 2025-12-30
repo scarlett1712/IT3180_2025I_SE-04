@@ -270,7 +270,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginBottom="12dp"
-            android:text="Tạo khoản phí điện/nước"
+            android:text="Tạo phí hàng tháng"
             android:textColor="@color/white"
             android:textSize="13sp"
             app:backgroundTint="#009688"

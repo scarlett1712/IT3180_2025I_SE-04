@@ -22,16 +22,20 @@ public class RoomAdapter extends RecyclerView.Adapter<RoomAdapter.RoomViewHolder
     }
 
     public RoomAdapter(List<String> roomList, OnSelectionChangedListener listener) {
-        this.roomList = roomList;
+        // 🔥 QUAN TRỌNG: Lọc dữ liệu rác ngay khi khởi tạo
+        this.roomList = filterInvalidRooms(roomList);
         this.listener = listener;
     }
 
-    // Cập nhật danh sách phòng mới (khi chọn tầng)
+    // Cập nhật danh sách phòng mới (Ví dụ khi chọn tầng khác)
     public void updateRooms(List<String> newRooms) {
-        this.roomList = newRooms;
-        // Khi load list mới thì clear selection cũ đi để tránh lỗi data ảo
-        // Hoặc giữ lại nếu bạn muốn tính năng "nhớ" lựa chọn qua các tầng
+        // 1. Lọc sạch dữ liệu đầu vào
+        this.roomList = filterInvalidRooms(newRooms);
+
+        // 2. Xóa các lựa chọn cũ để tránh lỗi logic
         selectedRooms.clear();
+
+        // 3. Cập nhật giao diện
         notifyDataSetChanged();
 
         if (listener != null) {
@@ -39,10 +43,32 @@ public class RoomAdapter extends RecyclerView.Adapter<RoomAdapter.RoomViewHolder
         }
     }
 
-    // 🔥 HÀM MỚI: Được gọi từ Activity khi bấm Checkbox "Chọn tất cả"
+    // 🔥 HÀM HELPER: Lọc bỏ null, "null", rỗng, "Vô gia cư"
+    private List<String> filterInvalidRooms(List<String> inputList) {
+        List<String> cleanList = new ArrayList<>();
+        if (inputList == null) return cleanList;
+
+        for (String room : inputList) {
+            if (isValidRoom(room)) {
+                cleanList.add(room);
+            }
+        }
+        return cleanList;
+    }
+
+    // Kiểm tra điều kiện hợp lệ của một phòng
+    private boolean isValidRoom(String room) {
+        return room != null
+                && !room.trim().isEmpty()
+                && !room.equalsIgnoreCase("null")
+                && !room.equals("Vô gia cư"); // Chặn không cho tạo phí cho nhóm này
+    }
+
+    // Chọn tất cả / Bỏ chọn tất cả
     public void selectAll(boolean isSelected) {
         selectedRooms.clear();
         if (isSelected) {
+            // Chỉ thêm những phòng đã được lọc sạch (roomList)
             selectedRooms.addAll(roomList);
         }
         notifyDataSetChanged();
@@ -55,7 +81,6 @@ public class RoomAdapter extends RecyclerView.Adapter<RoomAdapter.RoomViewHolder
     @NonNull
     @Override
     public RoomViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
-        // Sử dụng layout item phòng đơn giản
         View view = LayoutInflater.from(parent.getContext()).inflate(R.layout.item_room_select, parent, false);
         return new RoomViewHolder(view);
     }
@@ -66,10 +91,11 @@ public class RoomAdapter extends RecyclerView.Adapter<RoomAdapter.RoomViewHolder
 
         holder.txtRoom.setText(room);
 
-        // Xóa listener cũ trước khi set trạng thái để tránh trigger loop
+        // ⚠️ RẤT QUAN TRỌNG: Xóa listener cũ trước khi set trạng thái check
+        // Nếu không làm bước này, khi RecyclerView cuộn, các item sẽ bị check loạn xạ
         holder.checkBoxRoom.setOnCheckedChangeListener(null);
 
-        // Set trạng thái check dựa trên Set
+        // Set trạng thái check dựa trên dữ liệu đã lưu
         holder.checkBoxRoom.setChecked(selectedRooms.contains(room));
 
         // Gán listener mới
@@ -85,7 +111,7 @@ public class RoomAdapter extends RecyclerView.Adapter<RoomAdapter.RoomViewHolder
             }
         });
 
-        // Cho phép bấm vào cả item để check (tăng trải nghiệm UX)
+        // Cho phép bấm vào cả dòng (item) để check/uncheck cho tiện tay
         holder.itemView.setOnClickListener(v -> {
             holder.checkBoxRoom.toggle();
         });
