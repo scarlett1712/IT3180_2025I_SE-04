@@ -55,8 +55,8 @@ public class FinanceDetailActivity_Admin extends BaseActivity {
     // Map: Phòng -> Trạng thái thanh toán (true/false)
     private final Map<String, Boolean> roomStatusMap = new HashMap<>();
 
-    // Map: Phòng -> ID người đại diện (để xem hóa đơn)
-    private final Map<String, Integer> roomInvoiceRefMap = new HashMap<>();
+    // Map: Phòng -> ID người đại diện (để xem hóa đơn hoặc để cập nhật)
+    private final Map<String, Integer> roomRepresentativeIdMap = new HashMap<>();
 
     // Map: Lưu trữ CheckBox View
     private final Map<String, CheckBox> roomCheckBoxViews = new HashMap<>();
@@ -92,7 +92,6 @@ public class FinanceDetailActivity_Admin extends BaseActivity {
             currentUserId = Integer.parseInt(currentUser.getId());
             boolean isAccountant = (currentUser.getRole() == Role.ACCOUNTANT);
 
-            // Chỉ Kế toán được sửa, Admin chỉ xem
             if (isAccountant) canEdit = true;
             else canEdit = false;
         }
@@ -125,7 +124,7 @@ public class FinanceDetailActivity_Admin extends BaseActivity {
                 response -> {
                     try {
                         roomStatusMap.clear();
-                        roomInvoiceRefMap.clear();
+                        roomRepresentativeIdMap.clear();
 
                         for (int i = 0; i < response.length(); i++) {
                             JSONObject obj = response.getJSONObject(i);
@@ -135,17 +134,14 @@ public class FinanceDetailActivity_Admin extends BaseActivity {
 
                             boolean isPaid = "da_thanh_toan".equalsIgnoreCase(status);
 
-                            // Nếu phòng này chưa có trong map, hoặc nếu phòng này đã có nhưng trạng thái mới là 'paid' thì cập nhật
-                            // (Mục đích: Chỉ cần 1 người trong phòng đóng tiền = phòng đã đóng tiền)
-                            if (!roomStatusMap.containsKey(room)) {
+                            // Chỉ cần 1 người trong phòng đóng tiền = phòng đã đóng tiền
+                            if (!roomStatusMap.containsKey(room) || isPaid) {
                                 roomStatusMap.put(room, isPaid);
-                            } else {
-                                if (isPaid) roomStatusMap.put(room, true);
                             }
 
-                            // Lưu ID người thanh toán để xem hóa đơn
-                            if (isPaid && !roomInvoiceRefMap.containsKey(room)) {
-                                roomInvoiceRefMap.put(room, userId);
+                            // Luôn lưu user_id đầu tiên của mỗi phòng làm đại diện để gửi API
+                            if (!roomRepresentativeIdMap.containsKey(room)) {
+                                roomRepresentativeIdMap.put(room, userId);
                             }
                         }
                         renderRoomList();
@@ -161,7 +157,6 @@ public class FinanceDetailActivity_Admin extends BaseActivity {
 
         List<String> sortedRooms = new ArrayList<>(roomStatusMap.keySet());
 
-        // 🔥 Sắp xếp phòng theo số học (101, 102, 201, 202, 1211, 1300) thay vì chuỗi
         Collections.sort(sortedRooms, (room1, room2) -> {
             int num1 = extractRoomNumber(room1);
             int num2 = extractRoomNumber(room2);
@@ -169,7 +164,6 @@ public class FinanceDetailActivity_Admin extends BaseActivity {
         });
 
         for (String room : sortedRooms) {
-            // 🔥 QUAN TRỌNG: Tạo biến final cục bộ để fix lỗi bấm nhầm phòng
             final String finalRoom = room;
 
             CheckBox checkBox = new CheckBox(this);
@@ -184,10 +178,9 @@ public class FinanceDetailActivity_Admin extends BaseActivity {
                 checkBox.setTypeface(null, android.graphics.Typeface.BOLD);
             }
 
-            // --- SỰ KIỆN XEM HÓA ĐƠN ---
             checkBox.setOnLongClickListener(v -> {
                 if (checkBox.isChecked()) {
-                    showInvoice(finalRoom); // Dùng biến finalRoom thay vì room
+                    showInvoice(finalRoom);
                     return true;
                 } else {
                     Toast.makeText(this, "Phòng này chưa thanh toán", Toast.LENGTH_SHORT).show();
@@ -195,12 +188,9 @@ public class FinanceDetailActivity_Admin extends BaseActivity {
                 }
             });
 
-            // --- QUYỀN SỬA ---
-            if (canEdit) {
-                checkBox.setEnabled(true);
-            } else {
-                checkBox.setOnClickListener(v -> {
-                    checkBox.setChecked(isPaid);
+            if (!canEdit) {
+                 checkBox.setOnClickListener(v -> {
+                    checkBox.setChecked(isPaid); // Reset to original state
                     Toast.makeText(this, "Bạn không có quyền chỉnh sửa", Toast.LENGTH_SHORT).show();
                 });
             }
@@ -211,7 +201,7 @@ public class FinanceDetailActivity_Admin extends BaseActivity {
     }
 
     private void showInvoice(String room) {
-        Integer userId = roomInvoiceRefMap.get(room);
+        Integer userId = roomRepresentativeIdMap.get(room);
         if (userId == null) {
             Toast.makeText(this, "Không tìm thấy dữ liệu hóa đơn", Toast.LENGTH_SHORT).show();
             return;
@@ -232,35 +222,40 @@ public class FinanceDetailActivity_Admin extends BaseActivity {
             boolean currentChecked = cb.isChecked();
             boolean initialStatus = roomStatusMap.getOrDefault(roomName, false);
 
-            // Chỉ update nếu có sự thay đổi
             if (currentChecked != initialStatus) {
-                callApiUpdateStatus(roomName, currentChecked);
-                updatedCount++;
+                Integer representativeId = roomRepresentativeIdMap.get(roomName);
+                if (representativeId != null) {
+                    callApiUpdateStatus(representativeId, currentChecked);
+                    updatedCount++;
+                } else {
+                     Log.e("FinanceDetailAdmin", "Không tìm thấy ID đại diện cho phòng: " + roomName);
+                }
             }
         }
 
         if (updatedCount > 0) {
             Toast.makeText(this, "Đang cập nhật " + updatedCount + " phòng...", Toast.LENGTH_SHORT).show();
-            // Đợi server xử lý xong rồi load lại
             new android.os.Handler().postDelayed(this::loadRoomData, 1500);
         } else {
             Toast.makeText(this, "Không có thay đổi nào.", Toast.LENGTH_SHORT).show();
         }
     }
 
-    private void callApiUpdateStatus(String roomName, boolean isPaid) {
+    private void callApiUpdateStatus(int userId, boolean isPaid) {
         String url = ApiConfig.BASE_URL + "/api/finance/update-status";
         JSONObject body = new JSONObject();
         try {
-            body.put("room", roomName);
+            body.put("user_id", userId);
             body.put("finance_id", financeId);
-            body.put("admin_id", currentUserId);
             body.put("status", isPaid ? "da_thanh_toan" : "chua_thanh_toan");
         } catch (JSONException e) { return; }
 
         JsonObjectRequest request = new JsonObjectRequest(Request.Method.PUT, url, body,
-                response -> Log.i("FinanceDetail", "Updated room: " + roomName),
-                error -> Log.e("FinanceDetail", "Error updating room " + roomName)
+                response -> Log.i("FinanceDetail", "Cập nhật thành công cho user: " + userId),
+                error -> {
+                    Log.e("FinanceDetail", "Lỗi cập nhật cho user: " + userId + " | Error: " + error.toString());
+                     Toast.makeText(this, "Lỗi cập nhật phòng", Toast.LENGTH_SHORT).show();
+                }
         ) {
             @Override
             public Map<String, String> getHeaders() {
@@ -317,7 +312,7 @@ public class FinanceDetailActivity_Admin extends BaseActivity {
                 },
                 error -> Toast.makeText(this, "Lỗi khi xóa khoản thu", Toast.LENGTH_SHORT).show()
         ) {
-            @Override
+             @Override
             public Map<String, String> getHeaders() {
                 Map<String, String> headers = new HashMap<>();
                 String token = UserManager.getInstance(getApplicationContext()).getAuthToken();
@@ -403,10 +398,8 @@ public class FinanceDetailActivity_Admin extends BaseActivity {
         requestQueue.add(request);
     }
 
-    // 🔥 Helper function để extract số phòng (số học) từ chuỗi
     private int extractRoomNumber(String room) {
         try {
-            // Loại bỏ tất cả ký tự không phải số và chuyển thành số
             String numbers = room.replaceAll("\\D+", "");
             return numbers.isEmpty() ? 0 : Integer.parseInt(numbers);
         } catch (Exception e) {

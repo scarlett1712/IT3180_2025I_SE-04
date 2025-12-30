@@ -236,6 +236,7 @@ router.get("/staff-list", async (req, res) => {
       SELECT u.user_id, ui.full_name, u.phone
       FROM users u
       JOIN user_item ui ON u.user_id = ui.user_id
+      WHERE u.role = 'Technician'
       ORDER BY ui.full_name ASC
     `);
     res.json(result.rows);
