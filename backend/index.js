@@ -155,21 +155,6 @@ app.post("/api/debug", (req, res) => {
   });
 });
 
-// 🔥 Initialize database tables on startup
-const initializeDatabase = async () => {
-  console.log("🔧 Initializing database tables...");
-  try {
-    await createFinanceTables();
-    await createInvoiceTable();
-    // START: Call new table creation function
-    await createAuthorityMessagesTable(); 
-    // END: Call
-    console.log("✅ All tables initialized successfully");
-  } catch (error) {
-    console.error("❌ Error initializing database:", error);
-  }
-};
-
 // ✅ Start server
 app.listen(PORT, async () => {
   console.log(`🚀 Server started on port ${PORT}`);
