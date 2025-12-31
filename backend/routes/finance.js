@@ -448,81 +448,88 @@ router.get("/user/:userId", async (req, res) => {
 // 🔵 [PUT] ADMIN CẬP NHẬT TRẠNG THÁI (ĐỒNG BỘ CẢ PHÒNG)
 // ==================================================================
 router.put("/update-status", async (req, res) => {
-  // Admin gửi: room (ưu tiên) hoặc user_id (nếu tick lẻ)
-  const { room, user_id, finance_id, status } = req.body;
+  const { user_id, room, finance_id, status } = req.body;
+
   if (!finance_id || !status) return res.status(400).json({ error: "Thiếu thông tin" });
 
   const client = await pool.connect();
   try {
     await client.query("BEGIN");
 
-    let userFinanceRows;
+    let idsToUpdate = [];
+    let representativeId = null;
 
-    // 1. Tìm tất cả record cần update
-    // Nếu có room -> Tìm cả phòng
-    if (room) {
-        userFinanceRows = await client.query(`
-          SELECT uf.id, uf.user_id, COALESCE(uf.amount, f.amount) as real_amount, f.title
-          FROM user_finances uf
-          JOIN finances f ON uf.finance_id = f.id
-          JOIN user_item ui ON uf.user_id = ui.user_id
-          JOIN relationship r ON ui.relationship = r.relationship_id
-          JOIN apartment a ON r.apartment_id = a.apartment_id
-          WHERE uf.finance_id = $1 AND a.apartment_number = $2
-        `, [finance_id, room]);
-    } else if (user_id) {
-        // Fallback: Nếu gửi user_id, tìm phòng của user đó rồi lấy hết cả phòng (để đồng bộ)
-        userFinanceRows = await client.query(`
-            SELECT uf.id, uf.user_id, COALESCE(uf.amount, f.amount) as real_amount, f.title
-            FROM user_finances uf
-            JOIN finances f ON uf.finance_id = f.id
-            JOIN user_item ui ON uf.user_id = ui.user_id
-            JOIN relationship r ON ui.relationship = r.relationship_id
-            WHERE uf.finance_id = $1
-            AND r.apartment_id = (
-                SELECT r2.apartment_id FROM user_item ui2
-                JOIN relationship r2 ON ui2.relationship = r2.relationship_id
-                WHERE ui2.user_id = $2
-            )
-        `, [finance_id, user_id]);
+    // 1. Tìm tất cả các dòng nợ (user_finance_id) của CẢ PHÒNG
+    // Ưu tiên tìm theo Room nếu có, nếu không tìm theo User_id
+    let findTargetQuery = "";
+    let params = [];
+
+    if (room && room !== "N/A") {
+      findTargetQuery = `
+        SELECT uf.id, uf.user_id
+        FROM user_finances uf
+        JOIN user_item ui ON uf.user_id = ui.user_id
+        JOIN relationship r ON ui.relationship = r.relationship_id
+        JOIN apartment a ON r.apartment_id = a.apartment_id
+        WHERE uf.finance_id = $1 AND a.apartment_number = $2`;
+      params = [finance_id, room];
+    } else {
+      findTargetQuery = `
+        SELECT uf.id, uf.user_id
+        FROM user_finances uf
+        WHERE uf.finance_id = $1 AND uf.user_id = $2`;
+      params = [finance_id, user_id];
     }
 
-    if (!userFinanceRows || userFinanceRows.rows.length === 0) {
+    const targetsRes = await client.query(findTargetQuery, params);
+
+    if (targetsRes.rows.length === 0) {
       await client.query("ROLLBACK");
-      // Tránh lỗi 404 gây crash app, trả về lỗi 400
-      return res.status(400).json({ error: "Không tìm thấy dữ liệu cư dân để cập nhật." });
+      return res.status(404).json({ error: "Không tìm thấy dữ liệu cần cập nhật" });
     }
 
-    const targetIds = userFinanceRows.rows.map(r => r.id);
-    const representative = userFinanceRows.rows[0];
+    idsToUpdate = targetsRes.rows.map(r => r.id);
+    representativeId = targetsRes.rows[0].id;
 
-    // 2. Cập nhật trạng thái
-    await client.query(`UPDATE user_finances SET status = $1 WHERE id = ANY($2::int[])`, [status, targetIds]);
+    // 2. Cập nhật trạng thái đồng loạt
+    await client.query(
+      `UPDATE user_finances SET status = $1 WHERE id = ANY($2::int[])`,
+      [status, idsToUpdate]
+    );
 
-    // 3. Xử lý Invoice
+    // 3. Quản lý Invoice (Hóa đơn)
+    // Xóa tất cả invoice liên quan đến nhóm ID này trước để tránh trùng lặp
+    await client.query(`DELETE FROM invoice WHERE finance_id = ANY($1::int[])`, [idsToUpdate]);
+
     if (status === 'da_thanh_toan') {
-      const ordercode = `ADMIN-${Date.now()}-${representative.user_id}`;
-      // Kiểm tra xem nhóm này đã có invoice chưa
-      const existing = await client.query("SELECT invoice_id FROM invoice WHERE finance_id = ANY($1::int[])", [targetIds]);
+      const ordercode = `ADMIN-REF-${Date.now()}-${representativeId}`;
 
-      if (existing.rows.length === 0) {
-        // Gắn invoice vào bản ghi đầu tiên (representative)
+      // Lấy thông tin số tiền thực tế (có thể là tiền điện/nước riêng của phòng đó)
+      const amountRes = await client.query(
+        `SELECT COALESCE(uf.amount, f.amount) as real_amount, f.title
+         FROM user_finances uf JOIN finances f ON uf.finance_id = f.id
+         WHERE uf.id = $1`, [representativeId]
+      );
+
+      if (amountRes.rows.length > 0) {
+        const { real_amount, title } = amountRes.rows[0];
         await client.query(`
           INSERT INTO invoice (finance_id, amount, description, ordercode, currency, paytime)
           VALUES ($1, $2, $3, $4, 'VND', NOW())
-        `, [targetIds[0], representative.real_amount, representative.title, ordercode]);
+        `, [representativeId, real_amount, title, ordercode]);
       }
-    } else {
-      // Hủy thanh toán -> Xóa invoice
-      await client.query("DELETE FROM invoice WHERE finance_id = ANY($1::int[])", [targetIds]);
     }
 
     await client.query("COMMIT");
-    res.json({ success: true, count: targetIds.length });
+    res.json({ success: true, updated_count: idsToUpdate.length });
+
   } catch (err) {
     await client.query("ROLLBACK");
-    res.status(500).json({ error: err.message });
-  } finally { client.release(); }
+    console.error("Critical Backend Error:", err);
+    res.status(500).json({ error: "Lỗi Server: " + err.message });
+  } finally {
+    client.release();
+  }
 });
 
 // ==================================================================

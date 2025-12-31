@@ -214,7 +214,7 @@ public class FinanceDetailActivity_Admin extends BaseActivity {
         if (!canEdit) return;
 
         int updatedCount = 0;
-
+        // Danh sách để theo dõi các phòng đang được xử lý, tránh gửi request thừa
         for (Map.Entry<String, CheckBox> entry : roomCheckBoxViews.entrySet()) {
             String roomName = entry.getKey();
             CheckBox cb = entry.getValue();
@@ -222,39 +222,44 @@ public class FinanceDetailActivity_Admin extends BaseActivity {
             boolean currentChecked = cb.isChecked();
             boolean initialStatus = roomStatusMap.getOrDefault(roomName, false);
 
+            // Chỉ gửi request nếu trạng thái CheckBox khác với trạng thái ban đầu từ server
             if (currentChecked != initialStatus) {
                 Integer representativeId = roomRepresentativeIdMap.get(roomName);
                 if (representativeId != null) {
-                    callApiUpdateStatus(representativeId, currentChecked);
+                    // Truyền thêm roomName vào API nếu Backend của bạn hỗ trợ query theo room
+                    callApiUpdateStatus(representativeId, roomName, currentChecked);
                     updatedCount++;
                 } else {
-                     Log.e("FinanceDetailAdmin", "Không tìm thấy ID đại diện cho phòng: " + roomName);
+                    Log.e("FinanceDetailAdmin", "Không tìm thấy ID đại diện cho phòng: " + roomName);
                 }
             }
         }
 
         if (updatedCount > 0) {
             Toast.makeText(this, "Đang cập nhật " + updatedCount + " phòng...", Toast.LENGTH_SHORT).show();
-            new android.os.Handler().postDelayed(this::loadRoomData, 1500);
+            // Tăng thời gian delay một chút để Server kịp xử lý DB trước khi load lại
+            new android.os.Handler().postDelayed(this::loadRoomData, 2000);
         } else {
             Toast.makeText(this, "Không có thay đổi nào.", Toast.LENGTH_SHORT).show();
         }
     }
 
-    private void callApiUpdateStatus(int userId, boolean isPaid) {
+    // Cập nhật lại hàm gọi API để nhận thêm tham số Room (giúp log chính xác hơn)
+    private void callApiUpdateStatus(int userId, String roomName, boolean isPaid) {
         String url = ApiConfig.BASE_URL + "/api/finance/update-status";
         JSONObject body = new JSONObject();
         try {
             body.put("user_id", userId);
+            body.put("room", roomName); // Gửi thêm room để Backend dễ xử lý đồng bộ
             body.put("finance_id", financeId);
             body.put("status", isPaid ? "da_thanh_toan" : "chua_thanh_toan");
         } catch (JSONException e) { return; }
 
         JsonObjectRequest request = new JsonObjectRequest(Request.Method.PUT, url, body,
-                response -> Log.i("FinanceDetail", "Cập nhật thành công cho user: " + userId),
+                response -> Log.i("FinanceDetail", "Cập nhật thành công phòng: " + roomName),
                 error -> {
-                    Log.e("FinanceDetail", "Lỗi cập nhật cho user: " + userId + " | Error: " + error.toString());
-                     Toast.makeText(this, "Lỗi cập nhật phòng", Toast.LENGTH_SHORT).show();
+                    Log.e("FinanceDetail", "Lỗi cập nhật phòng: " + roomName + " | Error: " + error.toString());
+                    // Không nên hiện Toast ở đây nếu update hàng loạt vì sẽ gây spam Toast
                 }
         ) {
             @Override
