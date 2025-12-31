@@ -502,23 +502,34 @@ router.put("/update-status", async (req, res) => {
     await client.query(`DELETE FROM invoice WHERE finance_id = ANY($1::int[])`, [idsToUpdate]);
 
     if (status === 'da_thanh_toan') {
-      const ordercode = `ADMIN-REF-${Date.now()}-${representativeId}`;
+          const ordercode = `ADMIN-REF-${Date.now()}-${representativeId}`;
 
-      // Lấy thông tin số tiền thực tế (có thể là tiền điện/nước riêng của phòng đó)
-      const amountRes = await client.query(
-        `SELECT COALESCE(uf.amount, f.amount) as real_amount, f.title
-         FROM user_finances uf JOIN finances f ON uf.finance_id = f.id
-         WHERE uf.id = $1`, [representativeId]
-      );
+          // Xóa invoice cũ để tránh trùng lặp
+          await client.query(`DELETE FROM invoice WHERE finance_id = ANY($1::int[])`, [idsToUpdate]);
 
-      if (amountRes.rows.length > 0) {
-        const { real_amount, title } = amountRes.rows[0];
-        await client.query(`
-          INSERT INTO invoice (finance_id, amount, description, ordercode, currency, paytime)
-          VALUES ($1, $2, $3, $4, 'VND', NOW())
-        `, [representativeId, real_amount, title, ordercode]);
-      }
-    }
+          // Lấy số tiền: Ưu tiên uf.amount (điện/nước lẻ), sau đó đến f.amount (phí chung)
+          // Nếu cả hai đều NULL, chúng ta ép về 0 để không vi phạm NOT NULL constraint
+          const amountRes = await client.query(
+            `SELECT
+                COALESCE(uf.amount, f.amount, 0) as real_amount,
+                f.title
+             FROM user_finances uf
+             JOIN finances f ON uf.finance_id = f.id
+             WHERE uf.id = $1`, [representativeId]
+          );
+
+          if (amountRes.rows.length > 0) {
+            const { real_amount, title } = amountRes.rows[0];
+
+            // CHỐT CHẶN CUỐI CÙNG: Kiểm tra nếu vì lý do gì đó real_amount vẫn là null (hiếm gặp với COALESCE)
+            const finalAmount = (real_amount === null || real_amount === undefined) ? 0 : real_amount;
+
+            await client.query(`
+              INSERT INTO invoice (finance_id, amount, description, ordercode, currency, paytime)
+              VALUES ($1, $2, $3, $4, 'VND', NOW())
+            `, [representativeId, finalAmount, title || "Hóa đơn không tiêu đề", ordercode]);
+          }
+        }
 
     await client.query("COMMIT");
     res.json({ success: true, updated_count: idsToUpdate.length });
